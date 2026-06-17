@@ -150,7 +150,6 @@ describe.skipIf(!ENABLED)("RLS: dictionary is read-only to clients", () => {
       source_lang: "JA",
       target_lang: "EN",
       is_verified: isVerified,
-      created_by: user.userId,
     });
     expect(error).not.toBeNull();
   });

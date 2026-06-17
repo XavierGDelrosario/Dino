@@ -28,11 +28,11 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_select_own_profile"
-ON users FOR SELECT USING (user_id = auth.uid());
+ON users FOR SELECT USING (user_id = (auth.uid())::text);
 CREATE POLICY "user_insert_own_profile"
-ON users FOR INSERT WITH CHECK (user_id = auth.uid());
+ON users FOR INSERT WITH CHECK (user_id = (auth.uid())::text);
 CREATE POLICY "user_update_own_profile"
-ON users FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+ON users FOR UPDATE USING (user_id = (auth.uid())::text) WITH CHECK (user_id = (auth.uid())::text);
 
 -- =========================
 -- 2. LISTS (a user's sub-lists)
@@ -46,9 +46,9 @@ CREATE TABLE IF NOT EXISTS lists (
 
 ALTER TABLE lists ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_select_own_lists"
-ON lists FOR SELECT USING (user_id = auth.uid());
+ON lists FOR SELECT USING (user_id = (auth.uid())::text);
 CREATE POLICY "user_manage_own_lists"
-ON lists FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+ON lists FOR ALL USING (user_id = (auth.uid())::text) WITH CHECK (user_id = (auth.uid())::text);
 
 -- =========================
 -- 3. WORDS (global dictionary cache — read-only to clients)
@@ -60,9 +60,10 @@ CREATE TABLE IF NOT EXISTS words (
   source_lang TEXT NOT NULL,
   target_lang TEXT NOT NULL,
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
-  created_by TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,  -- 'system' for global entries
   -- only block exact duplicates; one input may have multiple senses.
-  UNIQUE (input, translation, source_lang, target_lang, created_by, is_verified)
+  -- All rows are system-created (only the edge function writes), so the dropped
+  -- created_by adds nothing here; is_verified stays as the RLS/cache gate.
+  UNIQUE (input, translation, source_lang, target_lang, is_verified)
 );
 
 CREATE INDEX IF NOT EXISTS idx_words_cache_search ON words (input, source_lang, is_verified);
@@ -112,7 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_user_words_lookup
 
 ALTER TABLE user_words ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_manage_own_user_words"
-ON user_words FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+ON user_words FOR ALL USING (user_id = (auth.uid())::text) WITH CHECK (user_id = (auth.uid())::text);
 
 -- =========================
 -- 5. LIST_WORDS (tags user_words into sub-lists)
@@ -128,8 +129,23 @@ CREATE INDEX IF NOT EXISTS idx_list_words_lookup ON list_words (list_id, user_wo
 ALTER TABLE list_words ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_select_own_list_words"
 ON list_words FOR SELECT
-USING (list_id IN (SELECT list_id FROM lists WHERE user_id = auth.uid()));
+USING (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text));
 CREATE POLICY "user_manage_own_list_words"
 ON list_words FOR ALL
-USING (list_id IN (SELECT list_id FROM lists WHERE user_id = auth.uid()))
-WITH CHECK (list_id IN (SELECT list_id FROM lists WHERE user_id = auth.uid()));
+USING (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text))
+WITH CHECK (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text));
+
+-- =========================
+-- 6. TABLE PRIVILEGES for the API roles
+-- RLS above restricts WHICH rows a role sees/writes; these GRANTs are what allow
+-- the operation to be attempted at all. Supabase's current default does NOT
+-- auto-expose new tables to anon/authenticated, so without these every request
+-- fails with "permission denied for table ...". `words` stays server-write-only:
+-- clients get SELECT only (the service role bypasses RLS for writes).
+-- Grants here mirror each table's policies exactly.
+-- =========================
+GRANT SELECT, INSERT, UPDATE          ON users      TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE  ON lists      TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE  ON user_words TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE  ON list_words TO anon, authenticated;
+GRANT SELECT                          ON words      TO anon, authenticated;

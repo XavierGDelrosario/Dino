@@ -24,7 +24,6 @@ const row = (over: Record<string, unknown> = {}) => ({
   source_lang: "JA",
   target_lang: "EN",
   is_verified: true,
-  created_by: "system",
   ...over,
 });
 
@@ -39,7 +38,6 @@ describe("findCachedWord", () => {
       sourceLang: "JA",
       targetLang: "EN",
       isVerified: true,
-      createdBy: "system",
     });
   });
 

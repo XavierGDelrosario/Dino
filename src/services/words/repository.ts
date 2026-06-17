@@ -20,7 +20,6 @@ export interface Word {
   sourceLang: LangCode;
   targetLang: LangCode;
   isVerified: boolean;
-  createdBy: string | null;
 }
 
 interface WordRow {
@@ -30,7 +29,6 @@ interface WordRow {
   source_lang: string;
   target_lang: string;
   is_verified: boolean;
-  created_by: string | null;
 }
 
 function toWord(row: WordRow): Word {
@@ -41,7 +39,6 @@ function toWord(row: WordRow): Word {
     sourceLang: row.source_lang,
     targetLang: row.target_lang,
     isVerified: row.is_verified,
-    createdBy: row.created_by,
   };
 }
 

@@ -15,9 +15,10 @@
 // stub that throws until a real provider (DeepL/Google/other) is wired in. It
 // is the only place a provider is called; nothing else changes when one is added.
 //
-// Required env: SYSTEM_USER_ID (a users row that owns global entries), plus
-// auto-provided SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. A provider adds its
-// own env (e.g. an API key/URL) when implemented.
+// Required env: the auto-provided SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.
+// A provider adds its own env (e.g. an API key/URL) when implemented. Global
+// `words` rows are system-owned by construction (only this function writes), so
+// they carry no per-creator column.
 // =========================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -43,7 +44,6 @@ interface WordRow {
   source_lang: string;
   target_lang: string;
   is_verified: boolean;
-  created_by: string | null;
 }
 
 // snake_case DB row -> camelCase Word (matches src/services/words/repository.ts)
@@ -55,7 +55,6 @@ function toWord(r: WordRow) {
     sourceLang: r.source_lang,
     targetLang: r.target_lang,
     isVerified: r.is_verified,
-    createdBy: r.created_by,
   };
 }
 
@@ -96,7 +95,7 @@ async function callTranslationProvider(
 // OUTPUT (JSON): { translated, translation, word } on success; { error } + 4xx/5xx otherwise.
 // CONSTRAINTS: POST only (+ OPTIONS/CORS); requires input/sourceLang/targetLang;
 // rejects source == target; NFC-normalizes input; persist=false skips the cache;
-// verified writes use created_by = SYSTEM_USER_ID (that users row must exist).
+// verified writes are system-owned (service role bypasses RLS).
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -176,11 +175,10 @@ Deno.serve(async (req) => {
         source_lang: sourceLang,
         target_lang: targetLang,
         is_verified: true,
-        created_by: Deno.env.get("SYSTEM_USER_ID") ?? "system",
       },
       {
         onConflict:
-          "input,translation,source_lang,target_lang,created_by,is_verified",
+          "input,translation,source_lang,target_lang,is_verified",
       },
     )
     .select("*")

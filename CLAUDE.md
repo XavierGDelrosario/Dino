@@ -27,7 +27,7 @@ cp .env.example .env   # then set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 # Edge function (Deno; the only place translation happens):
 supabase functions serve translate     # local
 supabase functions deploy translate     # deploy
-# Edge secrets (server-side, NOT in .env): TRANSLATION_API_KEY, SYSTEM_USER_ID
+# Edge secrets (server-side, NOT in .env): TRANSLATION_API_KEY
 #   (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically)
 ```
 
@@ -52,7 +52,7 @@ supabase functions deploy translate     # deploy
 Tables in `supabase/migrations/20260613_init.sql` (one consolidated migration). The model **separates the global dictionary from each user's personal vocabulary**:
 - `users` — `user_id` = Supabase Auth UID (TEXT). RLS: own row only.
 - `lists` — a user's **sub-lists** (folders). `UNIQUE (user_id, list_name)`. "ALL" is **not** a stored list (see Invariants).
-- `words` — **global dictionary cache**, verified + system-owned, **read-only to clients** (only the edge function writes). `UNIQUE (input, translation, source_lang, target_lang, created_by, is_verified)`; one input may have several sense rows.
+- `words` — **global dictionary cache**, verified + system-owned, **read-only to clients** (only the edge function writes). `UNIQUE (input, translation, source_lang, target_lang, is_verified)`; one input may have several sense rows. (No `created_by`: every row is system-created by construction, so it carried no information.)
 - `user_words` — **a user's personal vocabulary**: one row per word they have. It references a dictionary sense (`dictionary_word_id`), **overrides** it (`custom_translation`), or **stands alone** (a created word: `custom_translation` set, no `dictionary_word_id`). Resolved meaning = `custom_translation ?? words.translation`. Mastery/review state (`confidence_rating 0–5`, `last_reviewed_date`, `originally_translated_date`) lives here.
 - `list_words` — junction tagging `user_words` into sub-lists (`list_id ↔ user_word_id`).
 
@@ -88,6 +88,5 @@ Cascade: deleting a `user_words` row removes the word from **every sub-list** (`
 
 - **Generated DB types** — no `Database` type yet; services use `.select<string, RowType>()` casts. Generate `src/types/database.types.ts` and use `createClient<Database>` so schema drift becomes a compile error. TODO in that file.
 - **Transactional save** — `saveDictionaryWord` / `createCustomWord` (+ optional sub-list tag) do non-atomic writes; if useful, move the entry-create-plus-tag into a Postgres RPC. (The ALL invariant is now structural, so it no longer needs app enforcement.)
-- **Edge function prerequisite** — its verified-word writes use `created_by = SYSTEM_USER_ID`, which the `words` FK requires to exist; seed a `system` user row.
 - **RLS / DB-constraint tests** — the default Vitest suite mocks the Supabase client, so it verifies app-side logic only, NOT database enforcement. The RLS spec is written in `tests/integration/rls.integration.test.ts` (two real users: cross-user `user_words`/`lists` isolation + that `words` is read-only to clients / no `is_verified = true` writes). It is **gated behind `RUN_INTEGRATION` and currently FAILS** until run against a live migrated instance — by design, so it stays out of the green unit gate. Run with `supabase start` + env, then `npm run test:integration` (instructions in the file's header). Still TODO there: `UNIQUE`/FK/cascade-constraint coverage. Note the default unit tests only assert *intent* (e.g. the client *sends* `is_verified: false`), not that the DB rejects violations.
 - Before production: domain error types (services throw raw `PostgrestError`), tighten `CORS: *`, reconsider `supabaseClient` throwing at import (un-importable for tests).

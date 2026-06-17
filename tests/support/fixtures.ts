@@ -19,7 +19,6 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     sourceLang: "JA",
     targetLang: "EN",
     isVerified: true,
-    createdBy: "system",
     ...overrides,
   };
 }
