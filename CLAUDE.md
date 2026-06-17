@@ -31,7 +31,7 @@ supabase functions deploy translate     # deploy
 #   (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically)
 ```
 
-**Tests:** Vitest. Specs live under `tests/` mirroring `src/` (e.g. `tests/services/words/repository.test.ts`); shared helpers in `tests/support/` (a chainable Supabase-client stub, seed `Word` fixtures, and mock sense/translate providers). Imports use path aliases `@/*` → `src/*` and `@test/*` → `tests/support/*` (defined in both `vitest.config.ts` and `tsconfig.json`). Pure modules (`language/`, `concurrency`) are tested directly; orchestration services (`dictionary`, `lookup`, `customWords`) mock their dependency modules; leaf data modules (`lists`, `userLibrary`, `repository`, `queries`, `session`) mock the Supabase client. The Deno `translate` edge function is **not** covered by this Node/Vitest suite (separate runtime, unimplemented provider) — its `toWord` / conflict-tuple logic mirrors the tested `repository.ts`. Node must be on PATH (installed at `/usr/local/bin/node`).
+**Tests:** Vitest. Specs live under `tests/` mirroring `src/` (e.g. `tests/services/words/repository.test.ts`); shared helpers in `tests/support/` (a chainable Supabase-client stub, seed `Word` fixtures, and mock sense/translate providers). Imports use path aliases `@/*` → `src/*` and `@test/*` → `tests/support/*` (defined in both `vitest.config.ts` and `tsconfig.json`). Pure modules (`language/`, `concurrency`) are tested directly; orchestration services (`dictionary`, `lookup`, `customWords`) mock their dependency modules; leaf data modules (`lists`, `userWords`, `repository`, `session`) mock the Supabase client. The Deno `translate` edge function is **not** covered by this Node/Vitest suite (separate runtime, unimplemented provider) — its `toWord` / conflict-tuple logic mirrors the tested `repository.ts`. Node must be on PATH (installed at `/usr/local/bin/node`).
 
 ## Architecture — the big picture
 
@@ -42,36 +42,34 @@ supabase functions deploy translate     # deploy
 **Translate ≠ save — two distinct flows:**
 - `services/lookup.ts` (**READ**): `lookupWord` (returns *all* meanings of a word — the first may be wrong, user picks) and `translateParagraph` (whole-paragraph display translation + a `word → meanings` Map). Saves nothing to the user's lists.
 - `services/dictionary.ts` (**WRITE / "quick add"**): `addWordToList` / `addWordsToList` translate and immediately save, accepting the preferred meaning.
-- Saving a chosen word is **explicit**: `saveWordToUserLibrary` (`services/words/userLibrary.ts`).
-- Rule of thumb: a function in `lookup.ts` never writes to a user's lists; a verb-of-intent name (`lookup`/`translate`) whose body persists is a smell — split it.
+- Saving a chosen word is **explicit**: `saveDictionaryWord` (`services/words/userWords.ts`) — it creates the user's `user_words` entry. Creating/editing a user's own word and deleting a word also live there.
+- Rule of thumb: a function in `lookup.ts` never writes to a user's vocabulary; a verb-of-intent name (`lookup`/`translate`) whose body persists is a smell — split it.
 
 **Auth = Supabase anonymous guest.** `session.ts ensureSession()` signs in anonymously (real `auth.uid()`, no login screen — the POC "guest profile") and ensures a `public.users` row. Every service is keyed on `userId`; RLS is keyed on `auth.uid()`.
 
 ## Data model
 
-Tables in `supabase/migrations/` (`20260613_init.sql` + `20260616_users_rls.sql`):
+Tables in `supabase/migrations/20260613_init.sql` (one consolidated migration). The model **separates the global dictionary from each user's personal vocabulary**:
 - `users` — `user_id` = Supabase Auth UID (TEXT). RLS: own row only.
-- `lists` — vocab folders. `UNIQUE (user_id, list_name)`.
-- `words` — **global translation cache** shared across users. `UNIQUE (input, translation, source_lang, target_lang, created_by, is_verified)`; same input may have multiple meaning rows.
-- `list_words` — dumb junction (lists ↔ words), no stats.
-- `user_word_mastery` — per-user `(confidence_rating 1–5, last/next_review_date)`, one row per `(user_id, word_id)`.
+- `lists` — a user's **sub-lists** (folders). `UNIQUE (user_id, list_name)`. "ALL" is **not** a stored list (see Invariants).
+- `words` — **global dictionary cache**, verified + system-owned, **read-only to clients** (only the edge function writes). `UNIQUE (input, translation, source_lang, target_lang, created_by, is_verified)`; one input may have several sense rows.
+- `user_words` — **a user's personal vocabulary**: one row per word they have. It references a dictionary sense (`dictionary_word_id`), **overrides** it (`custom_translation`), or **stands alone** (a created word: `custom_translation` set, no `dictionary_word_id`). Resolved meaning = `custom_translation ?? words.translation`. Mastery/review state (`confidence_rating 0–5`, `last_reviewed_date`, `originally_translated_date`) lives here.
+- `list_words` — junction tagging `user_words` into sub-lists (`list_id ↔ user_word_id`).
 
-Cascade: deleting a list drops its `list_words` only — `words` and `user_word_mastery` survive (the user's "universal brain").
+Cascade: deleting a `user_words` row removes the word from **every sub-list** (`list_words` cascades) — it leaves the user's whole vocabulary, and re-adding later starts fresh at `confidence_rating = 0`. Deleting a sub-`list` drops only its `list_words` tags; the `user_words` rows survive. The global `words` row is never touched by client deletes.
 
 ## Invariants (preserve when extending `services/`)
 
-1. **The "ALL" list.** Every saved word lands in the user's auto-created `"ALL"` list (`getOrCreateAllListId`, `lists.ts`). `saveWordToUserLibrary` enforces this. `ALL` cannot be renamed/deleted/created-by-name.
-2. **`is_verified` never leaks.** RLS lets clients write only their own `is_verified = FALSE` rows and `SELECT` verified + own-unverified. Clients can **never** set `is_verified = TRUE` — only the edge function (service role) promotes to the global dictionary. Global look-ups filter `is_verified = true`.
+1. **"ALL" is virtual.** A user's vocabulary *is* their `user_words` rows — there is no stored ALL list. "Every word is in ALL" is therefore **structural, not enforced in app code**. Sub-lists are optional tags; because `list_words` references a `user_words` row, a word can never be in a sub-list without being in the vocabulary. Deleting a word = deleting its `user_words` row (tags cascade). The name "ALL" stays reserved (a sub-list can't be created/renamed to it).
+2. **The dictionary is server-write-only.** `words` holds only verified, system-owned senses. RLS lets clients **SELECT verified rows only** — clients cannot insert/update/delete `words` at all. Only the edge function (service role) writes verified entries. All user-authored content (created words, edits/overrides) lives in `user_words`, never in `words`.
 
 ## Module map (by responsibility)
 
 - `config/supabaseClient.ts` — anon client singleton (throws if `VITE_SUPABASE_*` missing).
 - `services/session.ts` — anonymous auth + `users` row + `getUserProfile`.
-- `services/lists.ts` — list CRUD + `getOrCreateAllListId` (ALL reserved).
-- `services/words/repository.ts` — **only** file that touches the `words` table; owns DB-row ↔ domain `Word` (camelCase) mapping.
-- `services/words/userLibrary.ts` — `list_words` + `user_word_mastery` writes (`saveWordToUserLibrary`, `removeWordFromList`).
-- `services/words/customWords.ts` — manual add/edit of a user's own word.
-- `services/words/queries.ts` — `getListWords` (words + mastery for display).
+- `services/lists.ts` — sub-list CRUD (create/rename/delete/list). No ALL list; "ALL" stays a reserved name.
+- `services/words/repository.ts` — **dictionary reads only**: the `words` (global cache) read API + DB-row ↔ domain `Word` (camelCase) mapping. Clients never write `words`.
+- `services/words/userWords.ts` — **owns `user_words` + `list_words`**: the `UserWord` type/mapping and every personal-vocabulary operation — `saveDictionaryWord`, `createCustomWord`, `editUserWord` (override), `deleteUserWord`, `addUserWordToList`/`removeUserWordFromList` — plus the display reads (`getAllUserWords`, `getUserWordsInList`, `getUserWordStates`).
 - `services/dictionary.ts` / `services/lookup.ts` — write / read translate flows (above).
 - `services/language/` — registry (add a language = one entry in `registry.ts`), `detect.ts` (auto-detect + source resolution), `options.ts` (dropdown view-models), `tokenize.ts` (`Intl.Segmenter` word segmentation). Import via the barrel `./language`.
 - `services/translation/` — the `invoke` wrapper + types (barrel `./translation`).
@@ -89,7 +87,7 @@ Cascade: deleting a list drops its `list_words` only — `words` and `user_word_
 ## Known deferred items (POC-acceptable; TODOs in code)
 
 - **Generated DB types** — no `Database` type yet; services use `.select<string, RowType>()` casts. Generate `src/types/database.types.ts` and use `createClient<Database>` so schema drift becomes a compile error. TODO in that file.
-- **Transactional save** — `saveWordToUserLibrary` does 3 non-atomic writes and enforces the ALL invariant in app code; move to a Postgres RPC. TODO in `userLibrary.ts`.
+- **Transactional save** — `saveDictionaryWord` / `createCustomWord` (+ optional sub-list tag) do non-atomic writes; if useful, move the entry-create-plus-tag into a Postgres RPC. (The ALL invariant is now structural, so it no longer needs app enforcement.)
 - **Edge function prerequisite** — its verified-word writes use `created_by = SYSTEM_USER_ID`, which the `words` FK requires to exist; seed a `system` user row.
-- **RLS / DB-constraint tests** — the default Vitest suite mocks the Supabase client, so it verifies app-side logic only, NOT database enforcement. The RLS spec is written in `tests/integration/rls.integration.test.ts` (two real users: cross-user read/write isolation + the client-side block on writing `is_verified = true`). It is **gated behind `RUN_INTEGRATION` and currently FAILS** until run against a live migrated instance — by design, so it stays out of the green unit gate. Run with `supabase start` + env, then `npm run test:integration` (instructions in the file's header). Still TODO there: `UNIQUE`/FK/cascade-constraint coverage. Note the default unit tests only assert *intent* (e.g. the client *sends* `is_verified: false`), not that the DB rejects violations.
+- **RLS / DB-constraint tests** — the default Vitest suite mocks the Supabase client, so it verifies app-side logic only, NOT database enforcement. The RLS spec is written in `tests/integration/rls.integration.test.ts` (two real users: cross-user `user_words`/`lists` isolation + that `words` is read-only to clients / no `is_verified = true` writes). It is **gated behind `RUN_INTEGRATION` and currently FAILS** until run against a live migrated instance — by design, so it stays out of the green unit gate. Run with `supabase start` + env, then `npm run test:integration` (instructions in the file's header). Still TODO there: `UNIQUE`/FK/cascade-constraint coverage. Note the default unit tests only assert *intent* (e.g. the client *sends* `is_verified: false`), not that the DB rejects violations.
 - Before production: domain error types (services throw raw `PostgrestError`), tighten `CORS: *`, reconsider `supabaseClient` throwing at import (un-importable for tests).

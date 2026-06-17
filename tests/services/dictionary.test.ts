@@ -1,28 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { makeWord } from "@test/fixtures";
+import { makeWord, makeUserWord } from "@test/fixtures";
 import { createMockTranslate } from "@test/mockProviders";
 
-// dictionary.ts orchestrates repository + userLibrary + translation. Mock those
-// boundaries so the test exercises the real Find-or-Create decision logic.
+// dictionary.ts orchestrates repository (dictionary reads) + userWords (save) +
+// translation. Mock those boundaries so the test exercises the real
+// Find-or-Create decision logic.
 vi.mock("@/services/words/repository", () => ({ findCachedWord: vi.fn() }));
-vi.mock("@/services/words/userLibrary", () => ({ saveWordToUserLibrary: vi.fn() }));
+vi.mock("@/services/words/userWords", () => ({ saveDictionaryWord: vi.fn() }));
 vi.mock("@/services/translation", () => ({
   translate: vi.fn(),
   MAX_TRANSLATION_CONCURRENCY: 6,
 }));
 
 import { findCachedWord } from "@/services/words/repository";
-import { saveWordToUserLibrary } from "@/services/words/userLibrary";
+import { saveDictionaryWord } from "@/services/words/userWords";
 import { translate } from "@/services/translation";
 import { addWordToList, addWordsToList } from "@/services/dictionary";
 
 const mockFindCached = vi.mocked(findCachedWord);
-const mockSave = vi.mocked(saveWordToUserLibrary);
+const mockSave = vi.mocked(saveDictionaryWord);
 const mockTranslate = vi.mocked(translate);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockSave.mockResolvedValue({ isNewForUser: true });
+  mockSave.mockResolvedValue(makeUserWord());
 });
 
 describe("addWordToList — guards", () => {
@@ -41,15 +42,14 @@ describe("addWordToList — guards", () => {
 });
 
 describe("addWordToList — cache hit", () => {
-  it("saves the cached word without calling translate", async () => {
+  it("saves the cached dictionary word without calling translate", async () => {
     const cached = makeWord({ wordId: "ja-neko", input: "猫", translation: "cat" });
     mockFindCached.mockResolvedValue(cached);
-    mockSave.mockResolvedValue({ isNewForUser: true });
 
     const res = await addWordToList({ userId: "u", input: "猫", targetLang: "EN" });
 
     expect(mockTranslate).not.toHaveBeenCalled();
-    expect(mockSave).toHaveBeenCalledWith({ userId: "u", wordId: "ja-neko", listId: undefined });
+    expect(mockSave).toHaveBeenCalledWith({ userId: "u", word: cached, listId: undefined });
     expect(res).toMatchObject({
       input: "猫",
       translation: "cat",
@@ -58,27 +58,27 @@ describe("addWordToList — cache hit", () => {
       translated: true,
       saved: true,
       fromCache: true,
-      isNewForUser: true,
       word: cached,
     });
   });
 });
 
 describe("addWordToList — cache miss", () => {
-  it("translates, persists, and links the new word", async () => {
+  it("translates, then saves the backend-created dictionary word", async () => {
     mockFindCached.mockResolvedValue(null);
     mockTranslate.mockImplementation(createMockTranslate());
-    mockSave.mockResolvedValue({ isNewForUser: false });
 
     const res = await addWordToList({ userId: "u", input: "犬", targetLang: "EN" });
 
     expect(mockTranslate).toHaveBeenCalledOnce();
+    expect(mockSave).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "u", word: expect.objectContaining({ wordId: "ja-inu" }) })
+    );
     expect(res).toMatchObject({
       translation: "dog",
       translated: true,
       saved: true,
       fromCache: false,
-      isNewForUser: false,
     });
     expect(res.word?.wordId).toBe("ja-inu");
   });
@@ -95,7 +95,6 @@ describe("addWordToList — cache miss", () => {
       translated: false,
       saved: false,
       fromCache: false,
-      isNewForUser: false,
     });
     expect(res.word).toBeUndefined();
     expect(mockSave).not.toHaveBeenCalled(); // no cache poisoning

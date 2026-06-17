@@ -8,8 +8,9 @@
 // mockProviders.ts serve translations from this set.
 // =========================================================
 import type { Word } from "@/services/words/repository";
+import type { UserWord } from "@/services/words/userWords";
 
-/** Builds a Word with sensible defaults; override any field per test. */
+/** Builds a Word (dictionary sense) with sensible defaults; override per test. */
 export function makeWord(overrides: Partial<Word> = {}): Word {
   return {
     wordId: "w-test",
@@ -19,6 +20,24 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     targetLang: "EN",
     isVerified: true,
     createdBy: "system",
+    ...overrides,
+  };
+}
+
+/** Builds a UserWord (personal vocabulary entry); override per test. */
+export function makeUserWord(overrides: Partial<UserWord> = {}): UserWord {
+  return {
+    userWordId: "uw-test",
+    userId: "u",
+    input: "猫",
+    sourceLang: "JA",
+    targetLang: "EN",
+    dictionaryWordId: "w-test",
+    customTranslation: null,
+    translation: "cat",
+    confidenceRating: 0,
+    lastReviewedDate: null,
+    originallyTranslatedDate: "2026-06-17T00:00:00Z",
     ...overrides,
   };
 }

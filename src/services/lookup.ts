@@ -5,7 +5,7 @@
 // lists. `lookupWord` returns every meaning of a word; `translateParagraph`
 // returns a whole-paragraph contextual translation (NOT persisted) plus a
 // word -> meanings lookup. Saving a chosen word is a separate, explicit step
-// (saveWordToUserLibrary). Translation is delegated to the backend.
+// (userWords.saveDictionaryWord). Translation is delegated to the backend.
 // =========================================================
 
 import {
@@ -30,9 +30,9 @@ import { mapLimit } from "../lib/concurrency";
  * first/preferred entry may be wrong, so the user picks. If the word isn't
  * cached yet it is translated once to seed a meaning.
  *
- * Read-only with respect to the user's lists: this never adds anything to a
- * list. Saving a chosen meaning is a separate, explicit step
- * (saveWordToUserLibrary). It may populate the global word cache.
+ * Read-only with respect to the user's vocabulary: this never adds anything.
+ * Saving a chosen meaning is a separate, explicit step
+ * (userWords.saveDictionaryWord). It may populate the global dictionary cache.
  *
  * OUTPUT: { input, sourceLang, targetLang, meanings: Word[] }.
  * CONSTRAINTS: NFC-normalizes; saves nothing to user lists; may cache globally.
@@ -93,7 +93,7 @@ export interface ParagraphTranslation {
  *
  * Returns the word tokens (with positions) and a word -> meanings lookup; how
  * to render that (inline, dropdown, ...) is the frontend's call. Adds nothing
- * to the user's lists; the user explicitly saves words via saveWordToUserLibrary.
+ * to the user's vocabulary; the user explicitly saves via userWords.saveDictionaryWord.
  *
  * OUTPUT: ParagraphTranslation { translation, translated, sourceLang,
  * targetLang, tokens, meanings: Map<token.text, Word[]> }.

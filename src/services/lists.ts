@@ -1,9 +1,10 @@
 // =========================================================
-// Lists service — a user's vocab folders (the `lists` table).
+// Lists service — a user's vocab SUB-lists (the `lists` table).
 //
-// Every user has a reserved "ALL" list that holds every word they've saved;
-// it is created on demand and cannot be renamed or deleted (it backs the
-// "every saved word is in ALL" invariant). All other lists are user-managed.
+// Sub-lists are optional folders/tags over a user's vocabulary. "ALL" is NOT a
+// stored list — a user's whole vocabulary is their `user_words` rows (see
+// userWords.ts), so there is no ALL row to create, protect, or delete here. The
+// name "ALL" stays reserved so a sub-list can't shadow the virtual one.
 // =========================================================
 
 import { supabase } from "../config/supabaseClient";
@@ -25,60 +26,16 @@ const toList = (r: ListRow): List => ({
   listName: r.list_name,
 });
 
+/** Rejects the reserved virtual-list name "ALL" (case-insensitive). */
 function assertNotReservedName(name: string): void {
   if (name.toUpperCase() === ALL_LIST_NAME) {
     throw new Error(`"${ALL_LIST_NAME}" is a reserved list name`);
   }
 }
 
-/** Throws if `listId` is the user's reserved ALL list (not user-editable). */
-async function assertEditable(listId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from("lists")
-    .select("list_name")
-    .eq("list_id", listId)
-    .single();
-  if (error) throw error;
-  if (data?.list_name === ALL_LIST_NAME) {
-    throw new Error("The ALL list cannot be renamed or deleted");
-  }
-}
-
 /**
- * Returns the user's ALL list id, creating it if it doesn't exist yet.
- * OUTPUT: the ALL list id (string).
- * CONSTRAINTS: idempotent via UNIQUE(user_id, list_name); ALL is reserved.
- */
-export async function getOrCreateAllListId(userId: string): Promise<string> {
-  const { data: existing, error } = await supabase
-    .from("lists")
-    .select("list_id")
-    .eq("user_id", userId)
-    .eq("list_name", ALL_LIST_NAME)
-    .maybeSingle();
-  if (error) throw error;
-  if (existing?.list_id) return existing.list_id;
-
-  // Idempotent thanks to UNIQUE (user_id, list_name).
-  const { data: inserted, error: insertError } = await supabase
-    .from("lists")
-    .upsert(
-      { user_id: userId, list_name: ALL_LIST_NAME },
-      { onConflict: "user_id,list_name" }
-    )
-    .select("list_id")
-    .single();
-  if (insertError || !inserted) {
-    throw insertError ?? new Error("Failed to create ALL list");
-  }
-  return inserted.list_id;
-}
-
-/**
- * All of a user's lists, ready for a dropdown: ALL first (sensible default),
- * then the rest alphabetically. Each item is { listId, listName }.
- *
- * OUTPUT: List[] — ALL first, then alphabetical.
+ * A user's sub-lists, alphabetically.
+ * OUTPUT: List[] (may be empty).
  * CONSTRAINTS: RLS-scoped to the user's own lists.
  */
 export async function listUserLists(userId: string): Promise<List[]> {
@@ -88,16 +45,11 @@ export async function listUserLists(userId: string): Promise<List[]> {
     .eq("user_id", userId)
     .order("list_name");
   if (error) throw error;
-
-  const lists = (data ?? []).map(toList);
-  lists.sort((a, b) =>
-    a.listName === ALL_LIST_NAME ? -1 : b.listName === ALL_LIST_NAME ? 1 : 0
-  );
-  return lists;
+  return (data ?? []).map(toList);
 }
 
 /**
- * Creates a new (non-reserved) list for the user.
+ * Creates a new sub-list for the user.
  * OUTPUT: the new List.
  * CONSTRAINTS: name required (trimmed); rejects the reserved name "ALL".
  */
@@ -120,9 +72,9 @@ export async function createList(params: {
 }
 
 /**
- * Renames a list.
+ * Renames a sub-list.
  * OUTPUT: void.
- * CONSTRAINTS: rejects renaming to "ALL" and refuses the ALL list itself.
+ * CONSTRAINTS: name required; rejects renaming to the reserved name "ALL".
  */
 export async function renameList(params: {
   listId: string;
@@ -132,7 +84,6 @@ export async function renameList(params: {
   const name = params.listName.trim();
   if (!name) throw new Error("List name is required");
   assertNotReservedName(name);
-  await assertEditable(listId);
 
   const { error } = await supabase
     .from("lists")
@@ -142,15 +93,13 @@ export async function renameList(params: {
 }
 
 /**
- * Deletes a list. Refuses the ALL list. list_words rows cascade away (schema);
- * the words themselves and the user's mastery survive (their "universal brain").
+ * Deletes a sub-list. Its `list_words` tags cascade away (schema); the user's
+ * `user_words` and their mastery survive — the words stay in the vocabulary.
  *
  * OUTPUT: void.
- * CONSTRAINTS: refuses ALL; list_words cascade; words + mastery survive.
+ * CONSTRAINTS: RLS-scoped to own lists; only the tags are removed.
  */
 export async function deleteList(listId: string): Promise<void> {
-  await assertEditable(listId);
-
   const { error } = await supabase.from("lists").delete().eq("list_id", listId);
   if (error) throw error;
 }

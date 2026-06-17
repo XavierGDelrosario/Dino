@@ -8,7 +8,6 @@ vi.mock("@/config/supabaseClient", () => ({
 
 import {
   findCachedWord,
-  insertUnverifiedWord,
   findWordTranslationsBatch,
 } from "@/services/words/repository";
 
@@ -54,22 +53,6 @@ describe("findCachedWord", () => {
     await expect(
       findCachedWord({ input: "猫", sourceLang: "JA", targetLang: "EN" })
     ).rejects.toThrow("db down");
-  });
-});
-
-describe("insertUnverifiedWord", () => {
-  it("always writes is_verified=false and returns the mapped Word", async () => {
-    stub.queueFrom("words", { data: row({ is_verified: false, created_by: "u" }), error: null });
-    const word = await insertUnverifiedWord({
-      input: "猫",
-      translation: "cat",
-      sourceLang: "JA",
-      targetLang: "EN",
-      createdBy: "u",
-    });
-    expect(word.isVerified).toBe(false);
-    const upsert = stub.callsFor("words", "upsert")[0];
-    expect(upsert?.args[0]).toMatchObject({ is_verified: false, created_by: "u" });
   });
 });
 

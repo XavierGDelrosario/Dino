@@ -1,24 +1,20 @@
 // =========================================================
-// DINO add-to-list flow (translate + save) — "quick add".
+// DINO add-to-vocabulary flow (translate + save) — "quick add".
 //
-// Translates a word (or many) and immediately saves it to the user's list,
-// accepting the PREFERRED cached meaning. This is the deliberate "just add it"
-// path. For a review-first flow that surfaces ALL meanings before saving, see
-// lookup.ts (read-only) plus an explicit saveWordToUserLibrary.
+// Translates a word (or many) and immediately saves it to the user's
+// vocabulary, accepting the PREFERRED dictionary sense. This is the deliberate
+// "just add it" path. For a review-first flow that surfaces ALL meanings before
+// saving, see lookup.ts (read-only) plus an explicit save in userWords.ts.
 //
-// Implements the POC "Find or Create" look-up rule (see DinoPOC.md). The
-// translation API call itself is SERVER-ONLY: this runs in the browser and
-// can only ask the `translate` Edge Function to translate + cache a verified
-// word. The browser never holds the provider's API key and cannot translate
-// on its own. (Provider — DeepL/Google/other — is not yet decided for the POC.)
+// Translation is SERVER-ONLY: this runs in the browser and can only ask the
+// `translate` Edge Function to translate + cache a verified dictionary word.
+// The browser never holds the provider's API key and cannot translate on its
+// own. Saving links a `user_words` entry to that dictionary sense.
 //
-// Client-side here (safe under RLS): resolving the source language, reading the
-// cache, and linking words into the user's own lists/mastery.
-//
-// Flow: resolve source -> check cache -> ask backend to translate on miss. If
-// the backend returns no result we just show the input (like Google Translate)
-// and persist nothing. Users save their own meaning via the custom-word path
-// (words/customWords.ts), not here.
+// Flow: resolve source -> check dictionary cache -> ask backend to translate on
+// miss. If the backend returns no result we just show the input (like Google
+// Translate) and persist nothing. Users save their own meaning via the
+// custom-word path (userWords.createCustomWord), not here.
 // =========================================================
 
 import {
@@ -28,7 +24,7 @@ import {
   type SourceSelection,
 } from "./language";
 import { findCachedWord, type Word } from "./words/repository";
-import { saveWordToUserLibrary } from "./words/userLibrary";
+import { saveDictionaryWord } from "./words/userWords";
 import { translate, MAX_TRANSLATION_CONCURRENCY } from "./translation";
 import { mapLimit } from "../lib/concurrency";
 
@@ -42,22 +38,17 @@ export interface AddWordResult {
   translated: boolean;
   /** false when nothing was persisted (failed translations are not cached). */
   saved: boolean;
-  /** true if served from the cache (no API call). Only meaningful when saved. */
+  /** true if served from the dictionary cache (no API call). Only meaningful when saved. */
   fromCache: boolean;
-  /** true if this is the first time the word entered the user's ALL list. */
-  isNewForUser: boolean;
-  /** The persisted word; present only when `saved` is true. */
+  /** The dictionary sense that was saved; present only when `saved` is true. */
   word?: Word;
 }
 
 /**
  * Runs the Find-or-Create translate-and-save flow for a single word, accepting
- * the preferred cached meaning. (Use lookup.ts to review all meanings first.)
+ * the preferred dictionary sense. (Use lookup.ts to review all senses first.)
  *
- * @param targetLang UI-selected target language (always explicit)
- * @param sourceLang UI source selection; defaults to "Detect language"
- *
- * OUTPUT: AddWordResult (translated, saved, fromCache, isNewForUser, word?).
+ * OUTPUT: AddWordResult (translated, saved, fromCache, word?).
  * CONSTRAINTS: NFC-normalizes input; throws on empty input or source == target;
  * failed translations are NOT saved (shows the input instead).
  */
@@ -84,18 +75,14 @@ export async function addWordToList(params: {
     );
   }
 
-  // --- Steps 1-2: cache check (client read, allowed by RLS) --------------
+  // --- Dictionary cache check (client read, verified rows only) ----------
   const cached = await findCachedWord({
     input,
     sourceLang: resolvedSource,
     targetLang,
   });
   if (cached) {
-    const { isNewForUser } = await saveWordToUserLibrary({
-      userId,
-      wordId: cached.wordId,
-      listId,
-    });
+    await saveDictionaryWord({ userId, word: cached, listId });
     return {
       input,
       translation: cached.translation,
@@ -104,12 +91,11 @@ export async function addWordToList(params: {
       translated: true,
       saved: true,
       fromCache: true,
-      isNewForUser,
       word: cached,
     };
   }
 
-  // --- Step 3: ask the server to translate (+ cache as a verified word) --
+  // --- Miss: ask the server to translate (+ cache as a verified word) ----
   const { translated, word } = await translate({
     input,
     sourceLang: resolvedSource,
@@ -126,16 +112,11 @@ export async function addWordToList(params: {
       translated: false,
       saved: false,
       fromCache: false,
-      isNewForUser: false,
     };
   }
 
-  // --- Step 5: link the backend-created word into the user's library -----
-  const { isNewForUser } = await saveWordToUserLibrary({
-    userId,
-    wordId: word.wordId,
-    listId,
-  });
+  // --- Link the backend-created dictionary word into the user's vocabulary --
+  await saveDictionaryWord({ userId, word, listId });
 
   return {
     input,
@@ -145,7 +126,6 @@ export async function addWordToList(params: {
     translated: true,
     saved: true,
     fromCache: false,
-    isNewForUser,
     word,
   };
 }
@@ -154,10 +134,8 @@ export async function addWordToList(params: {
  * Translates many words with bounded concurrency and returns one result per
  * DISTINCT word, in first-occurrence order.
  *
- * Inputs are trimmed and de-duplicated so each distinct word is translated
- * once (no duplicate API bills) and its `isNewForUser` stays correct — running
- * the same word twice in parallel would otherwise both snapshot "not saved yet"
- * and both report new. Partition the result by `isNewForUser` for new-vs-seen.
+ * Inputs are trimmed and de-duplicated so each distinct word is translated once
+ * (no duplicate API bills).
  *
  * OUTPUT: AddWordResult[] — one per DISTINCT word, first-occurrence order.
  * CONSTRAINTS: de-dupes (NFC-normalized); capped at MAX_TRANSLATION_CONCURRENCY.

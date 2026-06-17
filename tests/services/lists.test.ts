@@ -6,13 +6,7 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import {
-  getOrCreateAllListId,
-  listUserLists,
-  createList,
-  renameList,
-  deleteList,
-} from "@/services/lists";
+import { listUserLists, createList, renameList, deleteList } from "@/services/lists";
 
 let stub: SupabaseStub;
 beforeEach(() => {
@@ -20,40 +14,22 @@ beforeEach(() => {
   holder.client = stub.client;
 });
 
-describe("getOrCreateAllListId", () => {
-  it("returns the existing ALL list id", async () => {
-    stub.queueFrom("lists", { data: { list_id: "all-1" }, error: null });
-    expect(await getOrCreateAllListId("u")).toBe("all-1");
-    expect(stub.fromCalls.filter((t) => t === "lists")).toHaveLength(1); // no insert
-  });
-
-  it("creates the ALL list when missing (idempotent upsert)", async () => {
-    stub.queueFrom(
-      "lists",
-      { data: null, error: null }, // maybeSingle: not found
-      { data: { list_id: "all-2" }, error: null } // upsert ... single
-    );
-    expect(await getOrCreateAllListId("u")).toBe("all-2");
-    expect(stub.fromCalls.filter((t) => t === "lists")).toHaveLength(2);
-  });
-});
-
 describe("listUserLists", () => {
-  it("maps rows to camelCase and sorts ALL first", async () => {
+  it("maps rows to camelCase (sub-lists only — ALL is virtual)", async () => {
     stub.queueFrom("lists", {
       data: [
+        { list_id: "1", list_name: "Animals" },
         { list_id: "2", list_name: "Verbs" },
-        { list_id: "1", list_name: "ALL" },
-        { list_id: "3", list_name: "Animals" },
       ],
       error: null,
     });
-    const lists = await listUserLists("u");
-    expect(lists[0]).toEqual({ listId: "1", listName: "ALL" });
-    expect(lists.map((l) => l.listName)).toEqual(["ALL", "Verbs", "Animals"]);
+    expect(await listUserLists("u")).toEqual([
+      { listId: "1", listName: "Animals" },
+      { listId: "2", listName: "Verbs" },
+    ]);
   });
 
-  it("returns [] when the user has no lists", async () => {
+  it("returns [] when the user has no sub-lists", async () => {
     stub.queueFrom("lists", { data: [], error: null });
     expect(await listUserLists("u")).toEqual([]);
   });
@@ -61,10 +37,7 @@ describe("listUserLists", () => {
 
 describe("createList", () => {
   it("creates a non-reserved list", async () => {
-    stub.queueFrom("lists", {
-      data: { list_id: "x", list_name: "Verbs" },
-      error: null,
-    });
+    stub.queueFrom("lists", { data: { list_id: "x", list_name: "Verbs" }, error: null });
     expect(await createList({ userId: "u", listName: "  Verbs  " })).toEqual({
       listId: "x",
       listName: "Verbs",
@@ -77,47 +50,29 @@ describe("createList", () => {
 
   it.each(["ALL", "all", "All"])("rejects the reserved name %s", async (name) => {
     await expect(createList({ userId: "u", listName: name })).rejects.toThrow(/reserved/i);
+    expect(stub.fromCalls).toEqual([]); // guarded before any DB write
   });
 });
 
 describe("renameList", () => {
   it("refuses to rename TO the reserved name (before touching the DB)", async () => {
     await expect(renameList({ listId: "x", listName: "ALL" })).rejects.toThrow(/reserved/i);
-    expect(stub.fromCalls).toHaveLength(0);
+    expect(stub.fromCalls).toEqual([]);
   });
 
-  it("refuses to rename the ALL list itself", async () => {
-    stub.queueFrom("lists", { data: { list_name: "ALL" }, error: null });
-    await expect(renameList({ listId: "all-1", listName: "Verbs" })).rejects.toThrow(
-      /cannot be renamed/i
-    );
-  });
-
-  it("renames an editable list", async () => {
-    stub.queueFrom(
-      "lists",
-      { data: { list_name: "Verbs" }, error: null }, // assertEditable
-      { data: null, error: null } // update
-    );
+  it("renames a sub-list in place (no ALL-protection read)", async () => {
+    stub.queueFrom("lists", { data: null, error: null });
     await expect(renameList({ listId: "l1", listName: "Nouns" })).resolves.toBeUndefined();
-    const update = stub.callsFor("lists", "update")[0];
-    expect(update?.args[0]).toEqual({ list_name: "Nouns" });
+    expect(stub.callsFor("lists", "update")[0]?.args[0]).toEqual({ list_name: "Nouns" });
+    expect(stub.fromCalls).toEqual(["lists"]); // single write, no pre-read
   });
 });
 
 describe("deleteList", () => {
-  it("refuses to delete the ALL list", async () => {
-    stub.queueFrom("lists", { data: { list_name: "ALL" }, error: null });
-    await expect(deleteList("all-1")).rejects.toThrow(/cannot be renamed or deleted/i);
-  });
-
-  it("deletes an editable list", async () => {
-    stub.queueFrom(
-      "lists",
-      { data: { list_name: "Verbs" }, error: null }, // assertEditable
-      { data: null, error: null } // delete
-    );
+  it("deletes a sub-list (tags cascade; user_words survive)", async () => {
+    stub.queueFrom("lists", { data: null, error: null });
     await expect(deleteList("l1")).resolves.toBeUndefined();
     expect(stub.callsFor("lists", "delete")).toHaveLength(1);
+    expect(stub.fromCalls).toEqual(["lists"]);
   });
 });

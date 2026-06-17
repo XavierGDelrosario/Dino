@@ -1,10 +1,12 @@
 Restrictions:
-Users can only delete lists and words they own.
-Users can only see words that they own or created by system
-Users can only create verified words
-User cant delete their own ALL list
-User can see only their data, dates and confidence etc
-Users can edit words in their dictionary but this creates their own copy and reassigns the links.
+Users can only delete lists and (user_words) they own.
+Users can only SEE dictionary words that are verified/system; their own meanings live in user_words (own-only).
+Users CANNOT write the dictionary (`words`) at all — clients read verified rows only; only the edge function writes verified entries.
+ALL is virtual (= the user's user_words). The ALL container can't be wiped wholesale, but individual words CAN be deleted from it.
+User can see only their own data, dates and confidence etc.
+Editing a word OVERRIDES its meaning in place (custom_translation) — no duplicate row.
+Deleting a word removes it from ALL and every sub-list (cascade); re-adding later starts at confidence 0.
+Removing a word from a sub-list only un-tags it (it stays in the vocabulary / ALL).
 
 TRANSLATE
 On a cache hit do not make a call to provider

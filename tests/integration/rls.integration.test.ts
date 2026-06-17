@@ -2,17 +2,18 @@
 // RLS / database-enforcement integration tests  (SPEC — currently failing).
 //
 // These do NOT mock Supabase. They stand up TWO real authenticated users and
-// assert the database itself enforces the security rules the unit suite can't
-// see through the mock:
-//   - cross-user isolation (you can't read/write another user's rows)
-//   - the client can NEVER write is_verified = true (only the edge function can)
+// assert the database itself enforces the rules the unit suite can't see through
+// the mock (post per-user-vocabulary refactor):
+//   - cross-user isolation: you can't read another user's user_words, or tag a
+//     word into another user's list.
+//   - the dictionary (`words`) is READ-ONLY to clients — no inserts at all,
+//     verified or not (only the edge function / service role writes).
 //
-// STATUS: expected to FAIL until run against a live, migrated instance. They are
-// gated behind RUN_INTEGRATION so the default `npm test` (mocked, green) skips
-// them. To run them:
+// STATUS: expected to FAIL until run against a live, migrated instance. Gated
+// behind RUN_INTEGRATION so the default `npm test` (mocked, green) skips them.
+// To run:
 //
 //   supabase start                       # local Postgres + Auth + RLS
-//   # then point env at it (the anon key is printed by `supabase start`):
 //   VITE_SUPABASE_URL=http://localhost:54321 \
 //   VITE_SUPABASE_ANON_KEY=<local-anon-key> \
 //   npm run test:integration
@@ -45,12 +46,30 @@ async function makeUser(): Promise<TestUser> {
   const { data, error } = await client.auth.signInAnonymously();
   if (error || !data.user) throw error ?? new Error("anonymous sign-in failed");
   const userId = data.user.id;
-  // words.created_by / lists.user_id FK requires the public.users row to exist.
+  // lists.user_id / user_words.user_id FK requires the public.users row to exist.
   const { error: profileError } = await client
     .from("users")
     .upsert({ user_id: userId, email: `${userId}@guest.dino` }, { onConflict: "user_id" });
   if (profileError) throw profileError;
   return { client, userId };
+}
+
+/** Inserts a standalone (created) user_words row for `user`, returns its id. */
+async function createUserWord(user: TestUser, customTranslation: string): Promise<string> {
+  const { data, error } = await user.client
+    .from("user_words")
+    .insert({
+      user_id: user.userId,
+      input: "猫",
+      source_lang: "JA",
+      target_lang: "EN",
+      dictionary_word_id: null,
+      custom_translation: customTranslation,
+    })
+    .select("user_word_id")
+    .single();
+  if (error || !data) throw error ?? new Error("could not seed user_word");
+  return (data as { user_word_id: string }).user_word_id;
 }
 
 describe.skipIf(!ENABLED)("RLS: cross-user isolation", () => {
@@ -75,7 +94,7 @@ describe.skipIf(!ENABLED)("RLS: cross-user isolation", () => {
     // EXPECT: RLS (lists: user_id = auth.uid()) hides it → empty, no error.
     const { data, error } = await bob.client
       .from("lists")
-      .select("list_id, list_name")
+      .select("list_id")
       .eq("list_id", aliceListId);
     expect(error).toBeNull();
     expect(data ?? []).toHaveLength(0);
@@ -90,86 +109,121 @@ describe.skipIf(!ENABLED)("RLS: cross-user isolation", () => {
     expect(data ?? []).toHaveLength(1);
   });
 
-  it("Bob cannot link a word into Alice's list", async () => {
-    // Seed a word Bob legitimately owns (unverified), then try to attach it to
-    // Alice's list_id. EXPECT: RLS on list_words rejects the write.
-    const { data: word, error: wErr } = await bob.client
-      .from("words")
-      .upsert(
-        {
-          input: "犬",
-          translation: "dog",
-          source_lang: "JA",
-          target_lang: "EN",
-          is_verified: false,
-          created_by: bob.userId,
-        },
-        { onConflict: "input,translation,source_lang,target_lang,created_by,is_verified" }
-      )
-      .select("word_id")
-      .single();
-    expect(wErr).toBeNull();
+  it("Bob cannot read Alice's vocabulary (user_words)", async () => {
+    await createUserWord(alice, "alice-private-meaning");
 
-    const { error } = await bob.client
-      .from("list_words")
-      .insert({ list_id: aliceListId, word_id: (word as { word_id: string }).word_id });
-    expect(error).not.toBeNull(); // write into another user's list must be denied
-  });
-
-  it("Bob cannot read Alice's unverified word", async () => {
-    // Alice saves a private (unverified) custom word.
-    const { error: aErr } = await alice.client.from("words").upsert(
-      {
-        input: "猫",
-        translation: "alice-private-meaning",
-        source_lang: "JA",
-        target_lang: "EN",
-        is_verified: false,
-        created_by: alice.userId,
-      },
-      { onConflict: "input,translation,source_lang,target_lang,created_by,is_verified" }
-    );
-    expect(aErr).toBeNull();
-
-    // EXPECT: RLS shows verified rows + the caller's OWN unverified rows only,
-    // so Bob never sees Alice's unverified meaning.
+    // EXPECT: user_words RLS (user_id = auth.uid()) hides Alice's entries.
     const { data, error } = await bob.client
-      .from("words")
-      .select("translation")
-      .eq("input", "猫")
-      .eq("is_verified", false);
-    expect(error).toBeNull();
-    const translations = (data ?? []).map((r) => (r as { translation: string }).translation);
-    expect(translations).not.toContain("alice-private-meaning");
-  });
-
-  it("Bob cannot read Alice's mastery rows", async () => {
-    const { data, error } = await bob.client
-      .from("user_word_mastery")
-      .select("word_id")
+      .from("user_words")
+      .select("custom_translation")
       .eq("user_id", alice.userId);
     expect(error).toBeNull();
     expect(data ?? []).toHaveLength(0);
   });
+
+  it("Bob cannot tag his word into Alice's list", async () => {
+    const bobWordId = await createUserWord(bob, "bobs-word");
+
+    // EXPECT: list_words RLS (parent list must be the caller's) denies the write.
+    const { error } = await bob.client
+      .from("list_words")
+      .insert({ list_id: aliceListId, user_word_id: bobWordId });
+    expect(error).not.toBeNull();
+  });
 });
 
-describe.skipIf(!ENABLED)("RLS: is_verified is server-only", () => {
+describe.skipIf(!ENABLED)("RLS: dictionary is read-only to clients", () => {
   let user: TestUser;
   beforeAll(async () => {
     user = await makeUser();
   });
 
-  it("a client cannot insert a verified word", async () => {
-    // EXPECT: the WITH CHECK policy forbids is_verified = true from clients;
-    // only the edge function (service role) may promote to the global dict.
+  it.each([
+    ["unverified", false],
+    ["verified", true],
+  ])("a client cannot insert a %s dictionary word", async (_label, isVerified) => {
+    // EXPECT: there is NO client INSERT policy on words — every client write is
+    // rejected; only the edge function (service role) writes the dictionary.
     const { error } = await user.client.from("words").insert({
       input: "魚",
       translation: "fish",
       source_lang: "JA",
       target_lang: "EN",
-      is_verified: true, // <- the forbidden bit
+      is_verified: isVerified,
       created_by: user.userId,
     });
     expect(error).not.toBeNull();
+  });
+
+  it("a client CAN read verified dictionary words (positive control)", async () => {
+    const { error } = await user.client.from("words").select("word_id").limit(1);
+    expect(error).toBeNull();
+  });
+});
+
+describe.skipIf(!ENABLED)("sub-list membership: multi-list + scoped removal", () => {
+  let user: TestUser;
+  let listA: string;
+  let listB: string;
+  let wordId: string;
+
+  const makeList = async (u: TestUser, name: string): Promise<string> => {
+    const { data, error } = await u.client
+      .from("lists")
+      .insert({ user_id: u.userId, list_name: name })
+      .select("list_id")
+      .single();
+    if (error || !data) throw error ?? new Error("list seed failed");
+    return (data as { list_id: string }).list_id;
+  };
+
+  beforeAll(async () => {
+    user = await makeUser();
+    wordId = await createUserWord(user, "membership-test");
+    listA = await makeList(user, "A");
+    listB = await makeList(user, "B");
+    const { error } = await user.client.from("list_words").insert([
+      { list_id: listA, user_word_id: wordId },
+      { list_id: listB, user_word_id: wordId },
+    ]);
+    if (error) throw error;
+  });
+
+  it("a word can live in two sub-lists at once", async () => {
+    const { data, error } = await user.client
+      .from("list_words")
+      .select("list_id")
+      .eq("user_word_id", wordId);
+    expect(error).toBeNull();
+    expect(data ?? []).toHaveLength(2);
+  });
+
+  it("removing it from list A leaves it in list B and in the vocabulary", async () => {
+    const del = await user.client
+      .from("list_words")
+      .delete()
+      .eq("list_id", listA)
+      .eq("user_word_id", wordId);
+    expect(del.error).toBeNull();
+
+    const inB = await user.client
+      .from("list_words")
+      .select("list_id")
+      .eq("list_id", listB)
+      .eq("user_word_id", wordId);
+    expect(inB.data ?? []).toHaveLength(1); // still tagged in B
+
+    const inA = await user.client
+      .from("list_words")
+      .select("list_id")
+      .eq("list_id", listA)
+      .eq("user_word_id", wordId);
+    expect(inA.data ?? []).toHaveLength(0); // gone from A only
+
+    const vocab = await user.client
+      .from("user_words")
+      .select("user_word_id")
+      .eq("user_word_id", wordId);
+    expect(vocab.data ?? []).toHaveLength(1); // still in the vocabulary
   });
 });
