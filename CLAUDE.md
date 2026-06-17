@@ -18,6 +18,10 @@ npm run typecheck   # tsc --noEmit — needs no env or Supabase; the first gate 
 npm run build       # tsc && vite build
 npm run dev         # Vite dev server; needs .env (throws at supabaseClient.ts otherwise)
 
+npm test            # vitest run — service-layer unit tests (no env / Supabase needed)
+npm run test:watch  # vitest in watch mode
+npm run test:integration  # RLS spec vs a LIVE instance; fails without one (see tests/integration/)
+
 cp .env.example .env   # then set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 
 # Edge function (Deno; the only place translation happens):
@@ -27,7 +31,7 @@ supabase functions deploy translate     # deploy
 #   (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically)
 ```
 
-No test setup yet. Node must be on PATH (installed at `/usr/local/bin/node`).
+**Tests:** Vitest. Specs live under `tests/` mirroring `src/` (e.g. `tests/services/words/repository.test.ts`); shared helpers in `tests/support/` (a chainable Supabase-client stub, seed `Word` fixtures, and mock sense/translate providers). Imports use path aliases `@/*` → `src/*` and `@test/*` → `tests/support/*` (defined in both `vitest.config.ts` and `tsconfig.json`). Pure modules (`language/`, `concurrency`) are tested directly; orchestration services (`dictionary`, `lookup`, `customWords`) mock their dependency modules; leaf data modules (`lists`, `userLibrary`, `repository`, `queries`, `session`) mock the Supabase client. The Deno `translate` edge function is **not** covered by this Node/Vitest suite (separate runtime, unimplemented provider) — its `toWord` / conflict-tuple logic mirrors the tested `repository.ts`. Node must be on PATH (installed at `/usr/local/bin/node`).
 
 ## Architecture — the big picture
 
@@ -87,4 +91,5 @@ Cascade: deleting a list drops its `list_words` only — `words` and `user_word_
 - **Generated DB types** — no `Database` type yet; services use `.select<string, RowType>()` casts. Generate `src/types/database.types.ts` and use `createClient<Database>` so schema drift becomes a compile error. TODO in that file.
 - **Transactional save** — `saveWordToUserLibrary` does 3 non-atomic writes and enforces the ALL invariant in app code; move to a Postgres RPC. TODO in `userLibrary.ts`.
 - **Edge function prerequisite** — its verified-word writes use `created_by = SYSTEM_USER_ID`, which the `words` FK requires to exist; seed a `system` user row.
+- **RLS / DB-constraint tests** — the default Vitest suite mocks the Supabase client, so it verifies app-side logic only, NOT database enforcement. The RLS spec is written in `tests/integration/rls.integration.test.ts` (two real users: cross-user read/write isolation + the client-side block on writing `is_verified = true`). It is **gated behind `RUN_INTEGRATION` and currently FAILS** until run against a live migrated instance — by design, so it stays out of the green unit gate. Run with `supabase start` + env, then `npm run test:integration` (instructions in the file's header). Still TODO there: `UNIQUE`/FK/cascade-constraint coverage. Note the default unit tests only assert *intent* (e.g. the client *sends* `is_verified: false`), not that the DB rejects violations.
 - Before production: domain error types (services throw raw `PostgrestError`), tighten `CORS: *`, reconsider `supabaseClient` throwing at import (un-importable for tests).
