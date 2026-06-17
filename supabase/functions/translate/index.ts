@@ -73,8 +73,22 @@ function toWord(r: WordRow) {
 // header, request shape, AND response parsing are all provider-specific, so a
 // generic URL/key alone is not enough.
 //
-// Reference (DeepL, api-free.deepl.com/v2/translate) — if chosen, replace the
-// throw below with:
+// What a provider returns: the translation, plus optional per-side READINGS
+// (kana for the Japanese side) when the source is a dictionary like JMdict.
+// A pure MT provider sets only `translation`; readings stay null. The handler
+// persists whichever readings are supplied into words.input_reading /
+// translation_reading — so wiring JMdict is implementing this function to return
+// the reading on the correct side, nothing downstream.
+interface ProviderResult {
+  translation: string;
+  /** Reading of the input side (set when input is Japanese). */
+  inputReading?: string | null;
+  /** Reading of the translation side (set when translation is Japanese). */
+  translationReading?: string | null;
+}
+
+// Reference (DeepL, api-free.deepl.com/v2/translate) — a pure-MT example, no
+// readings; if chosen, replace the throw below with:
 //   const key = Deno.env.get("DEEPL_API_KEY");
 //   if (!key) throw new Error("DEEPL_API_KEY is not set");
 //   const url = Deno.env.get("DEEPL_API_URL")
@@ -85,12 +99,14 @@ function toWord(r: WordRow) {
 //     Authorization: `DeepL-Auth-Key ${key}`,
 //     "Content-Type": "application/x-www-form-urlencoded" }, body });
 //   if (!res.ok) return null;
-//   return (await res.json())?.translations?.[0]?.text ?? null;
+//   const text = (await res.json())?.translations?.[0]?.text;
+//   return text ? { translation: text } : null;
+// A JMdict-backed provider would instead also set inputReading/translationReading.
 async function callTranslationProvider(
   _text: string,
   _sourceLang: string,
   _targetLang: string,
-): Promise<string | null> {
+): Promise<ProviderResult | null> {
   throw new Error(
     "No translation provider configured — implement callTranslationProvider " +
       "(see the DeepL reference above)."
@@ -161,17 +177,20 @@ Deno.serve(async (req) => {
   }
 
   // 2. Translate.
-  const translation = await callTranslationProvider(input, sourceLang, targetLang);
-  if (!translation) {
+  const result = await callTranslationProvider(input, sourceLang, targetLang);
+  if (!result) {
     return json({ translated: false, translation: null, word: null });
   }
+  const { translation } = result;
 
   // 3. Display-only (paragraph): return the text without caching it.
   if (!persist) {
     return json({ translated: true, translation, word: null });
   }
 
-  // 4. Persist as a verified global word (service role bypasses RLS).
+  // 4. Persist as a verified global word (service role bypasses RLS). Per-side
+  //    readings are written when the provider supplies them (NULL otherwise);
+  //    they are deterministic attributes, NOT part of the onConflict identity.
   const { data: inserted, error: insertError } = await supabase
     .from("words")
     .upsert(
@@ -180,6 +199,8 @@ Deno.serve(async (req) => {
         translation,
         source_lang: sourceLang,
         target_lang: targetLang,
+        input_reading: result.inputReading ?? null,
+        translation_reading: result.translationReading ?? null,
         is_verified: true,
       },
       {

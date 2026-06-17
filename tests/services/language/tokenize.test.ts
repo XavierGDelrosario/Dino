@@ -62,13 +62,15 @@ describe("tokenizeWords — morphological gaps (deferred to a morphological anal
     expect(tokens).not.toContain("今日"); // the wrong greedy split did NOT happen here
   });
 
-  // The target a morphological analyzer must hit: same 今日 read two different
-  // ways by context, plus the verb lemmatized. Unskip when kuromoji lands.
-  it.skip("morphological analyzer yields correct per-token readings (kuromoji milestone)", () => {
-    // 今日行ったよ → 今日=きょう / 行った=いった / よ
-    // 今日曜日だよ → 今=いま   / 日曜日=にちようび / だ / よ
-    // No context-free per-token reading map can satisfy both (今日 differs),
-    // which is exactly why this needs morphological analysis.
+  // kuromoji has since landed (see language/analyze.test.ts): it fixes
+  // segmentation + lemmatization and reads 今日→きょう. But per-token readings of
+  // short/ambiguous fragments stay best-effort (in isolation it gives 今→こん,
+  // 行った→行う), so "fully correct contextual readings" remains aspirational
+  // (a stronger context model / disambiguation). Kept skipped as that marker.
+  it.skip("fully correct contextual per-token readings (beyond kuromoji's best-effort)", () => {
+    // Ideal target — same 今日 read two ways by context, verb lemmatized:
+    //   今日行ったよ → 今日=きょう / 行った=いった / よ
+    //   今日曜日だよ → 今=いま   / 日曜日=にちようび / だ / よ
   });
 });
 
