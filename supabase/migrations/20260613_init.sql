@@ -59,6 +59,13 @@ CREATE TABLE IF NOT EXISTS words (
   translation TEXT NOT NULL,
   source_lang TEXT NOT NULL,
   target_lang TEXT NOT NULL,
+  -- Pronunciation reading per side (kana furigana for JA, pinyin for ZH, …),
+  -- NULL when a side needs none (e.g. the English side, or a phonetic script).
+  -- Both populated only for two-logographic pairs like JA<->ZH. Filled by the
+  -- edge function from the dictionary source (JMdict); deterministic given the
+  -- term, so NOT part of the UNIQUE sense key.
+  input_reading TEXT,
+  translation_reading TEXT,
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
   -- only block exact duplicates; one input may have multiple senses.
   -- All rows are system-created (only the edge function writes), so the dropped

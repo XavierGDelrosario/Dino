@@ -10,11 +10,11 @@
 
 import {
   resolveSourceLanguage,
-  tokenizeWords,
+  analyze,
   AUTO_DETECT,
   type LangCode,
   type SourceSelection,
-  type WordToken,
+  type AnalyzedToken,
 } from "./language";
 import {
   findWordTranslations,
@@ -78,8 +78,13 @@ export interface ParagraphTranslation {
   translated: boolean;
   sourceLang: LangCode;
   targetLang: LangCode;
-  /** Each word occurrence, in reading order, with its offsets in the paragraph. */
-  tokens: WordToken[];
+  /**
+   * Each word occurrence, in reading order, with its offsets in the paragraph
+   * plus a best-effort `reading`/`lemma` (kuromoji for JA; null otherwise).
+   * Readings here are DISPLAY annotations — statistical, not authoritative like
+   * the verified `words` readings — so render them as a hint, not ground truth.
+   */
+  tokens: AnalyzedToken[];
   /** Lookup from a word's text to all its known meanings (verified first). */
   meanings: Map<string, Word[]>;
 }
@@ -118,36 +123,38 @@ export async function translateParagraph(params: {
     persist: false,
   });
 
-  // 2. Segment into words. Token offsets stay pointed at the original
-  //    paragraph (for display); their TEXT is NFC-normalized for cache keys.
-  const tokens = tokenizeWords(input, resolvedSource);
-  const uniqueWords = [...new Set(tokens.map((t) => t.text.normalize("NFC")))];
+  // 2. Morphologically analyze into tokens. Offsets stay pointed at the original
+  //    paragraph (for display); for JA this also yields per-token reading + lemma.
+  const tokens = await analyze(input, resolvedSource);
 
-  // 3. All meanings per word in one query; for any uncached word, ask its
-  //    language pair's sense provider (real dictionary → all senses; MT
-  //    fallback → one). Bounded fan-out so a long paragraph doesn't fire
-  //    hundreds of requests at once.
-  const meaningsByWord = await findWordTranslationsBatch({
-    inputs: uniqueWords,
+  // 3. Look each word up by its LEMMA when known (so a conjugated form like
+  //    行った resolves via its dictionary entry 行く), falling back to the
+  //    surface text. The dictionary is keyed on dictionary forms, so this is the
+  //    lookup key; results are re-exposed under the surface text below.
+  const keyOf = (t: AnalyzedToken) => (t.lemma ?? t.text).normalize("NFC");
+  const uniqueKeys = [...new Set(tokens.map(keyOf))];
+
+  // All meanings per key in one query; for any uncached word, ask its language
+  // pair's sense provider (real dictionary → all senses; MT fallback → one).
+  // Bounded fan-out so a long paragraph doesn't fire hundreds of requests.
+  const meaningsByKey = await findWordTranslationsBatch({
+    inputs: uniqueKeys,
     sourceLang: resolvedSource,
     targetLang,
   });
   const senseProvider = resolveSenseProvider(resolvedSource, targetLang);
-  const missing = uniqueWords.filter((w) => !meaningsByWord.has(w));
-  await mapLimit(missing, MAX_TRANSLATION_CONCURRENCY, async (word) => {
-    const senses = await senseProvider(word, resolvedSource, targetLang);
-    if (senses.length > 0) meaningsByWord.set(word, senses);
+  const missing = uniqueKeys.filter((k) => !meaningsByKey.has(k));
+  await mapLimit(missing, MAX_TRANSLATION_CONCURRENCY, async (key) => {
+    const senses = await senseProvider(key, resolvedSource, targetLang);
+    if (senses.length > 0) meaningsByKey.set(key, senses);
   });
 
-  // 4. Re-key by the ORIGINAL token text so the frontend looks up with
-  //    token.text directly; NFC normalization stays internal.
+  // 4. Key by the ORIGINAL surface text so the frontend looks up with
+  //    token.text directly; lemma resolution stays internal.
   const meanings = new Map<string, Word[]>();
   for (const token of tokens) {
     if (!meanings.has(token.text)) {
-      meanings.set(
-        token.text,
-        meaningsByWord.get(token.text.normalize("NFC")) ?? []
-      );
+      meanings.set(token.text, meaningsByKey.get(keyOf(token)) ?? []);
     }
   }
 

@@ -13,16 +13,25 @@ vi.mock("@/services/translation", () => ({
   MAX_TRANSLATION_CONCURRENCY: 6,
 }));
 vi.mock("@/services/senses", () => ({ resolveSenseProvider: vi.fn() }));
+// Partial-mock language: keep the real resolveSourceLanguage / AUTO_DETECT, but
+// stub the kuromoji-backed analyze() so these stay fast unit tests (no ~12MB
+// dictionary load). The real engine is covered in language/analyze.test.ts.
+vi.mock("@/services/language", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/language")>()),
+  analyze: vi.fn(),
+}));
 
 import { findWordTranslations, findWordTranslationsBatch } from "@/services/words/repository";
 import { translate } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
+import { analyze } from "@/services/language";
 import { lookupWord, translateParagraph } from "@/services/lookup";
 
 const mockFind = vi.mocked(findWordTranslations);
 const mockFindBatch = vi.mocked(findWordTranslationsBatch);
 const mockTranslate = vi.mocked(translate);
 const mockResolveProvider = vi.mocked(resolveSenseProvider);
+const mockAnalyze = vi.mocked(analyze);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -78,6 +87,11 @@ describe("translateParagraph", () => {
       new Map([["猫", [makeWord({ wordId: "ja-neko", input: "猫", translation: "cat" })]]])
     );
     mockResolveProvider.mockReturnValue(createMockSenseProvider(FIXTURE_WORDS));
+    // Analysis is mocked: two tokens, each carrying a (best-effort) reading.
+    mockAnalyze.mockResolvedValue([
+      { text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫" },
+      { text: "犬", start: 2, end: 3, reading: "いぬ", lemma: "犬" },
+    ]);
 
     const res = await translateParagraph({ input: "猫 犬", targetLang: "EN" });
 
@@ -90,12 +104,15 @@ describe("translateParagraph", () => {
     expect(res.meanings.get("猫")?.[0].translation).toBe("cat");
     expect(res.meanings.get("犬")?.[0].translation).toBe("dog"); // seeded
     expect(res.tokens.length).toBeGreaterThanOrEqual(2);
+    // Per-token readings propagate from analysis to the tokens.
+    expect(res.tokens.find((t) => t.text === "猫")?.reading).toBe("ねこ");
   });
 
   it("falls back to showing the input when the paragraph can't be translated", async () => {
     mockTranslate.mockResolvedValue({ translated: false, translation: null, word: null });
     mockFindBatch.mockResolvedValue(new Map());
     mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
+    mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫" }]);
 
     const res = await translateParagraph({ input: "猫", targetLang: "EN" });
     expect(res.translated).toBe(false);

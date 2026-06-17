@@ -5,6 +5,9 @@ node_modules/
 dist/
 dist-ssr/
 
+# kuromoji dictionary, copied from node_modules at predev/prebuild (see setup:dict)
+public/dict/
+
 # Local env files (never commit secrets)
 .env
 .env.*

@@ -194,6 +194,39 @@ describe("getAllUserWords (the virtual ALL list)", () => {
     stub.queueFrom("user_words", { data: [], error: null });
     expect(await getAllUserWords({ userId: "u" })).toEqual([]);
   });
+
+  it("surfaces the dictionary reading, and suppresses the translation reading on override", async () => {
+    stub.queueFrom("user_words", {
+      data: [
+        // JA→EN dictionary word: kana reading on the input side comes through.
+        uwRow({
+          user_word_id: "a",
+          custom_translation: null,
+          words: { translation: "cat", input_reading: "ねこ", translation_reading: null },
+        }),
+        // EN→JA word the user overrode: the dictionary's translation reading no
+        // longer annotates the user's own term, so it's suppressed.
+        uwRow({
+          user_word_id: "b",
+          input: "cat",
+          source_lang: "EN",
+          target_lang: "JA",
+          custom_translation: "ねこちゃん",
+          words: { translation: "猫", input_reading: null, translation_reading: "ねこ" },
+        }),
+        // Standalone created word: no dictionary row → no reading at all.
+        uwRow({ user_word_id: "c", dictionary_word_id: null, custom_translation: "my own", words: null }),
+      ],
+      error: null,
+    });
+
+    const all = await getAllUserWords({ userId: "u" });
+    expect(all).toMatchObject([
+      { userWordId: "a", inputReading: "ねこ", translationReading: null },
+      { userWordId: "b", translation: "ねこちゃん", translationReading: null },
+      { userWordId: "c", inputReading: null, translationReading: null },
+    ]);
+  });
 });
 
 describe("getUserWordsInList", () => {

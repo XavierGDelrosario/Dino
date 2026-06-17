@@ -33,6 +33,14 @@ export interface UserWord {
   customTranslation: string | null;
   /** Resolved meaning shown to the user: customTranslation ?? dictionary translation. */
   translation: string;
+  /** Reading of the input side (from the dictionary sense), or null. */
+  inputReading: string | null;
+  /**
+   * Reading of the resolved translation side, or null. Suppressed when the user
+   * has overridden the meaning (`customTranslation` set) — the dictionary's
+   * reading no longer annotates the user's own term.
+   */
+  translationReading: string | null;
   /** Mastery: 0–5, 0 = new / never studied. */
   confidenceRating: number;
   lastReviewedDate: string | null;
@@ -51,12 +59,16 @@ interface UserWordRow {
   last_reviewed_date: string | null;
   originally_translated_date: string;
   /** Embedded dictionary row when selected via the FK (reads only). */
-  words?: { translation: string } | null;
+  words?: {
+    translation: string;
+    input_reading: string | null;
+    translation_reading: string | null;
+  } | null;
 }
 
-/** Embed string that pulls the referenced dictionary translation for resolution. */
+/** Embed string that pulls the referenced dictionary fields for resolution. */
 const SELECT_WITH_DICTIONARY =
-  "*, words(translation)";
+  "*, words(translation, input_reading, translation_reading)";
 
 function toUserWord(row: UserWordRow): UserWord {
   return {
@@ -68,6 +80,14 @@ function toUserWord(row: UserWordRow): UserWord {
     dictionaryWordId: row.dictionary_word_id,
     customTranslation: row.custom_translation,
     translation: row.custom_translation ?? row.words?.translation ?? "",
+    // Input reading always comes from the dictionary sense (the input headword
+    // is unchanged by a meaning override). The translation reading is suppressed
+    // on override: the shown translation is then the user's own term, which the
+    // dictionary reading does not annotate.
+    inputReading: row.words?.input_reading ?? null,
+    translationReading: row.custom_translation
+      ? null
+      : row.words?.translation_reading ?? null,
     confidenceRating: row.confidence_rating,
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
@@ -119,8 +139,14 @@ export async function saveDictionaryWord(params: {
 
   if (listId) await tagInList(data.user_word_id, listId);
 
-  // The upsert row has no embedded dictionary; we already know the translation.
-  return { ...toUserWord(data), translation: word.translation };
+  // The upsert row has no embedded dictionary; we already know the sense, so
+  // patch its translation and readings straight from the dictionary Word.
+  return {
+    ...toUserWord(data),
+    translation: word.translation,
+    inputReading: word.inputReading,
+    translationReading: word.translationReading,
+  };
 }
 
 /**
@@ -185,7 +211,7 @@ export async function editUserWord(params: {
     .from("user_words")
     .update({ custom_translation: translation })
     .eq("user_word_id", params.userWordId)
-    .select<string, UserWordRow>("*")
+    .select<string, UserWordRow>(SELECT_WITH_DICTIONARY)
     .single();
   if (error || !data) throw error ?? new Error("Failed to edit word");
   return toUserWord(data);
@@ -259,7 +285,7 @@ export async function getUserWordsInList(params: { listId: string }): Promise<Us
   const { data, error } = await supabase
     .from("list_words")
     .select<string, { user_words: UserWordRow | null }>(
-      "user_words(*, words(translation))"
+      `user_words(${SELECT_WITH_DICTIONARY})`
     )
     .eq("list_id", params.listId);
   if (error) throw error;

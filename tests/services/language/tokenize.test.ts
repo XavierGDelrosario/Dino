@@ -30,6 +30,48 @@ describe("tokenizeWords (Intl.Segmenter present)", () => {
   });
 });
 
+// =========================================================
+// Known segmentation limits — DOCUMENTED, not failures.
+//
+// The `words` cache and its readings are whole-entry and correct; the weak link
+// is segmentation. Intl.Segmenter is dictionary-based and context-FREE, so it
+// can't lemmatize (行った -> 行く) and can mis-split ambiguous runs. A reading
+// composed from these tokens would therefore be MISSING (conjugations) or, on a
+// bad split, WRONG. These tests pin the current behavior so the gap is visible;
+// the real fix is a morphological analyzer (kuromoji) — see the skipped target.
+//
+// NOTE: exact tokens are ICU-version dependent. If ICU improves and one of these
+// breaks, that's a signal to revisit (likely delete), not a regression.
+// =========================================================
+describe("tokenizeWords — morphological gaps (deferred to a morphological analyzer)", () => {
+  it("loses a conjugated verb: 今日行ったよ shreds 行った, so its reading is unrecoverable", () => {
+    // Observed: ["今日","行","っ","たよ"] — 今日 survives (=きょう), but the verb
+    // 行った is split into fragments; no token is 行った or its dict form 行く.
+    const tokens = tokenizeWords("今日行ったよ", "JA").map((t) => t.text);
+    expect(tokens).toContain("今日"); // the compound that did survive
+    expect(tokens).not.toContain("行った"); // surface form is gone…
+    expect(tokens).not.toContain("行く"); // …and there's no lemmatization to recover it
+  });
+
+  it("happens to disambiguate 今日曜日だよ correctly (今 / 日曜日), but only by luck of the model", () => {
+    // Observed: ["今","日曜日","だ","よ"] — the RIGHT parse (今=いま, 日曜日=にちようび),
+    // NOT the greedy mis-parse 今日(きょう)+曜日. Context-free, so not guaranteed.
+    const tokens = tokenizeWords("今日曜日だよ", "JA").map((t) => t.text);
+    expect(tokens).toContain("日曜日");
+    expect(tokens).toContain("今");
+    expect(tokens).not.toContain("今日"); // the wrong greedy split did NOT happen here
+  });
+
+  // The target a morphological analyzer must hit: same 今日 read two different
+  // ways by context, plus the verb lemmatized. Unskip when kuromoji lands.
+  it.skip("morphological analyzer yields correct per-token readings (kuromoji milestone)", () => {
+    // 今日行ったよ → 今日=きょう / 行った=いった / よ
+    // 今日曜日だよ → 今=いま   / 日曜日=にちようび / だ / よ
+    // No context-free per-token reading map can satisfy both (今日 differs),
+    // which is exactly why this needs morphological analysis.
+  });
+});
+
 describe("tokenizeWords (regex fallback when Segmenter is missing)", () => {
   beforeEach(() => {
     vi.resetModules();

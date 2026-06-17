@@ -19,6 +19,10 @@ export interface Word {
   translation: string;
   sourceLang: LangCode;
   targetLang: LangCode;
+  /** Reading of the input side (kana/pinyin/…), or null if it needs none. */
+  inputReading: string | null;
+  /** Reading of the translation side, or null if it needs none. */
+  translationReading: string | null;
   isVerified: boolean;
 }
 
@@ -28,6 +32,8 @@ interface WordRow {
   translation: string;
   source_lang: string;
   target_lang: string;
+  input_reading: string | null;
+  translation_reading: string | null;
   is_verified: boolean;
 }
 
@@ -38,6 +44,8 @@ function toWord(row: WordRow): Word {
     translation: row.translation,
     sourceLang: row.source_lang,
     targetLang: row.target_lang,
+    inputReading: row.input_reading ?? null,
+    translationReading: row.translation_reading ?? null,
     isVerified: row.is_verified,
   };
 }

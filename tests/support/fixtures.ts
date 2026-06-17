@@ -18,6 +18,8 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     translation: "cat",
     sourceLang: "JA",
     targetLang: "EN",
+    inputReading: null,
+    translationReading: null,
     isVerified: true,
     ...overrides,
   };
@@ -34,6 +36,8 @@ export function makeUserWord(overrides: Partial<UserWord> = {}): UserWord {
     dictionaryWordId: "w-test",
     customTranslation: null,
     translation: "cat",
+    inputReading: null,
+    translationReading: null,
     confidenceRating: 0,
     lastReviewedDate: null,
     originallyTranslatedDate: "2026-06-17T00:00:00Z",

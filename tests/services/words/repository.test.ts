@@ -23,6 +23,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   translation: "cat",
   source_lang: "JA",
   target_lang: "EN",
+  input_reading: null,
+  translation_reading: null,
   is_verified: true,
   ...over,
 });
@@ -37,8 +39,25 @@ describe("findCachedWord", () => {
       translation: "cat",
       sourceLang: "JA",
       targetLang: "EN",
+      inputReading: null,
+      translationReading: null,
       isVerified: true,
     });
+  });
+
+  it("carries the reading from whichever side has one (input or translation)", async () => {
+    // JA→EN: reading sits on the input (kana over kanji); English side has none.
+    stub.queueFrom("words", { data: [row({ input_reading: "ねこ" })], error: null });
+    const ja = await findCachedWord({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+    expect(ja).toMatchObject({ inputReading: "ねこ", translationReading: null });
+
+    // EN→JA: reading sits on the translation (the Japanese side).
+    stub.queueFrom("words", {
+      data: [row({ input: "cat", translation: "猫", source_lang: "EN", target_lang: "JA", translation_reading: "ねこ" })],
+      error: null,
+    });
+    const en = await findCachedWord({ input: "cat", sourceLang: "EN", targetLang: "JA" });
+    expect(en).toMatchObject({ inputReading: null, translationReading: "ねこ" });
   });
 
   it("returns null when there is no match", async () => {

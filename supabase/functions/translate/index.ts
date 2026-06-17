@@ -43,10 +43,14 @@ interface WordRow {
   translation: string;
   source_lang: string;
   target_lang: string;
+  input_reading: string | null;
+  translation_reading: string | null;
   is_verified: boolean;
 }
 
 // snake_case DB row -> camelCase Word (matches src/services/words/repository.ts)
+// readings are NULL until the dictionary source (JMdict) is wired into
+// callTranslationProvider; they flow through here so cache reads carry them.
 function toWord(r: WordRow) {
   return {
     wordId: r.word_id,
@@ -54,6 +58,8 @@ function toWord(r: WordRow) {
     translation: r.translation,
     sourceLang: r.source_lang,
     targetLang: r.target_lang,
+    inputReading: r.input_reading ?? null,
+    translationReading: r.translation_reading ?? null,
     isVerified: r.is_verified,
   };
 }
