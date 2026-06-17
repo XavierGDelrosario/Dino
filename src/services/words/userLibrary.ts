@@ -29,10 +29,6 @@ interface ListWordRow {
  *
  * @returns isNewForUser — true if this is the first time the word entered the
  *          user's ALL list (i.e. a genuinely new save, not a re-add).
- *
- * OUTPUT: { isNewForUser }.
- * CONSTRAINTS: always links into ALL (+ optional list) and ensures a mastery
- * row; three NON-atomic writes — a partial failure self-heals on the next save.
  */
 export async function saveWordToUserLibrary(params: {
   userId: string;
@@ -81,9 +77,6 @@ export async function saveWordToUserLibrary(params: {
  * The word row and the user's mastery are left untouched — global dictionary
  * data and the user's "universal brain" survive, matching the POC's cascade
  * rules. Used by the edit path to detach the word being replaced.
- *
- * OUTPUT: void.
- * CONSTRAINTS: drops only the list_words link; word row + mastery survive.
  */
 export async function removeWordFromList(params: {
   listId: string;

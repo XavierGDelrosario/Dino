@@ -11,13 +11,13 @@
 //   3. No result -> { translated: false, word: null }.
 //   4. Success -> upsert a verified word and return it.
 //
-// PROVIDER NOT FINALIZED: DeepL vs Google vs other is undecided for the POC.
-// The provider is isolated to callTranslationProvider() below — swap that one
-// function (and its env vars) to change providers; nothing else is affected.
+// PROVIDER NOT FINALIZED: callTranslationProvider() below is an UNIMPLEMENTED
+// stub that throws until a real provider (DeepL/Google/other) is wired in. It
+// is the only place a provider is called; nothing else changes when one is added.
 //
-// Required env: TRANSLATION_API_KEY, SYSTEM_USER_ID (a users row that owns
-// global entries), plus auto-provided SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.
-// Optional: TRANSLATION_API_URL.
+// Required env: SYSTEM_USER_ID (a users row that owns global entries), plus
+// auto-provided SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. A provider adds its
+// own env (e.g. an API key/URL) when implemented.
 // =========================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -59,39 +59,37 @@ function toWord(r: WordRow) {
   };
 }
 
-// The single swappable seam for the translation provider.
-// OUTPUT: translated string, or null on no-result / failure.
-// CONSTRAINTS: needs TRANSLATION_API_KEY; provider call lives only here.
+// The single seam for the translation provider — the ONLY place an MT provider
+// is called. UNIMPLEMENTED for the POC (no provider finalized): it throws until
+// a real one is wired in, so it is never silently a specific provider.
 //
-// PLACEHOLDER IMPLEMENTATION: currently shaped for DeepL, but the provider is
-// not confirmed for the POC. To switch (e.g. Google Translate), rewrite only
-// this function's body and its env vars — the contract stays the same.
+// OUTPUT (once implemented): translated string, or null on no-result / failure.
+// CONSTRAINTS: wiring a provider means replacing this body WHOLESALE — auth
+// header, request shape, AND response parsing are all provider-specific, so a
+// generic URL/key alone is not enough.
+//
+// Reference (DeepL, api-free.deepl.com/v2/translate) — if chosen, replace the
+// throw below with:
+//   const key = Deno.env.get("DEEPL_API_KEY");
+//   if (!key) throw new Error("DEEPL_API_KEY is not set");
+//   const url = Deno.env.get("DEEPL_API_URL")
+//     ?? "https://api-free.deepl.com/v2/translate";
+//   const body = new URLSearchParams({ text, target_lang: targetLang });
+//   if (sourceLang) body.set("source_lang", sourceLang);
+//   const res = await fetch(url, { method: "POST", headers: {
+//     Authorization: `DeepL-Auth-Key ${key}`,
+//     "Content-Type": "application/x-www-form-urlencoded" }, body });
+//   if (!res.ok) return null;
+//   return (await res.json())?.translations?.[0]?.text ?? null;
 async function callTranslationProvider(
-  text: string,
-  sourceLang: string,
-  targetLang: string,
+  _text: string,
+  _sourceLang: string,
+  _targetLang: string,
 ): Promise<string | null> {
-  const key = Deno.env.get("TRANSLATION_API_KEY");
-  if (!key) throw new Error("TRANSLATION_API_KEY is not set");
-  const url =
-    Deno.env.get("TRANSLATION_API_URL") ??
-    "https://api-free.deepl.com/v2/translate";
-
-  const body = new URLSearchParams({ text, target_lang: targetLang });
-  if (sourceLang) body.set("source_lang", sourceLang);
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `DeepL-Auth-Key ${key}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data?.translations?.[0]?.text ?? null;
+  throw new Error(
+    "No translation provider configured — implement callTranslationProvider " +
+      "(see the DeepL reference above)."
+  );
 }
 
 // HTTP handler — the request entry point.

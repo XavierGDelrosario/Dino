@@ -1,17 +1,12 @@
 // =========================================================
 // Bounded-concurrency async map.
-//
+// 
 // Runs `fn` over `items` with at most `limit` tasks in flight, preserving input
 // order in the results. Use instead of Promise.all when each task hits the
 // network (e.g. translating every word in a paragraph) so a big input can't
 // fire hundreds of requests at once.
 // =========================================================
 
-/**
- * OUTPUT: R[] in input order.
- * CONSTRAINTS: at most `limit` tasks in flight (clamped to >= 1 when there are
- * items); rejects if any `fn` rejects.
- */
 export async function mapLimit<T, R>(
   items: readonly T[],
   limit: number,
