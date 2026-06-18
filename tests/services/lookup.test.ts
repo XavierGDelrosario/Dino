@@ -107,8 +107,8 @@ describe("translateParagraph", () => {
     mockResolveProvider.mockReturnValue(createMockSenseProvider(FIXTURE_WORDS));
     // Analysis is mocked: two tokens, each carrying a (best-effort) reading.
     mockAnalyze.mockResolvedValue([
-      { text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫" },
-      { text: "犬", start: 2, end: 3, reading: "いぬ", lemma: "犬" },
+      { text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null },
+      { text: "犬", start: 2, end: 3, reading: "いぬ", lemma: "犬", pos: null },
     ]);
 
     const res = await translateParagraph({ input: "猫 犬", targetLang: "EN" });
@@ -135,7 +135,7 @@ describe("translateParagraph", () => {
     );
     mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     // kuromoji misreads 今 in isolation as こん; lemma 今.
-    mockAnalyze.mockResolvedValue([{ text: "今", start: 0, end: 1, reading: "こん", lemma: "今" }]);
+    mockAnalyze.mockResolvedValue([{ text: "今", start: 0, end: 1, reading: "こん", lemma: "今", pos: null }]);
 
     const res = await translateParagraph({ input: "今", targetLang: "EN" });
     expect(res.tokens.find((t) => t.text === "今")?.reading).toBe("いま"); // overridden
@@ -153,7 +153,7 @@ describe("translateParagraph", () => {
       ])
     );
     mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
-    mockAnalyze.mockResolvedValue([{ text: "辛い", start: 0, end: 2, reading: "からい", lemma: "辛い" }]);
+    mockAnalyze.mockResolvedValue([{ text: "辛い", start: 0, end: 2, reading: "からい", lemma: "辛い", pos: null }]);
 
     const res = await translateParagraph({ input: "辛い", targetLang: "EN" });
     expect(res.tokens.find((t) => t.text === "辛い")?.reading).toBe("からい"); // kuromoji's context guess kept
@@ -163,7 +163,7 @@ describe("translateParagraph", () => {
     mockTranslate.mockResolvedValue({ translated: true, translation: "cat", word: null });
     mockFindBatch.mockResolvedValue(new Map()); // not in words
     mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
-    mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫" }]);
+    mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null }]);
 
     const res = await translateParagraph({ input: "猫", targetLang: "EN" });
     expect(res.tokens.find((t) => t.text === "猫")?.reading).toBe("ねこ");
@@ -177,7 +177,7 @@ describe("translateParagraph", () => {
     );
     mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     // kuromoji: surface 行った, lemma 行く, surface reading いった.
-    mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く" }]);
+    mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く", pos: null }]);
 
     const res = await translateParagraph({ input: "行った", targetLang: "EN" });
 
@@ -193,7 +193,7 @@ describe("translateParagraph", () => {
     mockResolveProvider.mockReturnValue(
       createMockSenseProvider([makeWord({ input: "行く", translation: "to go", inputReading: "いく" })])
     );
-    mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く" }]);
+    mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く", pos: null }]);
 
     const res = await translateParagraph({ input: "行った", targetLang: "EN" });
 
@@ -205,7 +205,7 @@ describe("translateParagraph", () => {
     mockTranslate.mockResolvedValue({ translated: false, translation: null, word: null });
     mockFindBatch.mockResolvedValue(new Map());
     mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
-    mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫" }]);
+    mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null }]);
 
     const res = await translateParagraph({ input: "猫", targetLang: "EN" });
     expect(res.translated).toBe(false);

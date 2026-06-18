@@ -83,12 +83,16 @@ export function createSupabaseStub() {
   const auth = {
     getUser: vi.fn(),
     signInAnonymously: vi.fn(),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
   };
   const functions = {
     invoke: vi.fn(),
   };
+  // RPC (Postgres functions, e.g. record_review): a plain mock that tests
+  // configure with .mockResolvedValue({ data, error }) — services `await` it.
+  const rpc = vi.fn();
 
-  const client = { from, auth, functions };
+  const client = { from, auth, functions, rpc };
 
   /** All recorded builder calls for a table (optionally a single method). */
   function callsFor(table: string, method?: string): RecordedCall[] {
@@ -97,7 +101,7 @@ export function createSupabaseStub() {
     );
   }
 
-  return { client, queueFrom, calls, callsFor, fromCalls, auth, functions };
+  return { client, queueFrom, calls, callsFor, fromCalls, auth, functions, rpc };
 }
 
 export type SupabaseStub = ReturnType<typeof createSupabaseStub>;

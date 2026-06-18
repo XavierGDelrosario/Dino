@@ -80,6 +80,10 @@ interface ProviderResult {
   translation: string;
   inputReading?: string | null;
   translationReading?: string | null;
+  // JA->EN: the canonical JA headword (kanji if the entry has one, else kana) to
+  // store as `input`, so a kana search keeps the kanji. null/undefined → use the
+  // search term as-is (EN->JA, MT).
+  headword?: string | null;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -104,10 +108,12 @@ async function lookupJMdict(
     translation: string;
     input_reading: string | null;
     translation_reading: string | null;
+    writing: string | null;
   }) => ({
     translation: row.translation,
     inputReading: row.input_reading ?? null,
     translationReading: row.translation_reading ?? null,
+    headword: row.writing ?? null,
   }));
 }
 
@@ -133,13 +139,16 @@ async function fetchVerified(
   sourceLang: string,
   targetLang: string,
 ): Promise<WordRow[]> {
+  // Match the search term against EITHER the stored headword (`input`, e.g. 猫)
+  // OR its reading (`input_reading`, e.g. ねこ), so a hiragana search resolves to
+  // the kanji-headword rows the projection stores.
   const { data, error } = await supabase
     .from("words")
     .select("*")
-    .eq("input", input)
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
-    .eq("is_verified", true);
+    .eq("is_verified", true)
+    .or(`input.eq.${input},input_reading.eq.${input}`);
   if (error) throw new Error(error.message);
   return (data ?? []) as WordRow[];
 }
@@ -223,15 +232,30 @@ Deno.serve(async (req) => {
   // 4. Persist every sense as a verified global word (service role bypasses RLS).
   //    Readings ride inline on each row; they are deterministic attributes, NOT
   //    part of the onConflict identity.
-  const rows = results.map((r) => ({
-    input,
-    translation: r.translation,
-    source_lang: sourceLang,
-    target_lang: targetLang,
-    input_reading: r.inputReading ?? null,
-    translation_reading: r.translationReading ?? null,
-    is_verified: true,
-  }));
+  //    DEDUPE by the onConflict tuple first: JMdict can yield several senses that
+  //    aggregate to the SAME translation string (e.g. 私 → "I; me" twice). Those
+  //    become identical conflict keys, and a single ON CONFLICT statement cannot
+  //    update the same row twice (Postgres 21000). Keep the first (primary) of
+  //    each; its reading is the entry's preferred kana, identical across them.
+  const seen = new Set<string>();
+  const rows: Array<Record<string, unknown>> = [];
+  for (const r of results) {
+    // Store the canonical headword (kanji writing for JA->EN) as `input`, so a
+    // kana search keeps the kanji and homophones split into their own kanji.
+    const head = r.headword ?? input;
+    const key = `${head} ${r.translation}`; // onConflict tuple (input+translation)
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push({
+      input: head,
+      translation: r.translation,
+      source_lang: sourceLang,
+      target_lang: targetLang,
+      input_reading: r.inputReading ?? null,
+      translation_reading: r.translationReading ?? null,
+      is_verified: true,
+    });
+  }
   const { error: insertError } = await supabase
     .from("words")
     .upsert(rows, {

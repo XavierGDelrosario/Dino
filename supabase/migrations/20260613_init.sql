@@ -97,7 +97,15 @@ CREATE TABLE IF NOT EXISTS user_words (
   -- the user's own meaning: set for created words AND edits/overrides;
   -- NULL means "use the referenced dictionary translation".
   custom_translation TEXT,
-  -- mastery / spaced-repetition state
+  -- mastery / spaced-repetition state. The scheduler is a continuous forgetting
+  -- curve, not an interval schedule: `stability` is the memory strength (in
+  -- DAYS) and recall probability at any moment is R(t) = exp(-Δdays / stability)
+  -- (Ebbinghaus / Duolingo-HLR shape). The "review queue" is the vocabulary
+  -- ranked by current R ascending (least confident first) — there is NO stored
+  -- next-review date (a due date is only one projection of this curve; see
+  -- services/review.ts + record_review() below). `confidence_rating` (0–5) is a
+  -- DERIVED display bucket of `stability`, written by record_review().
+  stability REAL,                                         -- NULL until first review
   confidence_rating INT NOT NULL DEFAULT 0 CHECK (confidence_rating BETWEEN 0 AND 5),
   last_reviewed_date TIMESTAMPTZ,                          -- NULL until first review
   originally_translated_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -107,9 +115,14 @@ CREATE TABLE IF NOT EXISTS user_words (
 );
 
 -- One entry per (user, dictionary sense); one standalone per (user, input, pair, meaning).
-CREATE UNIQUE INDEX IF NOT EXISTS uq_user_words_dictionary
-  ON user_words (user_id, dictionary_word_id)
-  WHERE dictionary_word_id IS NOT NULL;
+-- This MUST be a full (non-partial) UNIQUE constraint, not a partial index: the
+-- save path upserts with ON CONFLICT (user_id, dictionary_word_id), and Postgres
+-- cannot infer a PARTIAL index for ON CONFLICT (error 42P10). A full unique key
+-- is equivalent here — standalone created words have dictionary_word_id = NULL,
+-- and NULLs are distinct in a unique key, so they stay multi-allowed exactly as
+-- the old `WHERE dictionary_word_id IS NOT NULL` partial intended.
+ALTER TABLE user_words
+  ADD CONSTRAINT uq_user_words_dictionary UNIQUE (user_id, dictionary_word_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_words_custom
   ON user_words (user_id, input, source_lang, target_lang, custom_translation)
   WHERE dictionary_word_id IS NULL;
@@ -143,7 +156,134 @@ USING (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text)
 WITH CHECK (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text));
 
 -- =========================
--- 6. TABLE PRIVILEGES for the API roles
+-- 6. REVIEW_LOG (append-only review history) + record_review()
+--
+-- record_review() is the single, atomic, server-clocked writer for a review:
+-- it stamps now(), updates `stability` from the grade (with the spacing
+-- effect), derives the 0–5 confidence bucket, and appends a review_log row.
+-- Doing the read-modify-write in ONE function avoids the race two clients would
+-- hit doing it themselves, and keeps the scheduling math in one place so the
+-- in-depth algorithm (FSRS) later is a new function body, not an API change.
+-- review_log is kept because FSRS trains on review history — impossible to
+-- backfill if not logged from the start. Deferred to that upgrade: a per-word
+-- `difficulty` column, a power-law curve, and fitting the constants below.
+-- =========================
+CREATE TABLE IF NOT EXISTS review_log (
+  log_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_word_id   UUID NOT NULL REFERENCES user_words(user_word_id) ON DELETE CASCADE,
+  user_id        TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  grade          SMALLINT NOT NULL CHECK (grade BETWEEN 1 AND 5),  -- 1 forgot … 5 easy
+  reviewed_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  elapsed_days   REAL,           -- NULL on the first review (nothing elapsed yet)
+  prev_stability REAL,           -- NULL on the first review
+  new_stability  REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_review_log_user_word
+  ON review_log (user_word_id, reviewed_at);
+
+ALTER TABLE review_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "user_manage_own_review_log"
+ON review_log FOR ALL
+USING (user_id = (auth.uid())::text)
+WITH CHECK (user_id = (auth.uid())::text);
+
+-- record_review(user_word_id, grade) -> the updated user_words row.
+-- grade is a 1–5 self-rated recall confidence (1 = forgot … 5 = easy); there is
+-- no separate "again" — a forgotten card is just grade 1 (our model has no
+-- intra-session requeue, only retrievability ranking).
+-- SECURITY INVOKER (default): the SELECT ... FOR UPDATE runs under the caller's
+-- RLS, so a foreign user_word_id is simply NOT FOUND — no cross-user writes.
+CREATE OR REPLACE FUNCTION record_review(
+  p_user_word_id UUID,
+  p_grade        INT
+)
+RETURNS user_words
+LANGUAGE plpgsql
+VOLATILE
+AS $$
+DECLARE
+  w         user_words;
+  v_now     TIMESTAMPTZ := now();
+  v_elapsed REAL;            -- days since last review (NULL on first review)
+  v_r       REAL;            -- retrievability at review time (NULL on first review)
+  v_prev_s  REAL;
+  v_new_s   REAL;
+BEGIN
+  IF p_grade < 1 OR p_grade > 5 THEN
+    RAISE EXCEPTION 'invalid grade % (expected 1-5)', p_grade;
+  END IF;
+
+  -- Lock the caller's row; RLS guarantees it's theirs (else NOT FOUND).
+  SELECT * INTO w FROM user_words
+   WHERE user_word_id = p_user_word_id
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'user_word % not found', p_user_word_id;
+  END IF;
+
+  v_prev_s := w.stability;
+
+  IF w.stability IS NULL OR w.last_reviewed_date IS NULL THEN
+    -- First-ever review: seed initial strength from the confidence.
+    v_elapsed := NULL;
+    v_r       := NULL;
+    v_new_s   := CASE p_grade
+                   WHEN 1 THEN 0.4
+                   WHEN 2 THEN 0.7
+                   WHEN 3 THEN 1.5
+                   WHEN 4 THEN 3.5
+                   WHEN 5 THEN 7.0
+                 END;
+  ELSE
+    v_elapsed := GREATEST(0, EXTRACT(EPOCH FROM (v_now - w.last_reviewed_date)) / 86400.0);
+    -- R = exp(-Δ / S); mirrors retrievability() in services/review.ts.
+    v_r := exp(- v_elapsed / GREATEST(w.stability, 0.01));
+
+    IF p_grade <= 2 THEN
+      -- Forgot / barely: lapse, harder (smaller factor) for the lower grade.
+      v_new_s := GREATEST(0.5, w.stability * (CASE p_grade WHEN 1 THEN 0.3 ELSE 0.6 END));
+    ELSE
+      -- Recalled: grow strength. The (1 - R) factor is the SPACING EFFECT —
+      -- recalling something you'd nearly forgotten (low R) earns far more than
+      -- re-reviewing something still fresh (R≈1, almost no gain). Higher
+      -- confidence grows it more.
+      v_new_s := w.stability * (1 + (CASE p_grade
+                                       WHEN 3 THEN 1.0
+                                       WHEN 4 THEN 2.0
+                                       WHEN 5 THEN 3.5
+                                     END) * (1 - v_r));
+    END IF;
+  END IF;
+
+  UPDATE user_words
+     SET stability          = v_new_s,
+         last_reviewed_date = v_now,
+         -- derive the 0–5 display bucket from the new strength
+         confidence_rating  = CASE
+                                WHEN v_new_s <  1  THEN 0
+                                WHEN v_new_s <  3  THEN 1
+                                WHEN v_new_s <  7  THEN 2
+                                WHEN v_new_s < 16  THEN 3
+                                WHEN v_new_s < 35  THEN 4
+                                ELSE 5
+                              END
+   WHERE user_word_id = p_user_word_id
+   RETURNING * INTO w;
+
+  INSERT INTO review_log
+    (user_word_id, user_id, grade, reviewed_at, elapsed_days, prev_stability, new_stability)
+  VALUES
+    (p_user_word_id, w.user_id, p_grade, v_now, v_elapsed, v_prev_s, v_new_s);
+
+  RETURN w;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION record_review(UUID, INT) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION record_review(UUID, INT) TO anon, authenticated;
+
+-- =========================
+-- 7. TABLE PRIVILEGES for the API roles
 -- RLS above restricts WHICH rows a role sees/writes; these GRANTs are what allow
 -- the operation to be attempted at all. Supabase's current default does NOT
 -- auto-expose new tables to anon/authenticated, so without these every request
@@ -155,4 +295,5 @@ GRANT SELECT, INSERT, UPDATE          ON users      TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE  ON lists      TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE  ON user_words TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE  ON list_words TO anon, authenticated;
+GRANT SELECT, INSERT                  ON review_log TO anon, authenticated;  -- append-only
 GRANT SELECT                          ON words      TO anon, authenticated;

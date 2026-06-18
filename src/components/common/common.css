@@ -1,0 +1,92 @@
+:root {
+  --bg: #0f1115;
+  --surface: #1a1d24;
+  --surface-2: #232733;
+  --text: #e8eaed;
+  --muted: #9aa0ab;
+  --accent: #6ea8fe;
+  --border: #2c313c;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  /* always allow vertical scroll so tall content (long lists, paragraphs,
+     popovers) is reachable and a scrollbar appears when needed */
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.app {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 5rem; /* generous bottom padding so content clears the edge */
+}
+
+.app__header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.app__title {
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1rem;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover {
+  background: #2b303c;
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* tab nav */
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
+.tab--active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}

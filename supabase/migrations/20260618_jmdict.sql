@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS jmdict_senses (
   part_of_speech    TEXT[] NOT NULL DEFAULT '{}',   -- POS tag codes (e.g. n, v5k, adj-i)
   applies_to_kanji  TEXT[] NOT NULL DEFAULT '{*}',
   applies_to_kana   TEXT[] NOT NULL DEFAULT '{*}',
+  usually_kana      BOOLEAN NOT NULL DEFAULT FALSE, -- JMdict "uk" misc: headline as kana
   position          INT NOT NULL                    -- sense order (0 = primary)
 );
 
@@ -116,7 +117,12 @@ RETURNS TABLE (
   translation          TEXT,
   input_reading        TEXT,
   translation_reading  TEXT,
-  sense_position       INT
+  sense_position       INT,
+  -- the preferred WRITING of the matched JA entry (kanji if it has one, else
+  -- kana). This is the canonical headword the edge function stores as `input`,
+  -- so a hiragana search (ねこ) still yields the kanji 猫 — and homophones split
+  -- into their own kanji (はし → 橋 / 箸 / 端). NULL for EN->JA.
+  writing              TEXT
 )
 LANGUAGE plpgsql
 STABLE
@@ -128,20 +134,47 @@ BEGIN
         (SELECT string_agg(gl.text, '; ' ORDER BY gl.position)
            FROM jmdict_glosses gl
           WHERE gl.sense_id = s.id)                       AS translation,
-        (SELECT k.text
-           FROM jmdict_kana k
-          WHERE k.entry_id = s.entry_id
-          ORDER BY k.common DESC, k.position ASC
-          LIMIT 1)                                        AS input_reading,
+        -- The annotation shown above the headword (`input_reading`):
+        --   * uk entry → the KANJI (headword is kana, so show the kanji as a hint)
+        --   * normal entry with kanji → the kana reading (furigana)
+        --   * kana-only → nothing
+        CASE
+          WHEN pref.is_uk THEN pref.kanji                      -- kanji rides above the kana
+          WHEN pref.kanji IS NOT NULL THEN pref.kana           -- normal furigana
+          ELSE NULL
+        END                                               AS input_reading,
         NULL::TEXT                                        AS translation_reading,
-        s.position                                        AS sense_position
+        s.position                                        AS sense_position,
+        -- Headword (`writing`): kana for "usually kana" entries, else kanji.
+        CASE WHEN pref.is_uk THEN pref.kana ELSE COALESCE(pref.kanji, pref.kana) END
+                                                          AS writing
       FROM jmdict_senses s
+      JOIN LATERAL (
+        SELECT
+          (SELECT kj.text FROM jmdict_kanji kj
+            WHERE kj.entry_id = s.entry_id
+            ORDER BY kj.common DESC, kj.position ASC LIMIT 1) AS kanji,
+          (SELECT k.text FROM jmdict_kana k
+            WHERE k.entry_id = s.entry_id
+            ORDER BY k.common DESC, k.position ASC LIMIT 1)   AS kana,
+          -- is the entry "common" (any common kana/kanji)? Used to rank common
+          -- words first when one reading spans several entries (いく → 行く ≫ 幾).
+          (COALESCE((SELECT bool_or(common) FROM jmdict_kana  WHERE entry_id = s.entry_id), FALSE)
+           OR COALESCE((SELECT bool_or(common) FROM jmdict_kanji WHERE entry_id = s.entry_id), FALSE))
+                                                              AS is_common,
+          -- "usually kana": the PRIMARY (position 0) sense tagged uk. Must be the
+          -- primary, not any sense — 猫's slang senses are uk but its main "cat"
+          -- sense isn't, so it must stay 猫, not flip to ねこ.
+          COALESCE((SELECT sn.usually_kana FROM jmdict_senses sn
+                     WHERE sn.entry_id = s.entry_id ORDER BY sn.position ASC LIMIT 1), FALSE)
+                                                              AS is_uk
+      ) pref ON TRUE
       WHERE s.entry_id IN (
               SELECT entry_id FROM jmdict_kanji WHERE text = p_input
               UNION
               SELECT entry_id FROM jmdict_kana  WHERE text = p_input
             )
-      ORDER BY s.entry_id, s.position;
+      ORDER BY pref.is_common DESC, s.entry_id, s.position;
 
   ELSIF p_source = 'EN' AND p_target = 'JA' THEN
     RETURN QUERY
@@ -167,7 +200,8 @@ BEGIN
         NULL::TEXT                                        AS input_reading,
         pref.reading                                      AS translation_reading,
         (ROW_NUMBER() OVER (ORDER BY ent.match_rank DESC, pref.is_common DESC, ent.first_sense ASC))::INT - 1
-                                                          AS sense_position
+                                                          AS sense_position,
+        NULL::TEXT                                        AS writing
       FROM ent
       JOIN LATERAL (
         SELECT

@@ -33,6 +33,7 @@ interface JMSense {
   partOfSpeech: string[];
   appliesToKanji: string[];
   appliesToKana: string[];
+  misc: string[];
   gloss: JMGloss[];
 }
 interface JMWord { id: string; kanji: JMKanji[]; kana: JMKana[]; sense: JMSense[] }
@@ -104,6 +105,9 @@ async function main(): Promise<void> {
         s.partOfSpeech ?? [],
         s.appliesToKanji ?? ["*"],
         s.appliesToKana ?? ["*"],
+        // "uk" = usually written using kana alone → the entry should headline as
+        // kana, with the kanji shown as an annotation (see jmdict_lookup).
+        (s.misc ?? []).includes("uk"),
         i,
       ]);
       senseGlosses.push(s.gloss ?? []);
@@ -138,7 +142,7 @@ async function main(): Promise<void> {
     const senseRows = await bulkInsert(
       client,
       "jmdict_senses",
-      ["entry_id", "part_of_speech", "applies_to_kanji", "applies_to_kana", "position"],
+      ["entry_id", "part_of_speech", "applies_to_kanji", "applies_to_kana", "usually_kana", "position"],
       senses,
       "id"
     );

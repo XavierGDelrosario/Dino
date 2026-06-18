@@ -50,6 +50,34 @@ describe("ensureSession", () => {
     expect(upsert?.args[0]).toEqual({ user_id: "guest-1", email: "guest-1@guest.dino" });
   });
 
+  it("self-heals a stale session (getUser errors) by signing out and re-signing in", async () => {
+    // localStorage held a token for a wiped user → getUser rejects it.
+    stub.auth.getUser.mockResolvedValue({
+      data: { user: null },
+      error: { message: "user not found" },
+    });
+    stub.auth.signInAnonymously.mockResolvedValue({
+      data: { user: { id: "fresh-guest", email: null } },
+      error: null,
+    });
+    stub.queueFrom("users", { data: null, error: null });
+
+    expect(await ensureSession()).toBe("fresh-guest");
+    expect(stub.auth.signOut).toHaveBeenCalled(); // purged the stale session
+    expect(stub.auth.signInAnonymously).toHaveBeenCalled();
+  });
+
+  it("synthesizes a unique guest email when the anon email is EMPTY STRING (not null)", async () => {
+    // Supabase anonymous users carry email "" — must still synthesize, else every
+    // guest collides on the users_email unique constraint (23505).
+    stub.auth.getUser.mockResolvedValue({ data: { user: { id: "guest-2", email: "" } } });
+    stub.queueFrom("users", { data: null, error: null });
+
+    await ensureSession();
+    const upsert = stub.callsFor("users", "upsert")[0];
+    expect(upsert?.args[0]).toEqual({ user_id: "guest-2", email: "guest-2@guest.dino" });
+  });
+
   it("throws when anonymous sign-in fails", async () => {
     stub.auth.getUser.mockResolvedValue({ data: { user: null } });
     stub.auth.signInAnonymously.mockResolvedValue({

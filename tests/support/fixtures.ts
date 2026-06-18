@@ -38,6 +38,7 @@ export function makeUserWord(overrides: Partial<UserWord> = {}): UserWord {
     translation: "cat",
     inputReading: null,
     translationReading: null,
+    stability: null,
     confidenceRating: 0,
     lastReviewedDate: null,
     originallyTranslatedDate: "2026-06-17T00:00:00Z",

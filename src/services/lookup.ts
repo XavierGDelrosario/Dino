@@ -145,8 +145,14 @@ export async function translateParagraph(params: {
   const senseProvider = resolveSenseProvider(resolvedSource, targetLang);
   const missing = uniqueKeys.filter((k) => !meaningsByKey.has(k));
   await mapLimit(missing, MAX_TRANSLATION_CONCURRENCY, async (key) => {
-    const senses = await senseProvider(key, resolvedSource, targetLang);
-    if (senses.length > 0) meaningsByKey.set(key, senses);
+    // One word's lookup failing must NOT break the whole paragraph — it just
+    // renders uncolored (no meanings). A paragraph fans out many per-word calls.
+    try {
+      const senses = await senseProvider(key, resolvedSource, targetLang);
+      if (senses.length > 0) meaningsByKey.set(key, senses);
+    } catch {
+      /* leave this word without meanings */
+    }
   });
 
   // 3b. Overlay the AUTHORITATIVE reading that already rides on the looked-up

@@ -37,25 +37,51 @@ export async function getCurrentUserId(): Promise<string | null> {
  * every service expects.
  *
  * OUTPUT: the userId.
- * CONSTRAINTS: call once before any service; synthesizes a placeholder email
- * for anonymous users; relies on users-table RLS allowing the own-row upsert.
+ * CONSTRAINTS: synthesizes a placeholder email for anonymous users; relies on
+ * users-table RLS allowing the own-row upsert.
+ *
+ * Concurrent calls SHARE one in-flight sign-in (the promise is reused until it
+ * settles, then cleared). React StrictMode double-invokes the bootstrap effect;
+ * without this, two `signInAnonymously` calls race and the resolved userId can
+ * mismatch the active session's JWT → 403 on the first user_words write.
  */
-export async function ensureSession(): Promise<string> {
-  let {
-    data: { user },
-  } = await supabase.auth.getUser();
+let inflightSession: Promise<string> | null = null;
+export function ensureSession(): Promise<string> {
+  return (inflightSession ??= runEnsureSession().finally(() => {
+    inflightSession = null;
+  }));
+}
 
+async function runEnsureSession(): Promise<string> {
+  // Probe the stored session. getUser can either return an error OR throw
+  // (network blip, or StrictMode racing two refreshes of a stale token), so
+  // treat ANY failure as "no usable session".
+  let user: { id: string; email?: string | null } | null = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error) user = data.user;
+  } catch {
+    user = null;
+  }
+
+  // No user, OR a stale/invalid stored session — e.g. localStorage still holds a
+  // token for an auth user wiped by a `supabase db reset`. Purge the stale
+  // session and sign in fresh so the app self-heals instead of dead-ending on
+  // "couldn't start a session".
   if (!user) {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error || !data.user) {
-      throw error ?? new Error("Anonymous sign-in failed");
+    await supabase.auth.signOut().catch(() => {});
+    const { data, error: signErr } = await supabase.auth.signInAnonymously();
+    if (signErr || !data.user) {
+      throw signErr ?? new Error("Anonymous sign-in failed");
     }
     user = data.user;
   }
 
-  // Anonymous users have no email; synthesize a stable placeholder so the
-  // NOT NULL / UNIQUE constraint holds. A real email replaces it on upgrade.
-  const email = user.email ?? `${user.id}@guest.dino`;
+  // Anonymous users have an EMPTY-STRING email (not null), so use `||` not `??`:
+  // synthesize a UNIQUE per-uid placeholder, otherwise every guest would insert
+  // the same "" and collide on the users_email UNIQUE constraint (23505). A real
+  // email replaces it on upgrade.
+  const email = user.email || `${user.id}@guest.dino`;
   await ensureUserProfile(user.id, email);
 
   return user.id;

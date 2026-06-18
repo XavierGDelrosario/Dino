@@ -33,6 +33,40 @@ export interface AnalyzedToken extends WordToken {
   reading: string | null;
   /** Dictionary (base) form, or null when unknown / not applicable. */
   lemma: string | null;
+  /** Coarse part-of-speech (kuromoji's, e.g. 名詞/動詞/助詞), or null. */
+  pos: string | null;
+}
+
+// kuromoji POS tags for INDEPENDENT content words (vs particles 助詞, auxiliaries
+// 助動詞, symbols 記号). Used to tell a single word from a phrase/sentence, and to
+// skip grammatical tokens (に, た) in the reader — they aren't vocabulary.
+const CONTENT_POS = new Set([
+  "名詞", "動詞", "形容詞", "副詞", "連体詞", "感動詞", "接頭詞",
+]);
+
+/**
+ * Is this a content word worth treating as vocabulary? JA: a content POS (not a
+ * particle/auxiliary/symbol). Non-JA tokens carry no POS (`null`) → treated as
+ * content so English words still count.
+ */
+export function isContentPos(pos: string | null): boolean {
+  return pos === null || CONTENT_POS.has(pos);
+}
+
+/**
+ * True if `text` is a SINGLE word (one content word), not a phrase/sentence — so
+ * the UI can route to single-word lookup vs the paragraph reader without a manual
+ * toggle. JA: one content token and no particle (so 行った = 行っ+た is one verb,
+ * but 日本に行った is not). Other languages: one segmented token.
+ */
+export function isSingleWord(tokens: AnalyzedToken[], lang: LangCode): boolean {
+  if (tokens.length === 0) return false;
+  if (lang.toUpperCase() === "JA") {
+    const content = tokens.filter((t) => t.pos !== null && CONTENT_POS.has(t.pos));
+    const hasParticle = tokens.some((t) => t.pos === "助詞");
+    return content.length <= 1 && !hasParticle;
+  }
+  return tokens.length === 1;
 }
 
 /** Languages that get morphological analysis (reading + lemma) vs. plain segmentation. */
@@ -46,6 +80,7 @@ function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
     ...t,
     reading: null,
     lemma: null,
+    pos: null,
   }));
 }
 
@@ -102,6 +137,7 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
       end: start + t.surface_form.length,
       reading,
       lemma,
+      pos: t.pos && t.pos !== UNKNOWN ? t.pos : null,
     });
   }
   return out;

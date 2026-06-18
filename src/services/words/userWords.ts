@@ -41,7 +41,13 @@ export interface UserWord {
    * reading no longer annotates the user's own term.
    */
   translationReading: string | null;
-  /** Mastery: 0–5, 0 = new / never studied. */
+  /**
+   * Memory strength in days (the spaced-repetition forgetting-curve parameter);
+   * null until first reviewed. Recall probability = exp(-Δdays / stability).
+   * The review queue ranks on this via `retrievability()` (services/review.ts).
+   */
+  stability: number | null;
+  /** Mastery: 0–5, 0 = new / never studied. Derived display bucket of `stability`. */
   confidenceRating: number;
   lastReviewedDate: string | null;
   originallyTranslatedDate: string;
@@ -55,6 +61,7 @@ interface UserWordRow {
   target_lang: string;
   dictionary_word_id: string | null;
   custom_translation: string | null;
+  stability: number | null;
   confidence_rating: number;
   last_reviewed_date: string | null;
   originally_translated_date: string;
@@ -88,6 +95,7 @@ function toUserWord(row: UserWordRow): UserWord {
     translationReading: row.custom_translation
       ? null
       : row.words?.translation_reading ?? null,
+    stability: row.stability ?? null,
     confidenceRating: row.confidence_rating,
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
@@ -171,25 +179,48 @@ export async function createCustomWord(params: {
     throw new Error("Both the word and its meaning are required");
   }
 
-  const { data, error } = await supabase
+  // INSERT (not upsert): the uniqueness behind a re-create is the PARTIAL index
+  // uq_user_words_custom (… WHERE dictionary_word_id IS NULL), and PostgREST
+  // can't target a partial index with ON CONFLICT (Postgres 42P10). That index
+  // MUST stay partial — a full constraint would wrongly collide override rows
+  // sharing a custom_translation — so we handle the conflict in code: on a
+  // unique violation (23505), the word already exists → fetch it (idempotent
+  // re-create), mirroring the no-op re-add semantics of saveDictionaryWord.
+  const insert = await supabase
     .from("user_words")
-    .upsert(
-      {
-        user_id: userId,
-        input,
-        source_lang: sourceLang,
-        target_lang: targetLang,
-        dictionary_word_id: null,
-        custom_translation: translation,
-      },
-      { onConflict: "user_id,input,source_lang,target_lang,custom_translation" }
-    )
+    .insert({
+      user_id: userId,
+      input,
+      source_lang: sourceLang,
+      target_lang: targetLang,
+      dictionary_word_id: null,
+      custom_translation: translation,
+    })
     .select<string, UserWordRow>("*")
     .single();
-  if (error || !data) throw error ?? new Error(`Failed to create "${input}"`);
 
-  if (listId) await tagInList(data.user_word_id, listId);
-  return toUserWord(data);
+  let row = insert.data;
+  if (insert.error) {
+    if ((insert.error as { code?: string }).code !== "23505") throw insert.error;
+    const existing = await supabase
+      .from("user_words")
+      .select<string, UserWordRow>("*")
+      .eq("user_id", userId)
+      .eq("input", input)
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("custom_translation", translation)
+      .is("dictionary_word_id", null)
+      .single();
+    if (existing.error || !existing.data) {
+      throw existing.error ?? new Error(`Failed to create "${input}"`);
+    }
+    row = existing.data;
+  }
+  if (!row) throw new Error(`Failed to create "${input}"`);
+
+  if (listId) await tagInList(row.user_word_id, listId);
+  return toUserWord(row);
 }
 
 /**

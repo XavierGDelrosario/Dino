@@ -1,0 +1,167 @@
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.review__msg {
+  text-align: center;
+  color: var(--muted);
+  margin-top: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+.review__reveal {
+  align-self: center;
+}
+
+.review__scope {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.review__error {
+  background: #2a1416;
+  color: #ffb4ad;
+  border: 1px solid #5a2a2a;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* progress */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress__track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress__fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
+
+.progress__label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-width: 3.5rem;
+  text-align: right;
+}
+
+/* card */
+.flashcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 220px;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.flashcard[role="button"] {
+  cursor: pointer;
+}
+
+.flashcard--flipped {
+  border-color: var(--accent);
+}
+
+.flashcard__term {
+  font-size: 2.4rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.flashcard__back {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+  width: 100%;
+}
+
+.flashcard__reading {
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.flashcard__translation {
+  font-size: 1.4rem;
+}
+
+.flashcard__hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* confidence buttons (1–5: forgot → easy) */
+.grades {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+}
+
+.grade {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.3rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.grade__num {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.grade__label {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.grade:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.grade:not(:disabled):hover {
+  filter: brightness(1.2);
+}
+
+/* red (forgot) → green (easy) */
+.grade--c1 { background: #3a1d1f; border-color: #6a2c2c; }
+.grade--c2 { background: #3a2a1d; border-color: #6a4a2c; }
+.grade--c3 { background: #3a371d; border-color: #6a652c; }
+.grade--c4 { background: #2a3a1d; border-color: #4a6a2c; }
+.grade--c5 { background: #1d3a26; border-color: #2c6a40; }

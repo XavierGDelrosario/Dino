@@ -1,0 +1,142 @@
+// =========================================================
+// Review / spaced repetition (READ ranking + the record-a-review write).
+//
+// The model is a CONTINUOUS forgetting curve, not an interval schedule. Each
+// user_word carries a `stability` (memory strength, in days); recall
+// probability at time t is the Ebbinghaus/Duolingo-HLR shape
+//   R(t) = exp(-Δdays / stability).
+// There is NO stored next-review date: the "review queue" is simply the user's
+// vocabulary ranked by CURRENT R ascending (least confident first). A scheduled
+// quiz is "give me the N least-confident words", never "these are due now".
+//
+// Split of responsibility:
+//   * retrievability()  — the pure decay formula (ranking, fully unit-tested).
+//   * getReviewQueue()  — ranks the vocabulary by live R (read).
+//   * recordReview()    — delegates the atomic, server-clocked state update to
+//                         the `record_review` Postgres function (write).
+//
+// The strength UPDATE math lives server-side in record_review() (one atomic,
+// now()-stamped read-modify-write — see the migration); this module only owns
+// the READ decay shape. The two share the exp(-Δ/S) curve — keep them in sync.
+// Swapping in the in-depth algorithm (FSRS) is a new function body + this
+// formula; the { userWordId, grade } contract below does not change.
+// =========================================================
+
+import { supabase } from "../config/supabaseClient";
+import { getAllUserWords, getUserWordsInList, type UserWord } from "./words/userWords";
+
+/** The per-review grade the UI sends: a 1–5 self-rated recall confidence
+ *  (1 = forgot … 5 = easy). No separate "again" — a forgotten card is grade 1. */
+export const REVIEW_GRADES = [1, 2, 3, 4, 5] as const;
+export type ReviewGrade = (typeof REVIEW_GRADES)[number];
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Current recall probability R(t) ∈ [0,1] under the exponential forgetting
+ * curve R = exp(-Δdays / stability). A never-reviewed word (no stability, or no
+ * last-reviewed date) returns 0 so it sorts to the FRONT of the review queue.
+ *
+ * MIRRORS the decay shape in record_review() (the init migration) — keep in sync.
+ */
+export function retrievability(
+  stability: number | null,
+  lastReviewedDate: string | null,
+  now: number = Date.now()
+): number {
+  if (stability == null || stability <= 0 || lastReviewedDate == null) return 0;
+  const elapsedDays = Math.max(0, (now - Date.parse(lastReviewedDate)) / MS_PER_DAY);
+  return Math.exp(-elapsedDays / stability);
+}
+
+/** A queued review card: a vocabulary word plus its current recall probability. */
+export interface ReviewQueueItem extends UserWord {
+  /** Current recall probability 0–1; LOWER = more urgent to review. */
+  retrievability: number;
+}
+
+/** last-reviewed as a sortable number; never-reviewed (null) sorts oldest/first. */
+function reviewedAt(date: string | null): number {
+  return date ? Date.parse(date) : 0;
+}
+
+/**
+ * The N least-confident words: the user's whole vocabulary ranked by CURRENT
+ * retrievability ascending (new / most-forgotten first), ties broken by oldest
+ * review. This is the review surface — not a due-date schedule.
+ *
+ * Scoped to one sub-list when `listId` is given, else the whole vocabulary (ALL).
+ *
+ * OUTPUT: ReviewQueueItem[] of length ≤ limit (may be empty).
+ * NOTE: ranks in-app over the vocabulary (fine at POC scale). If a user's
+ * vocabulary grows large, push the R(t) ranking into SQL (closed form on
+ * now()/stability) and LIMIT there.
+ */
+export async function getReviewQueue(params: {
+  userId: string;
+  listId?: string | null;
+  limit: number;
+  now?: number;
+}): Promise<ReviewQueueItem[]> {
+  const now = params.now ?? Date.now();
+  const words = params.listId
+    ? await getUserWordsInList({ listId: params.listId })
+    : await getAllUserWords({ userId: params.userId });
+
+  return words
+    .map((w) => ({
+      ...w,
+      retrievability: retrievability(w.stability, w.lastReviewedDate, now),
+    }))
+    .sort(
+      (a, b) =>
+        a.retrievability - b.retrievability ||
+        reviewedAt(a.lastReviewedDate) - reviewedAt(b.lastReviewedDate)
+    )
+    .slice(0, Math.max(0, params.limit));
+}
+
+/** The post-review mastery state returned by record_review(). */
+export interface ReviewResult {
+  userWordId: string;
+  /** Updated memory strength (days). */
+  stability: number;
+  /** Updated 0–5 display bucket. */
+  confidenceRating: number;
+  /** Server timestamp of this review. */
+  lastReviewedDate: string;
+}
+
+/**
+ * Records one review of a word, applying the grade. The schedule math (new
+ * strength + confidence + the now() stamp + history log) runs atomically inside
+ * the `record_review` Postgres function — the client never computes it, so the
+ * algorithm can be swapped server-side without touching this contract.
+ *
+ * OUTPUT: the updated ReviewResult.
+ * CONSTRAINTS: the word must belong to the caller (enforced by RLS in the RPC).
+ */
+export async function recordReview(params: {
+  userWordId: string;
+  grade: ReviewGrade;
+}): Promise<ReviewResult> {
+  const { data, error } = await supabase.rpc("record_review", {
+    p_user_word_id: params.userWordId,
+    p_grade: params.grade,
+  });
+  if (error || !data) throw error ?? new Error("Failed to record review");
+
+  // RETURNS user_words → a single row (PostgREST may wrap it in an array).
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    user_word_id: string;
+    stability: number;
+    confidence_rating: number;
+    last_reviewed_date: string;
+  };
+  return {
+    userWordId: row.user_word_id,
+    stability: row.stability,
+    confidenceRating: row.confidence_rating,
+    lastReviewedDate: row.last_reviewed_date,
+  };
+}

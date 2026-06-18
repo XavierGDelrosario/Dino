@@ -100,12 +100,58 @@ describe("createCustomWord", () => {
       targetLang: "EN",
     });
 
-    expect(stub.callsFor("user_words", "upsert")[0]?.args[0]).toMatchObject({
+    // INSERT, not upsert (the custom uniqueness is a partial index — see service).
+    expect(stub.callsFor("user_words", "insert")[0]?.args[0]).toMatchObject({
       input: "猫",
       custom_translation: "my meaning",
       dictionary_word_id: null,
     });
     expect(res).toMatchObject({ dictionaryWordId: null, translation: "my meaning" });
+  });
+
+  it("is idempotent: a unique-violation (23505) re-fetches the existing word", async () => {
+    // 1st user_words result = the failed insert; 2nd = the existing-row select.
+    stub.queueFrom(
+      "user_words",
+      { data: null, error: { code: "23505", message: "duplicate key" } },
+      {
+        data: uwRow({
+          user_word_id: "existing",
+          dictionary_word_id: null,
+          custom_translation: "my meaning",
+        }),
+        error: null,
+      }
+    );
+
+    const res = await createCustomWord({
+      userId: "u",
+      input: "猫",
+      translation: "my meaning",
+      sourceLang: "JA",
+      targetLang: "EN",
+    });
+
+    expect(stub.callsFor("user_words", "insert").length).toBe(1);
+    // the re-fetch is scoped to the standalone row (dictionary_word_id IS NULL)
+    expect(stub.callsFor("user_words", "is")[0]?.args).toEqual(["dictionary_word_id", null]);
+    expect(res).toMatchObject({ userWordId: "existing", translation: "my meaning" });
+  });
+
+  it("rethrows a non-conflict DB error", async () => {
+    stub.queueFrom("user_words", {
+      data: null,
+      error: { code: "42501", message: "permission denied" },
+    });
+    await expect(
+      createCustomWord({
+        userId: "u",
+        input: "猫",
+        translation: "x",
+        sourceLang: "JA",
+        targetLang: "EN",
+      })
+    ).rejects.toMatchObject({ code: "42501" });
   });
 });
 
