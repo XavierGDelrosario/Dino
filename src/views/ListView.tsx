@@ -172,22 +172,35 @@ export function ListView({
               <span className="confrange__label">
                 Conf {confMin}–{confMax}
               </span>
-              <input
-                type="range"
-                min={0}
-                max={5}
-                value={confMin}
-                onChange={(e) => setConfMin(Math.min(Number(e.target.value), confMax))}
-                aria-label="Minimum confidence"
-              />
-              <input
-                type="range"
-                min={0}
-                max={5}
-                value={confMax}
-                onChange={(e) => setConfMax(Math.max(Number(e.target.value), confMin))}
-                aria-label="Maximum confidence"
-              />
+              {/* dual-thumb range: two inputs overlaid on one track */}
+              <div className="dualrange">
+                <div className="dualrange__track" />
+                <div
+                  className="dualrange__fill"
+                  style={{
+                    left: `${(confMin / 5) * 100}%`,
+                    right: `${((5 - confMax) / 5) * 100}%`,
+                  }}
+                />
+                <input
+                  type="range"
+                  className="dualrange__input"
+                  min={0}
+                  max={5}
+                  value={confMin}
+                  onChange={(e) => setConfMin(Math.min(Number(e.target.value), confMax))}
+                  aria-label="Minimum confidence"
+                />
+                <input
+                  type="range"
+                  className="dualrange__input"
+                  min={0}
+                  max={5}
+                  value={confMax}
+                  onChange={(e) => setConfMax(Math.max(Number(e.target.value), confMin))}
+                  aria-label="Maximum confidence"
+                />
+              </div>
             </div>
           </div>
         )}

@@ -120,9 +120,71 @@
   white-space: nowrap;
 }
 
-.confrange input[type="range"] {
-  width: 64px;
-  accent-color: var(--accent);
+/* dual-thumb range slider: two <input type=range> overlaid on one track */
+.dualrange {
+  position: relative;
+  width: 110px;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
+}
+
+.dualrange__track,
+.dualrange__fill {
+  position: absolute;
+  height: 4px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.dualrange__track {
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.dualrange__fill {
+  background: var(--accent);
+}
+
+.dualrange__input {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1.2rem;
+  margin: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none; /* the track is not interactive… */
+}
+
+.dualrange__input::-webkit-slider-runnable-track,
+.dualrange__input::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+.dualrange__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto; /* …only the thumbs are */
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+
+.dualrange__input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
 }
 
 /* "?" date badge on a row */
