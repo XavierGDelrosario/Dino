@@ -7,9 +7,10 @@
 //                     like 辛い → からい / つらい are separate senses, so you can
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { lookupWord, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
+import { listUserLists, createList, type List } from "../services/lists";
 import { recordReview } from "../services/review";
 import {
   analyze,
@@ -51,6 +52,30 @@ export function useTranslate(userId: string) {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [confidence, setConfidence] = useState<Map<string, number>>(new Map());
   const [userWordIds, setUserWordIds] = useState<Map<string, string>>(new Map());
+
+  // Destination for adds: a sub-list (also tags it) or null = just ALL. The
+  // user picks it once and every add button honors it (word adds + "Add all").
+  const [lists, setLists] = useState<List[]>([]);
+  const [destListId, setDestListId] = useState<string | null>(null);
+  useEffect(() => {
+    listUserLists(userId).then(setLists).catch(() => {});
+  }, [userId]);
+
+  /** Create a sub-list and make it the add destination. */
+  const createDestList = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      try {
+        const list = await createList({ userId, listName: trimmed });
+        setLists((ls) => [...ls, list]);
+        setDestListId(list.listId);
+      } catch (e) {
+        setError(message(e));
+      }
+    },
+    [userId]
+  );
 
   // Submit is a BUTTON, never Enter (IME confirms kanji with Enter).
   const submit = useCallback(async () => {
@@ -111,14 +136,19 @@ export function useTranslate(userId: string) {
     }
   }, [input, source, target, status, userId]);
 
-  /** Save one exact dictionary sense into the vocabulary. */
+  /** Save one exact dictionary sense into the vocabulary (and tag the chosen
+   *  destination list, if any). */
   const addSense = useCallback(
     async (word: Word) => {
       if (saved.has(word.wordId) || saving.has(word.wordId)) return;
       setSaving((s) => new Set(s).add(word.wordId));
       setError(null);
       try {
-        const uw = await saveDictionaryWord({ userId, word });
+        const uw = await saveDictionaryWord({
+          userId,
+          word,
+          listId: destListId ?? undefined,
+        });
         setSaved((s) => new Set(s).add(word.wordId));
         setConfidence((m) => new Map(m).set(word.wordId, uw.confidenceRating));
         setUserWordIds((m) => new Map(m).set(word.wordId, uw.userWordId));
@@ -132,7 +162,7 @@ export function useTranslate(userId: string) {
         });
       }
     },
-    [userId, saved, saving]
+    [userId, saved, saving, destListId]
   );
 
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
@@ -186,6 +216,8 @@ export function useTranslate(userId: string) {
     // paragraph mode
     para, analyzedInput,
     addableCount: addablePrimaries.length, addAll,
+    // add destination (a sub-list, or null = ALL)
+    lists, destListId, setDestListId, createDestList,
     submit,
   };
 }
