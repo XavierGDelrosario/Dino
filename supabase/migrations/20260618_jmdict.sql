@@ -21,7 +21,7 @@
 -- JMdict is owned by EDRDG and used under their licence (attribution required).
 -- Loaded by scripts/ingest-jmdict.ts (a one-time, server-side ETL run).
 -- =========================================================
-CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- gin trigram index for fuzzy gloss search (built, deferred)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- accelerates the EN->JA whole-word gloss match
 
 -- =========================
 -- 1. JMDICT — normalized source tables
@@ -79,9 +79,9 @@ CREATE INDEX IF NOT EXISTS idx_jmdict_kanji_entry   ON jmdict_kanji   (entry_id)
 CREATE INDEX IF NOT EXISTS idx_jmdict_kana_entry    ON jmdict_kana    (entry_id);
 CREATE INDEX IF NOT EXISTS idx_jmdict_senses_entry  ON jmdict_senses  (entry_id);
 CREATE INDEX IF NOT EXISTS idx_jmdict_glosses_sense ON jmdict_glosses (sense_id);
--- (b) EN -> JA lookup by gloss: exact case-insensitive match (used now) +
---     trigram GIN for future fuzzy/contains search (built, intentionally unused).
-CREATE INDEX IF NOT EXISTS idx_jmdict_glosses_lower ON jmdict_glosses (lower(text));
+-- (b) EN -> JA lookup by gloss: whole-word (case-insensitive `~*`) match, which
+--     the trigram GIN index accelerates. JMdict glosses are phrases, so exact
+--     equality misses almost everything; word-boundary matching is what works.
 CREATE INDEX IF NOT EXISTS idx_jmdict_glosses_trgm  ON jmdict_glosses USING gin (text gin_trgm_ops);
 
 -- RLS: lock the source tables to server-side access only. No policies and no
@@ -101,9 +101,11 @@ ALTER TABLE jmdict_glosses ENABLE ROW LEVEL SECURITY;
 -- Deno function stays a thin caller (one RPC round-trip).
 --   JA->EN: match input against a kanji writing OR kana; translation = the
 --           sense's glosses joined "; ", input_reading = preferred kana.
---   EN->JA: match input against a gloss (exact, case-insensitive); one row per
---           matched entry, translation = preferred JA writing, translation_reading
---           = preferred kana. Senses collapse (the JA headword is the meaning).
+--   EN->JA: match input as a WHOLE WORD inside a gloss (case-insensitive; JMdict
+--           glosses are phrases like "cat (esp. ...)", so exact-equality misses
+--           almost everything). Accelerated by the gloss trigram GIN index. One row
+--           per matched entry, translation = preferred JA writing, translation_reading
+--           = preferred kana; entries with an EXACT gloss rank first, then common.
 -- =========================
 CREATE OR REPLACE FUNCTION jmdict_lookup(
   p_input  TEXT,
@@ -144,17 +146,27 @@ BEGIN
   ELSIF p_source = 'EN' AND p_target = 'JA' THEN
     RETURN QUERY
       WITH ent AS (
-        SELECT s.entry_id, MIN(s.position) AS first_sense
+        SELECT s.entry_id,
+               MIN(s.position) AS first_sense,
+               -- relevance: 3 = a gloss IS the input, 2 = the input is the gloss's
+               -- whole head term, followed only by a clarifier/punctuation
+               -- ("cat (esp. ...)", "cat; feline") but NOT another word
+               -- ("cat tongue"), 1 = the input appears mid-gloss.
+               MAX(CASE
+                     WHEN lower(gl.text) = lower(p_input) THEN 3
+                     WHEN gl.text ~* ('^' || regexp_replace(p_input, '[][(){}.^$*+?|\\-]', '\\&', 'g') || '($|[;,]| \()') THEN 2
+                     ELSE 1
+                   END) AS match_rank
           FROM jmdict_senses s
           JOIN jmdict_glosses gl ON gl.sense_id = s.id
-         WHERE lower(gl.text) = lower(p_input)
+         WHERE gl.text ~* ('\y' || regexp_replace(p_input, '[][(){}.^$*+?|\\-]', '\\&', 'g') || '\y')
          GROUP BY s.entry_id
       )
       SELECT
         pref.writing                                      AS translation,
         NULL::TEXT                                        AS input_reading,
         pref.reading                                      AS translation_reading,
-        (ROW_NUMBER() OVER (ORDER BY pref.is_common DESC, ent.first_sense ASC))::INT - 1
+        (ROW_NUMBER() OVER (ORDER BY ent.match_rank DESC, pref.is_common DESC, ent.first_sense ASC))::INT - 1
                                                           AS sense_position
       FROM ent
       JOIN LATERAL (
@@ -178,3 +190,19 @@ $$;
 -- jmdict_* tables. anon/authenticated are denied (they also lack table access).
 REVOKE EXECUTE ON FUNCTION jmdict_lookup(TEXT, TEXT, TEXT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION jmdict_lookup(TEXT, TEXT, TEXT) TO service_role;
+
+-- =========================
+-- 3. service_role GRANTs
+-- The edge function connects as service_role, which BYPASSES RLS but still needs
+-- table-level GRANTs (RLS-bypass != privilege). Supabase's current default does
+-- NOT auto-expose new tables to any API role, so grant explicitly:
+--   * jmdict_* — SELECT (jmdict_lookup is SECURITY INVOKER, so it reads these as
+--     the caller; clients still get nothing — they have no grant).
+--   * words    — SELECT + INSERT + UPDATE (the find-or-create cache writes here).
+-- This is the privilege gap that surfaced once the function actually queried the
+-- DB (it was a throwing stub before). anon/authenticated grants live in their own
+-- tables' migration; service_role is added here.
+-- =========================
+GRANT SELECT ON jmdict_entries, jmdict_kanji, jmdict_kana, jmdict_senses, jmdict_glosses
+  TO service_role;
+GRANT SELECT, INSERT, UPDATE ON words TO service_role;
