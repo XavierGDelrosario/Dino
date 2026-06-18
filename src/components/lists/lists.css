@@ -241,6 +241,42 @@
   gap: 0.4rem;
 }
 
+/* "Add word" (dictionary lookup) result: controls row + what-it-picked */
+.addword--lookup {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.addword__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.addword__result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.addword__added {
+  font-size: 0.95rem;
+}
+
+.addword__head {
+  font-weight: 600;
+}
+
+.addword__others {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .input--sm {
   padding: 0.4rem 0.6rem;
   font-size: 0.9rem;

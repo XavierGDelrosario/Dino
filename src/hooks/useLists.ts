@@ -16,6 +16,7 @@ import {
 import {
   getAllUserWords,
   getUserWordsInList,
+  saveDictionaryWord,
   createCustomWord,
   editUserWord,
   deleteUserWord,
@@ -23,7 +24,8 @@ import {
   removeUserWordFromList,
   type UserWord,
 } from "../services/words/userWords";
-import { addWordToList } from "../services/dictionary";
+import { lookupWord } from "../services/lookup";
+import type { Word } from "../services/words/repository";
 import type { LangCode, SourceSelection } from "../services/language";
 
 export type ListStatus = "loading" | "ready" | "error";
@@ -92,21 +94,21 @@ export function useLists(userId: string) {
     [guard, userId, selectedListId]
   );
 
-  /** Look a word up in the DICTIONARY and add its primary sense to the current
-   *  list (no meaning supplied — the dictionary provides it). */
-  const addDictionaryWord = useCallback(
+  /** Look a word up in the dictionary — ALL senses, no save. The UI auto-adds
+   *  the primary and offers the rest. */
+  const lookupDictionary = useCallback(
     (p: { input: string; sourceLang: SourceSelection; targetLang: LangCode }) =>
-      guard(async () => {
-        const res = await addWordToList({
-          userId,
-          input: p.input,
-          sourceLang: p.sourceLang,
-          targetLang: p.targetLang,
-          listId: selectedListId ?? undefined,
-        });
-        if (!res.saved) throw new Error(`No dictionary match for "${res.input}"`);
-      }),
-    [guard, userId, selectedListId]
+      lookupWord({ input: p.input, sourceLang: p.sourceLang, targetLang: p.targetLang }),
+    []
+  );
+
+  /** Save one dictionary sense into the current list (+ ALL), then refresh. */
+  const saveSenseToList = useCallback(
+    async (word: Word) => {
+      await saveDictionaryWord({ userId, word, listId: selectedListId ?? undefined });
+      await loadWords();
+    },
+    [userId, selectedListId, loadWords]
   );
 
   const editWord = useCallback(
@@ -183,7 +185,8 @@ export function useLists(userId: string) {
     status,
     error,
     addCustomWord,
-    addDictionaryWord,
+    lookupDictionary,
+    saveSenseToList,
     editWord,
     deleteWord,
     untagWord,
