@@ -170,7 +170,7 @@ export function ListView({
 
             <div className="confrange" title="Filter by confidence range">
               <span className="confrange__label">
-                Conf {confMin}–{confMax}
+                Confidence {confMin}–{confMax}
               </span>
               {/* dual-thumb range: two inputs overlaid on one track */}
               <div className="dualrange">
