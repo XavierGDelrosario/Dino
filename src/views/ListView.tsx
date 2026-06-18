@@ -6,7 +6,13 @@
 import { useMemo, useState } from "react";
 import { useLists } from "../hooks/useLists";
 import { ListRow } from "../components/lists/ListRow";
-import { targetOptions, type LangCode } from "../services/language";
+import {
+  sourceOptions,
+  targetOptions,
+  AUTO_DETECT,
+  type LangCode,
+  type SourceSelection,
+} from "../services/language";
 import type { UserWord } from "../services/words/userWords";
 import "../components/lists/lists.css";
 
@@ -95,34 +101,33 @@ export function ListView({
           {selectedList ? selectedList.listName : "All words"}
           <span className="lists__count">{visible.length}</span>
         </h2>
-        <div className="lists__baractions">
-          {L.words.length > 0 && (
-            <button
-              className="btn btn--sm"
-              onClick={() =>
-                onReview(L.selectedListId, selectedList ? selectedList.listName : "All words")
-              }
-              title="Review this list with flashcards"
-            >
-              ▶ Review
-            </button>
-          )}
-          {selectedList && (
-            <button
-              className="iconbtn iconbtn--danger"
-              onClick={() => {
-                if (confirm(`Delete the list "${selectedList.listName}"? Words stay in your vocabulary.`))
-                  L.deleteListById(selectedList.listId);
-              }}
-              title="Delete this sub-list"
-            >
-              Delete list
-            </button>
-          )}
-        </div>
+        {L.words.length > 0 && (
+          <button
+            className="btn btn--sm lists__reviewbtn"
+            onClick={() =>
+              onReview(L.selectedListId, selectedList ? selectedList.listName : "All words")
+            }
+            title="Review this list with flashcards"
+          >
+            ▶ Review
+          </button>
+        )}
+        {selectedList && (
+          <button
+            className="btn btn--sm btn--danger lists__deletebtn"
+            onClick={() => {
+              if (confirm(`Delete the list "${selectedList.listName}"? Words stay in your vocabulary.`))
+                L.deleteListById(selectedList.listId);
+            }}
+            title="Delete this sub-list"
+          >
+            Delete list
+          </button>
+        )}
       </div>
 
       <div className="lists__toolbar">
+        <AddWord onAdd={L.addDictionaryWord} />
         <AddCustomWord onAdd={L.addCustomWord} />
 
         {L.status === "ready" && L.words.length > 0 && (
@@ -340,6 +345,79 @@ function ListChips({
           ＋ New list
         </button>
       )}
+    </div>
+  );
+}
+
+/** Look up a word in the dictionary and add it to the current list — the
+ *  meaning comes from the dictionary, the user doesn't type it. */
+function AddWord({
+  onAdd,
+}: {
+  onAdd: (p: { input: string; sourceLang: SourceSelection; targetLang: LangCode }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [sourceLang, setSourceLang] = useState<SourceSelection>(AUTO_DETECT);
+  const [targetLang, setTargetLang] = useState<LangCode>("EN");
+
+  if (!open) {
+    return (
+      <button className="btn lists__addtoggle" onClick={() => setOpen(true)}>
+        ＋ Add word
+      </button>
+    );
+  }
+
+  const submit = () => {
+    if (!input.trim()) return;
+    onAdd({ input, sourceLang, targetLang });
+    setInput("");
+    setOpen(false);
+  };
+
+  return (
+    <div className="addword">
+      <div className="addword__langs">
+        <select
+          className="select select--sm"
+          value={sourceLang}
+          onChange={(e) => setSourceLang(e.target.value)}
+          aria-label="Word language"
+        >
+          {sourceOptions().map((o) => (
+            <option key={o.code} value={o.code}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+        <span className="langbar__arrow">→</span>
+        <select
+          className="select select--sm"
+          value={targetLang}
+          onChange={(e) => setTargetLang(e.target.value as LangCode)}
+          aria-label="Meaning language"
+        >
+          {targetOptions().map((o) => (
+            <option key={o.code} value={o.code}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <input
+        className="input input--sm"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Word"
+        aria-label="Word to look up"
+      />
+      <button className="btn" onClick={submit} disabled={!input.trim()}>
+        Add
+      </button>
+      <button className="iconbtn" onClick={() => setOpen(false)} title="Cancel">
+        ✕
+      </button>
     </div>
   );
 }

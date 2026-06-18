@@ -67,6 +67,15 @@ body {
   cursor: default;
 }
 
+.btn--danger {
+  color: #ffb4ad;
+}
+
+.btn--danger:hover {
+  background: #2a1416;
+  border-color: #6a2c2c;
+}
+
 /* tab nav */
 .tabs {
   display: flex;

@@ -42,11 +42,27 @@
   gap: 0.3rem;
 }
 
-/* header bar */
+/* header bar: title (left) · Review (center) · Delete (right) */
 .lists__bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lists__title {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.lists__reviewbtn {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.lists__deletebtn {
+  grid-column: 3;
+  justify-self: end;
 }
 
 .lists__title {

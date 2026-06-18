@@ -23,7 +23,8 @@ import {
   removeUserWordFromList,
   type UserWord,
 } from "../services/words/userWords";
-import type { LangCode } from "../services/language";
+import { addWordToList } from "../services/dictionary";
+import type { LangCode, SourceSelection } from "../services/language";
 
 export type ListStatus = "loading" | "ready" | "error";
 
@@ -88,6 +89,23 @@ export function useLists(userId: string) {
       guard(() =>
         createCustomWord({ userId, ...p, listId: selectedListId ?? undefined })
       ),
+    [guard, userId, selectedListId]
+  );
+
+  /** Look a word up in the DICTIONARY and add its primary sense to the current
+   *  list (no meaning supplied — the dictionary provides it). */
+  const addDictionaryWord = useCallback(
+    (p: { input: string; sourceLang: SourceSelection; targetLang: LangCode }) =>
+      guard(async () => {
+        const res = await addWordToList({
+          userId,
+          input: p.input,
+          sourceLang: p.sourceLang,
+          targetLang: p.targetLang,
+          listId: selectedListId ?? undefined,
+        });
+        if (!res.saved) throw new Error(`No dictionary match for "${res.input}"`);
+      }),
     [guard, userId, selectedListId]
   );
 
@@ -165,6 +183,7 @@ export function useLists(userId: string) {
     status,
     error,
     addCustomWord,
+    addDictionaryWord,
     editWord,
     deleteWord,
     untagWord,
