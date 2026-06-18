@@ -19,13 +19,19 @@ export const MAX_TRANSLATION_CONCURRENCY = 6;
 export interface TranslationResult {
   /** false when the provider returned no result (caller shows the input). */
   translated: boolean;
-  /** The translated text, or null when nothing was translated. */
+  /** The translated text (primary sense), or null when nothing was translated. */
   translation: string | null;
   /**
-   * The cached verified word, when persisted. Null for display-only calls
-   * (persist=false) and when translation failed.
+   * The primary cached verified word, when persisted (first of `words`). Null
+   * for display-only calls (persist=false) and when translation failed.
    */
   word: Word | null;
+  /**
+   * ALL verified senses persisted for this lookup (primary first). A real
+   * dictionary (JMdict) is multi-sense, so this can hold several; the MT
+   * fallback yields at most one. Empty for display-only / failed calls.
+   */
+  words?: Word[];
 }
 
 /**

@@ -160,6 +160,27 @@ describe.skipIf(!ENABLED)("RLS: dictionary is read-only to clients", () => {
   });
 });
 
+describe.skipIf(!ENABLED)("JMdict source tables are server-only", () => {
+  let user: TestUser;
+  beforeAll(async () => {
+    user = await makeUser();
+  });
+
+  // The jmdict_* tables have RLS enabled with NO policies and NO grants, so the
+  // Data API denies clients entirely — only the edge function (service role) reads
+  // them. Each must be unreadable.
+  it.each([
+    "jmdict_entries",
+    "jmdict_kanji",
+    "jmdict_kana",
+    "jmdict_senses",
+    "jmdict_glosses",
+  ])("a client cannot read %s", async (table) => {
+    const { error } = await user.client.from(table).select("*").limit(1);
+    expect(error).not.toBeNull(); // permission denied (no grant)
+  });
+});
+
 describe.skipIf(!ENABLED)("sub-list membership: multi-list + scoped removal", () => {
   let user: TestUser;
   let listA: string;

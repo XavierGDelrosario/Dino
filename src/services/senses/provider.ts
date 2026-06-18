@@ -3,8 +3,9 @@
 //
 // A SenseProvider returns ALL known senses of a single word for a language
 // pair, persisting them to the words cache. Which provider serves a given pair
-// is decided by registry.ts (keyed on language). A real dictionary returns
-// every sense; the MT fallback returns one.
+// is decided by registry.ts (keyed on language). The default provider delegates
+// to the translate edge function: JMdict-backed pairs return every sense; the
+// (unimplemented) MT fallback would return at most one.
 // =========================================================
 
 import type { LangCode } from "../language";

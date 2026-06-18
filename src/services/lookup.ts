@@ -149,6 +149,24 @@ export async function translateParagraph(params: {
     if (senses.length > 0) meaningsByKey.set(key, senses);
   });
 
+  // 3b. Overlay the AUTHORITATIVE reading that already rides on the looked-up
+  //     `words` senses (no extra table/query). Two guards keep it safe:
+  //       (a) only when the surface IS the dictionary form (token.text === lemma):
+  //           the stored reading is the HEADWORD's (行く→いく) and does NOT apply to
+  //           a conjugated surface (行った reads いった, not いく) — keep kuromoji there.
+  //       (b) only when the senses agree on a SINGLE reading (unambiguous); if
+  //           JMdict lists several (辛い→からい/つらい), trust kuromoji's context guess.
+  //     Otherwise kuromoji's reading stands. JA only.
+  if (resolvedSource.toUpperCase() === "JA") {
+    for (const token of tokens) {
+      const isDictionaryForm = token.lemma === null || token.lemma === token.text;
+      if (!isDictionaryForm) continue;
+      const senses = meaningsByKey.get(keyOf(token)) ?? [];
+      const distinct = [...new Set(senses.map((s) => s.inputReading).filter(Boolean))];
+      if (distinct.length === 1) token.reading = distinct[0];
+    }
+  }
+
   // 4. Key by the ORIGINAL surface text so the frontend looks up with
   //    token.text directly; lemma resolution stays internal.
   const meanings = new Map<string, Word[]>();

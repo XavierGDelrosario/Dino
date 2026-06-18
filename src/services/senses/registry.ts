@@ -1,10 +1,14 @@
 // =========================================================
 // Sense provider registry — routes a language pair to its dictionary.
 //
-// EMPTY for now: every pair falls back to MT (single sense), so the app runs
-// unchanged. To add real multi-sense lookup, register a provider for a pair —
-// that one entry IS the whole "pick a dictionary" decision (Jisho/JMdict/...).
-// The decision is deferred; the seam is ready.
+// INTENTIONALLY EMPTY: the "pick a dictionary" decision now lives SERVER-SIDE.
+// The translate edge function serves JMdict as its primary provider, so the
+// default fallback (mtFallbackProvider → the edge function) already returns the
+// full multi-sense set for JMdict-backed pairs. A client-side per-pair provider
+// would duplicate routing the server already owns, so we keep this empty.
+//
+// The seam still exists for a pair that needs CLIENT-side sense logic the edge
+// function can't serve — register it below; otherwise leave it empty.
 // =========================================================
 
 import type { LangCode } from "../language";
@@ -17,16 +21,15 @@ interface SenseProviderEntry {
   provider: SenseProvider;
 }
 
-// Register real dictionary providers here, e.g.:
-//   { supports: (s, t) => (s === "JA" && t === "EN") || (s === "EN" && t === "JA"),
-//     provider: jmdictProvider },
+// Register a CLIENT-side provider here only if a pair needs sense logic the edge
+// function can't serve. JMdict is served server-side, so this stays empty.
 const SENSE_PROVIDERS: SenseProviderEntry[] = [];
 
 /**
  * Picks the sense provider for a language pair.
- * OUTPUT: the matching SenseProvider, or the MT fallback.
- * CONSTRAINTS: registry is empty → always the MT fallback (one sense, the
- * "freeze" stands) until a real dictionary is registered.
+ * OUTPUT: the matching SenseProvider, or the default (edge-function) fallback.
+ * CONSTRAINTS: registry is empty → always the default fallback, which delegates
+ * to the translate edge function (JMdict-backed → full multi-sense; MT → one).
  */
 export function resolveSenseProvider(
   source: LangCode,
