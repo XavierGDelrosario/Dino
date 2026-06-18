@@ -1,0 +1,93 @@
+.sensetext {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.sensetext__head {
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+
+.sensetext__head--primary {
+  font-size: 1.5rem;
+}
+
+.sensetext__reading {
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.sensetext__arrow {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.sensetext__meaning {
+  font-size: 1.1rem;
+}
+
+/* Shared "sense list" row + actions — used by the word results, the paragraph
+   popover, and the Lists "Add word" results (kept here so no feature CSS file
+   owns cross-feature styles). */
+.sense {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sense__text {
+  min-width: 0;
+}
+
+.sense__add,
+.sense__saved,
+.sense__busy {
+  flex-shrink: 0;
+  appearance: none;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.sense__add {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.sense__add:hover {
+  background: rgba(110, 168, 254, 0.15);
+}
+
+.sense__saved {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+}
+
+.sense__busy {
+  color: var(--muted);
+}
+
+/* "Other meanings" disclosure toggle (word results + Add word) */
+.results__more {
+  align-self: flex-start;
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.results__more:hover {
+  color: var(--text);
+}

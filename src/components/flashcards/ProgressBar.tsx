@@ -1,5 +1,7 @@
 // Position through the current review queue. `position` is 1-based (the card
 // being shown); the fill reflects how many cards are already behind it.
+import "./flashcards.css";
+
 export function ProgressBar({
   position,
   total,

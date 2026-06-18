@@ -2,6 +2,7 @@
 // reveals the reading (furigana) + the translation. Readings come straight off
 // the UserWord — authoritative for the no-context surface (see CLAUDE.md).
 import type { ReviewQueueItem } from "../../services/review";
+import "./flashcards.css";
 
 export function FlashcardCard({
   word,

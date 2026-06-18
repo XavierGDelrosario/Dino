@@ -6,6 +6,7 @@
 import { useState } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
+import "./lists.css";
 
 function ConfidenceDots({ rating }: { rating: number }) {
   return (

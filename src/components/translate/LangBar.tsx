@@ -13,6 +13,7 @@ import {
   type LangCode,
   type SourceSelection,
 } from "../../services/language";
+import "./translate.css";
 
 export function LangBar({
   source,

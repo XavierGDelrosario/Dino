@@ -7,6 +7,8 @@
 import { useRef, useState } from "react";
 import { isContentPos, type AnalyzedToken } from "../../services/language";
 import type { Word } from "../../services/words/repository";
+import "./translate.css";
+import "../common/SenseText.css"; // shared .sense* row/action styles
 
 export function ParagraphReader({
   text,
