@@ -128,29 +128,23 @@ export async function saveDictionaryWord(params: {
 }): Promise<UserWord> {
   const { userId, word, listId } = params;
 
-  const { data, error } = await supabase
-    .from("user_words")
-    .upsert(
-      {
-        user_id: userId,
-        input: word.input,
-        source_lang: word.sourceLang,
-        target_lang: word.targetLang,
-        dictionary_word_id: word.wordId,
-        custom_translation: null,
-      },
-      { onConflict: "user_id,dictionary_word_id" }
-    )
-    .select<string, UserWordRow>("*")
-    .single();
+  // One atomic RPC creates the entry AND tags the optional sub-list (see
+  // save_dictionary_word in the init migration), so a failed tag can't leave the
+  // word in ALL but not its chosen sub-list. input/langs are derived server-side
+  // from the referenced sense.
+  const { data, error } = await supabase.rpc("save_dictionary_word", {
+    p_user_id: userId,
+    p_dictionary_word_id: word.wordId,
+    p_list_id: listId ?? null,
+  });
   if (error || !data) throw error ?? new Error(`Failed to save "${word.input}"`);
 
-  if (listId) await tagInList(data.user_word_id, listId);
-
-  // The upsert row has no embedded dictionary; we already know the sense, so
-  // patch its translation and readings straight from the dictionary Word.
+  // RETURNS user_words → a single row (PostgREST may wrap it in an array). The
+  // row has no embedded dictionary; we already hold the sense, so patch its
+  // translation and readings straight from the dictionary Word.
+  const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
   return {
-    ...toUserWord(data),
+    ...toUserWord(row),
     translation: word.translation,
     inputReading: word.inputReading,
     translationReading: word.translationReading,
@@ -179,47 +173,24 @@ export async function createCustomWord(params: {
     throw new Error("Both the word and its meaning are required");
   }
 
-  // INSERT (not upsert): the uniqueness behind a re-create is the PARTIAL index
-  // uq_user_words_custom (… WHERE dictionary_word_id IS NULL), and PostgREST
-  // can't target a partial index with ON CONFLICT (Postgres 42P10). That index
-  // MUST stay partial — a full constraint would wrongly collide override rows
-  // sharing a custom_translation — so we handle the conflict in code: on a
-  // unique violation (23505), the word already exists → fetch it (idempotent
-  // re-create), mirroring the no-op re-add semantics of saveDictionaryWord.
-  const insert = await supabase
-    .from("user_words")
-    .insert({
-      user_id: userId,
-      input,
-      source_lang: sourceLang,
-      target_lang: targetLang,
-      dictionary_word_id: null,
-      custom_translation: translation,
-    })
-    .select<string, UserWordRow>("*")
-    .single();
+  // One atomic RPC creates the standalone word AND tags the optional sub-list
+  // (see create_custom_word in the init migration), so a failed tag can't leave
+  // the word in ALL but not its chosen sub-list. The idempotent re-create — the
+  // PARTIAL-unique violation that ON CONFLICT can't target (Postgres 42P10) — is
+  // caught and re-fetched inside the function. NFC normalization stays here (the
+  // input boundary); the RPC receives already-normalized values.
+  const { data, error } = await supabase.rpc("create_custom_word", {
+    p_user_id: userId,
+    p_input: input,
+    p_translation: translation,
+    p_source: sourceLang,
+    p_target: targetLang,
+    p_list_id: listId ?? null,
+  });
+  if (error || !data) throw error ?? new Error(`Failed to create "${input}"`);
 
-  let row = insert.data;
-  if (insert.error) {
-    if ((insert.error as { code?: string }).code !== "23505") throw insert.error;
-    const existing = await supabase
-      .from("user_words")
-      .select<string, UserWordRow>("*")
-      .eq("user_id", userId)
-      .eq("input", input)
-      .eq("source_lang", sourceLang)
-      .eq("target_lang", targetLang)
-      .eq("custom_translation", translation)
-      .is("dictionary_word_id", null)
-      .single();
-    if (existing.error || !existing.data) {
-      throw existing.error ?? new Error(`Failed to create "${input}"`);
-    }
-    row = existing.data;
-  }
-  if (!row) throw new Error(`Failed to create "${input}"`);
-
-  if (listId) await tagInList(row.user_word_id, listId);
+  // RETURNS user_words → a single row (PostgREST may wrap it in an array).
+  const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
   return toUserWord(row);
 }
 

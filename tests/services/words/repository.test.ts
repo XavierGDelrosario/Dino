@@ -25,6 +25,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   target_lang: "EN",
   input_reading: null,
   translation_reading: null,
+  jmdict_entry_id: "1467640",
+  jmdict_sense_pos: 0,
   is_verified: true,
   ...over,
 });
@@ -41,6 +43,8 @@ describe("findCachedWord", () => {
       targetLang: "EN",
       inputReading: null,
       translationReading: null,
+      jmdictEntryId: "1467640",
+      jmdictSensePos: 0,
       isVerified: true,
     });
   });

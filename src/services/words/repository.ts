@@ -23,6 +23,15 @@ export interface Word {
   inputReading: string | null;
   /** Reading of the translation side, or null if it needs none. */
   translationReading: string | null;
+  /**
+   * STABLE JMdict source identity (null for non-JMdict rows). The sense this row
+   * was projected from, INDEPENDENT of the mutable headword — what `user_words`
+   * effectively pins to (via word_id) and what a cache re-projection keys on. See
+   * the #1/#5 deferred items in CLAUDE.md.
+   */
+  jmdictEntryId: string | null;
+  /** JA→EN: the entry's sense index (0 = primary); EN→JA: match rank. Null = non-JMdict. */
+  jmdictSensePos: number | null;
   isVerified: boolean;
 }
 
@@ -34,6 +43,8 @@ interface WordRow {
   target_lang: string;
   input_reading: string | null;
   translation_reading: string | null;
+  jmdict_entry_id: string | null;
+  jmdict_sense_pos: number | null;
   is_verified: boolean;
 }
 
@@ -46,6 +57,8 @@ function toWord(row: WordRow): Word {
     targetLang: row.target_lang,
     inputReading: row.input_reading ?? null,
     translationReading: row.translation_reading ?? null,
+    jmdictEntryId: row.jmdict_entry_id ?? null,
+    jmdictSensePos: row.jmdict_sense_pos ?? null,
     isVerified: row.is_verified,
   };
 }
@@ -71,6 +84,7 @@ export async function findCachedWord(params: {
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
     .order("is_verified", { ascending: false })
+    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
     .limit(1);
 
   if (error) throw error;
@@ -99,7 +113,8 @@ export async function findWordTranslations(params: {
     .eq("input", input)
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
-    .order("is_verified", { ascending: false });
+    .order("is_verified", { ascending: false })
+    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
 
   if (error) throw error;
   return (data ?? []).map(toWord);
@@ -129,7 +144,8 @@ export async function findWordTranslationsBatch(params: {
     .in("input", unique)
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
-    .order("is_verified", { ascending: false });
+    .order("is_verified", { ascending: false })
+    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw error;
 
   for (const row of data ?? []) {

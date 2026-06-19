@@ -57,6 +57,8 @@ interface WordRow {
   target_lang: string;
   input_reading: string | null;
   translation_reading: string | null;
+  jmdict_entry_id: string | null;
+  jmdict_sense_pos: number | null;
   is_verified: boolean;
 }
 
@@ -70,6 +72,8 @@ function toWord(r: WordRow) {
     targetLang: r.target_lang,
     inputReading: r.input_reading ?? null,
     translationReading: r.translation_reading ?? null,
+    jmdictEntryId: r.jmdict_entry_id ?? null,
+    jmdictSensePos: r.jmdict_sense_pos ?? null,
     isVerified: r.is_verified,
   };
 }
@@ -84,6 +88,12 @@ interface ProviderResult {
   // store as `input`, so a kana search keeps the kanji. null/undefined → use the
   // search term as-is (EN->JA, MT).
   headword?: string | null;
+  // STABLE JMdict source identity (null for the MT fallback). Folded into the
+  // row's dictionary_ref so re-projection lands on the SAME row regardless of how
+  // the headword/translation render. JA->EN: sensePos = the sense index; EN->JA:
+  // the match rank (informational — identity there is the input + entryId).
+  entryId?: string | null;
+  sensePos?: number | null;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -109,11 +119,15 @@ async function lookupJMdict(
     input_reading: string | null;
     translation_reading: string | null;
     writing: string | null;
+    sense_position: number | null;
+    jmdict_entry_id: string | null;
   }) => ({
     translation: row.translation,
     inputReading: row.input_reading ?? null,
     translationReading: row.translation_reading ?? null,
     headword: row.writing ?? null,
+    entryId: row.jmdict_entry_id ?? null,
+    sensePos: row.sense_position ?? null,
   }));
 }
 
@@ -148,7 +162,10 @@ async function fetchVerified(
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
-    .or(`input.eq.${input},input_reading.eq.${input}`);
+    .or(`input.eq.${input},input_reading.eq.${input}`)
+    // Primary sense first, deterministically: jmdict_sense_pos is 0 for the
+    // primary JA→EN sense / best-ranked EN→JA entry (nulls last for MT rows).
+    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as WordRow[];
 }
@@ -231,21 +248,38 @@ Deno.serve(async (req) => {
 
   // 4. Persist every sense as a verified global word (service role bypasses RLS).
   //    Readings ride inline on each row; they are deterministic attributes, NOT
-  //    part of the onConflict identity.
-  //    DEDUPE by the onConflict tuple first: JMdict can yield several senses that
-  //    aggregate to the SAME translation string (e.g. 私 → "I; me" twice). Those
-  //    become identical conflict keys, and a single ON CONFLICT statement cannot
-  //    update the same row twice (Postgres 21000). Keep the first (primary) of
-  //    each; its reading is the entry's preferred kana, identical across them.
+  //    part of the identity. Each row carries a STABLE dictionary_ref (its JMdict
+  //    entry+sense, headword-independent) — the onConflict target — so re-running
+  //    the projection after a logic change UPDATEs rows in place (word_id, hence
+  //    user_words references, survive) instead of forking stale duplicates.
+  //    DEDUPE by translation first: JMdict can yield several senses that aggregate
+  //    to the SAME string (e.g. 私 → "I; me" twice). Keep the first (primary) of
+  //    each — distinct translations carry distinct refs, so this also prevents a
+  //    duplicate conflict key (a single ON CONFLICT cannot update one row twice,
+  //    Postgres 21000).
   const seen = new Set<string>();
   const rows: Array<Record<string, unknown>> = [];
   for (const r of results) {
     // Store the canonical headword (kanji writing for JA->EN) as `input`, so a
     // kana search keeps the kanji and homophones split into their own kanji.
     const head = r.headword ?? input;
-    const key = `${head} ${r.translation}`; // onConflict tuple (input+translation)
+    // Dedupe by translation (UX: 私 must not list "I; me" twice). Distinct
+    // translations always carry distinct dictionary_refs, so this also prevents
+    // a duplicate onConflict key (Postgres 21000 "cannot update a row twice").
+    const key = `${head} ${r.translation}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    // STABLE conflict key — pins the row to its SOURCE sense, not the mutable
+    // headword, so a re-projection UPDATEs this row in place (keeping word_id, so
+    // user_words references survive) instead of forking a duplicate:
+    //   JA-source (headword projected from the entry → unstable): '<entry>:<pos>'
+    //   EN-source (input is the stable search term):              '<input>:<entry>'
+    //   MT fallback (no JMdict entry):                            'mt:<input>'
+    const ref = r.entryId == null
+      ? `mt:${input}`
+      : r.headword != null
+        ? `${r.entryId}:${r.sensePos ?? 0}`
+        : `${input}:${r.entryId}`;
     rows.push({
       input: head,
       translation: r.translation,
@@ -253,13 +287,16 @@ Deno.serve(async (req) => {
       target_lang: targetLang,
       input_reading: r.inputReading ?? null,
       translation_reading: r.translationReading ?? null,
+      jmdict_entry_id: r.entryId ?? null,
+      jmdict_sense_pos: r.sensePos ?? null,
+      dictionary_ref: ref,
       is_verified: true,
     });
   }
   const { error: insertError } = await supabase
     .from("words")
     .upsert(rows, {
-      onConflict: "input,translation,source_lang,target_lang,is_verified",
+      onConflict: "dictionary_ref,source_lang,target_lang",
     });
   if (insertError) return json({ error: insertError.message }, 500);
 

@@ -20,6 +20,8 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     targetLang: "EN",
     inputReading: null,
     translationReading: null,
+    jmdictEntryId: null,
+    jmdictSensePos: null,
     isVerified: true,
     ...overrides,
   };

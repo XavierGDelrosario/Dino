@@ -40,38 +40,53 @@ const uwRow = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+// save/create now go through ONE atomic Postgres function (save_dictionary_word
+// / create_custom_word) that does the entry-create AND the optional sub-list tag
+// in a single transaction — so the client makes one rpc call, not an
+// upsert/insert followed by a separate list_words write. The idempotent
+// re-create (the partial-unique re-fetch) lives inside create_custom_word now;
+// like record_review it runs in Postgres, so it's covered by the integration
+// spec / manual checks, not this mocked unit suite.
 describe("saveDictionaryWord", () => {
-  it("creates an entry referencing the dictionary sense (custom_translation null)", async () => {
-    stub.queueFrom("user_words", { data: uwRow(), error: null });
+  it("creates an entry referencing the dictionary sense via one atomic RPC", async () => {
+    stub.rpc.mockResolvedValue({ data: uwRow(), error: null });
     const word = makeWord({ wordId: "ja-neko", input: "猫", translation: "cat" });
 
     const res = await saveDictionaryWord({ userId: "u", word });
 
-    const upsert = stub.callsFor("user_words", "upsert")[0];
-    expect(upsert?.args[0]).toMatchObject({
-      user_id: "u",
-      dictionary_word_id: "ja-neko",
-      custom_translation: null,
+    expect(stub.rpc).toHaveBeenCalledWith("save_dictionary_word", {
+      p_user_id: "u",
+      p_dictionary_word_id: "ja-neko",
+      p_list_id: null,
     });
     expect(res).toMatchObject({
       dictionaryWordId: "ja-neko",
       customTranslation: null,
-      translation: "cat", // resolved from the dictionary sense
+      translation: "cat", // resolved from the dictionary sense (patched from the Word)
     });
-    expect(stub.callsFor("list_words", "upsert")).toHaveLength(0); // no tag
+    expect(stub.callsFor("list_words", "upsert")).toHaveLength(0); // no separate client tag
   });
 
-  it("tags a sub-list when listId is provided", async () => {
-    stub.queueFrom("user_words", { data: uwRow(), error: null });
-    stub.queueFrom("list_words", { data: null, error: null });
+  it("passes the sub-list id to the RPC when provided", async () => {
+    stub.rpc.mockResolvedValue({ data: uwRow(), error: null });
     const word = makeWord({ wordId: "ja-neko" });
 
     await saveDictionaryWord({ userId: "u", word, listId: "verbs" });
 
-    expect(stub.callsFor("list_words", "upsert")[0]?.args[0]).toEqual({
-      list_id: "verbs",
-      user_word_id: "uw1",
+    expect(stub.rpc).toHaveBeenCalledWith("save_dictionary_word", {
+      p_user_id: "u",
+      p_dictionary_word_id: "ja-neko",
+      p_list_id: "verbs",
     });
+  });
+
+  it("unwraps a single row returned as an array", async () => {
+    stub.rpc.mockResolvedValue({ data: [uwRow()], error: null });
+    const word = makeWord({ wordId: "ja-neko", translation: "cat" });
+
+    const res = await saveDictionaryWord({ userId: "u", word });
+
+    expect(res).toMatchObject({ userWordId: "uw1", translation: "cat" });
   });
 });
 
@@ -83,11 +98,11 @@ describe("createCustomWord", () => {
     await expect(
       createCustomWord({ userId: "u", input, translation, sourceLang: "JA", targetLang: "EN" })
     ).rejects.toThrow(/required/i);
-    expect(stub.fromCalls).toEqual([]);
+    expect(stub.rpc).not.toHaveBeenCalled();
   });
 
-  it("creates a standalone entry (no dictionary ref), NFC-trimmed", async () => {
-    stub.queueFrom("user_words", {
+  it("creates a standalone entry via one atomic RPC, NFC-trimmed", async () => {
+    stub.rpc.mockResolvedValue({
       data: uwRow({ dictionary_word_id: null, custom_translation: "my meaning" }),
       error: null,
     });
@@ -100,46 +115,41 @@ describe("createCustomWord", () => {
       targetLang: "EN",
     });
 
-    // INSERT, not upsert (the custom uniqueness is a partial index — see service).
-    expect(stub.callsFor("user_words", "insert")[0]?.args[0]).toMatchObject({
-      input: "猫",
-      custom_translation: "my meaning",
-      dictionary_word_id: null,
+    // NFC-trimmed values reach the RPC; the create + tag are atomic server-side.
+    expect(stub.rpc).toHaveBeenCalledWith("create_custom_word", {
+      p_user_id: "u",
+      p_input: "猫",
+      p_translation: "my meaning",
+      p_source: "JA",
+      p_target: "EN",
+      p_list_id: null,
     });
     expect(res).toMatchObject({ dictionaryWordId: null, translation: "my meaning" });
   });
 
-  it("is idempotent: a unique-violation (23505) re-fetches the existing word", async () => {
-    // 1st user_words result = the failed insert; 2nd = the existing-row select.
-    stub.queueFrom(
-      "user_words",
-      { data: null, error: { code: "23505", message: "duplicate key" } },
-      {
-        data: uwRow({
-          user_word_id: "existing",
-          dictionary_word_id: null,
-          custom_translation: "my meaning",
-        }),
-        error: null,
-      }
-    );
-
-    const res = await createCustomWord({
-      userId: "u",
-      input: "猫",
-      translation: "my meaning",
-      sourceLang: "JA",
-      targetLang: "EN",
+  it("passes the sub-list id to the RPC when provided", async () => {
+    stub.rpc.mockResolvedValue({
+      data: uwRow({ dictionary_word_id: null, custom_translation: "m" }),
+      error: null,
     });
 
-    expect(stub.callsFor("user_words", "insert").length).toBe(1);
-    // the re-fetch is scoped to the standalone row (dictionary_word_id IS NULL)
-    expect(stub.callsFor("user_words", "is")[0]?.args).toEqual(["dictionary_word_id", null]);
-    expect(res).toMatchObject({ userWordId: "existing", translation: "my meaning" });
+    await createCustomWord({
+      userId: "u",
+      input: "猫",
+      translation: "m",
+      sourceLang: "JA",
+      targetLang: "EN",
+      listId: "verbs",
+    });
+
+    expect(stub.rpc).toHaveBeenCalledWith(
+      "create_custom_word",
+      expect.objectContaining({ p_list_id: "verbs" })
+    );
   });
 
-  it("rethrows a non-conflict DB error", async () => {
-    stub.queueFrom("user_words", {
+  it("rethrows a DB error from the RPC", async () => {
+    stub.rpc.mockResolvedValue({
       data: null,
       error: { code: "42501", message: "permission denied" },
     });

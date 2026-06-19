@@ -122,7 +122,14 @@ RETURNS TABLE (
   -- kana). This is the canonical headword the edge function stores as `input`,
   -- so a hiragana search (ねこ) still yields the kanji 猫 — and homophones split
   -- into their own kanji (はし → 橋 / 箸 / 端). NULL for EN->JA.
-  writing              TEXT
+  writing              TEXT,
+  -- the JMdict entry id (ent_seq). The STABLE source identity the edge function
+  -- folds into words.dictionary_ref — unlike `writing`/`translation` (projection
+  -- outputs that a logic change can move), this never shifts for a given sense.
+  -- NOTE: named jmdict_entry_id, NOT entry_id — a RETURNS TABLE column is an OUT
+  -- variable in the function body, and bare `entry_id` references in the
+  -- subqueries below would then be ambiguous against the table column.
+  jmdict_entry_id      TEXT
 )
 LANGUAGE plpgsql
 STABLE
@@ -147,7 +154,8 @@ BEGIN
         s.position                                        AS sense_position,
         -- Headword (`writing`): kana for "usually kana" entries, else kanji.
         CASE WHEN pref.is_uk THEN pref.kana ELSE COALESCE(pref.kanji, pref.kana) END
-                                                          AS writing
+                                                          AS writing,
+        s.entry_id                                        AS jmdict_entry_id
       FROM jmdict_senses s
       JOIN LATERAL (
         SELECT
@@ -201,7 +209,8 @@ BEGIN
         pref.reading                                      AS translation_reading,
         (ROW_NUMBER() OVER (ORDER BY ent.match_rank DESC, pref.is_common DESC, ent.first_sense ASC))::INT - 1
                                                           AS sense_position,
-        NULL::TEXT                                        AS writing
+        NULL::TEXT                                        AS writing,
+        ent.entry_id                                      AS jmdict_entry_id
       FROM ent
       JOIN LATERAL (
         SELECT

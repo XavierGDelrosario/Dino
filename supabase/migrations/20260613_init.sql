@@ -67,10 +67,32 @@ CREATE TABLE IF NOT EXISTS words (
   input_reading TEXT,
   translation_reading TEXT,
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  -- STABLE JMdict identity (NULL for non-JMdict rows, e.g. the MT fallback). The
+  -- headword `input` is a PROJECTION OUTPUT that a logic change can move
+  -- (いく→行く, uk/headword/ranking tweaks), so it is NOT a safe cache identity.
+  -- These pin a row to its SOURCE sense so a re-projection can UPDATE it in place
+  -- (preserving word_id, so user_words.dictionary_word_id references survive)
+  -- instead of forking a stale duplicate. See the #1/#5 deferred items in CLAUDE.md.
+  jmdict_entry_id  TEXT,    -- JMdict ent_seq of the source entry
+  jmdict_sense_pos INT,     -- JA→EN: the entry's sense index (0 = primary); EN→JA: match rank
+  -- The direction-aware stable conflict key the edge function computes:
+  --   JA→EN = '<entry_id>:<sense_pos>'  (headword-independent — fixes いく→行く)
+  --   EN→JA = '<input>:<entry_id>'      (search term + matched entry; rank-independent)
+  -- One precomputed string (not a column tuple) because the two directions
+  -- disagree on whether `input` is identity: it's the UNSTABLE headword for
+  -- JA→EN but the STABLE search term for EN→JA. A single string lets ONE
+  -- non-partial UNIQUE serve both — and PostgREST can't infer a PARTIAL index for
+  -- ON CONFLICT (Postgres 42P10), so a partial key keyed on "JMdict rows only"
+  -- would be unusable as an upsert target.
+  dictionary_ref   TEXT,
   -- only block exact duplicates; one input may have multiple senses.
   -- All rows are system-created (only the edge function writes), so the dropped
   -- created_by adds nothing here; is_verified stays as the RLS/cache gate.
-  UNIQUE (input, translation, source_lang, target_lang, is_verified)
+  UNIQUE (input, translation, source_lang, target_lang, is_verified),
+  -- The STABLE-identity key: the edge function's projection onConflict target.
+  -- Full (non-partial) UNIQUE — NULL `dictionary_ref` rows (non-JMdict) stay
+  -- multi-allowed via NULL-distinctness, same trick as uq_user_words_dictionary.
+  UNIQUE (dictionary_ref, source_lang, target_lang)
 );
 
 CREATE INDEX IF NOT EXISTS idx_words_cache_search ON words (input, source_lang, is_verified);
@@ -154,6 +176,115 @@ CREATE POLICY "user_manage_own_list_words"
 ON list_words FOR ALL
 USING (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text))
 WITH CHECK (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text));
+
+-- =========================
+-- 5b. ATOMIC SAVE-AND-TAG (save_dictionary_word / create_custom_word)
+--
+-- A save is two writes — create the user_words entry, then (optionally) tag it
+-- into a sub-list. Doing them as two separate client round-trips is NON-ATOMIC:
+-- if the tag write fails after the entry committed, the word lands in the
+-- vocabulary (virtual ALL) but never in the chosen sub-list. These functions do
+-- both in ONE transaction so it's all-or-nothing.
+--
+-- SECURITY INVOKER (default): every INSERT runs under the caller's RLS, so the
+-- WITH CHECK (user_id = auth.uid()) on user_words and the list-ownership check on
+-- list_words still apply — a foreign p_user_id or someone else's p_list_id is
+-- simply rejected. p_user_id is passed (services are keyed on userId) but RLS,
+-- not the param, is what authorizes the write.
+-- =========================
+
+-- save_dictionary_word: save a verified dictionary sense into the user's
+-- vocabulary (+ optional sub-list tag). Idempotent per (user, sense): re-saving
+-- is a no-op re-add that returns the existing row. input/langs are derived from
+-- the referenced `words` row (single source of truth), not passed in.
+CREATE OR REPLACE FUNCTION save_dictionary_word(
+  p_user_id            TEXT,
+  p_dictionary_word_id UUID,
+  p_list_id            UUID DEFAULT NULL
+)
+RETURNS user_words
+LANGUAGE plpgsql
+VOLATILE
+AS $$
+DECLARE
+  d     words;       -- the referenced dictionary sense
+  v_row user_words;
+BEGIN
+  -- RLS lets the caller SELECT verified `words`; an invalid id is NOT FOUND.
+  SELECT * INTO d FROM words
+   WHERE word_id = p_dictionary_word_id AND is_verified = TRUE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'dictionary word % not found', p_dictionary_word_id;
+  END IF;
+
+  INSERT INTO user_words
+    (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation)
+  VALUES
+    (p_user_id, d.input, d.source_lang, d.target_lang, p_dictionary_word_id, NULL)
+  ON CONFLICT (user_id, dictionary_word_id) DO UPDATE
+    SET input = EXCLUDED.input      -- no-op-ish; lets RETURNING surface the existing row
+  RETURNING * INTO v_row;
+
+  IF p_list_id IS NOT NULL THEN
+    INSERT INTO list_words (list_id, user_word_id)
+    VALUES (p_list_id, v_row.user_word_id)
+    ON CONFLICT (list_id, user_word_id) DO NOTHING;
+  END IF;
+
+  RETURN v_row;
+END;
+$$;
+
+-- create_custom_word: create the user's OWN standalone word (no dictionary
+-- sense) (+ optional tag). Idempotent re-create: on the partial-unique violation
+-- (uq_user_words_custom, which ON CONFLICT can't target — Postgres 42P10) we
+-- catch and re-fetch, mirroring saveDictionaryWord's no-op re-add. The caller
+-- (userWords.ts) NFC-normalizes + validates input/translation before this runs.
+CREATE OR REPLACE FUNCTION create_custom_word(
+  p_user_id     TEXT,
+  p_input       TEXT,
+  p_translation TEXT,
+  p_source      TEXT,
+  p_target      TEXT,
+  p_list_id     UUID DEFAULT NULL
+)
+RETURNS user_words
+LANGUAGE plpgsql
+VOLATILE
+AS $$
+DECLARE
+  v_row user_words;
+BEGIN
+  BEGIN
+    INSERT INTO user_words
+      (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation)
+    VALUES
+      (p_user_id, p_input, p_source, p_target, NULL, p_translation)
+    RETURNING * INTO v_row;
+  EXCEPTION WHEN unique_violation THEN
+    SELECT * INTO v_row FROM user_words
+     WHERE user_id = p_user_id
+       AND input = p_input
+       AND source_lang = p_source
+       AND target_lang = p_target
+       AND custom_translation = p_translation
+       AND dictionary_word_id IS NULL;
+  END;
+
+  IF p_list_id IS NOT NULL THEN
+    INSERT INTO list_words (list_id, user_word_id)
+    VALUES (p_list_id, v_row.user_word_id)
+    ON CONFLICT (list_id, user_word_id) DO NOTHING;
+  END IF;
+
+  RETURN v_row;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID)            FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION create_custom_word(TEXT, TEXT, TEXT, TEXT, TEXT, UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID)            TO anon, authenticated;
+GRANT  EXECUTE ON FUNCTION create_custom_word(TEXT, TEXT, TEXT, TEXT, TEXT, UUID) TO anon, authenticated;
 
 -- =========================
 -- 6. REVIEW_LOG (append-only review history) + record_review()
