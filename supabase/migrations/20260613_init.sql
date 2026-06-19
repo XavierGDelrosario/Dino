@@ -85,6 +85,15 @@ CREATE TABLE IF NOT EXISTS words (
   -- ON CONFLICT (Postgres 42P10), so a partial key keyed on "JMdict rows only"
   -- would be unusable as an upsert target.
   dictionary_ref   TEXT,
+  -- Which projection produced this row — bumped (via the edge function's
+  -- CURRENT_PROJECTION_VERSION) whenever the SOURCE data (a JMdict re-ingest) or
+  -- the PROJECTION logic (jmdict_lookup / edge toWord — readings, headword, uk,
+  -- ranking, dictionary_ref) changes. A row whose version < current is STALE; the
+  -- (deferred, #5) active re-projection sweep rebuilds those keyed on the stable
+  -- dictionary_ref. DEFAULT 1 = the pre-#1 baseline (no dictionary_ref), so every
+  -- pre-existing row reads as stale — over-marking is safe (a needless re-project
+  -- is idempotent), under-marking would silently skip a row that needs rebuilding.
+  projection_version INT NOT NULL DEFAULT 1,
   -- only block exact duplicates; one input may have multiple senses.
   -- All rows are system-created (only the edge function writes), so the dropped
   -- created_by adds nothing here; is_verified stays as the RLS/cache gate.

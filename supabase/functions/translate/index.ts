@@ -35,6 +35,15 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Stamp written onto every projected `words` row (projection_version). BUMP this
+// whenever the source data (a JMdict re-ingest) or the projection logic
+// (jmdict_lookup / the toWord projection below — readings, headword, uk, ranking,
+// dictionary_ref) changes, so the deferred (#5) re-projection sweep can find
+// rows it must rebuild (those with projection_version < this).
+//   1 = pre-stable-identity baseline (no dictionary_ref)
+//   2 = stable JMdict identity (#1: jmdict_entry_id/sense_pos + dictionary_ref)
+const CURRENT_PROJECTION_VERSION = 2;
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -290,6 +299,7 @@ Deno.serve(async (req) => {
       jmdict_entry_id: r.entryId ?? null,
       jmdict_sense_pos: r.sensePos ?? null,
       dictionary_ref: ref,
+      projection_version: CURRENT_PROJECTION_VERSION,
       is_verified: true,
     });
   }
