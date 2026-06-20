@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { lookupWord, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
+import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
 import {
   analyze,
@@ -59,6 +60,14 @@ export function useTranslate(userId: string) {
   const [destListId, setDestListId] = useState<string | null>(null);
   useEffect(() => {
     listUserLists(userId).then(setLists).catch(() => {});
+  }, [userId]);
+
+  // The user's effective restrictions (e.g. paragraph char limit). Defaults
+  // until loaded so the first submit still has a sane cap. The edge function
+  // re-enforces server-side — this copy is for instant UX feedback.
+  const [limits, setLimits] = useState<UserLimits>(DEFAULT_LIMITS);
+  useEffect(() => {
+    getUserLimits(userId).then(setLimits).catch(() => {});
   }, [userId]);
 
   /** Create a sub-list and make it the add destination. */
@@ -121,7 +130,15 @@ export function useTranslate(userId: string) {
         return;
       }
 
-      // Sentence → reader.
+      // Sentence → reader. Enforce the per-user paragraph char limit (free-tier
+      // guard) up front; the edge function re-checks as the hard gate.
+      if (text.length > limits.paragraphCharLimit) {
+        setError(
+          `This paragraph is ${text.length} characters; the limit is ${limits.paragraphCharLimit}. Please shorten it.`
+        );
+        setStatus("error");
+        return;
+      }
       setAnalyzedInput(text.normalize("NFC"));
       const p = await translateParagraph({ input: text, targetLang: target, sourceLang: source });
       const ids: string[] = [];
@@ -134,7 +151,7 @@ export function useTranslate(userId: string) {
       setError(message(e));
       setStatus("error");
     }
-  }, [input, source, target, status, userId]);
+  }, [input, source, target, status, userId, limits]);
 
   /** Save one exact dictionary sense into the vocabulary (and tag the chosen
    *  destination list, if any). */

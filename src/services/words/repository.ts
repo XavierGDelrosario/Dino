@@ -10,6 +10,8 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { toServiceError } from "../errors";
+import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 
 /** Domain representation of a dictionary sense (camelCase). */
@@ -35,18 +37,10 @@ export interface Word {
   isVerified: boolean;
 }
 
-interface WordRow {
-  word_id: string;
-  input: string;
-  translation: string;
-  source_lang: string;
-  target_lang: string;
-  input_reading: string | null;
-  translation_reading: string | null;
-  jmdict_entry_id: string | null;
-  jmdict_sense_pos: number | null;
-  is_verified: boolean;
-}
+// The `words` table row, derived from the generated schema types so a
+// renamed/removed column becomes a COMPILE error in toWord() below. (The query
+// `.select("*")` returns extra columns toWord ignores — dictionary_ref etc.)
+type WordRow = Database["public"]["Tables"]["words"]["Row"];
 
 function toWord(row: WordRow): Word {
   return {
@@ -87,7 +81,7 @@ export async function findCachedWord(params: {
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
     .limit(1);
 
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 
   return data?.[0] ? toWord(data[0]) : null;
 }
@@ -116,7 +110,7 @@ export async function findWordTranslations(params: {
     .order("is_verified", { ascending: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
 
-  if (error) throw error;
+  if (error) throw toServiceError(error);
   return (data ?? []).map(toWord);
 }
 
@@ -146,7 +140,7 @@ export async function findWordTranslationsBatch(params: {
     .eq("target_lang", targetLang)
     .order("is_verified", { ascending: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 
   for (const row of data ?? []) {
     const word = toWord(row);

@@ -130,6 +130,27 @@ describe.skipIf(!ENABLED)("RLS: cross-user isolation", () => {
       .insert({ list_id: aliceListId, user_word_id: bobWordId });
     expect(error).not.toBeNull();
   });
+
+  it("Bob cannot tag ALICE's word into his OWN list", async () => {
+    // The reverse hole: the list is Bob's (list check passes) but the word is
+    // Alice's. The WITH CHECK now also requires the user_word to be the caller's,
+    // so filing someone else's word is rejected even into your own list.
+    const aliceWordId = await createUserWord(alice, "alice-word-to-steal");
+    const { data: bobList, error: listErr } = await bob.client
+      .from("lists")
+      .insert({ user_id: bob.userId, list_name: "bob-list" })
+      .select("list_id")
+      .single();
+    expect(listErr).toBeNull();
+
+    const { error } = await bob.client
+      .from("list_words")
+      .insert({
+        list_id: (bobList as { list_id: string }).list_id,
+        user_word_id: aliceWordId,
+      });
+    expect(error).not.toBeNull();
+  });
 });
 
 describe.skipIf(!ENABLED)("RLS: dictionary is read-only to clients", () => {

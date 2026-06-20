@@ -8,6 +8,8 @@
 // =========================================================
 
 import { supabase } from "../config/supabaseClient";
+import { toServiceError } from "./errors";
+import type { Database } from "../types/database.types";
 
 export interface UserProfile {
   userId: string;
@@ -15,11 +17,8 @@ export interface UserProfile {
   dateCreated: string;
 }
 
-interface UserRow {
-  user_id: string;
-  email: string;
-  date_created: string;
-}
+// The `users` table row, derived from the generated schema types.
+type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 /**
  * Current authenticated user id, or null if there is no session yet.
@@ -72,7 +71,7 @@ async function runEnsureSession(): Promise<string> {
     await supabase.auth.signOut().catch(() => {});
     const { data, error: signErr } = await supabase.auth.signInAnonymously();
     if (signErr || !data.user) {
-      throw signErr ?? new Error("Anonymous sign-in failed");
+      throw toServiceError(signErr, "Anonymous sign-in failed");
     }
     user = data.user;
   }
@@ -92,7 +91,7 @@ async function ensureUserProfile(userId: string, email: string): Promise<void> {
   const { error } = await supabase
     .from("users")
     .upsert({ user_id: userId, email }, { onConflict: "user_id" });
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 }
 
 /**
@@ -107,7 +106,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw toServiceError(error);
   if (!data) return null;
 
   return {

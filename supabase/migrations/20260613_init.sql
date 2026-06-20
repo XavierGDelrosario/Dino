@@ -57,6 +57,13 @@ CREATE TABLE IF NOT EXISTS words (
   word_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   input TEXT NOT NULL,
   translation TEXT NOT NULL,
+  -- Language is free-form TEXT (NOT an enum/FK) and part of every identity key
+  -- below, so the model is language-agnostic: a new language (KO, ZH, ZH-Hant, …)
+  -- is just new rows, and one surface form across pairs (愛 JA vs ZH) stays
+  -- distinct. Convention: uppercase short codes. UTF-8 TEXT stores any script
+  -- (Hangul, Hanzi) first-class. Japanese-specificity lives only in the jmdict_*
+  -- SOURCE tables, never here. (Unvalidated by design — a `languages` registry +
+  -- FK is the future tightening; see "Multi-language readiness" in CLAUDE.md.)
   source_lang TEXT NOT NULL,
   target_lang TEXT NOT NULL,
   -- Pronunciation reading per side (kana furigana for JA, pinyin for ZH, …),
@@ -74,7 +81,8 @@ CREATE TABLE IF NOT EXISTS words (
   -- (preserving word_id, so user_words.dictionary_word_id references survive)
   -- instead of forking a stale duplicate. See the #1/#5 deferred items in CLAUDE.md.
   jmdict_entry_id  TEXT,    -- JMdict ent_seq of the source entry
-  jmdict_sense_pos INT,     -- JA→EN: the entry's sense index (0 = primary); EN→JA: match rank
+  -- JA→EN: the entry's sense index (0 = primary); EN→JA: match rank. Both 0-based.
+  jmdict_sense_pos INT CHECK (jmdict_sense_pos IS NULL OR jmdict_sense_pos >= 0),
   -- The direction-aware stable conflict key the edge function computes:
   --   JA→EN = '<entry_id>:<sense_pos>'  (headword-independent — fixes いく→行く)
   --   EN→JA = '<input>:<entry_id>'      (search term + matched entry; rank-independent)
@@ -94,13 +102,14 @@ CREATE TABLE IF NOT EXISTS words (
   -- pre-existing row reads as stale — over-marking is safe (a needless re-project
   -- is idempotent), under-marking would silently skip a row that needs rebuilding.
   projection_version INT NOT NULL DEFAULT 1,
-  -- only block exact duplicates; one input may have multiple senses.
-  -- All rows are system-created (only the edge function writes), so the dropped
-  -- created_by adds nothing here; is_verified stays as the RLS/cache gate.
-  UNIQUE (input, translation, source_lang, target_lang, is_verified),
-  -- The STABLE-identity key: the edge function's projection onConflict target.
+  -- The STABLE-identity key AND the edge function's only upsert onConflict target.
   -- Full (non-partial) UNIQUE — NULL `dictionary_ref` rows (non-JMdict) stay
   -- multi-allowed via NULL-distinctness, same trick as uq_user_words_dictionary.
+  -- (The legacy UNIQUE (input, translation, source_lang, target_lang, is_verified)
+  -- was DROPPED: dictionary_ref is the real identity, and the old key could only
+  -- spuriously collide — two distinct JMdict entries sharing an identical writing
+  -- AND gloss would have failed the projection upsert. All rows are system-created
+  -- by the edge function; is_verified stays the RLS/cache gate.)
   UNIQUE (dictionary_ref, source_lang, target_lang)
 );
 
@@ -181,10 +190,20 @@ ALTER TABLE list_words ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_select_own_list_words"
 ON list_words FOR SELECT
 USING (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text));
+-- WRITE requires BOTH sides to be the caller's: the LIST (where it's filed) AND
+-- the USER_WORD (what's filed). The list check alone left a gap — the FK to
+-- user_words is satisfied by ANY existing word, so a caller who knew another
+-- user's user_word_id could file it into their own list. (No read leak — a join
+-- back to user_words still hides the foreign row via RLS — but it's a referential
+-- hole.) USING stays list-only so a user can always REMOVE a tag from their list
+-- (e.g. cleaning up a pre-fix bad row); WITH CHECK is what gates creation.
 CREATE POLICY "user_manage_own_list_words"
 ON list_words FOR ALL
 USING (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text))
-WITH CHECK (list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text));
+WITH CHECK (
+  list_id IN (SELECT list_id FROM lists WHERE user_id = (auth.uid())::text)
+  AND user_word_id IN (SELECT user_word_id FROM user_words WHERE user_id = (auth.uid())::text)
+);
 
 -- =========================
 -- 5b. ATOMIC SAVE-AND-TAG (save_dictionary_word / create_custom_word)
@@ -322,17 +341,23 @@ CREATE INDEX IF NOT EXISTS idx_review_log_user_word
   ON review_log (user_word_id, reviewed_at);
 
 ALTER TABLE review_log ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "user_manage_own_review_log"
-ON review_log FOR ALL
-USING (user_id = (auth.uid())::text)
-WITH CHECK (user_id = (auth.uid())::text);
+-- READ-ONLY to the owner. review_log is APPEND-ONLY and written ONLY by
+-- record_review() (a SECURITY DEFINER function); there is intentionally NO client
+-- INSERT (grant below is SELECT only), so the FSRS training history can't be
+-- forged. A client therefore can't fabricate review rows for itself.
+CREATE POLICY "user_select_own_review_log"
+ON review_log FOR SELECT
+USING (user_id = (auth.uid())::text);
 
 -- record_review(user_word_id, grade) -> the updated user_words row.
 -- grade is a 1–5 self-rated recall confidence (1 = forgot … 5 = easy); there is
 -- no separate "again" — a forgotten card is just grade 1 (our model has no
 -- intra-session requeue, only retrievability ranking).
--- SECURITY INVOKER (default): the SELECT ... FOR UPDATE runs under the caller's
--- RLS, so a foreign user_word_id is simply NOT FOUND — no cross-user writes.
+-- SECURITY DEFINER (runs as owner, bypassing RLS) so it can write the otherwise
+-- client-unwritable review_log — but it EXPLICITLY scopes every read/write to the
+-- caller via `auth.uid()` (which is the request's JWT claim regardless of the
+-- security context), so a foreign p_user_word_id is simply NOT FOUND. search_path
+-- is pinned to defend the definer context.
 CREATE OR REPLACE FUNCTION record_review(
   p_user_word_id UUID,
   p_grade        INT
@@ -340,6 +365,8 @@ CREATE OR REPLACE FUNCTION record_review(
 RETURNS user_words
 LANGUAGE plpgsql
 VOLATILE
+SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   w         user_words;
@@ -353,9 +380,11 @@ BEGIN
     RAISE EXCEPTION 'invalid grade % (expected 1-5)', p_grade;
   END IF;
 
-  -- Lock the caller's row; RLS guarantees it's theirs (else NOT FOUND).
+  -- Lock the caller's row. SECURITY DEFINER bypasses RLS, so scope ownership
+  -- EXPLICITLY here (user_id = auth.uid()) — a foreign id is then NOT FOUND.
   SELECT * INTO w FROM user_words
    WHERE user_word_id = p_user_word_id
+     AND user_id = (auth.uid())::text
    FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'user_word % not found', p_user_word_id;
@@ -435,5 +464,5 @@ GRANT SELECT, INSERT, UPDATE          ON users      TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE  ON lists      TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE  ON user_words TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE  ON list_words TO anon, authenticated;
-GRANT SELECT, INSERT                  ON review_log TO anon, authenticated;  -- append-only
+GRANT SELECT                          ON review_log TO anon, authenticated;  -- read-own only; writes go through record_review() (SECURITY DEFINER)
 GRANT SELECT                          ON words      TO anon, authenticated;

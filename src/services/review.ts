@@ -23,6 +23,7 @@
 // =========================================================
 
 import { supabase } from "../config/supabaseClient";
+import { toServiceError } from "./errors";
 import { getAllUserWords, getUserWordsInList, type UserWord } from "./words/userWords";
 
 /** The per-review grade the UI sends: a 1–5 self-rated recall confidence
@@ -124,7 +125,7 @@ export async function recordReview(params: {
     p_user_word_id: params.userWordId,
     p_grade: params.grade,
   });
-  if (error || !data) throw error ?? new Error("Failed to record review");
+  if (error || !data) throw toServiceError(error, "Failed to record review");
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array).
   const row = (Array.isArray(data) ? data[0] : data) as {

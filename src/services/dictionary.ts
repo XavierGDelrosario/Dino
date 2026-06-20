@@ -27,6 +27,7 @@ import { findCachedWord, type Word } from "./words/repository";
 import { saveDictionaryWord } from "./words/userWords";
 import { translate, MAX_TRANSLATION_CONCURRENCY } from "./translation";
 import { mapLimit } from "../lib/concurrency";
+import { ServiceError } from "./errors";
 
 export interface AddWordResult {
   input: string;
@@ -65,13 +66,14 @@ export async function addWordToList(params: {
   // full/half-width) share one cache key — important for Japanese.
   const input = params.input.trim().normalize("NFC");
   if (!input) {
-    throw new Error("Cannot add an empty word");
+    throw new ServiceError("Cannot add an empty word", "validation");
   }
 
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
   if (resolvedSource === targetLang) {
-    throw new Error(
-      `Source and target language are both "${targetLang}"; nothing to translate`
+    throw new ServiceError(
+      `Source and target language are both "${targetLang}"; nothing to translate`,
+      "validation",
     );
   }
 

@@ -8,16 +8,19 @@
 // =========================================================
 
 import { supabase } from "../config/supabaseClient";
+import { ServiceError, toServiceError } from "./errors";
+import type { Database } from "../types/database.types";
 
 export interface List {
   listId: string;
   listName: string;
 }
 
-interface ListRow {
-  list_id: string;
-  list_name: string;
-}
+// Only the columns this module selects, derived from the generated schema types.
+type ListRow = Pick<
+  Database["public"]["Tables"]["lists"]["Row"],
+  "list_id" | "list_name"
+>;
 
 const ALL_LIST_NAME = "ALL";
 
@@ -29,7 +32,7 @@ const toList = (r: ListRow): List => ({
 /** Rejects the reserved virtual-list name "ALL" (case-insensitive). */
 function assertNotReservedName(name: string): void {
   if (name.toUpperCase() === ALL_LIST_NAME) {
-    throw new Error(`"${ALL_LIST_NAME}" is a reserved list name`);
+    throw new ServiceError(`"${ALL_LIST_NAME}" is a reserved list name`, "validation");
   }
 }
 
@@ -44,7 +47,7 @@ export async function listUserLists(userId: string): Promise<List[]> {
     .select<string, ListRow>("list_id, list_name")
     .eq("user_id", userId)
     .order("list_name");
-  if (error) throw error;
+  if (error) throw toServiceError(error);
   return (data ?? []).map(toList);
 }
 
@@ -59,7 +62,7 @@ export async function createList(params: {
 }): Promise<List> {
   const { userId } = params;
   const name = params.listName.trim();
-  if (!name) throw new Error("List name is required");
+  if (!name) throw new ServiceError("List name is required", "validation");
   assertNotReservedName(name);
 
   const { data, error } = await supabase
@@ -67,7 +70,7 @@ export async function createList(params: {
     .insert({ user_id: userId, list_name: name })
     .select<string, ListRow>("list_id, list_name")
     .single();
-  if (error || !data) throw error ?? new Error("Failed to create list");
+  if (error || !data) throw toServiceError(error, "Failed to create list");
   return toList(data);
 }
 
@@ -82,14 +85,14 @@ export async function renameList(params: {
 }): Promise<void> {
   const { listId } = params;
   const name = params.listName.trim();
-  if (!name) throw new Error("List name is required");
+  if (!name) throw new ServiceError("List name is required", "validation");
   assertNotReservedName(name);
 
   const { error } = await supabase
     .from("lists")
     .update({ list_name: name })
     .eq("list_id", listId);
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 }
 
 /**
@@ -101,5 +104,5 @@ export async function renameList(params: {
  */
 export async function deleteList(listId: string): Promise<void> {
   const { error } = await supabase.from("lists").delete().eq("list_id", listId);
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 }

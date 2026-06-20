@@ -28,3 +28,8 @@ pnpm-debug.log*
 # Supabase local
 supabase/.branches/
 supabase/.temp/
+
+# JMdict release files (downloaded for ingest; never committed)
+jmdict-*.json
+jmdict-*.json.tgz
+jmdict-*.json.zip

@@ -14,7 +14,8 @@
     "predev": "npm run setup:dict",
     "prebuild": "npm run setup:dict",
     "setup:dict": "test -f public/dict/base.dat.gz || (mkdir -p public/dict && cp -R node_modules/kuromoji/dict/. public/dict/)",
-    "ingest:jmdict": "tsx scripts/ingest-jmdict.ts"
+    "ingest:jmdict": "tsx scripts/ingest-jmdict.ts",
+    "gen:types": "supabase gen types typescript --local > src/types/database.types.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

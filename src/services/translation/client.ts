@@ -6,10 +6,12 @@
 // (supabase/functions/translate). This module is just the typed RPC wrapper,
 // so there is no provider to swap, mock, or extract from the bundle.
 //
-// NOTE: the translation provider is NOT finalized
+// The provider behind the edge function is JMdict (primary) + Google Cloud
+// Translation v2 (MT fallback); swapping it never touches this client.
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { ServiceError, toServiceError } from "../errors";
 import type { LangCode } from "../language";
 import type { Word } from "../words/repository";
 
@@ -55,8 +57,8 @@ export async function translate(params: {
     { body: params }
   );
 
-  if (error) throw error;
-  if (!data) throw new Error("Empty response from translate function");
+  if (error) throw toServiceError(error);
+  if (!data) throw new ServiceError("Empty response from translate function");
 
   return data;
 }

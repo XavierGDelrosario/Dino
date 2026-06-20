@@ -57,7 +57,8 @@ describe("saveDictionaryWord", () => {
     expect(stub.rpc).toHaveBeenCalledWith("save_dictionary_word", {
       p_user_id: "u",
       p_dictionary_word_id: "ja-neko",
-      p_list_id: null,
+      // undefined (not null) → supabase-js drops the key → SQL default NULL.
+      p_list_id: undefined,
     });
     expect(res).toMatchObject({
       dictionaryWordId: "ja-neko",
@@ -122,7 +123,7 @@ describe("createCustomWord", () => {
       p_translation: "my meaning",
       p_source: "JA",
       p_target: "EN",
-      p_list_id: null,
+      p_list_id: undefined,
     });
     expect(res).toMatchObject({ dictionaryWordId: null, translation: "my meaning" });
   });

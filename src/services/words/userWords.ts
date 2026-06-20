@@ -17,6 +17,8 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { ServiceError, toServiceError } from "../errors";
+import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
 
@@ -53,25 +55,17 @@ export interface UserWord {
   originallyTranslatedDate: string;
 }
 
-interface UserWordRow {
-  user_word_id: string;
-  user_id: string;
-  input: string;
-  source_lang: string;
-  target_lang: string;
-  dictionary_word_id: string | null;
-  custom_translation: string | null;
-  stability: number | null;
-  confidence_rating: number;
-  last_reviewed_date: string | null;
-  originally_translated_date: string;
+// Flat columns derived from the generated schema types (so a schema change
+// breaks toUserWord below), plus the OPTIONAL embedded dictionary row pulled via
+// the FK (SELECT_WITH_DICTIONARY) — relations aren't part of a generated table
+// Row, so it's composed on explicitly (its fields also derived from `words`).
+type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
   /** Embedded dictionary row when selected via the FK (reads only). */
-  words?: {
-    translation: string;
-    input_reading: string | null;
-    translation_reading: string | null;
-  } | null;
-}
+  words?: Pick<
+    Database["public"]["Tables"]["words"]["Row"],
+    "translation" | "input_reading" | "translation_reading"
+  > | null;
+};
 
 /** Embed string that pulls the referenced dictionary fields for resolution. */
 const SELECT_WITH_DICTIONARY =
@@ -110,7 +104,7 @@ async function tagInList(userWordId: string, listId: string): Promise<void> {
       { list_id: listId, user_word_id: userWordId },
       { onConflict: "list_id,user_word_id" }
     );
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 }
 
 /**
@@ -135,9 +129,9 @@ export async function saveDictionaryWord(params: {
   const { data, error } = await supabase.rpc("save_dictionary_word", {
     p_user_id: userId,
     p_dictionary_word_id: word.wordId,
-    p_list_id: listId ?? null,
+    p_list_id: listId,
   });
-  if (error || !data) throw error ?? new Error(`Failed to save "${word.input}"`);
+  if (error || !data) throw toServiceError(error, `Failed to save "${word.input}"`);
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array). The
   // row has no embedded dictionary; we already hold the sense, so patch its
@@ -170,7 +164,7 @@ export async function createCustomWord(params: {
   const input = params.input.trim().normalize("NFC");
   const translation = params.translation.trim().normalize("NFC");
   if (!input || !translation) {
-    throw new Error("Both the word and its meaning are required");
+    throw new ServiceError("Both the word and its meaning are required", "validation");
   }
 
   // One atomic RPC creates the standalone word AND tags the optional sub-list
@@ -185,9 +179,9 @@ export async function createCustomWord(params: {
     p_translation: translation,
     p_source: sourceLang,
     p_target: targetLang,
-    p_list_id: listId ?? null,
+    p_list_id: listId,
   });
-  if (error || !data) throw error ?? new Error(`Failed to create "${input}"`);
+  if (error || !data) throw toServiceError(error, `Failed to create "${input}"`);
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array).
   const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
@@ -207,7 +201,7 @@ export async function editUserWord(params: {
   translation: string;
 }): Promise<UserWord> {
   const translation = params.translation.trim().normalize("NFC");
-  if (!translation) throw new Error("A meaning is required");
+  if (!translation) throw new ServiceError("A meaning is required", "validation");
 
   const { data, error } = await supabase
     .from("user_words")
@@ -215,7 +209,7 @@ export async function editUserWord(params: {
     .eq("user_word_id", params.userWordId)
     .select<string, UserWordRow>(SELECT_WITH_DICTIONARY)
     .single();
-  if (error || !data) throw error ?? new Error("Failed to edit word");
+  if (error || !data) throw toServiceError(error, "Failed to edit word");
   return toUserWord(data);
 }
 
@@ -231,7 +225,7 @@ export async function deleteUserWord(params: { userWordId: string }): Promise<vo
     .from("user_words")
     .delete()
     .eq("user_word_id", params.userWordId);
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 }
 
 /** Tags an existing user_word into a sub-list. */
@@ -257,7 +251,7 @@ export async function removeUserWordFromList(params: {
     .delete()
     .eq("list_id", params.listId)
     .eq("user_word_id", params.userWordId);
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 }
 
 /**
@@ -273,7 +267,7 @@ export async function getAllUserWords(params: { userId: string }): Promise<UserW
     .select<string, UserWordRow>(SELECT_WITH_DICTIONARY)
     .eq("user_id", params.userId)
     .order("originally_translated_date", { ascending: false });
-  if (error) throw error;
+  if (error) throw toServiceError(error);
   return (data ?? []).map(toUserWord);
 }
 
@@ -290,7 +284,7 @@ export async function getUserWordsInList(params: { listId: string }): Promise<Us
       `user_words(${SELECT_WITH_DICTIONARY})`
     )
     .eq("list_id", params.listId);
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 
   return (data ?? [])
     .map((r) => r.user_words)
@@ -338,7 +332,7 @@ export async function getUserWordStates(params: {
     )
     .eq("user_id", userId)
     .in("dictionary_word_id", uniqueIds);
-  if (error) throw error;
+  if (error) throw toServiceError(error);
 
   for (const r of data ?? []) {
     if (!r.dictionary_word_id) continue;
