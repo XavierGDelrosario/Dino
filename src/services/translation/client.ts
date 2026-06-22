@@ -46,19 +46,49 @@ export interface TranslationResult {
  * first); persist defaults true (caches a verified word); persist:false →
  * display-only, word is null.
  */
+const MAX_ATTEMPTS = 3;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * True for a TRANSIENT edge failure worth retrying: a network/fetch failure
+ * (supabase-js `FunctionsFetchError` — e.g. a dropped connection or a local
+ * edge isolate killed by its wall-clock limit, which the browser surfaces as
+ * "NetworkError when attempting to fetch resource") or a 5xx from the gateway.
+ * A 4xx (e.g. 413/429 limits) is deliberate and is NOT retried.
+ */
+function isTransient(error: { name?: string; context?: unknown }): boolean {
+  if (error?.name === "FunctionsFetchError" || error?.name === "FunctionsRelayError") {
+    return true;
+  }
+  const status = (error?.context as { status?: number } | undefined)?.status;
+  return typeof status === "number" && status >= 500;
+}
+
 export async function translate(params: {
   input: string;
   sourceLang: LangCode;
   targetLang: LangCode;
   persist?: boolean;
 }): Promise<TranslationResult> {
-  const { data, error } = await supabase.functions.invoke<TranslationResult>(
-    "translate",
-    { body: params }
-  );
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const { data, error } = await supabase.functions.invoke<TranslationResult>(
+      "translate",
+      { body: params }
+    );
 
-  if (error) throw toServiceError(error);
-  if (!data) throw new ServiceError("Empty response from translate function");
+    if (!error) {
+      if (!data) throw new ServiceError("Empty response from translate function");
+      return data;
+    }
 
-  return data;
+    lastError = error;
+    // Retry transient failures with a short backoff; surface deliberate ones now.
+    if (attempt < MAX_ATTEMPTS && isTransient(error)) {
+      await sleep(150 * attempt);
+      continue;
+    }
+    throw toServiceError(error);
+  }
+  throw toServiceError(lastError);
 }
