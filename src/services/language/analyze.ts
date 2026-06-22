@@ -131,13 +131,23 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     const reading =
       t.reading && t.reading !== UNKNOWN ? katakanaToHiragana(t.reading) : null;
     const lemma = t.basic_form && t.basic_form !== UNKNOWN ? t.basic_form : null;
+    let pos = t.pos && t.pos !== UNKNOWN ? t.pos : null;
+    // DEPENDENT verbs (kuromoji 動詞 非自立 / 接尾) are grammatical, not vocabulary:
+    // the いる in ～ている, くる in ～てくる, みる in ～てみる, etc. Without this they'd
+    // be treated as the standalone verbs 居る/来る/見る. Relabel them as auxiliaries
+    // (助動詞) so the reader renders them as plain text and they don't count as a
+    // separate content word (so 食べている stays one word — 食べる — not 食べ + いる).
+    // Standalone いる ("to exist") is 動詞 自立 and is unaffected.
+    if (pos === "動詞" && (t.pos_detail_1 === "非自立" || t.pos_detail_1 === "接尾")) {
+      pos = "助動詞";
+    }
     out.push({
       text: t.surface_form,
       start,
       end: start + t.surface_form.length,
       reading,
       lemma,
-      pos: t.pos && t.pos !== UNKNOWN ? t.pos : null,
+      pos,
     });
   }
   return out;
