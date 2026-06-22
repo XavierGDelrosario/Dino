@@ -21,6 +21,10 @@ export interface ProviderResult {
   // EN->JA: the match rank (informational).
   entryId?: string | null;
   sensePos?: number | null;
+  // Difficulty axis: corpus-frequency rank (lower = more common; null for MT).
+  frequency?: number | null;
+  // POS tags of the sense (null for MT).
+  partOfSpeech?: string[] | null;
 }
 
 /** A `words` row ready for upsert (snake_case, matches the table). */
@@ -31,6 +35,11 @@ export interface WordRowInsert {
   target_lang: string;
   input_reading: string | null;
   translation_reading: string | null;
+  part_of_speech: string[] | null;
+  frequency: number | null;
+  // Always null from projection — JMdict carries no JLPT; a later curated ingest
+  // populates it. Listed so the upsert row shape matches the table.
+  difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
   dictionary_ref: string;
@@ -139,6 +148,9 @@ export function projectRows(
       target_lang: targetLang,
       input_reading: r.inputReading ?? null,
       translation_reading: r.translationReading ?? null,
+      part_of_speech: r.partOfSpeech ?? null,
+      frequency: r.frequency ?? null,
+      difficulty_override: null,
       jmdict_entry_id: r.entryId ?? null,
       jmdict_sense_pos: r.sensePos ?? null,
       dictionary_ref: ref,

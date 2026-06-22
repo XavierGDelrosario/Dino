@@ -26,8 +26,8 @@ import { Client } from "pg";
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 // --- jmdict-simplified JSON shape (only the fields we load) ----------------
-interface JMKanji { text: string; common: boolean }
-interface JMKana { text: string; common: boolean; appliesToKanji: string[] }
+interface JMKanji { text: string; common: boolean; tags: string[] }
+interface JMKana { text: string; common: boolean; appliesToKanji: string[]; tags: string[] }
 interface JMGloss { lang: string; text: string }
 interface JMSense {
   partOfSpeech: string[];
@@ -40,6 +40,30 @@ interface JMWord { id: string; kanji: JMKanji[]; kana: JMKana[]; sense: JMSense[
 interface JMDict { version?: string; dictDate?: string; words: JMWord[] }
 
 const nfc = (s: string) => s.normalize("NFC");
+
+// JMdict priority tags → a numeric frequency RANK (lower = more common; NULL =
+// unranked). nfXX (X=01..48) is the finest signal (newspaper-frequency bin), so
+// it wins when present; otherwise the coarse top-tier "1" bins (news1/ichi1/
+// spec1/gai1) rank ahead of the "2" bins. The `-common` JSON strips these
+// granular codes (keeping only the `common` boolean), so every element gets NULL
+// there; the full jmdict-eng dataset carries them. Mirrors jmdict_kanji.frequency
+// in the migration and feeds jmdict_lookup's ORDER BY + words.frequency.
+const PRIORITY_1 = new Set(["news1", "ichi1", "spec1", "gai1"]);
+const PRIORITY_2 = new Set(["news2", "ichi2", "spec2", "gai2"]);
+function frequencyRank(tags: string[]): number | null {
+  let best: number | null = null;
+  for (const t of tags) {
+    const m = /^nf(\d{2})$/.exec(t);
+    if (m) {
+      const n = Number(m[1]);
+      best = best === null ? n : Math.min(best, n);
+    }
+  }
+  if (best !== null) return best;                 // nfXX: 1..48
+  if (tags.some((t) => PRIORITY_1.has(t))) return 49;
+  if (tags.some((t) => PRIORITY_2.has(t))) return 99;
+  return null;
+}
 
 /** Bulk multi-row INSERT, chunked to stay under Postgres' ~65535 param cap. */
 async function bulkInsert(
@@ -95,9 +119,11 @@ async function main(): Promise<void> {
 
   for (const w of words) {
     entries.push([w.id]);
-    w.kanji.forEach((k, i) => kanji.push([w.id, nfc(k.text), k.common, i]));
+    w.kanji.forEach((k, i) =>
+      kanji.push([w.id, nfc(k.text), k.common, frequencyRank(k.tags ?? []), i])
+    );
     w.kana.forEach((k, i) =>
-      kana.push([w.id, nfc(k.text), k.common, k.appliesToKanji ?? ["*"], i])
+      kana.push([w.id, nfc(k.text), k.common, k.appliesToKanji ?? ["*"], frequencyRank(k.tags ?? []), i])
     );
     w.sense.forEach((s, i) => {
       senses.push([
@@ -128,13 +154,13 @@ async function main(): Promise<void> {
     await bulkInsert(client, "jmdict_entries", ["entry_id"], entries);
 
     console.log(`Inserting ${kanji.length} kanji ...`);
-    await bulkInsert(client, "jmdict_kanji", ["entry_id", "text", "common", "position"], kanji);
+    await bulkInsert(client, "jmdict_kanji", ["entry_id", "text", "common", "frequency", "position"], kanji);
 
     console.log(`Inserting ${kana.length} kana ...`);
     await bulkInsert(
       client,
       "jmdict_kana",
-      ["entry_id", "text", "common", "applies_to_kanji", "position"],
+      ["entry_id", "text", "common", "applies_to_kanji", "frequency", "position"],
       kana
     );
 

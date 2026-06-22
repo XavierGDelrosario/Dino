@@ -25,6 +25,16 @@ export interface Word {
   inputReading: string | null;
   /** Reading of the translation side, or null if it needs none. */
   translationReading: string | null;
+  /** POS tags of the sense (JMdict codes: n, v5k, …); null for non-JMdict rows. */
+  partOfSpeech: string[] | null;
+  /**
+   * DIFFICULTY AXIS. Corpus-frequency RANK (lower = more common; null = unranked).
+   * Resolved to a level by services/difficulty (getDifficulty). Distinct from the
+   * relatedness axis (future word_embeddings), never conflated.
+   */
+  frequency: number | null;
+  /** Normalized 1..5 curated difficulty (JLPT/HSK); overrides frequency. null today. */
+  difficultyOverride: number | null;
   /**
    * STABLE JMdict source identity (null for non-JMdict rows). The sense this row
    * was projected from, INDEPENDENT of the mutable headword — what `user_words`
@@ -51,6 +61,9 @@ function toWord(row: WordRow): Word {
     targetLang: row.target_lang,
     inputReading: row.input_reading ?? null,
     translationReading: row.translation_reading ?? null,
+    partOfSpeech: row.part_of_speech ?? null,
+    frequency: row.frequency ?? null,
+    difficultyOverride: row.difficulty_override ?? null,
     jmdictEntryId: row.jmdict_entry_id ?? null,
     jmdictSensePos: row.jmdict_sense_pos ?? null,
     isVerified: row.is_verified,

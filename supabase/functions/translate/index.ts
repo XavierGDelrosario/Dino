@@ -54,7 +54,8 @@ import {
 // rows it must rebuild (those with projection_version < this).
 //   1 = pre-stable-identity baseline (no dictionary_ref)
 //   2 = stable JMdict identity (#1: jmdict_entry_id/sense_pos + dictionary_ref)
-const CURRENT_PROJECTION_VERSION = 2;
+//   3 = #7: frequency + part_of_speech projected; frequency-ranked ordering
+const CURRENT_PROJECTION_VERSION = 3;
 
 // corsHeaders(origin, allowedOrigins) is in _lib.ts (ALLOWED_ORIGINS env → echo a
 // listed Origin, else "*" in dev). NOTE: the local `supabase start` Kong gateway
@@ -80,6 +81,9 @@ interface WordRow {
   target_lang: string;
   input_reading: string | null;
   translation_reading: string | null;
+  part_of_speech: string[] | null;
+  frequency: number | null;
+  difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
   is_verified: boolean;
@@ -95,6 +99,9 @@ function toWord(r: WordRow) {
     targetLang: r.target_lang,
     inputReading: r.input_reading ?? null,
     translationReading: r.translation_reading ?? null,
+    partOfSpeech: r.part_of_speech ?? null,
+    frequency: r.frequency ?? null,
+    difficultyOverride: r.difficulty_override ?? null,
     jmdictEntryId: r.jmdict_entry_id ?? null,
     jmdictSensePos: r.jmdict_sense_pos ?? null,
     isVerified: r.is_verified,
@@ -128,6 +135,8 @@ async function lookupJMdict(
     writing: string | null;
     sense_position: number | null;
     jmdict_entry_id: string | null;
+    frequency: number | null;
+    part_of_speech: string[] | null;
   }) => ({
     translation: row.translation,
     inputReading: row.input_reading ?? null,
@@ -135,6 +144,8 @@ async function lookupJMdict(
     headword: row.writing ?? null,
     entryId: row.jmdict_entry_id ?? null,
     sensePos: row.sense_position ?? null,
+    frequency: row.frequency ?? null,
+    partOfSpeech: row.part_of_speech ?? null,
   }));
 }
 

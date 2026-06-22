@@ -83,6 +83,7 @@ export type Database = {
           applies_to_kanji: string[]
           common: boolean
           entry_id: string
+          frequency: number | null
           id: number
           position: number
           text: string
@@ -91,6 +92,7 @@ export type Database = {
           applies_to_kanji?: string[]
           common?: boolean
           entry_id: string
+          frequency?: number | null
           id?: number
           position: number
           text: string
@@ -99,6 +101,7 @@ export type Database = {
           applies_to_kanji?: string[]
           common?: boolean
           entry_id?: string
+          frequency?: number | null
           id?: number
           position?: number
           text?: string
@@ -117,6 +120,7 @@ export type Database = {
         Row: {
           common: boolean
           entry_id: string
+          frequency: number | null
           id: number
           position: number
           text: string
@@ -124,6 +128,7 @@ export type Database = {
         Insert: {
           common?: boolean
           entry_id: string
+          frequency?: number | null
           id?: number
           position: number
           text: string
@@ -131,6 +136,7 @@ export type Database = {
         Update: {
           common?: boolean
           entry_id?: string
+          frequency?: number | null
           id?: number
           position?: number
           text?: string
@@ -426,11 +432,14 @@ export type Database = {
       words: {
         Row: {
           dictionary_ref: string | null
+          difficulty_override: number | null
+          frequency: number | null
           input: string
           input_reading: string | null
           is_verified: boolean
           jmdict_entry_id: string | null
           jmdict_sense_pos: number | null
+          part_of_speech: string[] | null
           projection_version: number
           source_lang: string
           target_lang: string
@@ -440,11 +449,14 @@ export type Database = {
         }
         Insert: {
           dictionary_ref?: string | null
+          difficulty_override?: number | null
+          frequency?: number | null
           input: string
           input_reading?: string | null
           is_verified?: boolean
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
+          part_of_speech?: string[] | null
           projection_version?: number
           source_lang: string
           target_lang: string
@@ -454,11 +466,14 @@ export type Database = {
         }
         Update: {
           dictionary_ref?: string | null
+          difficulty_override?: number | null
+          frequency?: number | null
           input?: string
           input_reading?: string | null
           is_verified?: boolean
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
+          part_of_speech?: string[] | null
           projection_version?: number
           source_lang?: string
           target_lang?: string
@@ -512,8 +527,10 @@ export type Database = {
       jmdict_lookup: {
         Args: { p_input: string; p_source: string; p_target: string }
         Returns: {
+          frequency: number
           input_reading: string
           jmdict_entry_id: string
+          part_of_speech: string[]
           sense_position: number
           translation: string
           translation_reading: string

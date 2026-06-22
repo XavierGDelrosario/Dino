@@ -108,6 +108,20 @@ describe("projectRows", () => {
     expect(row.is_verified).toBe(true);
   });
 
+  it("projects frequency + part_of_speech; difficulty_override is null (no JLPT in JMdict)", () => {
+    const sense: ProviderResult = { ...JA_SENSE, frequency: 7, partOfSpeech: ["n"] };
+    const [row] = projectRows([sense], "ねこ", "JA", "EN", 3);
+    expect(row.frequency).toBe(7);
+    expect(row.part_of_speech).toEqual(["n"]);
+    expect(row.difficulty_override).toBeNull();
+  });
+
+  it("MT/JMdict-without-rank rows carry null frequency + POS", () => {
+    const [row] = projectRows([JA_SENSE], "ねこ", "JA", "EN", 3);
+    expect(row.frequency).toBeNull();
+    expect(row.part_of_speech).toBeNull();
+  });
+
   it("EN→JA: no headword + entryId → ref '<input>:<entry>'", () => {
     const enja: ProviderResult = {
       translation: "猫",

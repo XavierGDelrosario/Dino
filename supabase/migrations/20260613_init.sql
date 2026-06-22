@@ -73,6 +73,25 @@ CREATE TABLE IF NOT EXISTS words (
   -- term, so NOT part of the UNIQUE sense key.
   input_reading TEXT,
   translation_reading TEXT,
+  -- Part-of-speech tags of the sense (JMdict POS codes: n, v5k, adj-i, …). An
+  -- intrinsic, global attribute of the sense, projected from JMdict — distinct
+  -- from the client-side kuromoji POS used only on the paragraph path, so saved
+  -- single words carry POS too. NULL for non-JMdict (MT) rows.
+  part_of_speech TEXT[],
+  -- DIFFICULTY AXIS (corpus frequency; the level scale that needs no JLPT). Two
+  -- nullable signals resolved by services/difficulty (getDifficulty): a curated
+  -- override wins, else the frequency-derived level. Both are deterministic global
+  -- attributes of the headword, so — like the readings above — NOT part of the
+  -- UNIQUE sense key. (Relatedness is the OTHER, separate axis: a future
+  -- word_embeddings table, deliberately NOT a column here.)
+  --   * frequency — corpus-frequency RANK (lower = more common). Projected from
+  --     JMdict's nfXX/news1/ichi1 priority tags. NULL for unranked / MT rows.
+  --     Fixes ranking when a reading spans entries (いく→行く≫幾, eat→食べる≫食う).
+  frequency INT,
+  --   * difficulty_override — a NORMALIZED 1..5 difficulty from a curated source
+  --     (e.g. JLPT N5→1 … N1→5, HSK), overriding the frequency-derived level when
+  --     present. NULL today (JMdict carries no JLPT); populated by a later ingest.
+  difficulty_override INT CHECK (difficulty_override IS NULL OR difficulty_override BETWEEN 1 AND 5),
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
   -- STABLE JMdict identity (NULL for non-JMdict rows, e.g. the MT fallback). The
   -- headword `input` is a PROJECTION OUTPUT that a logic change can move
