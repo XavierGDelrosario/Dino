@@ -19,6 +19,22 @@
   align-self: center;
 }
 
+/* Footer row (e.g. the text-quiz "back to reader" link). */
+.review__foot {
+  display: flex;
+  justify-content: center;
+}
+
+/* A low-emphasis button (text-only). */
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+.btn--ghost:hover {
+  color: var(--text);
+}
+
 .review__scope {
   text-align: center;
   font-size: 0.85rem;

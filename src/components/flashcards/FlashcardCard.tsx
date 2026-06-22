@@ -1,15 +1,23 @@
 // One flashcard. Front shows the term only (recall the meaning); the back
 // reveals the reading (furigana) + the translation. Readings come straight off
-// the UserWord — authoritative for the no-context surface (see CLAUDE.md).
-import type { ReviewQueueItem } from "../../services/review";
+// the source row — authoritative for the no-context surface (see CLAUDE.md).
 import "./flashcards.css";
+
+/** The minimal face a card renders — satisfied by both a ReviewQueueItem (a saved
+ *  UserWord) and a dictionary Word (the text-quiz path), so the card is reused. */
+export interface CardFace {
+  input: string;
+  translation: string;
+  inputReading: string | null;
+  translationReading: string | null;
+}
 
 export function FlashcardCard({
   word,
   flipped,
   onFlip,
 }: {
-  word: ReviewQueueItem;
+  word: CardFace;
   flipped: boolean;
   onFlip: () => void;
 }) {

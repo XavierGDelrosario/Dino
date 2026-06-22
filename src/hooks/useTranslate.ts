@@ -205,8 +205,19 @@ export function useTranslate(userId: string) {
     [userWordIds, saving]
   );
 
+  /** Sync the reader's state after the text-quiz saves + reviews a word, so it
+   *  stops showing as "new" without re-translating. Mirrors addSense's updates. */
+  const applyReview = useCallback(
+    (wordId: string, userWordId: string, confidenceRating: number) => {
+      setSaved((s) => new Set(s).add(wordId));
+      setConfidence((m) => new Map(m).set(wordId, confidenceRating));
+      setUserWordIds((m) => new Map(m).set(wordId, userWordId));
+    },
+    [],
+  );
+
   // Distinct CONTENT words whose PRIMARY sense isn't saved yet (the "Add all"
-  // targets). Particles/auxiliaries are excluded via POS.
+  // targets, and the text-quiz set). Particles/auxiliaries are excluded via POS.
   const addablePrimaries: Word[] = useMemo(() => {
     const result: Word[] = [];
     if (para) {
@@ -236,6 +247,8 @@ export function useTranslate(userId: string) {
     // paragraph mode
     para, analyzedInput,
     addableCount: addablePrimaries.length, addAll,
+    // extract-and-quiz (#9): the new content words + a state-sync callback
+    addablePrimaries, applyReview,
     // add destination (a sub-list, or null = ALL)
     lists, destListId, setDestListId, createDestList,
     submit,

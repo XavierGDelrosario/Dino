@@ -74,6 +74,14 @@
   word-break: break-word;
 }
 
+/* "Add all" + "Quiz" actions above the reader */
+.reader__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .reader__addall {
   align-self: flex-start;
   font-size: 0.9rem;

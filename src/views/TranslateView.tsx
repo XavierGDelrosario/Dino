@@ -4,15 +4,20 @@
 //   · sentence     → the word-by-word reader (hover for meanings + add).
 // Orchestration only — input + the language bar, then the mode-specific child
 // components. Submit is a BUTTON (never Enter — IME safety).
+import { useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { DestinationPicker } from "../components/translate/DestinationPicker";
 import { WordResults } from "../components/translate/WordResults";
+import { TextQuizView } from "./TextQuizView";
 import "../components/translate/translate.css";
 
 export function TranslateView({ userId }: { userId: string }) {
   const t = useTranslate(userId);
+  // Extract-and-quiz (#9): a snapshot of the new words taken when the quiz opens,
+  // so saving them mid-quiz doesn't shrink the live set out from under the session.
+  const [quizWords, setQuizWords] = useState<typeof t.addablePrimaries | null>(null);
 
   const hasResults =
     t.status === "done" && (t.mode === "word" ? t.meanings.length > 0 : t.addableCount > 0);
@@ -41,44 +46,63 @@ export function TranslateView({ userId }: { userId: string }) {
 
       {t.error && <pre className="review__error">{t.error}</pre>}
 
-      {/* Destination for every add button below (word adds + "Add all"). */}
-      {hasResults && (
-        <DestinationPicker
-          lists={t.lists}
-          destListId={t.destListId}
-          onSelect={t.setDestListId}
-          onCreate={t.createDestList}
+      {quizWords ? (
+        <TextQuizView
+          userId={userId}
+          words={quizWords}
+          onGraded={t.applyReview}
+          onClose={() => setQuizWords(null)}
         />
-      )}
-
-      {t.status === "done" && t.mode === "word" && (
-        <WordResults
-          headword={t.headword}
-          meanings={t.meanings}
-          saved={t.saved}
-          saving={t.saving}
-          onSave={t.addSense}
-        />
-      )}
-
-      {t.status === "done" && t.mode === "paragraph" && t.para && (
+      ) : (
         <>
-          {t.para.translated && <div className="para__translation">{t.para.translation}</div>}
-          {t.addableCount > 0 && (
-            <button className="btn reader__addall" onClick={t.addAll}>
-              + Add all {t.addableCount} new {t.addableCount === 1 ? "word" : "words"}
-            </button>
+          {/* Destination for every add button below (word adds + "Add all"). */}
+          {hasResults && (
+            <DestinationPicker
+              lists={t.lists}
+              destListId={t.destListId}
+              onSelect={t.setDestListId}
+              onCreate={t.createDestList}
+            />
           )}
-          <ParagraphReader
-            text={t.analyzedInput}
-            tokens={t.para.tokens}
-            meaningsByWord={t.para.meanings}
-            saved={t.saved}
-            saving={t.saving}
-            confidence={t.confidence}
-            onAdd={t.addSense}
-            onMarkUnknown={t.markUnknown}
-          />
+
+          {t.status === "done" && t.mode === "word" && (
+            <WordResults
+              headword={t.headword}
+              meanings={t.meanings}
+              saved={t.saved}
+              saving={t.saving}
+              onSave={t.addSense}
+            />
+          )}
+
+          {t.status === "done" && t.mode === "paragraph" && t.para && (
+            <>
+              {t.para.translated && <div className="para__translation">{t.para.translation}</div>}
+              {t.addableCount > 0 && (
+                <div className="reader__actions">
+                  <button className="btn reader__addall" onClick={t.addAll}>
+                    + Add all {t.addableCount} new {t.addableCount === 1 ? "word" : "words"}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => setQuizWords(t.addablePrimaries)}
+                  >
+                    Quiz {t.addableCount} new {t.addableCount === 1 ? "word" : "words"}
+                  </button>
+                </div>
+              )}
+              <ParagraphReader
+                text={t.analyzedInput}
+                tokens={t.para.tokens}
+                meaningsByWord={t.para.meanings}
+                saved={t.saved}
+                saving={t.saving}
+                confidence={t.confidence}
+                onAdd={t.addSense}
+                onMarkUnknown={t.markUnknown}
+              />
+            </>
+          )}
         </>
       )}
     </section>
