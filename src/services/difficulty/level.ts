@@ -34,9 +34,11 @@ export function fromOverride(override: number | null): Difficulty | null {
 }
 
 /**
- * Bin a corpus-frequency RANK (lower = more common) into a 1..5 level via N
- * ascending thresholds: rank ≤ thresholds[0] → 1, ≤ thresholds[1] → 2, … else N+1.
- * Pass 4 thresholds for a 1..5 scale. NULL rank → unknown.
+ * Bin a corpus-frequency SCORE (wordfreq Zipf × 100; HIGHER = more common = easier)
+ * into a 1..5 difficulty via N DESCENDING thresholds: score ≥ thresholds[0] → 1
+ * (easiest), ≥ thresholds[1] → 2, … else N+1 (hardest). Pass 4 thresholds for a
+ * 1..5 scale. NULL score → unknown. Zipf is normalized + cross-language-comparable,
+ * so the same thresholds apply to any language's score.
  */
 export function fromFrequency(
   freq: number | null,
@@ -45,7 +47,7 @@ export function fromFrequency(
   if (freq == null) return UNKNOWN_DIFFICULTY;
   let level = 1;
   for (const t of thresholds) {
-    if (freq <= t) break;
+    if (freq >= t) break;
     level++;
   }
   return { level: clampLevel(level), source: "frequency" };

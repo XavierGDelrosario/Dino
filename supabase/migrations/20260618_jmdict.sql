@@ -38,11 +38,12 @@ CREATE TABLE IF NOT EXISTS jmdict_kanji (
   entry_id  TEXT NOT NULL REFERENCES jmdict_entries(entry_id) ON DELETE CASCADE,
   text      TEXT NOT NULL,                 -- NFC-normalized writing
   common    BOOLEAN NOT NULL DEFAULT FALSE,
-  -- Corpus-frequency RANK parsed from the priority tags (lower = more common).
-  -- nfXX → XX (1..48, finest); else news1/ichi1/spec1/gai1 → 49; *2 bins → 99;
-  -- no priority → NULL. Lets jmdict_lookup ORDER BY frequency so a reading spanning
-  -- entries ranks the common one first (いく→行く≫幾). NULL on the `-common` JSON
-  -- (it strips the granular codes); populated by the full jmdict-eng dataset.
+  -- Corpus-frequency score (wordfreq Zipf × 100; HIGHER = more common; NULL =
+  -- unranked). Joined onto each writing/reading BY SURFACE at ingest from
+  -- data/frequency/ja.tsv (jmdict-simplified itself has no usable frequency — it
+  -- collapses all priority codes into `common`). Lets jmdict_lookup ORDER BY
+  -- frequency DESC so a reading spanning entries ranks the common one first
+  -- (いく→行く≫幾). See scripts/build-frequency.py + CLAUDE.md #7.
   frequency INT,
   position  INT NOT NULL                   -- order within the entry (preferred first)
 );
@@ -171,7 +172,12 @@ BEGIN
         CASE WHEN pref.is_uk THEN pref.kana ELSE COALESCE(pref.kanji, pref.kana) END
                                                           AS writing,
         s.entry_id                                        AS jmdict_entry_id,
-        pref.frequency                                    AS frequency,
+        -- Frequency of the HEADWORD's surface, not the max over all readings: the
+        -- kana is shared by homophones (いく → 行く/幾/…), so its score would
+        -- inflate rare kanji. Use the preferred kanji's score; for uk/kana-only
+        -- entries the kana IS the headword (e.g. する), so use the kana's.
+        CASE WHEN pref.is_uk THEN pref.kana_freq
+             ELSE COALESCE(pref.kanji_freq, pref.kana_freq) END AS frequency,
         s.part_of_speech                                  AS part_of_speech
       FROM jmdict_senses s
       JOIN LATERAL (
@@ -182,6 +188,13 @@ BEGIN
           (SELECT k.text FROM jmdict_kana k
             WHERE k.entry_id = s.entry_id
             ORDER BY k.common DESC, k.position ASC LIMIT 1)   AS kana,
+          -- frequency of those SAME preferred surfaces (same ORDER BY → same row)
+          (SELECT kj.frequency FROM jmdict_kanji kj
+            WHERE kj.entry_id = s.entry_id
+            ORDER BY kj.common DESC, kj.position ASC LIMIT 1) AS kanji_freq,
+          (SELECT k.frequency FROM jmdict_kana k
+            WHERE k.entry_id = s.entry_id
+            ORDER BY k.common DESC, k.position ASC LIMIT 1)   AS kana_freq,
           -- is the entry "common" (any common kana/kanji)? Used to rank common
           -- words first when one reading spans several entries (いく → 行く ≫ 幾).
           (COALESCE((SELECT bool_or(common) FROM jmdict_kana  WHERE entry_id = s.entry_id), FALSE)
@@ -192,25 +205,20 @@ BEGIN
           -- sense isn't, so it must stay 猫, not flip to ねこ.
           COALESCE((SELECT sn.usually_kana FROM jmdict_senses sn
                      WHERE sn.entry_id = s.entry_id ORDER BY sn.position ASC LIMIT 1), FALSE)
-                                                              AS is_uk,
-          -- the entry's best (lowest) frequency rank across its kana + kanji.
-          -- LEAST ignores NULLs, so it's the finest available rank or NULL.
-          -- Columns are alias-qualified (k./kj.) so the bare name can't be read as
-          -- the function's `frequency` OUT variable (PL/pgSQL variable_conflict).
-          LEAST(
-            (SELECT min(k.frequency)  FROM jmdict_kana  k  WHERE k.entry_id  = s.entry_id),
-            (SELECT min(kj.frequency) FROM jmdict_kanji kj WHERE kj.entry_id = s.entry_id)
-          )                                                   AS frequency
+                                                              AS is_uk
       ) pref ON TRUE
       WHERE s.entry_id IN (
               SELECT entry_id FROM jmdict_kanji WHERE text = p_input
               UNION
               SELECT entry_id FROM jmdict_kana  WHERE text = p_input
             )
-      -- frequency first (lower = more common) so a shared reading ranks the common
-      -- entry ahead of the rare one (いく→行く≫幾); NULLs (unranked) last. is_common
-      -- is the coarse tiebreaker for the `-common` dataset where frequency is NULL.
-      ORDER BY pref.frequency ASC NULLS LAST, pref.is_common DESC, s.entry_id, s.position;
+      -- headword frequency first (higher Zipf = more common) so a shared reading
+      -- ranks the common entry ahead of the rare one (いく→行く≫幾); NULLs last.
+      -- Same CASE as the projected `frequency` (qualified pref refs, so no clash
+      -- with the `frequency` OUT variable). is_common is the coarse tiebreaker.
+      ORDER BY (CASE WHEN pref.is_uk THEN pref.kana_freq
+                     ELSE COALESCE(pref.kanji_freq, pref.kana_freq) END) DESC NULLS LAST,
+               pref.is_common DESC, s.entry_id, s.position;
 
   ELSIF p_source = 'EN' AND p_target = 'JA' THEN
     RETURN QUERY
@@ -235,9 +243,9 @@ BEGIN
         pref.writing                                      AS translation,
         NULL::TEXT                                        AS input_reading,
         pref.reading                                      AS translation_reading,
-        -- rank: gloss-match relevance first, then frequency (lower = more common,
-        -- NULLs last), then the coarse common flag — so eat→食べる≫食う.
-        (ROW_NUMBER() OVER (ORDER BY ent.match_rank DESC, pref.frequency ASC NULLS LAST,
+        -- rank: gloss-match relevance first, then frequency (higher Zipf = more
+        -- common, NULLs last), then the coarse common flag — so eat→食べる≫食う.
+        (ROW_NUMBER() OVER (ORDER BY ent.match_rank DESC, pref.frequency DESC NULLS LAST,
                                      pref.is_common DESC, ent.first_sense ASC))::INT - 1
                                                           AS sense_position,
         NULL::TEXT                                        AS writing,
@@ -253,17 +261,15 @@ BEGIN
           COALESCE(kj.text, ka.text)             AS writing,
           ka.text                                AS reading,
           COALESCE(kj.common, ka.common, FALSE)  AS is_common,
-          -- alias-qualified (fk./fj.) so bare `frequency` isn't read as the OUT var
-          LEAST(
-            (SELECT min(fk.frequency) FROM jmdict_kana  fk WHERE fk.entry_id = ent.entry_id),
-            (SELECT min(fj.frequency) FROM jmdict_kanji fj WHERE fj.entry_id = ent.entry_id)
-          )                                      AS frequency
-        FROM (SELECT text, common FROM jmdict_kanji
-               WHERE entry_id = ent.entry_id
-               ORDER BY common DESC, position ASC LIMIT 1) kj
-        FULL JOIN (SELECT text, common FROM jmdict_kana
-                    WHERE entry_id = ent.entry_id
-                    ORDER BY common DESC, position ASC LIMIT 1) ka ON TRUE
+          -- frequency of the HEADWORD surface (preferred kanji, else kana) — not a
+          -- max over all readings, so a shared kana can't inflate a rare kanji.
+          COALESCE(kj.frequency, ka.frequency)   AS frequency
+        FROM (SELECT kk.text, kk.common, kk.frequency FROM jmdict_kanji kk
+               WHERE kk.entry_id = ent.entry_id
+               ORDER BY kk.common DESC, kk.position ASC LIMIT 1) kj
+        FULL JOIN (SELECT nn.text, nn.common, nn.frequency FROM jmdict_kana nn
+                    WHERE nn.entry_id = ent.entry_id
+                    ORDER BY nn.common DESC, nn.position ASC LIMIT 1) ka ON TRUE
       ) pref ON TRUE
       WHERE pref.writing IS NOT NULL;
   END IF;

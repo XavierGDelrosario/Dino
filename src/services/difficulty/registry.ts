@@ -2,12 +2,11 @@
 // Difficulty resolver registry — routes a language to its frequency binning.
 //
 // Mirrors services/senses/registry.ts: a per-language strategy with a default
-// fallback. What legitimately varies BY LANGUAGE is the frequency SCALE (JMdict's
-// nfXX is 1..48; another dictionary's corpus list will differ), so each language
-// owns its bin thresholds. The override step is universal, so it lives in the
-// shared resolver shape, not per language. JMdict is the only frequency source
-// today, so the default reuses its bins — register a resolver here when a second
-// language ships a different scale.
+// fallback. Frequency is a wordfreq Zipf score (× 100), which is NORMALIZED and
+// cross-language-comparable, so a SINGLE set of bin thresholds works for every
+// language — the default resolver handles all of them. The per-language seam
+// remains for genuine divergence (e.g. a language that needs different thresholds
+// or a curated-override mapping), exactly like the empty senses/ registry.
 // =========================================================
 
 import type { LangCode } from "../language";
@@ -16,23 +15,23 @@ import { type Difficulty, fromFrequency, fromOverride } from "./level";
 
 export type DifficultyResolver = (word: Word) => Difficulty;
 
-// JMdict nfXX rank is 1..48 (lower = more common). ~10-wide bins → a 1..5 scale.
-const JMDICT_FREQUENCY_BINS = [10, 20, 30, 40] as const;
+// Zipf × 100 thresholds (higher = more common = easier): ≥500 → L1 (e.g. 行く 552,
+// 猫 505), ≥450 → L2, ≥400 → L3, ≥300 → L4, else L5 (rare/hard, e.g. 形而上学 256).
+const ZIPF_BINS = [500, 450, 400, 300] as const;
+
+/** Shared resolver: a curated override (JLPT/HSK, future) wins, else bin the Zipf score. */
+const frequencyResolver: DifficultyResolver = (w) =>
+  fromOverride(w.difficultyOverride) ?? fromFrequency(w.frequency, ZIPF_BINS);
 
 /**
- * Japanese (getDifficultyJapanese): a curated override (future JLPT) wins, else
- * bin the JMdict nfXX frequency. The explicit per-language seam.
+ * Japanese (getDifficultyJapanese): identical to the default today — the Zipf scale
+ * is language-neutral — but kept as the explicit per-language seam (e.g. for a
+ * JLPT-specific override mapping later).
  */
-const japaneseResolver: DifficultyResolver = (w) =>
-  fromOverride(w.difficultyOverride) ?? fromFrequency(w.frequency, JMDICT_FREQUENCY_BINS);
+const japaneseResolver: DifficultyResolver = frequencyResolver;
 
-/**
- * Default for any unregistered language. JMdict (nfXX) is currently the only
- * frequency source so it reuses those bins — which also keeps EN→JA words (whose
- * sourceLang is EN but whose stored frequency is the JA entry's nfXX rank) rated.
- * A language with a different scale registers its own resolver above.
- */
-const defaultResolver: DifficultyResolver = japaneseResolver;
+/** Default for any language: Zipf scores are comparable, so one binning fits all. */
+const defaultResolver: DifficultyResolver = frequencyResolver;
 
 interface ResolverEntry {
   supports(lang: LangCode): boolean;

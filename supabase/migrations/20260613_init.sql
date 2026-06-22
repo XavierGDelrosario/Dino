@@ -84,9 +84,10 @@ CREATE TABLE IF NOT EXISTS words (
   -- attributes of the headword, so — like the readings above — NOT part of the
   -- UNIQUE sense key. (Relatedness is the OTHER, separate axis: a future
   -- word_embeddings table, deliberately NOT a column here.)
-  --   * frequency — corpus-frequency RANK (lower = more common). Projected from
-  --     JMdict's nfXX/news1/ichi1 priority tags. NULL for unranked / MT rows.
-  --     Fixes ranking when a reading spans entries (いく→行く≫幾, eat→食べる≫食う).
+  --   * frequency — corpus-frequency SCORE (wordfreq Zipf × 100; HIGHER = more
+  --     common; a normalized, cross-language-comparable measure). NULL for unranked
+  --     / MT rows. Fixes ranking when a reading spans entries (いく→行く≫幾,
+  --     eat→食べる≫食う). Sourced via data/frequency + the jmdict ingest join.
   frequency INT,
   --   * difficulty_override — a NORMALIZED 1..5 difficulty from a curated source
   --     (e.g. JLPT N5→1 … N1→5, HSK), overriding the frequency-derived level when

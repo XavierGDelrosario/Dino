@@ -16,7 +16,11 @@
 //      full jmdict-eng-<ver>.json, from
 //      https://github.com/scriptin/jmdict-simplified/releases
 //   2. Point at your local Supabase Postgres (default below) or set DATABASE_URL:
-//        npm run ingest:jmdict -- ./jmdict-eng-common-3.x.x.json
+//        npm run ingest:jmdict -- ./jmdict-eng-common-3.x.x.json [--common-only]
+//   Either edition works for content (the common subset is plenty for the POC).
+//   FREQUENCY is sourced separately from data/frequency/ja.tsv (wordfreq-derived,
+//   see scripts/build-frequency.py) — jmdict-simplified has no usable frequency
+//   codes. Add --common-only to store just the common subset (small DB footprint).
 //   The default DB URL is the local Supabase superuser (bypasses RLS), which is
 //   what `supabase start` exposes on port 54322.
 // =========================================================
@@ -26,8 +30,8 @@ import { Client } from "pg";
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 // --- jmdict-simplified JSON shape (only the fields we load) ----------------
-interface JMKanji { text: string; common: boolean; tags: string[] }
-interface JMKana { text: string; common: boolean; appliesToKanji: string[]; tags: string[] }
+interface JMKanji { text: string; common: boolean }
+interface JMKana { text: string; common: boolean; appliesToKanji: string[] }
 interface JMGloss { lang: string; text: string }
 interface JMSense {
   partOfSpeech: string[];
@@ -41,28 +45,36 @@ interface JMDict { version?: string; dictDate?: string; words: JMWord[] }
 
 const nfc = (s: string) => s.normalize("NFC");
 
-// JMdict priority tags → a numeric frequency RANK (lower = more common; NULL =
-// unranked). nfXX (X=01..48) is the finest signal (newspaper-frequency bin), so
-// it wins when present; otherwise the coarse top-tier "1" bins (news1/ichi1/
-// spec1/gai1) rank ahead of the "2" bins. The `-common` JSON strips these
-// granular codes (keeping only the `common` boolean), so every element gets NULL
-// there; the full jmdict-eng dataset carries them. Mirrors jmdict_kanji.frequency
-// in the migration and feeds jmdict_lookup's ORDER BY + words.frequency.
-const PRIORITY_1 = new Set(["news1", "ichi1", "spec1", "gai1"]);
-const PRIORITY_2 = new Set(["news2", "ichi2", "spec2", "gai2"]);
-function frequencyRank(tags: string[]): number | null {
-  let best: number | null = null;
-  for (const t of tags) {
-    const m = /^nf(\d{2})$/.exec(t);
-    if (m) {
-      const n = Number(m[1]);
-      best = best === null ? n : Math.min(best, n);
-    }
+// Frequency comes from the wordfreq-derived file (data/frequency/<lang>.tsv,
+// "<surface>\t<zipf×100>", built by scripts/build-frequency.py) — NOT from JMdict
+// (jmdict-simplified collapses all priority codes into the `common` boolean, so
+// nfXX is unavailable; verified against the full dataset). The score is a
+// NORMALIZED Zipf value (higher = MORE common), joined onto each writing/reading
+// by surface and stored on jmdict_kanji/kana.frequency, which jmdict_lookup
+// aggregates (GREATEST) into words.frequency. Missing surface → NULL (unranked).
+const FREQ_FILE = (lang: string) =>
+  new URL(`../data/frequency/${lang}.tsv`, import.meta.url);
+
+/** Load "<surface>\t<score>" → Map(surface → score). Empty map if the file is absent. */
+function loadFrequencies(lang: string): Map<string, number> {
+  const map = new Map<string, number>();
+  let raw: string;
+  try {
+    raw = readFileSync(FREQ_FILE(lang), "utf8");
+  } catch {
+    console.warn(
+      `No frequency file for '${lang}' (data/frequency/${lang}.tsv) — frequencies will be NULL. ` +
+        `Generate it with: scripts/build-frequency.py ${lang}`
+    );
+    return map;
   }
-  if (best !== null) return best;                 // nfXX: 1..48
-  if (tags.some((t) => PRIORITY_1.has(t))) return 49;
-  if (tags.some((t) => PRIORITY_2.has(t))) return 99;
-  return null;
+  for (const line of raw.split("\n")) {
+    if (!line) continue;
+    const tab = line.indexOf("\t");
+    if (tab === -1) continue;
+    map.set(nfc(line.slice(0, tab)), Number(line.slice(tab + 1)));
+  }
+  return map;
 }
 
 /** Bulk multi-row INSERT, chunked to stay under Postgres' ~65535 param cap. */
@@ -94,20 +106,43 @@ async function bulkInsert(
   return out;
 }
 
+/** An entry is "common" if any of its kanji or kana readings is flagged common. */
+function isCommonEntry(w: JMWord): boolean {
+  return w.kanji.some((k) => k.common) || w.kana.some((k) => k.common);
+}
+
 async function main(): Promise<void> {
-  const file = process.argv[2];
+  // Args: the JSON path plus an optional --common-only flag (order-independent).
+  const args = process.argv.slice(2);
+  const commonOnly = args.includes("--common-only");
+  const file = args.find((a) => !a.startsWith("--"));
   if (!file) {
-    console.error("Usage: npm run ingest:jmdict -- <path-to-jmdict-eng.json>");
+    console.error(
+      "Usage: npm run ingest:jmdict -- <path-to-jmdict-eng.json> [--common-only]"
+    );
     process.exit(1);
   }
   const dbUrl = process.env.DATABASE_URL ?? DEFAULT_DB_URL;
 
   console.log(`Reading ${file} ...`);
   const dict = JSON.parse(readFileSync(file, "utf8")) as JMDict;
-  const words = dict.words ?? [];
+  const all = dict.words ?? [];
+  // --common-only: store ONLY common entries (those with a common reading/writing)
+  // to keep the DB at the small ~common-subset footprint; dropped rare entries are
+  // read-and-discarded, never inserted (see CLAUDE.md #7 storage decision). Without
+  // the flag, every entry is stored (full ingest). Frequency is independent of this
+  // (it comes from the wordfreq file), so either way stored words get a score.
+  const words = commonOnly ? all.filter(isCommonEntry) : all;
   console.log(
-    `Parsed ${words.length} entries (JMdict ${dict.version ?? "?"}, ${dict.dictDate ?? "?"}).`
+    `Parsed ${all.length} entries (JMdict ${dict.version ?? "?"}, ${dict.dictDate ?? "?"}).` +
+      (commonOnly
+        ? ` Keeping ${words.length} common (dropping ${all.length - words.length} rare).`
+        : "")
   );
+
+  // wordfreq-derived surface → Zipf score (see loadFrequencies). JMdict is Japanese.
+  const freq = loadFrequencies("ja");
+  const freqOf = (surface: string) => freq.get(nfc(surface)) ?? null;
 
   // Flatten into per-table row arrays. Senses keep their glosses so we can wire
   // them up once Postgres hands back the generated sense ids (in insertion order).
@@ -120,10 +155,10 @@ async function main(): Promise<void> {
   for (const w of words) {
     entries.push([w.id]);
     w.kanji.forEach((k, i) =>
-      kanji.push([w.id, nfc(k.text), k.common, frequencyRank(k.tags ?? []), i])
+      kanji.push([w.id, nfc(k.text), k.common, freqOf(k.text), i])
     );
     w.kana.forEach((k, i) =>
-      kana.push([w.id, nfc(k.text), k.common, k.appliesToKanji ?? ["*"], frequencyRank(k.tags ?? []), i])
+      kana.push([w.id, nfc(k.text), k.common, k.appliesToKanji ?? ["*"], freqOf(k.text), i])
     );
     w.sense.forEach((s, i) => {
       senses.push([
