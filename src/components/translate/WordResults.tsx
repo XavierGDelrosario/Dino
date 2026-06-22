@@ -3,21 +3,27 @@
 // each sense is the shared <SenseText>; this only owns the row + add button.
 import { useState } from "react";
 import type { Word } from "../../services/words/repository";
+import type { List } from "../../services/lists";
 import { SenseText } from "../common/SenseText";
+import { AddToListButton } from "./AddToListButton";
 import "./translate.css";
 
 export function WordResults({
   headword,
   meanings,
   saved,
-  saving,
-  onSave,
+  confidence,
+  lists,
+  onAdd,
+  onCreateList,
 }: {
   headword: string;
   meanings: Word[];
   saved: Set<string>;
-  saving: Set<string>;
-  onSave: (word: Word) => void;
+  confidence: Map<string, number>;
+  lists: List[];
+  onAdd: (words: Word[], listId?: string) => Promise<void>;
+  onCreateList: (name: string) => Promise<string>;
 }) {
   const [showOthers, setShowOthers] = useState(false);
 
@@ -31,52 +37,36 @@ export function WordResults({
   }
 
   const [primary, ...others] = meanings;
+  const row = (word: Word, isPrimary = false) => (
+    <div className={`result${isPrimary ? " result--primary" : ""}`} key={word.wordId}>
+      <SenseText word={word} primary={isPrimary} />
+      {/* Added + confidence indicator, shown ONLY for senses actually in vocab. */}
+      {saved.has(word.wordId) && (
+        <em className="sense__conf">✓ {confidence.get(word.wordId) ?? 0}/5</em>
+      )}
+      <AddToListButton
+        words={[word]}
+        lists={lists}
+        label="+ Add"
+        alreadyAdded={saved.has(word.wordId)}
+        onAdd={onAdd}
+        onCreateList={onCreateList}
+        className="add"
+      />
+    </div>
+  );
 
   return (
     <div className="results">
-      <SenseRow word={primary} primary saved={saved.has(primary.wordId)} saving={saving.has(primary.wordId)} onSave={onSave} />
+      {row(primary, true)}
       {others.length > 0 && (
         <>
           <button className="results__more" onClick={() => setShowOthers((v) => !v)} aria-expanded={showOthers}>
             {showOthers ? "Hide other meanings" : `Other meanings (${others.length})`}
           </button>
-          {showOthers && (
-            <ul className="results__others">
-              {others.map((w) => (
-                <SenseRow key={w.wordId} word={w} saved={saved.has(w.wordId)} saving={saving.has(w.wordId)} onSave={onSave} />
-              ))}
-            </ul>
-          )}
+          {showOthers && <ul className="results__others">{others.map((w) => row(w))}</ul>}
         </>
       )}
-    </div>
-  );
-}
-
-function SenseRow({
-  word,
-  primary = false,
-  saved,
-  saving,
-  onSave,
-}: {
-  word: Word;
-  primary?: boolean;
-  saved: boolean;
-  saving: boolean;
-  onSave: (word: Word) => void;
-}) {
-  return (
-    <div className={`result${primary ? " result--primary" : ""}`}>
-      <SenseText word={word} primary={primary} />
-      <button
-        className={`add${saved ? " add--done" : ""}`}
-        onClick={() => onSave(word)}
-        disabled={saved || saving}
-        aria-label={saved ? "In your vocabulary" : "Add to vocabulary"}
-      >
-        {saved ? "✓ In vocab" : saving ? "…" : "+ Add"}
-      </button>
     </div>
   );
 }

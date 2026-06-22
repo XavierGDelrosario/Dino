@@ -218,16 +218,75 @@
   cursor: pointer;
 }
 
-.translate__input {
+/* Input (left) and output (right) side by side; the Translate button is centered
+   below them (.translate__submit). Stacks on narrow screens. */
+.translate__io {
   display: flex;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+/* The two side-by-side boxes: input (textarea) and output. */
+.translate__box {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 8rem;
+}
+
+/* Output box: read-only display of the plain translation. */
+.translate__out {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+}
+
+.translate__submit {
+  display: flex;
+  justify-content: center;
+}
+
+/* "I'm learning: [lang]" — the study target selector below the Translate button. */
+.learnpick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  align-items: flex-start;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* The study area below the Translate button: add/quiz/review + the reader. */
+.study {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.translate__placeholder {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .translate__io {
+    flex-direction: column;
+  }
 }
 
 /* auto-ish textarea for the unified word/sentence input */
 .textarea--auto {
   flex: 1;
-  min-height: 2.6rem;
+  min-height: 6rem;
 }
 
 .input {
@@ -348,4 +407,86 @@
 
 .add:disabled {
   cursor: default;
+}
+
+/* Added-but-armed (a click opens the list menu): subtle, still clearly clickable. */
+.add--armed {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+/* Saved-confidence hint next to a reader sense (the reader's per-word add now
+   uses the same +/menu button, so this just shows the n/5 inline). */
+.sense__conf {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+/* AddToListButton: + → ✓ → + → list menu. */
+.addwrap {
+  position: relative;
+  display: inline-block;
+}
+
+.addmenu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.addmenu__title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0.2rem 0.4rem;
+}
+
+.addmenu__item {
+  appearance: none;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.addmenu__item:hover {
+  background: var(--surface-2);
+}
+
+.addmenu__new {
+  color: var(--accent);
+}
+
+.addmenu__create {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.2rem;
+}
+
+.addmenu__close {
+  appearance: none;
+  margin-top: 0.2rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.3rem;
+  font-size: 0.8rem;
+  cursor: pointer;
 }

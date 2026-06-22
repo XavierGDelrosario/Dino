@@ -7,6 +7,8 @@
 import { useRef, useState } from "react";
 import { isContentPos, type AnalyzedToken } from "../../services/language";
 import type { Word } from "../../services/words/repository";
+import type { List } from "../../services/lists";
+import { AddToListButton } from "./AddToListButton";
 import "./translate.css";
 import "../common/SenseText.css"; // shared .sense* row/action styles
 
@@ -15,19 +17,20 @@ export function ParagraphReader({
   tokens,
   meaningsByWord,
   saved,
-  saving,
   confidence,
+  lists,
   onAdd,
-  onMarkUnknown,
+  onCreateList,
 }: {
   text: string;
   tokens: AnalyzedToken[];
   meaningsByWord: Map<string, Word[]>;
   saved: Set<string>;
-  saving: Set<string>;
   confidence: Map<string, number>;
-  onAdd: (sense: Word) => void;
-  onMarkUnknown: (sense: Word) => void;
+  lists: List[];
+  /** Add/tag a sense to ALL (no listId) or into a sub-list (idempotent). */
+  onAdd: (words: Word[], listId?: string) => Promise<void>;
+  onCreateList: (name: string) => Promise<string>;
 }) {
   const [hover, setHover] = useState<{ word: string; rect: DOMRect } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -93,30 +96,27 @@ export function ParagraphReader({
             )}
           </div>
           <ul className="hovercard__senses">
-            {hoveredSenses.map((s) => {
-              const isSaved = saved.has(s.wordId);
-              const isBusy = saving.has(s.wordId);
-              return (
-                <li key={s.wordId} className="sense">
-                  <span className="sense__text">{s.translation}</span>
-                  {isBusy ? (
-                    <span className="sense__busy">…</span>
-                  ) : isSaved ? (
-                    <button
-                      className="sense__saved"
-                      onClick={() => onMarkUnknown(s)}
-                      title="In vocabulary — click if you'd forgotten it (lowers confidence)"
-                    >
-                      ✓ {confidence.get(s.wordId) ?? 0}/5
-                    </button>
-                  ) : (
-                    <button className="sense__add" onClick={() => onAdd(s)} title="Add this meaning">
-                      ＋
-                    </button>
+            {hoveredSenses.map((s) => (
+              <li key={s.wordId} className="sense">
+                <span className="sense__text">
+                  {s.translation}
+                  {saved.has(s.wordId) && (
+                    <em className="sense__conf"> ✓ {confidence.get(s.wordId) ?? 0}/5</em>
                   )}
-                </li>
-              );
-            })}
+                </span>
+                {/* Same add flow as elsewhere: ＋ → ✓ → ＋ → list menu. Already-saved
+                    senses start armed so a click files them into a sub-list. */}
+                <AddToListButton
+                  words={[s]}
+                  lists={lists}
+                  label="＋"
+                  alreadyAdded={saved.has(s.wordId)}
+                  onAdd={onAdd}
+                  onCreateList={onCreateList}
+                  className="sense__add"
+                />
+              </li>
+            ))}
           </ul>
         </div>
       )}

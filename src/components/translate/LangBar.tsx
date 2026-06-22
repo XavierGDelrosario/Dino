@@ -20,13 +20,21 @@ export function LangBar({
   target,
   onSource,
   onTarget,
+  onSwap,
 }: {
   source: SourceSelection;
   target: LangCode;
   onSource: (code: SourceSelection) => void;
   onTarget: (code: LangCode) => void;
+  /** Full swap (languages + text + re-translate). When omitted, the button only
+   *  swaps the language selectors. */
+  onSwap?: () => void;
 }) {
   const swap = () => {
+    if (onSwap) {
+      onSwap();
+      return;
+    }
     const newSource: SourceSelection = target;
     const newTarget: LangCode =
       source !== AUTO_DETECT

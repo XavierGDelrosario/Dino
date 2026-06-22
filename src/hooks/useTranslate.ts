@@ -9,6 +9,7 @@
 //                     primary of every new word at once.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { lookupWord, translateParagraph, type ParagraphTranslation } from "../services/lookup";
+import { translate } from "../services/translation";
 import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
@@ -19,6 +20,7 @@ import {
   isContentPos,
   resolveSourceLanguage,
   AUTO_DETECT,
+  SUPPORTED_LANGUAGES,
   type LangCode,
   type SourceSelection,
 } from "../services/language";
@@ -33,11 +35,21 @@ function message(e: unknown): string {
 
 export function useTranslate(userId: string) {
   const [source, setSource] = useState<SourceSelection>(AUTO_DETECT);
-  const [target, setTarget] = useState<LangCode>("EN");
+  const [target, setTarget] = useState<LangCode>("JA");
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
   const [error, setError] = useState<string | null>(null);
+
+  // The language the user is LEARNING. The study surface (reader / add / quiz)
+  // always operates on THIS language's words — the input when the user types it,
+  // else the OUTPUT (so typing English while learning JA studies the Japanese
+  // translation's words, not the English input). Independent of the translate
+  // direction; swapping languages doesn't change what you're learning.
+  const [learning, setLearning] = useState<LangCode>("JA");
+  // The plain translation shown in the output box (the other language's rendering
+  // of what you typed). Set by submit; distinct from the study data.
+  const [output, setOutput] = useState("");
 
   // word mode
   const [headword, setHeadword] = useState("");
@@ -55,9 +67,8 @@ export function useTranslate(userId: string) {
   const [userWordIds, setUserWordIds] = useState<Map<string, string>>(new Map());
 
   // Destination for adds: a sub-list (also tags it) or null = just ALL. The
-  // user picks it once and every add button honors it (word adds + "Add all").
+  // The user's sub-lists (the add buttons' second-click menu offers these + "new").
   const [lists, setLists] = useState<List[]>([]);
-  const [destListId, setDestListId] = useState<string | null>(null);
   useEffect(() => {
     listUserLists(userId).then(setLists).catch(() => {});
   }, [userId]);
@@ -70,31 +81,48 @@ export function useTranslate(userId: string) {
     getUserLimits(userId).then(setLimits).catch(() => {});
   }, [userId]);
 
-  /** Create a sub-list and make it the add destination. */
-  const createDestList = useCallback(
-    async (name: string) => {
-      const trimmed = name.trim();
-      if (!trimmed) return;
-      try {
-        const list = await createList({ userId, listName: trimmed });
-        setLists((ls) => [...ls, list]);
-        setDestListId(list.listId);
-      } catch (e) {
-        setError(message(e));
-      }
+  /** Create a sub-list and return its id (the add buttons then tag into it). */
+  const createNamedList = useCallback(
+    async (name: string): Promise<string> => {
+      const list = await createList({ userId, listName: name.trim() });
+      setLists((ls) => [...ls, list]);
+      return list.listId;
     },
     [userId]
   );
 
-  // Submit is a BUTTON, never Enter (IME confirms kanji with Enter).
-  const submit = useCallback(async () => {
-    const text = input.trim();
+  // Submit is a BUTTON, never Enter (IME confirms kanji with Enter). Accepts
+  // optional overrides so swap() can translate the swapped text/langs immediately
+  // without waiting for the setState round-trip (state is still updated for the UI).
+  const submit = useCallback(async (override?: {
+    text?: string;
+    source?: SourceSelection;
+    target?: LangCode;
+  }) => {
+    const text = (override?.text ?? input).trim();
     if (!text || status === "loading") return;
+    const src = override?.source ?? source;
+    const tgt = override?.target ?? target;
     setStatus("loading");
     setError(null);
     try {
-      const resolvedSource = resolveSourceLanguage(text, source);
-      const tokens = await analyze(text, resolvedSource);
+      const resolvedSource = resolveSourceLanguage(text, src);
+
+      // The STUDY orients on the LEARNING language; `native` is the OTHER side
+      // (the explanation language). If the user typed the learning language we
+      // study the input directly; otherwise we translate the input INTO the
+      // learning language and study THAT (so typing English while learning JA
+      // studies the Japanese translation, not the English input).
+      const typedLearning = resolvedSource === learning;
+      // `native` (the explanation language) must NOT be the learning language. When
+      // the user typed the learning language, it's the target — unless that's also
+      // the learning language (e.g. target left on JA), in which case fall back to
+      // the other supported language so we never do a learning→learning lookup.
+      const native: LangCode = !typedLearning
+        ? resolvedSource
+        : tgt !== learning
+          ? tgt
+          : SUPPORTED_LANGUAGES.find((l) => l.code !== learning)?.code ?? tgt;
 
       // Collect knowledge state for a set of senses (which are saved, at what
       // confidence) so the UI can mark them up front.
@@ -118,13 +146,98 @@ export function useTranslate(userId: string) {
         setUserWordIds(uw);
       };
 
-      if (isSingleWord(tokens, resolvedSource)) {
-        // Look up the DICTIONARY FORM so inflected input (行った → 行く) resolves.
-        const lemma = tokens.find((t) => t.lemma)?.lemma ?? text;
-        const r = await lookupWord({ input: lemma, targetLang: target, sourceLang: source });
+      // CASE B, single typed word → surface the learning language's DISTINCT
+      // equivalents (bat → バット AND 蝙蝠), each studied as a learning-language word.
+      // (Translating to one string would collapse to just the top equivalent.)
+      if (!typedLearning) {
+        const inputTokens = await analyze(text, resolvedSource);
+        if (isSingleWord(inputTokens, resolvedSource)) {
+          const enja = await lookupWord({ input: text, sourceLang: resolvedSource, targetLang: learning });
+          // Distinct candidate writings in the EN→JA rank order (relevance, then
+          // core-match, then frequency — see jmdict_lookup), capped. The ranking
+          // already surfaces the common, relevant equivalents (word → 言葉, bat →
+          // バット) ahead of rare/tangential ones, so we keep that order as-is.
+          const candidates: string[] = [];
+          const seenC = new Set<string>();
+          for (const m of enja.meanings) {
+            const jp = m.translation.trim().normalize("NFC");
+            if (jp && !seenC.has(jp)) { seenC.add(jp); candidates.push(jp); }
+            if (candidates.length >= 8) break;
+          }
+          if (candidates.length === 0) {
+            setOutput(""); setMeanings([]); setPara(null); setAnalyzedInput("");
+            setHeadword(text); setMode("word"); setStatus("done");
+            return;
+          }
+          // Study each candidate learning→native; the TOP keeps all its senses, the
+          // rest contribute their primary. Deduped by wordId.
+          const studied = await Promise.all(
+            candidates.map((jp) =>
+              lookupWord({ input: jp, sourceLang: learning, targetLang: native })
+                .then((r) => r.meanings)
+                .catch(() => [] as Word[])
+            )
+          );
+          const meanings: Word[] = [];
+          const seenW = new Set<string>();
+          studied.forEach((senses, i) => {
+            for (const m of i === 0 ? senses : senses.slice(0, 1)) {
+              if (!seenW.has(m.wordId)) { seenW.add(m.wordId); meanings.push(m); }
+            }
+          });
+          await loadSenseState(meanings.map((m) => m.wordId));
+          setHeadword(meanings[0]?.input ?? candidates[0]);
+          setMeanings(meanings);
+          setPara(null);
+          setAnalyzedInput("");
+          setOutput(meanings[0]?.input ?? candidates[0]);
+          setMode("word");
+          setStatus("done");
+          return;
+        }
+      }
+
+      // Otherwise study the learning-language TEXT: the input when you typed the
+      // learning language, else its whole translation (a sentence).
+      let learningText: string;
+      let outputText: string; // the plain text shown in the output box
+      if (typedLearning) {
+        learningText = text;
+        outputText = ""; // filled from the learning→native study below (the gloss)
+      } else {
+        const disp = await translate({
+          input: text,
+          sourceLang: resolvedSource,
+          targetLang: learning,
+          persist: false,
+        });
+        if (!disp.translated || !disp.translation) {
+          setOutput("");
+          setMeanings([]);
+          setPara(null);
+          setMode("word");
+          setStatus("done");
+          return;
+        }
+        learningText = disp.translation.trim().normalize("NFC");
+        outputText = learningText;
+      }
+
+      // Analyze + study the LEARNING text in the learning → native direction.
+      const tokens = await analyze(learningText, learning);
+
+      if (isSingleWord(tokens, learning)) {
+        // Resolve the dictionary form from the CONTENT token (行った → 行く).
+        const contentTok = tokens.find((t) => t.pos !== null && isContentPos(t.pos));
+        const lemma = contentTok?.lemma ?? contentTok?.text ?? learningText;
+        const r = await lookupWord({ input: lemma, sourceLang: learning, targetLang: native });
         await loadSenseState(r.meanings.map((m) => m.wordId));
         setHeadword(r.input);
         setMeanings(r.meanings);
+        setPara(null);
+        setAnalyzedInput("");
+        outputText = r.meanings[0]?.translation ?? "";
+        setOutput(outputText);
         setMode("word");
         setStatus("done");
         return;
@@ -132,43 +245,60 @@ export function useTranslate(userId: string) {
 
       // Sentence → reader. Enforce the per-user paragraph char limit (free-tier
       // guard) up front; the edge function re-checks as the hard gate.
-      if (text.length > limits.paragraphCharLimit) {
+      if (learningText.length > limits.paragraphCharLimit) {
         setError(
-          `This paragraph is ${text.length} characters; the limit is ${limits.paragraphCharLimit}. Please shorten it.`
+          `This text is ${learningText.length} characters; the limit is ${limits.paragraphCharLimit}. Please shorten it.`
         );
         setStatus("error");
         return;
       }
-      setAnalyzedInput(text.normalize("NFC"));
-      const p = await translateParagraph({ input: text, targetLang: target, sourceLang: source });
+      setAnalyzedInput(learningText.normalize("NFC"));
+      const p = await translateParagraph({ input: learningText, sourceLang: learning, targetLang: native });
       const ids: string[] = [];
       p.meanings.forEach((senses) => senses.forEach((s) => ids.push(s.wordId)));
       await loadSenseState(ids);
       setPara(p);
+      setMeanings([]);
+      if (typedLearning) outputText = p.translated ? p.translation : "";
+      setOutput(outputText);
       setMode("paragraph");
       setStatus("done");
     } catch (e) {
       setError(message(e));
       setStatus("error");
     }
-  }, [input, source, target, status, userId, limits]);
+  }, [input, source, target, status, userId, limits, learning]);
 
-  /** Save one exact dictionary sense into the vocabulary (and tag the chosen
-   *  destination list, if any). */
+  /** Swap source↔target, move the OUTPUT text into the input, and re-translate —
+   *  the Google-Translate swap. Just swaps languages when there's nothing to move. */
+  const swap = useCallback(() => {
+    if (status === "loading") return;
+    const newSource: SourceSelection = target; // old target (concrete) → new source
+    const newTarget: LangCode = resolveSourceLanguage(input, source); // old source, resolved
+    const text = output; // the translation becomes the new input
+    setSource(newSource);
+    setTarget(newTarget);
+    setInput(text);
+    if (text.trim()) void submit({ text, source: newSource, target: newTarget });
+  }, [status, target, source, input, output, submit]);
+
+  /** Mark a sense saved at the given confidence (shared by the save paths). */
+  const markSaved = useCallback((wordId: string, userWordId: string, confidenceRating: number) => {
+    setSaved((s) => new Set(s).add(wordId));
+    setConfidence((m) => new Map(m).set(wordId, confidenceRating));
+    setUserWordIds((m) => new Map(m).set(wordId, userWordId));
+  }, []);
+
+  /** Save one exact dictionary sense into the vocabulary (to ALL). Used by the
+   *  reader's per-word add; the +/menu button uses addWords below. */
   const addSense = useCallback(
     async (word: Word) => {
       if (saved.has(word.wordId) || saving.has(word.wordId)) return;
       setSaving((s) => new Set(s).add(word.wordId));
       setError(null);
       try {
-        const uw = await saveDictionaryWord({
-          userId,
-          word,
-          listId: destListId ?? undefined,
-        });
-        setSaved((s) => new Set(s).add(word.wordId));
-        setConfidence((m) => new Map(m).set(word.wordId, uw.confidenceRating));
-        setUserWordIds((m) => new Map(m).set(word.wordId, uw.userWordId));
+        const uw = await saveDictionaryWord({ userId, word });
+        markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
       } catch (e) {
         setError(message(e));
       } finally {
@@ -179,7 +309,24 @@ export function useTranslate(userId: string) {
         });
       }
     },
-    [userId, saved, saving, destListId]
+    [userId, saved, saving, markSaved]
+  );
+
+  /** Add/tag a set of senses to ALL (no listId) or into a sub-list. Idempotent,
+   *  so it both creates the entry (first call) and adds the tag (second call).
+   *  Backs the AddToListButton (single word + "Add all"). Throws on failure so
+   *  the button can stay in its menu/idle state. */
+  const addWords = useCallback(
+    async (words: Word[], listId?: string) => {
+      setError(null);
+      await Promise.all(
+        words.map(async (word) => {
+          const uw = await saveDictionaryWord({ userId, word, listId });
+          markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
+        })
+      );
+    },
+    [userId, markSaved]
   );
 
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
@@ -232,25 +379,42 @@ export function useTranslate(userId: string) {
     return result;
   }, [para, saved]);
 
-  /** Save the BEST (primary) sense of every not-yet-added word at once. */
-  const addAll = useCallback(async () => {
-    await Promise.all(addablePrimaries.map((w) => addSense(w)));
-  }, [addablePrimaries, addSense]);
+  // The inverse of addablePrimaries: distinct content words whose PRIMARY sense IS
+  // already saved — the "Review" set (re-quiz a paragraph you've studied, via SRS).
+  const reviewablePrimaries: Word[] = useMemo(() => {
+    const result: Word[] = [];
+    if (para) {
+      const seen = new Set<string>();
+      for (const tok of para.tokens) {
+        if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
+        seen.add(tok.text);
+        const primary = para.meanings.get(tok.text)?.[0];
+        if (primary && saved.has(primary.wordId)) result.push(primary);
+      }
+    }
+    return result;
+  }, [para, saved]);
 
   return {
     source, setSource, target, setTarget, input, setInput,
     status, mode, error,
+    // the language being learned (study/add/quiz target)
+    learning, setLearning,
+    // Google-Translate-style output box + swap (langs + text + re-translate)
+    output, swap,
     // shared per-sense state
     saved, saving, confidence, addSense, markUnknown,
     // word mode
     headword, meanings,
     // paragraph mode
     para, analyzedInput,
-    addableCount: addablePrimaries.length, addAll,
-    // extract-and-quiz (#9): the new content words + a state-sync callback
-    addablePrimaries, applyReview,
-    // add destination (a sub-list, or null = ALL)
-    lists, destListId, setDestListId, createDestList,
+    // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
+    // the state-sync callback the quiz uses after each grade.
+    addablePrimaries, reviewablePrimaries,
+    addableCount: addablePrimaries.length,
+    reviewableCount: reviewablePrimaries.length, applyReview,
+    // add buttons: tag to ALL / a sub-list (idempotent) + create-and-tag.
+    lists, addWords, createNamedList,
     submit,
   };
 }

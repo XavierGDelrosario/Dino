@@ -1,6 +1,8 @@
-// Extract-and-quiz session screen: quizzes the NEW words found in a pasted text,
-// reveal → rate → next. Each rating adds the word to the vocabulary AND records
-// the first review (via useTextQuiz), so studying media feeds spaced repetition.
+// Quiz session over the words in a pasted text, reveal → rate → next. Two modes:
+//   · learn  — the NEW words; each rating ADDS the word + records a first review.
+//   · review — words ALREADY saved; each rating just records a review (in-context
+//              SRS practice). saveDictionaryWord is idempotent, so useTextQuiz
+//              handles both with the same save-then-record path.
 // Reuses the flashcard card/progress/grade UI from the review surface.
 import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
@@ -17,15 +19,19 @@ const CONFIDENCE: { grade: ReviewGrade; label: string }[] = [
   { grade: 5, label: "Easy" },
 ];
 
+export type QuizMode = "learn" | "review";
+
 export function TextQuizView({
   userId,
   words,
+  mode = "learn",
   onGraded,
   onClose,
 }: {
   userId: string;
   words: Word[];
-  /** Sync the reader's saved/confidence state as each word is learned. */
+  mode?: QuizMode;
+  /** Sync the reader's saved/confidence state as each word is learned/reviewed. */
   onGraded?: OnGraded;
   /** Return to the reader. */
   onClose: () => void;
@@ -41,7 +47,11 @@ export function TextQuizView({
   if (q.status === "empty") {
     return (
       <div className="review__msg">
-        <p>No new words in this text to quiz — you know them all. 🎉</p>
+        <p>
+          {mode === "review"
+            ? "No saved words in this text to review yet."
+            : "No new words in this text to quiz — you know them all. 🎉"}
+        </p>
         {close}
       </div>
     );
@@ -51,10 +61,16 @@ export function TextQuizView({
     return (
       <div className="review__msg">
         <p>
-          Added {q.reviewedCount} new {q.reviewedCount === 1 ? "word" : "words"} to
-          your vocabulary. 🎉
+          {mode === "review"
+            ? `Reviewed ${q.reviewedCount} ${q.reviewedCount === 1 ? "word" : "words"}. 🎉`
+            : `Added ${q.reviewedCount} new ${q.reviewedCount === 1 ? "word" : "words"} to your vocabulary. 🎉`}
         </p>
-        {close}
+        <div className="review__foot">
+          <button className="btn" onClick={q.restart}>
+            Quiz again
+          </button>
+          {close}
+        </div>
       </div>
     );
   }
@@ -62,7 +78,11 @@ export function TextQuizView({
   const card = q.current!;
   return (
     <section className="review">
-      <p className="review__scope">Quizzing new words from this text</p>
+      <p className="review__scope">
+        {mode === "review"
+          ? "Reviewing words from this text"
+          : "Quizzing new words from this text"}
+      </p>
       <ProgressBar position={q.position} total={q.total} />
 
       <FlashcardCard word={card} flipped={q.flipped} onFlip={q.flip} />
