@@ -3,7 +3,7 @@ import { makeUserWord } from "@test/fixtures";
 
 // review.ts is an orchestration module: it reads via userWords.getAllUserWords
 // (mocked) and writes via supabase.rpc (the stub). Mock both seams.
-const { holder } = vi.hoisted(() => ({ holder: { client: null as any } }));
+const { holder } = vi.hoisted(() => ({ holder: { client: null as unknown as SupabaseStub["client"] } }));
 vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));

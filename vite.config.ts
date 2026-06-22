@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 // kuromoji fetches its gzipped dictionary (/dict/*.dat.gz) and gunzips it itself.
 // Vite's static server sets `Content-Encoding: gzip` on .gz files, so the browser
@@ -10,7 +11,11 @@ import { fileURLToPath } from "node:url";
 // with NO Content-Encoding so the browser hands kuromoji the gzip bytes intact.
 function serveDictRaw(): Plugin {
   const dictDir = fileURLToPath(new URL("./public/dict/", import.meta.url));
-  const handler = (req: any, res: any, next: () => void) => {
+  const handler = (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void,
+  ) => {
     const url = (req.url || "").split("?")[0];
     if (!url.startsWith("/dict/") || url.includes("..")) return next();
     const file = dictDir + url.slice("/dict/".length);

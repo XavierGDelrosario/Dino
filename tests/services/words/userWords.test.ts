@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createSupabaseStub, type SupabaseStub } from "@test/supabaseStub";
 import { makeWord } from "@test/fixtures";
 
-const { holder } = vi.hoisted(() => ({ holder: { client: null as any } }));
+const { holder } = vi.hoisted(() => ({ holder: { client: null as unknown as SupabaseStub["client"] } }));
 vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));

@@ -7,7 +7,7 @@
 //                     like 辛い → からい / つらい are separate senses, so you can
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { lookupWord, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
@@ -207,16 +207,19 @@ export function useTranslate(userId: string) {
 
   // Distinct CONTENT words whose PRIMARY sense isn't saved yet (the "Add all"
   // targets). Particles/auxiliaries are excluded via POS.
-  const addablePrimaries: Word[] = [];
-  if (para) {
-    const seen = new Set<string>();
-    for (const tok of para.tokens) {
-      if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
-      seen.add(tok.text);
-      const primary = para.meanings.get(tok.text)?.[0];
-      if (primary && !saved.has(primary.wordId)) addablePrimaries.push(primary);
+  const addablePrimaries: Word[] = useMemo(() => {
+    const result: Word[] = [];
+    if (para) {
+      const seen = new Set<string>();
+      for (const tok of para.tokens) {
+        if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
+        seen.add(tok.text);
+        const primary = para.meanings.get(tok.text)?.[0];
+        if (primary && !saved.has(primary.wordId)) result.push(primary);
+      }
     }
-  }
+    return result;
+  }, [para, saved]);
 
   /** Save the BEST (primary) sense of every not-yet-added word at once. */
   const addAll = useCallback(async () => {

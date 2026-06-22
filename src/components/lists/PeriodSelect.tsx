@@ -7,6 +7,7 @@ export type DatePeriod = "all" | "today" | "week" | "month" | "year";
 
 /** Earliest timestamp included by a period ("today"=since midnight, "week"=since
  *  Monday, "month"=since the 1st, "year"=since Jan 1). */
+// eslint-disable-next-line react-refresh/only-export-components -- type + cutoff helper are intentionally co-located with the control (see header).
 export function periodCutoff(period: DatePeriod): number {
   if (period === "all") return -Infinity;
   const d = new Date();
