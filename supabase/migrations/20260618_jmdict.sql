@@ -233,7 +233,17 @@ BEGIN
                      WHEN lower(gl.text) = lower(p_input) THEN 3
                      WHEN gl.text ~* ('^' || regexp_replace(p_input, '[][(){}.^$*+?|\\-]', '\\&', 'g') || '($|[;,]| \()') THEN 2
                      ELSE 1
-                   END) AS match_rank
+                   END) AS match_rank,
+               -- 1 if the input is a HEAD match (exact, or the gloss's head term —
+               -- match_rank 3 or 2) in a CORE sense (the first two), else 0. Coarse
+               -- on purpose: separates a core meaning (今/言葉/バット) from a
+               -- peripheral one (此れ → "...; now" in a 4th sense; こと → "word" in a
+               -- grammar note) WITHOUT over-ordering by exact-vs-clarified or sense
+               -- index — so frequency decides among core matches (word→言葉, bat→バット).
+               MAX(CASE WHEN s.position <= 1 AND (
+                          lower(gl.text) = lower(p_input)
+                          OR gl.text ~* ('^' || regexp_replace(p_input, '[][(){}.^$*+?|\\-]', '\\&', 'g') || '($|[;,]| \()')
+                        ) THEN 1 ELSE 0 END) AS central
           FROM jmdict_senses s
           JOIN jmdict_glosses gl ON gl.sense_id = s.id
          WHERE gl.text ~* ('\y' || regexp_replace(p_input, '[][(){}.^$*+?|\\-]', '\\&', 'g') || '\y')
@@ -243,9 +253,13 @@ BEGIN
         pref.writing                                      AS translation,
         NULL::TEXT                                        AS input_reading,
         pref.reading                                      AS translation_reading,
-        -- rank: gloss-match relevance first, then frequency (higher Zipf = more
-        -- common, NULLs last), then the coarse common flag — so eat→食べる≫食う.
-        (ROW_NUMBER() OVER (ORDER BY ent.match_rank DESC, pref.frequency DESC NULLS LAST,
+        -- rank: head-match tier (exact OR gloss-head, i.e. match_rank ≥ 2, vs a
+        -- mid-gloss mention) → a core-meaning match (now→今, not 此れ) → frequency
+        -- (word→言葉 over 語; bat→バット over the rarer 打棒) → common flag. Collapsing
+        -- exact (3) and clarified-head (2) into one tier lets the common バット
+        -- ("bat (in baseball…)", rank 2) beat the rare 打棒 ("bat", rank 3).
+        (ROW_NUMBER() OVER (ORDER BY (ent.match_rank >= 2) DESC, ent.central DESC,
+                                     pref.frequency DESC NULLS LAST,
                                      pref.is_common DESC, ent.first_sense ASC))::INT - 1
                                                           AS sense_position,
         NULL::TEXT                                        AS writing,
