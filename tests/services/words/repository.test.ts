@@ -8,13 +8,16 @@ vi.mock("@/config/supabaseClient", () => ({
 
 import {
   findCachedWord,
+  findWordTranslations,
   findWordTranslationsBatch,
 } from "@/services/words/repository";
+import { __clearWordsCache } from "@/services/words/cache";
 
 let stub: SupabaseStub;
 beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
+  __clearWordsCache(); // the read cache is module-global — reset between cases
 });
 
 const row = (over: Record<string, unknown> = {}) => ({
@@ -103,5 +106,56 @@ describe("findWordTranslationsBatch", () => {
     });
     expect(map.get("猫")).toHaveLength(1);
     expect(map.get("高い")?.map((w) => w.translation)).toEqual(["high", "expensive"]);
+  });
+});
+
+describe("read-through cache", () => {
+  it("serves a repeated findWordTranslations from memory (one DB round-trip)", async () => {
+    stub.queueFrom("words", { data: [row()], error: null });
+    const first = await findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+    const second = await findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+    expect(second).toEqual(first);
+    expect(stub.fromCalls).toEqual(["words"]); // second call hit the cache, not the DB
+  });
+
+  it("does NOT cache an empty (negative) result — a later populate is seen", async () => {
+    stub.queueFrom(
+      "words",
+      { data: [], error: null }, // first lookup: nothing cached yet
+      { data: [row()], error: null }, // edge populated `words`; second lookup finds it
+    );
+    expect(await findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" })).toEqual([]);
+    const second = await findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+    expect(second).toHaveLength(1);
+    expect(stub.fromCalls).toEqual(["words", "words"]); // both hit the DB (empty wasn't memoized)
+  });
+
+  it("findWordTranslationsBatch queries only the inputs not already cached", async () => {
+    // Prime the cache for 猫 via a single lookup.
+    stub.queueFrom("words", { data: [row()], error: null });
+    await findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+
+    // Batch asks for 猫 (cached) + 犬 (miss) — only 犬 should be queried.
+    stub.queueFrom("words", { data: [row({ word_id: "d1", input: "犬", translation: "dog" })], error: null });
+    const map = await findWordTranslationsBatch({
+      inputs: ["猫", "犬"],
+      sourceLang: "JA",
+      targetLang: "EN",
+    });
+    expect(map.get("猫")?.[0]?.translation).toBe("cat");
+    expect(map.get("犬")?.[0]?.translation).toBe("dog");
+    expect(stub.fromCalls).toEqual(["words", "words"]); // lookup + batch's miss-only query
+  });
+
+  it("findCachedWord returns the preferred sense from the cache without a query", async () => {
+    stub.queueFrom("words", {
+      data: [row({ word_id: "p", jmdict_sense_pos: 0 }), row({ word_id: "s", jmdict_sense_pos: 1 })],
+      error: null,
+    });
+    await findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+
+    const preferred = await findCachedWord({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+    expect(preferred?.wordId).toBe("p");
+    expect(stub.fromCalls).toEqual(["words"]); // findCachedWord served from cache
   });
 });

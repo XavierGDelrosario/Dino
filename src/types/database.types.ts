@@ -585,6 +585,52 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_dictionary_words: {
+        Args: {
+          p_dictionary_word_ids: string[]
+          p_list_id?: string
+          p_user_id: string
+        }
+        Returns: {
+          confidence_rating: number
+          custom_translation: string | null
+          dictionary_word_id: string | null
+          input: string
+          last_reviewed_date: string | null
+          originally_translated_date: string
+          source_lang: string
+          stability: number | null
+          target_lang: string
+          user_id: string
+          user_word_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_words"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      review_queue: {
+        Args: { p_limit: number; p_list_id?: string; p_user_id: string }
+        Returns: {
+          confidence_rating: number
+          custom_translation: string | null
+          dictionary_word_id: string | null
+          input: string
+          input_reading: string | null
+          last_reviewed_date: string | null
+          originally_translated_date: string
+          retrievability: number
+          source_lang: string
+          stability: number | null
+          target_lang: string
+          translation: string
+          translation_reading: string | null
+          user_id: string
+          user_word_id: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }

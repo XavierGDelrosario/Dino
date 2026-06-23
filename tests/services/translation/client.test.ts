@@ -7,7 +7,7 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import { translate } from "@/services/translation/client";
+import { translate, translateBatch } from "@/services/translation/client";
 
 let stub: SupabaseStub;
 beforeEach(() => {
@@ -54,5 +54,44 @@ describe("translate", () => {
     await expect(
       translate({ input: "猫", sourceLang: "JA", targetLang: "EN" })
     ).rejects.toThrow(/empty response/i);
+  });
+});
+
+describe("translateBatch", () => {
+  it("sends the inputs in one invoke and returns a term→senses Map", async () => {
+    const neko = { wordId: "1", input: "猫", translation: "cat" };
+    const inu = { wordId: "2", input: "犬", translation: "dog" };
+    stub.functions.invoke.mockResolvedValue({
+      data: {
+        results: [
+          { input: "猫", translated: true, words: [neko] },
+          { input: "犬", translated: true, words: [inu] },
+          { input: "鳥", translated: false, words: [] }, // no result → empty
+        ],
+      },
+      error: null,
+    });
+
+    const map = await translateBatch({ inputs: ["猫", "犬", "鳥"], sourceLang: "JA", targetLang: "EN" });
+
+    expect(stub.functions.invoke).toHaveBeenCalledWith("translate", {
+      body: { inputs: ["猫", "犬", "鳥"], sourceLang: "JA", targetLang: "EN" },
+    });
+    expect(map.get("猫")).toEqual([neko]);
+    expect(map.get("犬")).toEqual([inu]);
+    expect(map.get("鳥")).toEqual([]); // present but empty
+  });
+
+  it("short-circuits with no invoke for an empty input list", async () => {
+    const map = await translateBatch({ inputs: [], sourceLang: "JA", targetLang: "EN" });
+    expect(map.size).toBe(0);
+    expect(stub.functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it("throws on a function error", async () => {
+    stub.functions.invoke.mockResolvedValue({ data: null, error: new Error("boom") });
+    await expect(
+      translateBatch({ inputs: ["猫"], sourceLang: "JA", targetLang: "EN" })
+    ).rejects.toThrow("boom");
   });
 });

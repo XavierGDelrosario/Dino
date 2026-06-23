@@ -9,6 +9,7 @@ vi.mock("@/config/supabaseClient", () => ({
 
 import {
   saveDictionaryWord,
+  saveDictionaryWords,
   createCustomWord,
   editUserWord,
   deleteUserWord,
@@ -88,6 +89,48 @@ describe("saveDictionaryWord", () => {
     const res = await saveDictionaryWord({ userId: "u", word });
 
     expect(res).toMatchObject({ userWordId: "uw1", translation: "cat" });
+  });
+});
+
+describe("saveDictionaryWords (batch)", () => {
+  it("saves many senses in one RPC and patches each from its in-hand Word", async () => {
+    stub.rpc.mockResolvedValue({
+      data: [
+        uwRow({ user_word_id: "uw-neko", dictionary_word_id: "ja-neko" }),
+        uwRow({ user_word_id: "uw-inu", dictionary_word_id: "ja-inu", input: "犬" }),
+      ],
+      error: null,
+    });
+    const words = [
+      makeWord({ wordId: "ja-neko", input: "猫", translation: "cat", inputReading: "ねこ" }),
+      makeWord({ wordId: "ja-inu", input: "犬", translation: "dog", inputReading: "いぬ" }),
+    ];
+
+    const res = await saveDictionaryWords({ userId: "u", words, listId: "L1" });
+
+    expect(stub.rpc).toHaveBeenCalledWith("save_dictionary_words", {
+      p_user_id: "u",
+      p_dictionary_word_ids: ["ja-neko", "ja-inu"],
+      p_list_id: "L1",
+    });
+    // translation/readings come from the in-hand Words (rows carry no dictionary).
+    expect(res).toEqual([
+      expect.objectContaining({ userWordId: "uw-neko", translation: "cat", inputReading: "ねこ" }),
+      expect.objectContaining({ userWordId: "uw-inu", translation: "dog", inputReading: "いぬ" }),
+    ]);
+  });
+
+  it("short-circuits with no RPC call for an empty set", async () => {
+    const res = await saveDictionaryWords({ userId: "u", words: [] });
+    expect(res).toEqual([]);
+    expect(stub.rpc).not.toHaveBeenCalled();
+  });
+
+  it("throws on an RPC error", async () => {
+    stub.rpc.mockResolvedValue({ data: null, error: { message: "nope" } });
+    await expect(
+      saveDictionaryWords({ userId: "u", words: [makeWord({ wordId: "ja-neko" })] })
+    ).rejects.toBeTruthy();
   });
 });
 

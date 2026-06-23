@@ -11,6 +11,7 @@
 
 import { supabase } from "../../config/supabaseClient";
 import { toServiceError } from "../errors";
+import { getCachedSenses, setCachedSenses } from "./cache";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 
@@ -84,6 +85,13 @@ export async function findCachedWord(params: {
 }): Promise<Word | null> {
   const { input, sourceLang, targetLang } = params;
 
+  // Read-through: if the full sense list is memoized, the preferred sense is its
+  // first element (same verified-first order) — no round-trip. A miss keeps the
+  // cheaper limit(1) query and does NOT populate the senses cache (one row is an
+  // incomplete sense list; only findWordTranslations caches the complete set).
+  const cached = getCachedSenses(input, sourceLang, targetLang);
+  if (cached) return cached[0] ?? null;
+
   const { data, error } = await supabase
     .from("words")
     .select<string, WordRow>("*")
@@ -114,6 +122,9 @@ export async function findWordTranslations(params: {
 }): Promise<Word[]> {
   const { input, sourceLang, targetLang } = params;
 
+  const cached = getCachedSenses(input, sourceLang, targetLang);
+  if (cached) return cached;
+
   const { data, error } = await supabase
     .from("words")
     .select<string, WordRow>("*")
@@ -124,7 +135,9 @@ export async function findWordTranslations(params: {
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
 
   if (error) throw toServiceError(error);
-  return (data ?? []).map(toWord);
+  const words = (data ?? []).map(toWord);
+  setCachedSenses(input, sourceLang, targetLang, words); // no-op when empty
+  return words;
 }
 
 /**
@@ -145,21 +158,37 @@ export async function findWordTranslationsBatch(params: {
   const byWord = new Map<string, Word[]>();
   if (unique.length === 0) return byWord;
 
+  // Serve memoized inputs from the cache; query only the misses in one .in().
+  const misses: string[] = [];
+  for (const input of unique) {
+    const cached = getCachedSenses(input, sourceLang, targetLang);
+    if (cached) byWord.set(input, cached);
+    else misses.push(input);
+  }
+  if (misses.length === 0) return byWord;
+
   const { data, error } = await supabase
     .from("words")
     .select<string, WordRow>("*")
-    .in("input", unique)
+    .in("input", misses)
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
     .order("is_verified", { ascending: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw toServiceError(error);
 
+  // Group the fetched rows by their stored headword (= the query input for these
+  // dictionary-form lookups), then memoize each non-empty group for next time.
+  const fetched = new Map<string, Word[]>();
   for (const row of data ?? []) {
     const word = toWord(row);
-    const list = byWord.get(word.input) ?? [];
+    const list = fetched.get(word.input) ?? [];
     list.push(word);
-    byWord.set(word.input, list);
+    fetched.set(word.input, list);
+  }
+  for (const [input, words] of fetched) {
+    setCachedSenses(input, sourceLang, targetLang, words);
+    byWord.set(input, words);
   }
   return byWord;
 }

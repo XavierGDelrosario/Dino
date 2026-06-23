@@ -64,18 +64,13 @@ function isTransient(error: { name?: string; context?: unknown }): boolean {
   return typeof status === "number" && status >= 500;
 }
 
-export async function translate(params: {
-  input: string;
-  sourceLang: LangCode;
-  targetLang: LangCode;
-  persist?: boolean;
-}): Promise<TranslationResult> {
+/** Invoke the edge function with the transient-failure retry/backoff, shared by
+ *  the single and batch entry points. Throws on a deliberate (4xx) or exhausted
+ *  failure; returns the function's data otherwise. */
+async function invokeTranslate<T>(body: Record<string, unknown>): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const { data, error } = await supabase.functions.invoke<TranslationResult>(
-      "translate",
-      { body: params }
-    );
+    const { data, error } = await supabase.functions.invoke<T>("translate", { body });
 
     if (!error) {
       if (!data) throw new ServiceError("Empty response from translate function");
@@ -91,4 +86,42 @@ export async function translate(params: {
     throw toServiceError(error);
   }
   throw toServiceError(lastError);
+}
+
+export async function translate(params: {
+  input: string;
+  sourceLang: LangCode;
+  targetLang: LangCode;
+  persist?: boolean;
+}): Promise<TranslationResult> {
+  return invokeTranslate<TranslationResult>(params);
+}
+
+/** One batch entry: a search term plus the verified senses resolved for it. */
+interface BatchEntry {
+  input: string;
+  words?: Word[];
+}
+
+/**
+ * BATCH translate: resolve many cacheable words in ONE round-trip (the edge
+ * function loops cache → JMdict → MT per word and persists them all). Collapses
+ * the paragraph / add-many per-word fan-out from N edge calls to one.
+ *
+ * OUTPUT: Map<searchTerm, Word[]> — every requested term is a key; terms with no
+ * result map to an empty array. Keyed by the term SENT (so a kana search resolves
+ * under that kana even though the stored headword is the kanji).
+ * CONSTRAINTS: persist is implied true (batch is for cacheable words); the
+ * whole-paragraph display gloss stays a separate persist:false `translate` call.
+ */
+export async function translateBatch(params: {
+  inputs: string[];
+  sourceLang: LangCode;
+  targetLang: LangCode;
+}): Promise<Map<string, Word[]>> {
+  const map = new Map<string, Word[]>();
+  if (params.inputs.length === 0) return map;
+  const data = await invokeTranslate<{ results?: BatchEntry[] }>(params);
+  for (const r of data.results ?? []) map.set(r.input, r.words ?? []);
+  return map;
 }

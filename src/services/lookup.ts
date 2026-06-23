@@ -21,9 +21,9 @@ import {
   findWordTranslationsBatch,
   type Word,
 } from "./words/repository";
-import { translate, MAX_TRANSLATION_CONCURRENCY } from "./translation";
+import { setCachedSenses } from "./words/cache";
+import { translate, translateBatch } from "./translation";
 import { resolveSenseProvider } from "./senses";
-import { mapLimit } from "../lib/concurrency";
 
 /**
  * Looks up EVERY known meaning of a word so the UI can show them all — the
@@ -66,9 +66,56 @@ export async function lookupWord(params: {
       resolvedSource,
       targetLang
     );
+    // Prime the read cache with the freshly-fetched senses so a repeat lookup of
+    // the same term this session skips the round-trip the DB read just missed.
+    setCachedSenses(input, resolvedSource, targetLang, meanings);
   }
 
   return { input, sourceLang: resolvedSource, targetLang, meanings };
+}
+
+/**
+ * Batched `lookupWord` for MANY words of the SAME language pair (the EN→JA
+ * fan-out's stage 2: study every candidate equivalent at once). Mirrors
+ * lookupWord — all senses per word, cache-then-seed — but resolves the whole set
+ * in ONE `.in()` DB read plus ONE batched edge call for the misses, instead of a
+ * per-word lookup each with its own round-trips.
+ *
+ * OUTPUT: Map<input, Word[]> — every input that resolved maps to its senses
+ * (verified first); inputs with no result are simply absent.
+ * CONSTRAINTS: `sourceLang` must be concrete; saves nothing to user lists; may
+ * populate the global dictionary cache. An edge failure is non-fatal (the
+ * already-cached words still resolve).
+ */
+export async function lookupWordsBatch(params: {
+  inputs: string[];
+  sourceLang: LangCode;
+  targetLang: LangCode;
+}): Promise<Map<string, Word[]>> {
+  const { sourceLang, targetLang } = params;
+  const inputs = [
+    ...new Set(params.inputs.map((i) => i.trim().normalize("NFC")).filter(Boolean)),
+  ];
+  if (inputs.length === 0) return new Map();
+
+  // Cached senses (client cache + one .in() read), then ONE edge call for the rest.
+  const byWord = await findWordTranslationsBatch({ inputs, sourceLang, targetLang });
+  const missing = inputs.filter((k) => !byWord.has(k));
+  if (missing.length > 0) {
+    try {
+      const seeded = await translateBatch({ inputs: missing, sourceLang, targetLang });
+      for (const key of missing) {
+        const senses = seeded.get(key) ?? [];
+        if (senses.length > 0) {
+          byWord.set(key, senses);
+          setCachedSenses(key, sourceLang, targetLang, senses); // memoize for repeats
+        }
+      }
+    } catch {
+      /* edge failure is non-fatal — the cached candidates still resolve */
+    }
+  }
+  return byWord;
 }
 
 export interface ParagraphTranslation {
@@ -134,26 +181,35 @@ export async function translateParagraph(params: {
   const keyOf = (t: AnalyzedToken) => (t.lemma ?? t.text).normalize("NFC");
   const uniqueKeys = [...new Set(tokens.map(keyOf))];
 
-  // All meanings per key in one query; for any uncached word, ask its language
-  // pair's sense provider (real dictionary → all senses; MT fallback → one).
-  // Bounded fan-out so a long paragraph doesn't fire hundreds of requests.
+  // All meanings per key in ONE query (client cache + a single .in() read); any
+  // word still uncached is resolved by ONE batched edge call below — so a long
+  // paragraph costs one DB read + one edge round-trip, not hundreds.
   const meaningsByKey = await findWordTranslationsBatch({
     inputs: uniqueKeys,
     sourceLang: resolvedSource,
     targetLang,
   });
-  const senseProvider = resolveSenseProvider(resolvedSource, targetLang);
   const missing = uniqueKeys.filter((k) => !meaningsByKey.has(k));
-  await mapLimit(missing, MAX_TRANSLATION_CONCURRENCY, async (key) => {
-    // One word's lookup failing must NOT break the whole paragraph — it just
-    // renders uncolored (no meanings). A paragraph fans out many per-word calls.
+  if (missing.length > 0) {
+    // ONE batched edge call for every uncached word, instead of N per-word calls.
+    // A failure here is non-fatal: those words just render uncolored (no meanings).
     try {
-      const senses = await senseProvider(key, resolvedSource, targetLang);
-      if (senses.length > 0) meaningsByKey.set(key, senses);
+      const batch = await translateBatch({
+        inputs: missing,
+        sourceLang: resolvedSource,
+        targetLang,
+      });
+      for (const key of missing) {
+        const senses = batch.get(key) ?? [];
+        if (senses.length > 0) {
+          meaningsByKey.set(key, senses);
+          setCachedSenses(key, resolvedSource, targetLang, senses); // memoize for repeats
+        }
+      }
     } catch {
-      /* leave this word without meanings */
+      /* leave the uncached words without meanings */
     }
-  });
+  }
 
   // 3b. Overlay the AUTHORITATIVE reading that already rides on the looked-up
   //     `words` senses (no extra table/query). Two guards keep it safe:

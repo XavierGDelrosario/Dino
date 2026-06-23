@@ -212,6 +212,134 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word", () => {
   });
 });
 
+// ── save_dictionary_words (BATCH; needs service-role-seeded verified rows) ──
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_words", () => {
+  it("saves many senses in one call, tags them all, and is idempotent", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const stamp = Date.now();
+    const seed = async (input: string, translation: string) => {
+      const { data, error } = await svc
+        .from("words")
+        .insert({ input, translation, source_lang: "JA", target_lang: "EN", is_verified: true })
+        .select("word_id")
+        .single();
+      expect(error).toBeNull();
+      return (data as { word_id: string }).word_id;
+    };
+    const idA = await seed(`__batch_a_${stamp}__`, "alpha");
+    const idB = await seed(`__batch_b_${stamp}__`, "beta");
+
+    const u = await makeUser();
+    const listId = await makeList(u, "Batch");
+    const first = await u.client.rpc("save_dictionary_words", {
+      p_user_id: u.userId,
+      p_dictionary_word_ids: [idA, idB],
+      p_list_id: listId,
+    });
+    expect(first.error).toBeNull();
+    const rows = first.data as { user_word_id: string; dictionary_word_id: string }[];
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.dictionary_word_id).sort()).toEqual([idA, idB].sort());
+
+    // all tagged into the list atomically
+    const { data: tags } = await u.client
+      .from("list_words")
+      .select("user_word_id")
+      .eq("list_id", listId);
+    expect(tags ?? []).toHaveLength(2);
+
+    // idempotent re-save of the same set → no duplicate user_words rows
+    const second = await u.client.rpc("save_dictionary_words", {
+      p_user_id: u.userId,
+      p_dictionary_word_ids: [idA, idB],
+    });
+    expect(second.error).toBeNull();
+    const { data: all } = await u.client
+      .from("user_words")
+      .select("user_word_id")
+      .in("dictionary_word_id", [idA, idB]);
+    expect(all ?? []).toHaveLength(2);
+  });
+
+  it("silently skips an unknown/unverified id instead of failing the batch", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data, error } = await svc
+      .from("words")
+      .insert({ input: `__batch_ok_${Date.now()}__`, translation: "ok", source_lang: "JA", target_lang: "EN", is_verified: true })
+      .select("word_id")
+      .single();
+    expect(error).toBeNull();
+    const goodId = (data as { word_id: string }).word_id;
+    const bogusId = "00000000-0000-0000-0000-000000000000";
+
+    const u = await makeUser();
+    const res = await u.client.rpc("save_dictionary_words", {
+      p_user_id: u.userId,
+      p_dictionary_word_ids: [goodId, bogusId],
+    });
+    expect(res.error).toBeNull();
+    const rows = res.data as { dictionary_word_id: string }[];
+    expect(rows.map((r) => r.dictionary_word_id)).toEqual([goodId]); // bogus dropped
+  });
+});
+
+// ── review_queue (anon-callable; ranking + LIMIT in SQL) ────────────────────
+describe.skipIf(!ENABLED)("rpc: review_queue", () => {
+  it("ranks least-confident first and respects the limit", async () => {
+    const u = await makeUser();
+    // never-reviewed (R=0) + a strong one (R≈1). Both standalone words.
+    const fresh = await makeStandaloneWord(u, { input: "新出", meaning: "new word" });
+    const strong = await makeStandaloneWord(u, { input: "得意", meaning: "strong word" });
+    await u.client.rpc("record_review", { p_user_word_id: strong, p_grade: 5 }); // stability 7, R≈1
+
+    const { data, error } = await u.client.rpc("review_queue", {
+      p_user_id: u.userId,
+      p_limit: 10,
+    });
+    expect(error).toBeNull();
+    const queue = data as { user_word_id: string; retrievability: number; translation: string }[];
+    expect(queue[0].user_word_id).toBe(fresh); // R=0 sorts first
+    expect(queue[0].retrievability).toBe(0);
+    expect(queue[0].translation).toBe("new word"); // resolved meaning rides along
+    // the strong word is present but ranked after the fresh one
+    expect(queue.find((q) => q.user_word_id === strong)!.retrievability).toBeGreaterThan(0.9);
+
+    const limited = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 1 });
+    expect((limited.data as unknown[]).length).toBe(1);
+  });
+
+  it("scopes to a sub-list when p_list_id is given", async () => {
+    const u = await makeUser();
+    const inList = await makeStandaloneWord(u, { input: "範囲内", meaning: "in list" });
+    await makeStandaloneWord(u, { input: "範囲外", meaning: "not in list" });
+    const listId = await makeList(u, "Scoped");
+    await u.client.from("list_words").insert({ list_id: listId, user_word_id: inList });
+
+    const { data, error } = await u.client.rpc("review_queue", {
+      p_user_id: u.userId,
+      p_limit: 10,
+      p_list_id: listId,
+    });
+    expect(error).toBeNull();
+    const queue = data as { user_word_id: string }[];
+    expect(queue.map((q) => q.user_word_id)).toEqual([inList]); // only the tagged word
+  });
+
+  it("cannot see another user's words (RLS)", async () => {
+    const alice = await makeUser();
+    const bob = await makeUser();
+    await makeStandaloneWord(alice, { input: "内緒", meaning: "private" });
+    // Bob passing Alice's id still only sees his own rows (RLS on user_words).
+    const { data } = await bob.client.rpc("review_queue", {
+      p_user_id: alice.userId,
+      p_limit: 10,
+    });
+    expect((data as unknown[]) ?? []).toHaveLength(0);
+  });
+});
+
 // ── jmdict_lookup (service-role only) ──────────────────────────────────────
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
   it("is NOT callable by a client (no EXECUTE grant)", async () => {

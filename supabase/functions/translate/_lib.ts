@@ -160,3 +160,56 @@ export function projectRows(
   }
   return rows;
 }
+
+/**
+ * BATCH projection: project several inputs' results into one flat upsert list,
+ * de-duped GLOBALLY by dictionary_ref. The cross-input dedupe matters because a
+ * single `INSERT … ON CONFLICT` can't touch the same conflict key twice — if two
+ * search terms in the batch resolve to the SAME JMdict sense (e.g. a kanji and
+ * its kana both present), keeping one row avoids Postgres 21000. Which input
+ * "owns" the row for the response is resolved separately by groupByInput (which
+ * matches headword/reading), so dropping the duplicate here loses nothing.
+ */
+export function projectMany(
+  perInput: { input: string; results: ProviderResult[] }[],
+  sourceLang: string,
+  targetLang: string,
+  projectionVersion: number,
+): WordRowInsert[] {
+  const seenRef = new Set<string>();
+  const rows: WordRowInsert[] = [];
+  for (const { input, results } of perInput) {
+    for (const row of projectRows(results, input, sourceLang, targetLang, projectionVersion)) {
+      if (seenRef.has(row.dictionary_ref)) continue;
+      seenRef.add(row.dictionary_ref);
+      rows.push(row);
+    }
+  }
+  return rows;
+}
+
+/**
+ * Assign verified rows back to the SEARCH terms that asked for them, the same way
+ * the single-word cache read matches: a row belongs to a term when the term equals
+ * its stored headword (`input`) OR its reading (`input_reading`) — so a kana search
+ * (ねこ) still collects its kanji-headword row (猫). Each term's rows come back
+ * primary-sense first (jmdict_sense_pos asc, nulls last). A term with no match maps
+ * to an empty array.
+ */
+export function groupByInput<
+  T extends { input: string; input_reading: string | null; jmdict_sense_pos: number | null },
+>(rows: T[], inputs: string[]): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const input of inputs) {
+    const matched = rows
+      .filter((r) => r.input === input || r.input_reading === input)
+      .sort((a, b) => {
+        const ap = a.jmdict_sense_pos, bp = b.jmdict_sense_pos;
+        if (ap == null) return bp == null ? 0 : 1; // nulls last
+        if (bp == null) return -1;
+        return ap - bp;
+      });
+    out.set(input, matched);
+  }
+  return out;
+}

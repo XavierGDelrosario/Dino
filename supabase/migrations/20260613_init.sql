@@ -135,6 +135,11 @@ CREATE TABLE IF NOT EXISTS words (
 
 CREATE INDEX IF NOT EXISTS idx_words_cache_search ON words (input, source_lang, is_verified);
 CREATE INDEX IF NOT EXISTS idx_words_lang_pair ON words (source_lang, target_lang, input);
+-- The cache read matches input OR input_reading (a kana search → kanji-headword
+-- rows), so index the reading side too — otherwise that OR-branch is a seq scan.
+CREATE INDEX IF NOT EXISTS idx_words_reading_search
+  ON words (input_reading, source_lang, target_lang)
+  WHERE input_reading IS NOT NULL;
 
 ALTER TABLE words ENABLE ROW LEVEL SECURITY;
 -- Clients may only READ verified dictionary entries; every write is server-side
@@ -329,9 +334,54 @@ BEGIN
 END;
 $$;
 
+-- save_dictionary_words: the BATCH form of save_dictionary_word — save many
+-- verified senses in ONE transaction (+ optional tag of all of them), so the
+-- "Add all" path is one round-trip instead of N. Idempotent per (user, sense)
+-- like the single save (ON CONFLICT re-adds in place). An id that isn't a
+-- verified `words` row is silently skipped (the SELECT just yields no row), so
+-- one bad id can't fail the whole batch. SECURITY INVOKER: RLS authorizes every
+-- write exactly as for the single save (the param is not the authority).
+CREATE OR REPLACE FUNCTION save_dictionary_words(
+  p_user_id             TEXT,
+  p_dictionary_word_ids UUID[],
+  p_list_id             UUID DEFAULT NULL
+)
+RETURNS SETOF user_words
+LANGUAGE plpgsql
+VOLATILE
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH ins AS (
+    INSERT INTO user_words
+      (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation)
+    SELECT p_user_id, w.input, w.source_lang, w.target_lang, w.word_id, NULL
+      FROM words w
+     WHERE w.word_id = ANY(p_dictionary_word_ids)
+       AND w.is_verified = TRUE
+    ON CONFLICT (user_id, dictionary_word_id) DO UPDATE
+      SET input = EXCLUDED.input      -- no-op-ish; surfaces the existing row in RETURNING
+    RETURNING *
+  ),
+  -- Tag every inserted/existing row into the sub-list when one is given. A
+  -- data-modifying CTE runs to completion even though the final SELECT ignores
+  -- it, so the tags are written; the two-sided list_words RLS still applies.
+  tagged AS (
+    INSERT INTO list_words (list_id, user_word_id)
+    SELECT p_list_id, ins.user_word_id FROM ins
+     WHERE p_list_id IS NOT NULL
+    ON CONFLICT (list_id, user_word_id) DO NOTHING
+    RETURNING 1
+  )
+  SELECT ins.* FROM ins;
+END;
+$$;
+
 REVOKE EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID)            FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION save_dictionary_words(TEXT, UUID[], UUID)         FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION create_custom_word(TEXT, TEXT, TEXT, TEXT, TEXT, UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID)            TO anon, authenticated;
+GRANT  EXECUTE ON FUNCTION save_dictionary_words(TEXT, UUID[], UUID)         TO anon, authenticated;
 GRANT  EXECUTE ON FUNCTION create_custom_word(TEXT, TEXT, TEXT, TEXT, TEXT, UUID) TO anon, authenticated;
 
 -- =========================
@@ -470,6 +520,77 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION record_review(UUID, INT) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION record_review(UUID, INT) TO anon, authenticated;
+
+-- review_queue(user_id, limit, list_id?) -> the N least-confident cards.
+-- Does the retrievability ranking + LIMIT in SQL so only `limit` rows cross the
+-- wire, NOT the whole vocabulary (the old client-side rank fetched everything).
+-- R = exp(-Δdays / stability), 0 for a never-reviewed word — MIRRORS
+-- retrievability() in services/review.ts; keep the two in sync. Resolves the
+-- shown meaning/readings by joining `words` exactly like userWords.toUserWord
+-- (custom_translation wins; translation_reading suppressed on an override).
+-- SECURITY INVOKER: user_words RLS limits rows to the caller (the p_user_id
+-- filter is belt-and-suspenders); list scoping is an EXISTS over the caller's tag.
+CREATE OR REPLACE FUNCTION review_queue(
+  p_user_id TEXT,
+  p_limit   INT,
+  p_list_id UUID DEFAULT NULL
+)
+RETURNS TABLE (
+  user_word_id               UUID,
+  user_id                    TEXT,
+  input                      TEXT,
+  source_lang                TEXT,
+  target_lang                TEXT,
+  dictionary_word_id         UUID,
+  custom_translation         TEXT,
+  translation                TEXT,
+  input_reading              TEXT,
+  translation_reading        TEXT,
+  stability                  REAL,
+  confidence_rating          INT,
+  last_reviewed_date         TIMESTAMPTZ,
+  originally_translated_date TIMESTAMPTZ,
+  retrievability             REAL
+)
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT
+    uw.user_word_id,
+    uw.user_id,
+    uw.input,
+    uw.source_lang,
+    uw.target_lang,
+    uw.dictionary_word_id,
+    uw.custom_translation,
+    COALESCE(uw.custom_translation, w.translation, '')                          AS translation,
+    w.input_reading                                                             AS input_reading,
+    CASE WHEN uw.custom_translation IS NOT NULL THEN NULL ELSE w.translation_reading END
+                                                                                AS translation_reading,
+    uw.stability,
+    uw.confidence_rating,
+    uw.last_reviewed_date,
+    uw.originally_translated_date,
+    (CASE
+       WHEN uw.stability IS NULL OR uw.stability <= 0 OR uw.last_reviewed_date IS NULL THEN 0
+       ELSE exp( - GREATEST(0, EXTRACT(EPOCH FROM (now() - uw.last_reviewed_date)) / 86400.0)
+                 / uw.stability )
+     END)::REAL                                                                 AS retrievability
+  FROM user_words uw
+  LEFT JOIN words w ON w.word_id = uw.dictionary_word_id
+  WHERE uw.user_id = p_user_id
+    AND (p_list_id IS NULL OR EXISTS (
+          SELECT 1 FROM list_words lw
+           WHERE lw.user_word_id = uw.user_word_id
+             AND lw.list_id = p_list_id))
+  -- least-confident first; ties broken by oldest review (nulls = never = oldest).
+  ORDER BY retrievability ASC,
+           COALESCE(uw.last_reviewed_date, 'epoch'::timestamptz) ASC
+  LIMIT GREATEST(0, p_limit);
+$$;
+
+REVOKE EXECUTE ON FUNCTION review_queue(TEXT, INT, UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION review_queue(TEXT, INT, UUID) TO anon, authenticated;
 
 -- =========================
 -- 7. TABLE PRIVILEGES for the API roles

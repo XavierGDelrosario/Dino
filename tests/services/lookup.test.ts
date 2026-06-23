@@ -10,7 +10,7 @@ vi.mock("@/services/words/repository", () => ({
 }));
 vi.mock("@/services/translation", () => ({
   translate: vi.fn(),
-  MAX_TRANSLATION_CONCURRENCY: 6,
+  translateBatch: vi.fn(),
 }));
 vi.mock("@/services/senses", () => ({ resolveSenseProvider: vi.fn() }));
 // Partial-mock language: keep the real resolveSourceLanguage / AUTO_DETECT, but
@@ -22,19 +22,24 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { findWordTranslations, findWordTranslationsBatch } from "@/services/words/repository";
-import { translate } from "@/services/translation";
+import { translate, translateBatch } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
-import { lookupWord, translateParagraph } from "@/services/lookup";
+import { lookupWord, lookupWordsBatch, translateParagraph } from "@/services/lookup";
+import type { Word } from "@/services/words/repository";
 
 const mockFind = vi.mocked(findWordTranslations);
 const mockFindBatch = vi.mocked(findWordTranslationsBatch);
 const mockTranslate = vi.mocked(translate);
+const mockTranslateBatch = vi.mocked(translateBatch);
 const mockResolveProvider = vi.mocked(resolveSenseProvider);
 const mockAnalyze = vi.mocked(analyze);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: the batched edge call (used by translateParagraph for uncached
+  // words) returns nothing; tests that seed a missing word override this.
+  mockTranslateBatch.mockResolvedValue(new Map<string, Word[]>());
 });
 
 describe("lookupWord", () => {
@@ -100,11 +105,13 @@ describe("translateParagraph", () => {
       }
       return createMockTranslate(FIXTURE_WORDS)(p);
     });
-    // 猫 already cached; 犬 missing → seeded via the sense provider.
+    // 猫 already cached; 犬 missing → seeded via the batched edge call.
     mockFindBatch.mockResolvedValue(
       new Map([["猫", [makeWord({ wordId: "ja-neko", input: "猫", translation: "cat" })]]])
     );
-    mockResolveProvider.mockReturnValue(createMockSenseProvider(FIXTURE_WORDS));
+    mockTranslateBatch.mockResolvedValue(
+      new Map([["犬", [makeWord({ wordId: "ja-inu", input: "犬", translation: "dog" })]]])
+    );
     // Analysis is mocked: two tokens, each carrying a (best-effort) reading.
     mockAnalyze.mockResolvedValue([
       { text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null },
@@ -133,7 +140,6 @@ describe("translateParagraph", () => {
     mockFindBatch.mockResolvedValue(
       new Map([["今", [makeWord({ input: "今", translation: "now", inputReading: "いま" })]]])
     );
-    mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     // kuromoji misreads 今 in isolation as こん; lemma 今.
     mockAnalyze.mockResolvedValue([{ text: "今", start: 0, end: 1, reading: "こん", lemma: "今", pos: null }]);
 
@@ -152,7 +158,6 @@ describe("translateParagraph", () => {
         ]],
       ])
     );
-    mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     mockAnalyze.mockResolvedValue([{ text: "辛い", start: 0, end: 2, reading: "からい", lemma: "辛い", pos: null }]);
 
     const res = await translateParagraph({ input: "辛い", targetLang: "EN" });
@@ -162,7 +167,6 @@ describe("translateParagraph", () => {
   it("keeps the kuromoji reading when the word has no dictionary entry", async () => {
     mockTranslate.mockResolvedValue({ translated: true, translation: "cat", word: null });
     mockFindBatch.mockResolvedValue(new Map()); // not in words
-    mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null }]);
 
     const res = await translateParagraph({ input: "猫", targetLang: "EN" });
@@ -175,7 +179,6 @@ describe("translateParagraph", () => {
     mockFindBatch.mockResolvedValue(
       new Map([["行く", [makeWord({ input: "行く", translation: "to go", inputReading: "いく" })]]])
     );
-    mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     // kuromoji: surface 行った, lemma 行く, surface reading いった.
     mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く", pos: null }]);
 
@@ -187,11 +190,11 @@ describe("translateParagraph", () => {
     expect(res.tokens.find((t) => t.text === "行った")?.reading).toBe("いった");
   });
 
-  it("conjugated form (行った): same result on a cache MISS (lemma seeded via the sense provider)", async () => {
+  it("conjugated form (行った): same result on a cache MISS (lemma seeded via the batched edge call)", async () => {
     mockTranslate.mockResolvedValue({ translated: true, translation: "went", word: null });
     mockFindBatch.mockResolvedValue(new Map()); // 行く not cached
-    mockResolveProvider.mockReturnValue(
-      createMockSenseProvider([makeWord({ input: "行く", translation: "to go", inputReading: "いく" })])
+    mockTranslateBatch.mockResolvedValue(
+      new Map([["行く", [makeWord({ input: "行く", translation: "to go", inputReading: "いく" })]]])
     );
     mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く", pos: null }]);
 
@@ -204,11 +207,53 @@ describe("translateParagraph", () => {
   it("falls back to showing the input when the paragraph can't be translated", async () => {
     mockTranslate.mockResolvedValue({ translated: false, translation: null, word: null });
     mockFindBatch.mockResolvedValue(new Map());
-    mockResolveProvider.mockReturnValue(createMockSenseProvider([]));
     mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null }]);
 
     const res = await translateParagraph({ input: "猫", targetLang: "EN" });
     expect(res.translated).toBe(false);
     expect(res.translation).toBe("猫");
+  });
+});
+
+describe("lookupWordsBatch (EN→JA fan-out stage 2)", () => {
+  it("merges cached words with edge-seeded misses in ONE batch each", async () => {
+    // バット cached; 蝙蝠 missing → seeded via the batched edge call.
+    mockFindBatch.mockResolvedValue(
+      new Map([["バット", [makeWord({ wordId: "bat-1", input: "バット", translation: "bat (baseball)" })]]])
+    );
+    mockTranslateBatch.mockResolvedValue(
+      new Map([["蝙蝠", [makeWord({ wordId: "bat-2", input: "蝙蝠", translation: "bat (animal)" })]]])
+    );
+
+    const map = await lookupWordsBatch({ inputs: ["バット", "蝙蝠"], sourceLang: "JA", targetLang: "EN" });
+
+    // Only the MISS goes to the edge, deduped/normalized.
+    expect(mockTranslateBatch).toHaveBeenCalledWith({ inputs: ["蝙蝠"], sourceLang: "JA", targetLang: "EN" });
+    expect(map.get("バット")?.[0].translation).toBe("bat (baseball)");
+    expect(map.get("蝙蝠")?.[0].translation).toBe("bat (animal)");
+  });
+
+  it("de-dupes + NFC-normalizes inputs before the DB read", async () => {
+    mockFindBatch.mockResolvedValue(new Map());
+    await lookupWordsBatch({ inputs: ["猫", "猫", "  犬  "], sourceLang: "JA", targetLang: "EN" });
+    expect(mockFindBatch).toHaveBeenCalledWith({ inputs: ["猫", "犬"], sourceLang: "JA", targetLang: "EN" });
+  });
+
+  it("survives an edge failure — cached candidates still resolve", async () => {
+    mockFindBatch.mockResolvedValue(
+      new Map([["バット", [makeWord({ wordId: "bat-1", input: "バット", translation: "bat" })]]])
+    );
+    mockTranslateBatch.mockRejectedValue(new Error("edge down"));
+
+    const map = await lookupWordsBatch({ inputs: ["バット", "蝙蝠"], sourceLang: "JA", targetLang: "EN" });
+    expect(map.get("バット")?.[0].translation).toBe("bat"); // cached survives
+    expect(map.has("蝙蝠")).toBe(false); // the miss is just absent
+  });
+
+  it("does nothing (no calls) for an empty input list", async () => {
+    const map = await lookupWordsBatch({ inputs: [], sourceLang: "JA", targetLang: "EN" });
+    expect(map.size).toBe(0);
+    expect(mockFindBatch).not.toHaveBeenCalled();
+    expect(mockTranslateBatch).not.toHaveBeenCalled();
   });
 });

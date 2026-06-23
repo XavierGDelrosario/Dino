@@ -8,9 +8,9 @@
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { lookupWord, translateParagraph, type ParagraphTranslation } from "../services/lookup";
+import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { translate } from "../services/translation";
-import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
+import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
@@ -170,14 +170,14 @@ export function useTranslate(userId: string) {
             return;
           }
           // Study each candidate learning→native; the TOP keeps all its senses, the
-          // rest contribute their primary. Deduped by wordId.
-          const studied = await Promise.all(
-            candidates.map((jp) =>
-              lookupWord({ input: jp, sourceLang: learning, targetLang: native })
-                .then((r) => r.meanings)
-                .catch(() => [] as Word[])
-            )
-          );
+          // rest contribute their primary. Deduped by wordId. ONE batched lookup
+          // for all candidates (1 DB read + 1 edge call) instead of N per-word calls.
+          const byCandidate = await lookupWordsBatch({
+            inputs: candidates,
+            sourceLang: learning,
+            targetLang: native,
+          });
+          const studied = candidates.map((jp) => byCandidate.get(jp) ?? []);
           const meanings: Word[] = [];
           const seenW = new Set<string>();
           studied.forEach((senses, i) => {
@@ -319,12 +319,14 @@ export function useTranslate(userId: string) {
   const addWords = useCallback(
     async (words: Word[], listId?: string) => {
       setError(null);
-      await Promise.all(
-        words.map(async (word) => {
-          const uw = await saveDictionaryWord({ userId, word, listId });
-          markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
-        })
-      );
+      // One batched RPC instead of N saves (all-or-nothing in a single
+      // transaction); then mark each saved sense from the returned rows.
+      const saved = await saveDictionaryWords({ userId, words, listId });
+      const byId = new Map(saved.map((uw) => [uw.dictionaryWordId, uw]));
+      for (const word of words) {
+        const uw = byId.get(word.wordId);
+        if (uw) markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
+      }
     },
     [userId, markSaved]
   );

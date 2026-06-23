@@ -1,18 +1,40 @@
 // App shell. Bootstraps the guest session, then a simple tab nav over the two
 // live surfaces wired to the service layer: Translate (look up + save words)
 // and Review (flashcards). Lists / paragraph-translate views come next.
-import { useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useSession } from "./hooks/useSession";
-import { TranslateView } from "./views/TranslateView";
-import { ListView } from "./views/ListView";
-import { FlashcardView } from "./views/FlashcardView";
+import { warmJapaneseAnalyzer } from "./services/language";
 import "./components/common/common.css";
+
+// Each tab's view is its own lazy chunk, so the initial bundle ships only the
+// shell + the first surface — the Lists/Review code loads when first opened.
+// (Named exports → map to a default for React.lazy.)
+const TranslateView = lazy(() =>
+  import("./views/TranslateView").then((m) => ({ default: m.TranslateView })),
+);
+const ListView = lazy(() =>
+  import("./views/ListView").then((m) => ({ default: m.ListView })),
+);
+const FlashcardView = lazy(() =>
+  import("./views/FlashcardView").then((m) => ({ default: m.FlashcardView })),
+);
 
 type Tab = "translate" | "lists" | "review";
 
 export function App() {
   const { userId, loading, error } = useSession();
   const [tab, setTab] = useState<Tab>("translate");
+
+  // Preload kuromoji's dictionary during idle time so the first Japanese analysis
+  // (the Translate reader) isn't slowed by the ~12MB load. Best-effort only.
+  useEffect(() => {
+    const w = window as typeof window & { requestIdleCallback?: (cb: () => void) => void };
+    if (w.requestIdleCallback) w.requestIdleCallback(() => warmJapaneseAnalyzer());
+    else {
+      const t = setTimeout(() => warmJapaneseAnalyzer(), 1500);
+      return () => clearTimeout(t);
+    }
+  }, []);
   // which vocabulary the Review tab quizzes (null = ALL). Set by a list's
   // "Review" button, which also jumps to the Review tab.
   const [reviewScope, setReviewScope] = useState<{ listId: string | null; name: string }>({
@@ -57,23 +79,25 @@ export function App() {
             </button>
           </nav>
 
-          {tab === "translate" && <TranslateView userId={userId} />}
-          {tab === "lists" && (
-            <ListView
-              userId={userId}
-              onReview={(listId, name) => {
-                setReviewScope({ listId, name });
-                setTab("review");
-              }}
-            />
-          )}
-          {tab === "review" && (
-            <FlashcardView
-              userId={userId}
-              listId={reviewScope.listId}
-              listName={reviewScope.name}
-            />
-          )}
+          <Suspense fallback={<p className="review__msg">Loading…</p>}>
+            {tab === "translate" && <TranslateView userId={userId} />}
+            {tab === "lists" && (
+              <ListView
+                userId={userId}
+                onReview={(listId, name) => {
+                  setReviewScope({ listId, name });
+                  setTab("review");
+                }}
+              />
+            )}
+            {tab === "review" && (
+              <FlashcardView
+                userId={userId}
+                listId={reviewScope.listId}
+                listName={reviewScope.name}
+              />
+            )}
+          </Suspense>
         </>
       )}
     </main>

@@ -122,6 +122,18 @@ function getJaTokenizer(): Promise<Tokenizer<IpadicFeatures>> {
   return tokenizerPromise;
 }
 
+/**
+ * Kick off the kuromoji dictionary load WITHOUT analyzing anything, so the first
+ * real Japanese analysis doesn't pay the ~12MB load latency. Safe to call eagerly
+ * (e.g. on app idle): it shares the same cached promise as analyze(), is a no-op
+ * once warm, and swallows load errors (analyze() retries + degrades on its own).
+ */
+export function warmJapaneseAnalyzer(): void {
+  getJaTokenizer().catch(() => {
+    /* a real analyze() call will retry + fall back to segmentation */
+  });
+}
+
 async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
   const tokenizer = await getJaTokenizer();
   const out: AnalyzedToken[] = [];

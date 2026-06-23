@@ -6,7 +6,9 @@
 import { describe, it, expect } from "vitest";
 import {
   corsHeaders,
+  groupByInput,
   parseAllowedOrigins,
+  projectMany,
   projectRows,
   toGoogleLang,
   userIdFromAuth,
@@ -163,5 +165,64 @@ describe("projectRows", () => {
   it("defaults a null sensePos to 0 in the ref", () => {
     const r: ProviderResult = { translation: "x", headword: "字", entryId: "999", sensePos: null };
     expect(projectRows([r], "字", "JA", "EN", 2)[0].dictionary_ref).toBe("999:0");
+  });
+});
+
+describe("projectMany (batch projection)", () => {
+  it("flattens several inputs' senses into one row list", () => {
+    const rows = projectMany(
+      [
+        { input: "猫", results: [{ translation: "cat", headword: "猫", entryId: "1467640", sensePos: 0 }] },
+        { input: "犬", results: [{ translation: "dog", headword: "犬", entryId: "1216630", sensePos: 0 }] },
+      ],
+      "JA", "EN", 3,
+    );
+    expect(rows.map((r) => r.translation)).toEqual(["cat", "dog"]);
+    expect(rows.map((r) => r.dictionary_ref)).toEqual(["1467640:0", "1216630:0"]);
+  });
+
+  it("de-dupes ACROSS inputs by dictionary_ref (no duplicate onConflict key)", () => {
+    // A kanji and its kana both in the batch resolve to the SAME JMdict sense.
+    const sense: ProviderResult = { translation: "to go", headword: "行く", entryId: "1578850", sensePos: 0 };
+    const rows = projectMany(
+      [
+        { input: "行く", results: [sense] },
+        { input: "いく", results: [sense] },
+      ],
+      "JA", "EN", 3,
+    );
+    expect(rows).toHaveLength(1); // one row, so the single upsert can't hit 21000
+    expect(rows[0].dictionary_ref).toBe("1578850:0");
+  });
+});
+
+describe("groupByInput", () => {
+  const rows = [
+    { input: "猫", input_reading: "ねこ", jmdict_sense_pos: 1 },
+    { input: "猫", input_reading: "ねこ", jmdict_sense_pos: 0 },
+    { input: "犬", input_reading: "いぬ", jmdict_sense_pos: 0 },
+  ];
+
+  it("matches a term by headword and returns its senses primary-first", () => {
+    const map = groupByInput(rows, ["猫"]);
+    expect(map.get("猫")?.map((r) => r.jmdict_sense_pos)).toEqual([0, 1]); // sorted, nulls last
+  });
+
+  it("matches a kana search by input_reading (kana → kanji-headword rows)", () => {
+    const map = groupByInput(rows, ["ねこ"]);
+    expect(map.get("ねこ")?.map((r) => r.input)).toEqual(["猫", "猫"]);
+  });
+
+  it("gives an empty array for a term with no matching row", () => {
+    const map = groupByInput(rows, ["鳥"]);
+    expect(map.get("鳥")).toEqual([]);
+  });
+
+  it("sorts MT rows (null sense_pos) last", () => {
+    const mixed = [
+      { input: "x", input_reading: null, jmdict_sense_pos: null },
+      { input: "x", input_reading: null, jmdict_sense_pos: 0 },
+    ];
+    expect(groupByInput(mixed, ["x"]).get("x")?.map((r) => r.jmdict_sense_pos)).toEqual([0, null]);
   });
 });

@@ -146,6 +146,48 @@ export async function saveDictionaryWord(params: {
 }
 
 /**
+ * Saves MANY dictionary senses at once (the "Add all" path) in ONE round-trip /
+ * ONE transaction, optionally tagging them all into a sub-list. Replaces N
+ * separate saveDictionaryWord calls. Idempotent per (user, sense), like the
+ * single save: re-saving is a no-op re-add.
+ *
+ * The batch is a SINGLE user gesture, so there is no client-side staging buffer
+ * and therefore no "the session ended before my saves flushed" data-loss window —
+ * the user clicks once, the write happens once, all-or-nothing.
+ *
+ * OUTPUT: UserWord[] — one per saved sense (order not guaranteed; map by id).
+ * CONSTRAINTS: each id must be a verified dictionary sense; an unknown/unverified
+ * id is silently skipped (one bad id can't fail the whole batch).
+ */
+export async function saveDictionaryWords(params: {
+  userId: string;
+  words: Word[];
+  listId?: string;
+}): Promise<UserWord[]> {
+  const { userId, words, listId } = params;
+  if (words.length === 0) return [];
+
+  const ids = [...new Set(words.map((w) => w.wordId))];
+  const { data, error } = await supabase.rpc("save_dictionary_words", {
+    p_user_id: userId,
+    p_dictionary_word_ids: ids,
+    p_list_id: listId,
+  });
+  if (error) throw toServiceError(error, "Failed to save words");
+
+  // RETURNS SETOF user_words (no embedded dictionary). Patch each row's
+  // translation/readings from the in-hand Word it came from, keyed by sense id.
+  const byId = new Map(words.map((w) => [w.wordId, w]));
+  return ((data ?? []) as UserWordRow[]).map((row) => {
+    const uw = toUserWord(row);
+    const w = row.dictionary_word_id ? byId.get(row.dictionary_word_id) : undefined;
+    return w
+      ? { ...uw, translation: w.translation, inputReading: w.inputReading, translationReading: w.translationReading }
+      : uw;
+  });
+}
+
+/**
  * Creates a user's OWN word (no dictionary sense behind it), optionally tagging
  * a sub-list. NFC-normalizes; both the word and its meaning are required.
  *

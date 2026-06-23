@@ -40,7 +40,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // suite (this Deno file can't be imported there). See tests/edge/translate-lib.test.ts.
 import {
   corsHeaders,
+  groupByInput,
   parseAllowedOrigins,
+  projectMany,
   projectRows,
   toGoogleLang,
   userIdFromAuth,
@@ -291,6 +293,41 @@ async function fetchVerified(
   return (data ?? []) as WordRow[];
 }
 
+/** Primary sense first: jmdict_sense_pos asc, NULLs (MT rows) last. Mirrors
+ *  fetchVerified's ORDER BY, for rows returned inline by upsert().select(). */
+function sortBySensePos(rows: WordRow[]): WordRow[] {
+  return [...rows].sort((a, b) => {
+    if (a.jmdict_sense_pos == null) return b.jmdict_sense_pos == null ? 0 : 1;
+    if (b.jmdict_sense_pos == null) return -1;
+    return a.jmdict_sense_pos - b.jmdict_sense_pos;
+  });
+}
+
+/** All verified rows for many search terms in ONE query (the batch cache read).
+ *  Matches `input` OR `input_reading` against the term list, like fetchVerified. */
+async function fetchVerifiedMany(
+  supabase: Supa,
+  inputs: string[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<WordRow[]> {
+  if (inputs.length === 0) return [];
+  // Quote each term: the PostgREST or()/in() grammar uses comma/parens/quote as
+  // syntax, so a raw term would corrupt the filter (see fetchVerified).
+  const quote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  const list = inputs.map(quote).join(",");
+  const { data, error } = await supabase
+    .from("words")
+    .select("*")
+    .eq("source_lang", sourceLang)
+    .eq("target_lang", targetLang)
+    .eq("is_verified", true)
+    .or(`input.in.(${list}),input_reading.in.(${list})`)
+    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as WordRow[];
+}
+
 /** The success response for a set of verified rows (primary = first row). */
 function respondWords(rows: WordRow[]) {
   return {
@@ -299,6 +336,89 @@ function respondWords(rows: WordRow[]) {
     word: toWord(rows[0]),
     words: rows.map(toWord),
   };
+}
+
+/** One per-input entry in a batch response. */
+interface BatchEntry {
+  input: string;
+  translated: boolean;
+  translation: string | null;
+  word: ReturnType<typeof toWord> | null;
+  words: ReturnType<typeof toWord>[];
+}
+
+/**
+ * BATCH resolve: many cacheable words (persist=true) in ONE request, so the
+ * client's paragraph / add-many fan-out costs one round-trip instead of N. Same
+ * per-word resolution as the single path (cache → JMdict → metered MT fallback),
+ * just looped server-side with the cache read and the final upsert batched. The
+ * whole-paragraph display gloss is NOT batched (it's a single persist=false call).
+ */
+async function resolveBatch(
+  supabase: Supa,
+  rawInputs: unknown[],
+  sourceLang: string,
+  targetLang: string,
+  authHeader: string | null,
+): Promise<BatchEntry[]> {
+  // NFC-normalize + dedupe, preserving first-seen order.
+  const inputs: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of rawInputs) {
+    const v = String(raw ?? "").trim().normalize("NFC");
+    if (v && !seen.has(v)) { seen.add(v); inputs.push(v); }
+  }
+  if (inputs.length === 0) return [];
+
+  // 1. One batched cache read; the still-uncached terms need resolving.
+  const cachedRows = await fetchVerifiedMany(supabase, inputs, sourceLang, targetLang);
+  const cachedByInput = groupByInput(cachedRows, inputs);
+  const missing = inputs.filter((i) => (cachedByInput.get(i) ?? []).length === 0);
+
+  // 2. Resolve each miss server-side (cheap same-region DB calls, not client
+  //    round-trips): JMdict first, then the metered Google MT fallback. Sequential
+  //    so the per-word quota reservation can't race itself.
+  let limits: ResolvedLimits | null = null;
+  const userId = userIdFromAuth(authHeader);
+  const perInput: { input: string; results: ProviderResult[] }[] = [];
+  for (const input of missing) {
+    let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
+    if (results.length === 0) {
+      // MT is the paid path. Meter per word when attributable; one word over
+      // quota is just skipped (empty result), never a whole-batch failure.
+      let allowed = true;
+      if (userId) {
+        if (!limits) limits = await resolveLimits(supabase, userId);
+        allowed = (await reserveQuota(supabase, userId, input.length, limits.monthlyCharQuota)).allowed;
+      }
+      if (allowed) {
+        const mt = await callTranslationProvider(input, sourceLang, targetLang);
+        if (mt) results = [mt];
+      }
+    }
+    if (results.length > 0) perInput.push({ input, results });
+  }
+
+  // 3. One upsert for every freshly-projected sense (deduped by dictionary_ref).
+  let savedRows: WordRow[] = [];
+  if (perInput.length > 0) {
+    const rows = projectMany(perInput, sourceLang, targetLang, CURRENT_PROJECTION_VERSION);
+    const { data, error } = await supabase
+      .from("words")
+      .upsert(rows, { onConflict: "dictionary_ref,source_lang,target_lang" })
+      .select("*");
+    if (error) throw new Error(error.message);
+    savedRows = (data ?? []) as WordRow[];
+  }
+
+  // 4. Group cache hits + freshly-saved rows back to each search term.
+  const byInput = groupByInput([...cachedRows, ...savedRows], inputs);
+  return inputs.map((input) => {
+    const ws = byInput.get(input) ?? [];
+    return ws.length > 0
+      ? { input, translated: true, translation: ws[0].translation, word: toWord(ws[0]), words: ws.map(toWord) }
+      : { input, translated: false, translation: null, word: null, words: [] };
+  });
 }
 
 // HTTP handler — the request entry point.
@@ -318,25 +438,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
 
-  let input = "";
-  let sourceLang = "";
-  let targetLang = "";
-  let persist = true;
+  let body: Record<string, unknown>;
   try {
-    const body = await req.json();
-    // NFC-normalize to match the client's cache keys + jmdict_* rows.
-    input = String(body.input ?? "").trim().normalize("NFC");
-    sourceLang = String(body.sourceLang ?? "");
-    targetLang = String(body.targetLang ?? "");
-    // persist=false → translate for display only (a whole paragraph in context)
-    // without reading/writing the cache; we don't store unique paragraphs.
-    persist = body.persist !== false;
+    body = await req.json();
   } catch {
     return reply({ error: "Invalid JSON body" }, 400);
   }
-
-  if (!input || !sourceLang || !targetLang) {
-    return reply({ error: "input, sourceLang and targetLang are required" }, 400);
+  const sourceLang = String(body.sourceLang ?? "");
+  const targetLang = String(body.targetLang ?? "");
+  if (!sourceLang || !targetLang) {
+    return reply({ error: "sourceLang and targetLang are required" }, 400);
   }
   if (sourceLang === targetLang) {
     return reply({ error: "Source and target language are the same" }, 400);
@@ -346,6 +457,27 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // BATCH mode: { inputs: string[] } resolves many cacheable words in ONE request.
+  if (Array.isArray(body.inputs)) {
+    try {
+      const results = await resolveBatch(
+        supabase, body.inputs, sourceLang, targetLang, req.headers.get("Authorization"),
+      );
+      return reply({ results });
+    } catch (e) {
+      return reply({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  }
+
+  // SINGLE mode: { input, persist? }. NFC-normalize to match cache keys + jmdict_*.
+  const input = String(body.input ?? "").trim().normalize("NFC");
+  // persist=false → translate for display only (a whole paragraph in context)
+  // without reading/writing the cache; we don't store unique paragraphs.
+  const persist = body.persist !== false;
+  if (!input) {
+    return reply({ error: "input, sourceLang and targetLang are required" }, 400);
+  }
 
   // 1. Verified-cache check (all senses) -> no JMdict re-query. Words only;
   //    display-only paragraph translations skip the cache entirely.
@@ -415,17 +547,17 @@ Deno.serve(async (req) => {
   //    STABLE dictionary_ref (the onConflict target) so a re-projection UPDATEs in
   //    place (word_id, hence user_words refs, survive) instead of forking.
   const rows = projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION);
-  const { error: insertError } = await supabase
+  // upsert().select() returns the written rows inline — no second read round-trip.
+  // On a miss the cache was empty, so these ARE the full verified set for `input`
+  // (sort to primary-first; the kana-search headword swap is already in the rows).
+  const { data: saved, error: insertError } = await supabase
     .from("words")
-    .upsert(rows, {
-      onConflict: "dictionary_ref,source_lang,target_lang",
-    });
+    .upsert(rows, { onConflict: "dictionary_ref,source_lang,target_lang" })
+    .select("*");
   if (insertError) return reply({ error: insertError.message }, 500);
 
-  // 5. Return the full verified set (re-read for a consistent shape with the
-  //    cache-hit path), primary sense first.
-  const saved = await fetchVerified(supabase, input, sourceLang, targetLang);
-  return reply(saved.length > 0 ? respondWords(saved) : {
+  const ordered = sortBySensePos((saved ?? []) as WordRow[]);
+  return reply(ordered.length > 0 ? respondWords(ordered) : {
     translated: true,
     translation: results[0].translation,
     word: null,

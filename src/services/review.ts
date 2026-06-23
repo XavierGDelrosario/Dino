@@ -24,7 +24,8 @@
 
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
-import { getAllUserWords, getUserWordsInList, type UserWord } from "./words/userWords";
+import { type UserWord } from "./words/userWords";
+import type { LangCode } from "./language";
 
 /** The per-review grade the UI sends: a 1–5 self-rated recall confidence
  *  (1 = forgot … 5 = easy). No separate "again" — a forgotten card is grade 1. */
@@ -56,45 +57,67 @@ export interface ReviewQueueItem extends UserWord {
   retrievability: number;
 }
 
-/** last-reviewed as a sortable number; never-reviewed (null) sorts oldest/first. */
-function reviewedAt(date: string | null): number {
-  return date ? Date.parse(date) : 0;
+/** One row from the review_queue() SQL function (resolved meaning/readings +
+ *  server-computed retrievability), shaped like a UserWord plus the score. */
+interface ReviewQueueRow {
+  user_word_id: string;
+  user_id: string;
+  input: string;
+  source_lang: string;
+  target_lang: string;
+  dictionary_word_id: string | null;
+  custom_translation: string | null;
+  translation: string;
+  input_reading: string | null;
+  translation_reading: string | null;
+  stability: number | null;
+  confidence_rating: number;
+  last_reviewed_date: string | null;
+  originally_translated_date: string;
+  retrievability: number;
 }
 
 /**
- * The N least-confident words: the user's whole vocabulary ranked by CURRENT
- * retrievability ascending (new / most-forgotten first), ties broken by oldest
- * review. This is the review surface — not a due-date schedule.
+ * The N least-confident words, ranked by CURRENT retrievability ascending (new /
+ * most-forgotten first), ties broken by oldest review. This is the review surface
+ * — not a due-date schedule. Scoped to one sub-list when `listId` is given, else
+ * the whole vocabulary (ALL).
  *
- * Scoped to one sub-list when `listId` is given, else the whole vocabulary (ALL).
+ * The ranking + LIMIT run in the `review_queue` Postgres function, so only the ≤
+ * `limit` cards cross the wire (not the whole vocabulary). The R = exp(-Δ/S)
+ * formula there mirrors retrievability() below — keep them in sync.
  *
  * OUTPUT: ReviewQueueItem[] of length ≤ limit (may be empty).
- * NOTE: ranks in-app over the vocabulary (fine at POC scale). If a user's
- * vocabulary grows large, push the R(t) ranking into SQL (closed form on
- * now()/stability) and LIMIT there.
  */
 export async function getReviewQueue(params: {
   userId: string;
   listId?: string | null;
   limit: number;
-  now?: number;
 }): Promise<ReviewQueueItem[]> {
-  const now = params.now ?? Date.now();
-  const words = params.listId
-    ? await getUserWordsInList({ listId: params.listId })
-    : await getAllUserWords({ userId: params.userId });
+  const { data, error } = await supabase.rpc("review_queue", {
+    p_user_id: params.userId,
+    p_limit: Math.max(0, params.limit),
+    p_list_id: params.listId ?? undefined,
+  });
+  if (error) throw toServiceError(error);
 
-  return words
-    .map((w) => ({
-      ...w,
-      retrievability: retrievability(w.stability, w.lastReviewedDate, now),
-    }))
-    .sort(
-      (a, b) =>
-        a.retrievability - b.retrievability ||
-        reviewedAt(a.lastReviewedDate) - reviewedAt(b.lastReviewedDate)
-    )
-    .slice(0, Math.max(0, params.limit));
+  return ((data ?? []) as ReviewQueueRow[]).map((r) => ({
+    userWordId: r.user_word_id,
+    userId: r.user_id,
+    input: r.input,
+    sourceLang: r.source_lang as LangCode,
+    targetLang: r.target_lang as LangCode,
+    dictionaryWordId: r.dictionary_word_id,
+    customTranslation: r.custom_translation,
+    translation: r.translation,
+    inputReading: r.input_reading,
+    translationReading: r.translation_reading,
+    stability: r.stability,
+    confidenceRating: r.confidence_rating,
+    lastReviewedDate: r.last_reviewed_date,
+    originallyTranslatedDate: r.originally_translated_date,
+    retrievability: r.retrievability,
+  }));
 }
 
 /** The post-review mastery state returned by record_review(). */

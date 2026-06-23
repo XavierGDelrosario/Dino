@@ -1,19 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { makeUserWord } from "@test/fixtures";
 
-// review.ts is an orchestration module: it reads via userWords.getAllUserWords
-// (mocked) and writes via supabase.rpc (the stub). Mock both seams.
+// review.ts reads the queue via the review_queue RPC (ranking + LIMIT now run in
+// SQL) and writes via record_review — both through supabase.rpc (the stub).
 const { holder } = vi.hoisted(() => ({ holder: { client: null as unknown as SupabaseStub["client"] } }));
 vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
-vi.mock("@/services/words/userWords", async (orig) => ({
-  ...(await orig<typeof import("@/services/words/userWords")>()),
-  getAllUserWords: vi.fn(),
-}));
 
 import { createSupabaseStub, type SupabaseStub } from "@test/supabaseStub";
-import { getAllUserWords } from "@/services/words/userWords";
 import { retrievability, getReviewQueue, recordReview } from "@/services/review";
 
 const DAY = 86_400_000;
@@ -24,7 +18,26 @@ let stub: SupabaseStub;
 beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
-  vi.mocked(getAllUserWords).mockReset();
+});
+
+/** A review_queue() row (resolved meaning/readings + server-computed R). */
+const qrow = (over: Record<string, unknown> = {}) => ({
+  user_word_id: "uw",
+  user_id: "u",
+  input: "猫",
+  source_lang: "JA",
+  target_lang: "EN",
+  dictionary_word_id: "w1",
+  custom_translation: null,
+  translation: "cat",
+  input_reading: null,
+  translation_reading: null,
+  stability: null,
+  confidence_rating: 0,
+  last_reviewed_date: null,
+  originally_translated_date: "2026-06-17T00:00:00Z",
+  retrievability: 0,
+  ...over,
 });
 
 describe("retrievability", () => {
@@ -46,23 +59,42 @@ describe("retrievability", () => {
 });
 
 describe("getReviewQueue", () => {
-  it("returns the N least-confident words, most-forgotten first", async () => {
-    vi.mocked(getAllUserWords).mockResolvedValue([
-      makeUserWord({ userWordId: "fresh", stability: 100, lastReviewedDate: daysAgo(0) }), // R≈1
-      makeUserWord({ userWordId: "new", stability: null, lastReviewedDate: null }), //        R=0
-      makeUserWord({ userWordId: "weak", stability: 2, lastReviewedDate: daysAgo(10) }), //   R≈0.007
-    ]);
+  it("calls review_queue with the user/limit/list and maps the ranked rows", async () => {
+    // SQL already ranked + limited; the service just maps rows to ReviewQueueItem.
+    stub.rpc.mockResolvedValue({
+      data: [
+        qrow({ user_word_id: "new", retrievability: 0 }),
+        qrow({ user_word_id: "weak", stability: 2, last_reviewed_date: daysAgo(10), retrievability: 0.0067 }),
+      ],
+      error: null,
+    });
 
-    const queue = await getReviewQueue({ userId: "u", limit: 2, now: NOW });
+    const queue = await getReviewQueue({ userId: "u", listId: "L1", limit: 2 });
 
+    expect(stub.rpc).toHaveBeenCalledWith("review_queue", {
+      p_user_id: "u",
+      p_limit: 2,
+      p_list_id: "L1",
+    });
     expect(queue.map((w) => w.userWordId)).toEqual(["new", "weak"]);
-    expect(queue[0]?.retrievability).toBe(0);
+    expect(queue[0]).toMatchObject({ retrievability: 0, translation: "cat", confidenceRating: 0 });
     expect(queue[1]?.retrievability).toBeLessThan(0.05);
   });
 
-  it("returns an empty queue for an empty vocabulary", async () => {
-    vi.mocked(getAllUserWords).mockResolvedValue([]);
-    expect(await getReviewQueue({ userId: "u", limit: 5, now: NOW })).toEqual([]);
+  it("passes p_list_id undefined for the whole vocabulary (ALL)", async () => {
+    stub.rpc.mockResolvedValue({ data: [], error: null });
+    const queue = await getReviewQueue({ userId: "u", limit: 5 });
+    expect(stub.rpc).toHaveBeenCalledWith("review_queue", {
+      p_user_id: "u",
+      p_limit: 5,
+      p_list_id: undefined,
+    });
+    expect(queue).toEqual([]);
+  });
+
+  it("throws on an RPC error", async () => {
+    stub.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    await expect(getReviewQueue({ userId: "u", limit: 5 })).rejects.toBeTruthy();
   });
 });
 
