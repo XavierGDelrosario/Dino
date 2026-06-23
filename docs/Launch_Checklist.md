@@ -47,3 +47,25 @@ abandoned-guest cleanup.
 deploy, and the security/cost/legal hardening. Everything in Tier 3 (incl. the
 differentiator #12) can wait. Remaining quick/local wins are limited — most of
 Tier 0/1 needs hosted infra, external accounts, or the auth build.
+
+## ➕ Discovered this session (append; slot into tiers as you go)
+- **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
+  app's PUBLIC-schema data but NOT the Supabase `auth.users` row; pair it with the
+  auth admin API when real auth lands, else deleted users can still sign in.
+- **Retry idempotency** — `[Tier 2 / §11]` the translate client retries on 5xx, so a
+  succeeded-but-lost response double-counts MT quota (over-counts, never over-spends).
+  Add an idempotency key if exact metering matters.
+- **Swallowed-error logging** — `[Tier 2 / §12]` add `console.warn` to the
+  `.catch(() => {})` sites (getUserLevel, calibration persist, kuromoji warm-up,
+  lists/limits loads) so non-fatal failures aren't invisible.
+- **Embeddings (#11) follow-ups** — `[Tier 3]` entry-level vectors blend homographs
+  and produce gloss-string artifacts (e.g. katsu/catsup near 猫); consider per-sense
+  or writing-weighted embedding. Also: regenerate embeddings on the prod DB at
+  deploy, tune HNSW params under load, and add per-language embeddings (KO/ZH) when
+  those ship.
+- **Reproducible embedding build** — `[deploy/tooling]` pin the one-time venv deps
+  (`sentence-transformers`, `psycopg2-binary`, `numpy<2`) in a requirements file so
+  `build-embeddings.py` reproduces (the numpy<2 pin is load-bearing — torch 2.2 ABI).
+- **Full migration-reset verification** — `[Tier 1 / §11]` object-level coverage is
+  confirmed, but a clean `supabase db reset` reproducing the live schema is still
+  unverified (deferred — it wipes the embeddings; re-run `build-embeddings.py` after).
