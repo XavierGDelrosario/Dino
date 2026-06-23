@@ -89,7 +89,11 @@ export function useTextQuiz(
           // a failure just skips this round's update.
           if (calibrate) {
             const level = estimateLevel(samples.current);
-            if (level != null) void setUserLevel(userId, level).catch(() => {});
+            if (level != null) {
+              void setUserLevel(userId, level).catch((e) =>
+                console.warn("calibration: failed to persist level", e),
+              );
+            }
           }
         } else {
           setIndex(next);

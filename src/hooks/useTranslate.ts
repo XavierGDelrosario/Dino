@@ -72,7 +72,7 @@ export function useTranslate(userId: string) {
   // The user's sub-lists (the add buttons' second-click menu offers these + "new").
   const [lists, setLists] = useState<List[]>([]);
   useEffect(() => {
-    listUserLists(userId).then(setLists).catch(() => {});
+    listUserLists(userId).then(setLists).catch((e) => console.warn("useTranslate: failed to load sub-lists", e));
   }, [userId]);
 
   // The user's effective restrictions (e.g. paragraph char limit). Defaults
@@ -80,7 +80,7 @@ export function useTranslate(userId: string) {
   // re-enforces server-side — this copy is for instant UX feedback.
   const [limits, setLimits] = useState<UserLimits>(DEFAULT_LIMITS);
   useEffect(() => {
-    getUserLimits(userId).then(setLimits).catch(() => {});
+    getUserLimits(userId).then(setLimits).catch((e) => console.warn("useTranslate: failed to load limits (using defaults)", e));
   }, [userId]);
 
   // The user's calibrated level (#10), used to seed cold-start stability when
@@ -88,7 +88,7 @@ export function useTranslate(userId: string) {
   // until calibrated → seedStability returns null → today's cold-start behavior.
   const [level, setLevel] = useState<LevelValue | null>(null);
   useEffect(() => {
-    getUserLevel(userId).then(setLevel).catch(() => {});
+    getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
   /** Create a sub-list and return its id (the add buttons then tag into it). */
