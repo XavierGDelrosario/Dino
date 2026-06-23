@@ -415,16 +415,19 @@ export type Database = {
         Row: {
           date_created: string
           email: string
+          level: number | null
           user_id: string
         }
         Insert: {
           date_created?: string
           email: string
+          level?: number | null
           user_id: string
         }
         Update: {
           date_created?: string
           email?: string
+          level?: number | null
           user_id?: string
         }
         Relationships: []

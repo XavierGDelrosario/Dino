@@ -23,7 +23,11 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   user_id TEXT PRIMARY KEY,                 -- Supabase Auth UID
   email TEXT UNIQUE NOT NULL,
-  date_created TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  date_created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Estimated proficiency 1..5 (the DIFFICULTY scale), NULL until calibrated (#10).
+  -- Set by the placement quiz; used to seed cold-start stability for new words so
+  -- a known vocabulary doesn't all enter the SRS at 0. Written own-row via RLS.
+  level INT CHECK (level BETWEEN 1 AND 5)
 );
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -434,6 +438,24 @@ USING (user_id = (auth.uid())::text);
 -- caller via `auth.uid()` (which is the request's JWT claim regardless of the
 -- security context), so a foreign p_user_word_id is simply NOT FOUND. search_path
 -- is pinned to defend the definer context.
+-- Derive the 0–5 display bucket from a memory strength (days). ONE source of the
+-- mapping, shared by record_review (after a graded review) and the #10 cold-start
+-- seed (save_dictionary_word/_words), so the two can never drift apart.
+CREATE OR REPLACE FUNCTION confidence_from_stability(s REAL)
+RETURNS INT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+           WHEN s IS NULL OR s <  1 THEN 0
+           WHEN s <  3 THEN 1
+           WHEN s <  7 THEN 2
+           WHEN s < 16 THEN 3
+           WHEN s < 35 THEN 4
+           ELSE 5
+         END;
+$$;
+
 CREATE OR REPLACE FUNCTION record_review(
   p_user_word_id UUID,
   p_grade        INT
@@ -503,15 +525,7 @@ BEGIN
   UPDATE user_words
      SET stability          = v_new_s,
          last_reviewed_date = v_now,
-         -- derive the 0–5 display bucket from the new strength
-         confidence_rating  = CASE
-                                WHEN v_new_s <  1  THEN 0
-                                WHEN v_new_s <  3  THEN 1
-                                WHEN v_new_s <  7  THEN 2
-                                WHEN v_new_s < 16  THEN 3
-                                WHEN v_new_s < 35  THEN 4
-                                ELSE 5
-                              END
+         confidence_rating  = confidence_from_stability(v_new_s)  -- shared bucket
    WHERE user_word_id = p_user_word_id
    RETURNING * INTO w;
 
