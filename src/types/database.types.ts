@@ -546,6 +546,7 @@ export type Database = {
           entry_id: string
           writing: string | null
           gloss: string | null
+          frequency: number | null
           distance: number
         }[]
       }

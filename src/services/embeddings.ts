@@ -22,6 +22,8 @@ export interface RelatedWord {
   writing: string | null;
   /** The entry's primary-sense glosses, joined, or null. */
   gloss: string | null;
+  /** Headword wordfreq score (Zipf×100), or null — for level filtering (#12). */
+  frequency: number | null;
   /** Cosine distance 0..2 (0 = identical meaning … 2 = opposite). */
   distance: number;
 }
@@ -44,11 +46,18 @@ export async function relatedWords(params: {
   });
   if (error) throw toServiceError(error);
   return (
-    (data ?? []) as { entry_id: string; writing: string | null; gloss: string | null; distance: number }[]
+    (data ?? []) as {
+      entry_id: string;
+      writing: string | null;
+      gloss: string | null;
+      frequency: number | null;
+      distance: number;
+    }[]
   ).map((r) => ({
     entryId: r.entry_id,
     writing: r.writing,
     gloss: r.gloss,
+    frequency: r.frequency,
     distance: r.distance,
   }));
 }

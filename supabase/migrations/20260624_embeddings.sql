@@ -44,10 +44,11 @@ ALTER TABLE word_embeddings ENABLE ROW LEVEL SECURITY;
 -- it exposes only derived, public dictionary content (writing/gloss), never vectors.
 CREATE OR REPLACE FUNCTION related_words(p_entry_id TEXT, p_limit INT DEFAULT 10)
 RETURNS TABLE (
-  entry_id TEXT,
-  writing  TEXT,
-  gloss    TEXT,
-  distance REAL
+  entry_id  TEXT,
+  writing   TEXT,
+  gloss     TEXT,
+  frequency INT,    -- the headword's wordfreq score (for client-side level filtering, #12)
+  distance  REAL
 )
 LANGUAGE plpgsql
 STABLE
@@ -80,6 +81,15 @@ BEGIN
        JOIN jmdict_glosses g ON g.sense_id = s.id
       WHERE s.entry_id = we.jmdict_entry_id
         AND s.id = (SELECT MIN(s2.id) FROM jmdict_senses s2 WHERE s2.entry_id = we.jmdict_entry_id)),
+    -- headword frequency (preferred kanji, else kana) — same pick as `writing`.
+    COALESCE(
+      (SELECT k.frequency FROM jmdict_kanji k
+        WHERE k.entry_id = we.jmdict_entry_id
+        ORDER BY k.common DESC, k.frequency DESC NULLS LAST, k.id LIMIT 1),
+      (SELECT n.frequency FROM jmdict_kana n
+        WHERE n.entry_id = we.jmdict_entry_id
+        ORDER BY n.common DESC, n.frequency DESC NULLS LAST, n.id LIMIT 1)
+    ),
     (we.embedding <=> v_target)::REAL
   FROM word_embeddings we
   WHERE we.jmdict_entry_id <> p_entry_id
