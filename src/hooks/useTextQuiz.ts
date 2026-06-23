@@ -4,9 +4,11 @@
 // grade here both ADDS the word to the vocabulary and records the first review,
 // so studying a piece of media feeds spaced repetition seeded by how you scored
 // it. Reuses the dictionary Word straight from the paragraph lookup as the card.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { saveDictionaryWord } from "../services/words/userWords";
 import { recordReview, type ReviewGrade } from "../services/review";
+import { estimateLevel, setUserLevel, type CalibrationSample } from "../services/calibration";
+import { getDifficulty } from "../services/difficulty";
 import type { Word } from "../services/words/repository";
 
 export type TextQuizStatus = "reviewing" | "empty" | "done" | "error";
@@ -26,9 +28,9 @@ export type OnGraded = (
 export function useTextQuiz(
   userId: string,
   words: Word[],
-  opts: { onGraded?: OnGraded } = {},
+  opts: { onGraded?: OnGraded; calibrate?: boolean } = {},
 ) {
-  const { onGraded } = opts;
+  const { onGraded, calibrate = false } = opts;
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [status, setStatus] = useState<TextQuizStatus>(
@@ -38,6 +40,12 @@ export function useTextQuiz(
   const [submitting, setSubmitting] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
 
+  // Level calibration (#10) is a SILENT byproduct of the learn quiz — no UI. Each
+  // first-encounter grade is a (difficulty, grade) sample; on finish we estimate
+  // the user's level and persist it (later used to seed cold-start stability for
+  // un-quizzed adds). Accumulated in a ref so it survives re-renders mid-session.
+  const samples = useRef<CalibrationSample[]>([]);
+
   // The word set is a SNAPSHOT taken when the session opens (the caller mounts the
   // quiz with a fixed list); restart re-walks the same snapshot.
   const restart = useCallback(() => {
@@ -45,6 +53,7 @@ export function useTextQuiz(
     setFlipped(false);
     setReviewedCount(0);
     setError(null);
+    samples.current = [];
     setStatus(words.length ? "reviewing" : "empty");
   }, [words.length]);
 
@@ -67,10 +76,21 @@ export function useTextQuiz(
         const uw = await saveDictionaryWord({ userId, word });
         const res = await recordReview({ userWordId: uw.userWordId, grade: g });
         onGraded?.(word.wordId, uw.userWordId, res.confidenceRating);
+        if (calibrate) {
+          const difficulty = getDifficulty(word).level;
+          if (difficulty != null) samples.current.push({ difficulty, grade: g });
+        }
         setReviewedCount((n) => n + 1);
         const next = index + 1;
         if (next >= words.length) {
           setStatus("done");
+          // Estimate + persist the level silently. Only a non-null estimate is
+          // written (a small/easy quiz can't wipe a better one); fire-and-forget,
+          // a failure just skips this round's update.
+          if (calibrate) {
+            const level = estimateLevel(samples.current);
+            if (level != null) void setUserLevel(userId, level).catch(() => {});
+          }
         } else {
           setIndex(next);
           setFlipped(false);
@@ -82,7 +102,7 @@ export function useTextQuiz(
         setSubmitting(false);
       }
     },
-    [words, index, submitting, userId, onGraded],
+    [words, index, submitting, userId, onGraded, calibrate],
   );
 
   return {

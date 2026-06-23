@@ -36,7 +36,9 @@ export function TextQuizView({
   /** Return to the reader. */
   onClose: () => void;
 }) {
-  const q = useTextQuiz(userId, words, { onGraded });
+  // mode "learn" = NEW words (first-encounter recall), the right signal to
+  // calibrate the user's level on — done silently in the hook (no UI here).
+  const q = useTextQuiz(userId, words, { onGraded, calibrate: mode === "learn" });
 
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
