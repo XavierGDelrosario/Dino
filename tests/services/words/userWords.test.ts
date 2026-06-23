@@ -90,6 +90,15 @@ describe("saveDictionaryWord", () => {
 
     expect(res).toMatchObject({ userWordId: "uw1", translation: "cat" });
   });
+
+  it("passes the cold-start seed when provided", async () => {
+    stub.rpc.mockResolvedValue({ data: uwRow(), error: null });
+    await saveDictionaryWord({ userId: "u", word: makeWord({ wordId: "ja-neko" }), initialStability: 3.5 });
+    expect(stub.rpc).toHaveBeenCalledWith(
+      "save_dictionary_word",
+      expect.objectContaining({ p_initial_stability: 3.5 }),
+    );
+  });
 });
 
 describe("saveDictionaryWords (batch)", () => {
@@ -124,6 +133,19 @@ describe("saveDictionaryWords (batch)", () => {
     const res = await saveDictionaryWords({ userId: "u", words: [] });
     expect(res).toEqual([]);
     expect(stub.rpc).not.toHaveBeenCalled();
+  });
+
+  it("passes a per-word cold-start seed array aligned to the de-duped ids", async () => {
+    stub.rpc.mockResolvedValue({ data: [], error: null });
+    const words = [makeWord({ wordId: "a" }), makeWord({ wordId: "b" }), makeWord({ wordId: "a" })];
+    await saveDictionaryWords({ userId: "u", words, seedFor: (w) => (w.wordId === "a" ? 7 : null) });
+    expect(stub.rpc).toHaveBeenCalledWith(
+      "save_dictionary_words",
+      expect.objectContaining({
+        p_dictionary_word_ids: ["a", "b"], // de-duped, first-occurrence order
+        p_initial_stabilities: [7, null], // aligned to those ids
+      }),
+    );
   });
 
   it("throws on an RPC error", async () => {

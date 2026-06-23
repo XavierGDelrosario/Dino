@@ -14,6 +14,8 @@ import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../s
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
+import { getUserLevel, seedStability } from "../services/calibration";
+import { getDifficulty, type LevelValue } from "../services/difficulty";
 import {
   analyze,
   isSingleWord,
@@ -79,6 +81,14 @@ export function useTranslate(userId: string) {
   const [limits, setLimits] = useState<UserLimits>(DEFAULT_LIMITS);
   useEffect(() => {
     getUserLimits(userId).then(setLimits).catch(() => {});
+  }, [userId]);
+
+  // The user's calibrated level (#10), used to seed cold-start stability when
+  // adding un-quizzed words so a known vocabulary doesn't all start at 0. null
+  // until calibrated → seedStability returns null → today's cold-start behavior.
+  const [level, setLevel] = useState<LevelValue | null>(null);
+  useEffect(() => {
+    getUserLevel(userId).then(setLevel).catch(() => {});
   }, [userId]);
 
   /** Create a sub-list and return its id (the add buttons then tag into it). */
@@ -297,7 +307,11 @@ export function useTranslate(userId: string) {
       setSaving((s) => new Set(s).add(word.wordId));
       setError(null);
       try {
-        const uw = await saveDictionaryWord({ userId, word });
+        const uw = await saveDictionaryWord({
+          userId,
+          word,
+          initialStability: seedStability(getDifficulty(word).level, level),
+        });
         markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
       } catch (e) {
         setError(message(e));
@@ -309,7 +323,7 @@ export function useTranslate(userId: string) {
         });
       }
     },
-    [userId, saved, saving, markSaved]
+    [userId, saved, saving, markSaved, level]
   );
 
   /** Add/tag a set of senses to ALL (no listId) or into a sub-list. Idempotent,
@@ -321,14 +335,19 @@ export function useTranslate(userId: string) {
       setError(null);
       // One batched RPC instead of N saves (all-or-nothing in a single
       // transaction); then mark each saved sense from the returned rows.
-      const saved = await saveDictionaryWords({ userId, words, listId });
+      const saved = await saveDictionaryWords({
+        userId,
+        words,
+        listId,
+        seedFor: (w) => seedStability(getDifficulty(w).level, level),
+      });
       const byId = new Map(saved.map((uw) => [uw.dictionaryWordId, uw]));
       for (const word of words) {
         const uw = byId.get(word.wordId);
         if (uw) markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
       }
     },
-    [userId, markSaved]
+    [userId, markSaved, level]
   );
 
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */

@@ -257,7 +257,8 @@ WITH CHECK (
 CREATE OR REPLACE FUNCTION save_dictionary_word(
   p_user_id            TEXT,
   p_dictionary_word_id UUID,
-  p_list_id            UUID DEFAULT NULL
+  p_list_id            UUID DEFAULT NULL,
+  p_initial_stability  REAL DEFAULT NULL   -- #10 cold-start seed; NULL = cold (today's behavior)
 )
 RETURNS user_words
 LANGUAGE plpgsql
@@ -274,10 +275,15 @@ BEGIN
     RAISE EXCEPTION 'dictionary word % not found', p_dictionary_word_id;
   END IF;
 
+  -- A NEW row is seeded from p_initial_stability (NULL → cold start, as before).
+  -- On CONFLICT the DO UPDATE touches ONLY input, so an existing row keeps its real
+  -- stability/confidence — the seed never clobbers earned review history.
   INSERT INTO user_words
-    (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation)
+    (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation,
+     stability, confidence_rating)
   VALUES
-    (p_user_id, d.input, d.source_lang, d.target_lang, p_dictionary_word_id, NULL)
+    (p_user_id, d.input, d.source_lang, d.target_lang, p_dictionary_word_id, NULL,
+     p_initial_stability, confidence_from_stability(p_initial_stability))
   ON CONFLICT (user_id, dictionary_word_id) DO UPDATE
     SET input = EXCLUDED.input      -- no-op-ish; lets RETURNING surface the existing row
   RETURNING * INTO v_row;
@@ -348,7 +354,8 @@ $$;
 CREATE OR REPLACE FUNCTION save_dictionary_words(
   p_user_id             TEXT,
   p_dictionary_word_ids UUID[],
-  p_list_id             UUID DEFAULT NULL
+  p_list_id             UUID DEFAULT NULL,
+  p_initial_stabilities REAL[] DEFAULT NULL  -- #10 cold-start seeds, aligned to the ids (NULL = all cold)
 )
 RETURNS SETOF user_words
 LANGUAGE plpgsql
@@ -356,6 +363,12 @@ VOLATILE
 AS $$
 DECLARE
   v_rows user_words[];
+  -- Equal-length seed array (NULL-filled when the caller passed none), so the
+  -- two-array unnest below pairs each id with its own seed.
+  v_stabs REAL[] := COALESCE(
+    p_initial_stabilities,
+    array_fill(NULL::real, ARRAY[COALESCE(array_length(p_dictionary_word_ids, 1), 0)])
+  );
 BEGIN
   -- Insert (or no-op re-add) every verified sense, collecting the rows. This is
   -- its OWN statement on purpose: the list_words tag below is a SEPARATE
@@ -366,13 +379,14 @@ BEGIN
   -- the same reason (it tags in a separate statement).
   WITH ins AS (
     INSERT INTO user_words
-      (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation)
-    SELECT p_user_id, w.input, w.source_lang, w.target_lang, w.word_id, NULL
-      FROM words w
-     WHERE w.word_id = ANY(p_dictionary_word_ids)
-       AND w.is_verified = TRUE
+      (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation,
+       stability, confidence_rating)
+    SELECT p_user_id, w.input, w.source_lang, w.target_lang, w.word_id, NULL,
+           pair.stab, confidence_from_stability(pair.stab)
+      FROM unnest(p_dictionary_word_ids, v_stabs) AS pair(wid, stab)
+      JOIN words w ON w.word_id = pair.wid AND w.is_verified = TRUE
     ON CONFLICT (user_id, dictionary_word_id) DO UPDATE
-      SET input = EXCLUDED.input      -- no-op-ish; surfaces the existing row
+      SET input = EXCLUDED.input      -- no-op-ish; existing rows keep their stability
     RETURNING *
   )
   SELECT array_agg(ins) INTO v_rows FROM ins;
@@ -387,11 +401,11 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID)            FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION save_dictionary_words(TEXT, UUID[], UUID)         FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID, REAL)        FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION save_dictionary_words(TEXT, UUID[], UUID, REAL[])   FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION create_custom_word(TEXT, TEXT, TEXT, TEXT, TEXT, UUID) FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID)            TO anon, authenticated;
-GRANT  EXECUTE ON FUNCTION save_dictionary_words(TEXT, UUID[], UUID)         TO anon, authenticated;
+GRANT  EXECUTE ON FUNCTION save_dictionary_word(TEXT, UUID, UUID, REAL)        TO anon, authenticated;
+GRANT  EXECUTE ON FUNCTION save_dictionary_words(TEXT, UUID[], UUID, REAL[])   TO anon, authenticated;
 GRANT  EXECUTE ON FUNCTION create_custom_word(TEXT, TEXT, TEXT, TEXT, TEXT, UUID) TO anon, authenticated;
 
 -- =========================

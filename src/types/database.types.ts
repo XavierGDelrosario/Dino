@@ -565,6 +565,7 @@ export type Database = {
       save_dictionary_word: {
         Args: {
           p_dictionary_word_id: string
+          p_initial_stability?: number
           p_list_id?: string
           p_user_id: string
         }
@@ -591,6 +592,7 @@ export type Database = {
       save_dictionary_words: {
         Args: {
           p_dictionary_word_ids: string[]
+          p_initial_stabilities?: (number | null)[]
           p_list_id?: string
           p_user_id: string
         }

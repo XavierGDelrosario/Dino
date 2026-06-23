@@ -212,6 +212,58 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word", () => {
   });
 });
 
+// ── cold-start seeding (#10): the p_initial_stability path ──────────────────
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word cold-start seed", () => {
+  it("seeds a NEW row's stability + derived confidence, but never clobbers an existing one", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const input = `__seed_${Date.now()}__`;
+    const seeded = await svc
+      .from("words")
+      .insert({ input, translation: "x", source_lang: "JA", target_lang: "EN", is_verified: true })
+      .select("word_id")
+      .single();
+    const wordId = (seeded.data as { word_id: string }).word_id;
+
+    const u = await makeUser();
+    // First save WITH a seed → new row starts at stability 5, confidence bucket(5)=2.
+    const first = await u.client.rpc("save_dictionary_word", {
+      p_user_id: u.userId,
+      p_dictionary_word_id: wordId,
+      p_initial_stability: 5,
+    });
+    expect(first.error).toBeNull();
+    const row = first.data as { user_word_id: string; stability: number; confidence_rating: number };
+    expect(row.stability).toBeCloseTo(5, 5);
+    expect(row.confidence_rating).toBe(2); // 3 ≤ 5 < 7
+
+    // Re-save with a DIFFERENT seed → existing row's stability is preserved.
+    const again = await u.client.rpc("save_dictionary_word", {
+      p_user_id: u.userId,
+      p_dictionary_word_id: wordId,
+      p_initial_stability: 30,
+    });
+    expect((again.data as { stability: number }).stability).toBeCloseTo(5, 5); // unchanged
+  });
+
+  it("omitting the seed cold-starts (stability NULL, confidence 0) — back-compat", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const input = `__noseed_${Date.now()}__`;
+    const seeded = await svc
+      .from("words")
+      .insert({ input, translation: "y", source_lang: "JA", target_lang: "EN", is_verified: true })
+      .select("word_id")
+      .single();
+    const wordId = (seeded.data as { word_id: string }).word_id;
+    const u = await makeUser();
+    const r = await u.client.rpc("save_dictionary_word", { p_user_id: u.userId, p_dictionary_word_id: wordId });
+    const row = r.data as { stability: number | null; confidence_rating: number };
+    expect(row.stability).toBeNull();
+    expect(row.confidence_rating).toBe(0);
+  });
+});
+
 // ── save_dictionary_words (BATCH; needs service-role-seeded verified rows) ──
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_words", () => {
   it("saves many senses in one call, tags them all, and is idempotent", async () => {

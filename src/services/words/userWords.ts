@@ -119,8 +119,11 @@ export async function saveDictionaryWord(params: {
   userId: string;
   word: Word;
   listId?: string;
+  /** #10 cold-start seed (days of initial stability) for a NEW row; null/undefined
+   *  = cold start. Ignored for an existing row (its real history is preserved). */
+  initialStability?: number | null;
 }): Promise<UserWord> {
-  const { userId, word, listId } = params;
+  const { userId, word, listId, initialStability } = params;
 
   // One atomic RPC creates the entry AND tags the optional sub-list (see
   // save_dictionary_word in the init migration), so a failed tag can't leave the
@@ -130,6 +133,7 @@ export async function saveDictionaryWord(params: {
     p_user_id: userId,
     p_dictionary_word_id: word.wordId,
     p_list_id: listId,
+    p_initial_stability: initialStability ?? undefined,
   });
   if (error || !data) throw toServiceError(error, `Failed to save "${word.input}"`);
 
@@ -163,15 +167,21 @@ export async function saveDictionaryWords(params: {
   userId: string;
   words: Word[];
   listId?: string;
+  /** #10 cold-start seed per word (days of initial stability; null = cold). Applied
+   *  only to NEW rows, aligned to the de-duped word list. */
+  seedFor?: (word: Word) => number | null;
 }): Promise<UserWord[]> {
-  const { userId, words, listId } = params;
+  const { userId, words, listId, seedFor } = params;
   if (words.length === 0) return [];
 
-  const ids = [...new Set(words.map((w) => w.wordId))];
+  // Dedupe by wordId KEEPING the Word, so a per-id seed stays aligned to the ids.
+  const unique = [...new Map(words.map((w) => [w.wordId, w])).values()];
+  const ids = unique.map((w) => w.wordId);
   const { data, error } = await supabase.rpc("save_dictionary_words", {
     p_user_id: userId,
     p_dictionary_word_ids: ids,
     p_list_id: listId,
+    p_initial_stabilities: seedFor ? unique.map((w) => seedFor(w)) : undefined,
   });
   if (error) throw toServiceError(error, "Failed to save words");
 
