@@ -22,6 +22,16 @@ import "../components/translate/translate.css";
 export function TranslateView({ userId }: { userId: string }) {
   const t = useTranslate(userId);
   const [quiz, setQuiz] = useState<{ words: Word[]; mode: QuizMode } | null>(null);
+  const [domainNote, setDomainNote] = useState<string | null>(null);
+
+  // #12 — expand the paragraph into related domain words at the user's level, then
+  // quiz them (a learn session, so they're added + feed SRS + refine the level).
+  const onExplore = async () => {
+    setDomainNote(null);
+    const words = await t.exploreDomain();
+    if (words.length > 0) setQuiz({ words, mode: "learn" });
+    else setDomainNote("No related words at your level — try a longer or more common passage.");
+  };
 
   // Snapshot a paragraph's NEW words ONCE when its result arrives. The live
   // addablePrimaries empties as words get saved, which would otherwise unmount the
@@ -52,7 +62,8 @@ export function TranslateView({ userId }: { userId: string }) {
 
   const wordStudy = t.status === "done" && t.mode === "word" && t.meanings.length > 0;
   const paraStudy = t.status === "done" && t.mode === "paragraph" && t.para;
-  const hasActions = addAllWords.length > 0 || t.addableCount > 0 || t.reviewableCount > 0;
+  const hasActions =
+    addAllWords.length > 0 || t.addableCount > 0 || t.reviewableCount > 0 || !!paraStudy;
 
   return (
     <section className="translate">
@@ -160,8 +171,12 @@ export function TranslateView({ userId }: { userId: string }) {
                       Review {t.reviewableCount} saved {t.reviewableCount === 1 ? "word" : "words"}
                     </button>
                   )}
+                  <button className="btn btn--ghost" disabled={t.domainLoading} onClick={onExplore}>
+                    {t.domainLoading ? "Finding related words…" : "Explore related words"}
+                  </button>
                 </div>
               )}
+              {domainNote && <p className="review__scope">{domainNote}</p>}
               <ParagraphReader
                 text={t.analyzedInput}
                 tokens={t.para.tokens}

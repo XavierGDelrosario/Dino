@@ -16,6 +16,9 @@ import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/enti
 import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
+import { expandDomain } from "../services/domain";
+import { mapLimit } from "../lib/concurrency";
+import { MAX_TRANSLATION_CONCURRENCY } from "../services/translation";
 import {
   analyze,
   isSingleWord,
@@ -91,6 +94,11 @@ export function useTranslate(userId: string) {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
+  // The explanation language the reader's words were studied in (set by submit);
+  // domain expansion looks related words up in the same learning→native direction.
+  const [nativeLang, setNativeLang] = useState<LangCode>("EN");
+  const [domainLoading, setDomainLoading] = useState(false);
+
   /** Create a sub-list and return its id (the add buttons then tag into it). */
   const createNamedList = useCallback(
     async (name: string): Promise<string> => {
@@ -133,6 +141,7 @@ export function useTranslate(userId: string) {
         : tgt !== learning
           ? tgt
           : SUPPORTED_LANGUAGES.find((l) => l.code !== learning)?.code ?? tgt;
+      setNativeLang(native);
 
       // Collect knowledge state for a set of senses (which are saved, at what
       // confidence) so the UI can mark them up front.
@@ -350,6 +359,48 @@ export function useTranslate(userId: string) {
     [userId, markSaved, level]
   );
 
+  /** #12 — expand the paragraph into RELATED domain words at the user's level:
+   *  pool the word map over the content words, then resolve the top candidates to
+   *  quizzable Words (dropping ones already in the vocabulary). The caller opens a
+   *  quiz over the result. Returns [] when there's nothing (un-embedded seeds, or
+   *  all already known). */
+  const exploreDomain = useCallback(async (): Promise<Word[]> => {
+    if (!para || domainLoading) return [];
+    setDomainLoading(true);
+    setError(null);
+    try {
+      // Seeds = each distinct content word's primary JMdict entry (non-MT only).
+      const seedEntryIds: string[] = [];
+      const seenE = new Set<string>();
+      for (const tok of para.tokens) {
+        if (!isContentPos(tok.pos)) continue;
+        const eid = para.meanings.get(tok.text)?.[0]?.jmdictEntryId;
+        if (eid && !seenE.has(eid)) { seenE.add(eid); seedEntryIds.push(eid); }
+      }
+      const candidates = await expandDomain({ seedEntryIds, userLevel: level, limit: 18 });
+      // Resolve each candidate writing to a quizzable Word (learning→native).
+      const looked = await mapLimit(candidates, MAX_TRANSLATION_CONCURRENCY, (c) =>
+        lookupWord({ input: c.writing, sourceLang: learning, targetLang: nativeLang })
+          .then((r) => r.meanings[0] ?? null)
+          .catch(() => null),
+      );
+      const words: Word[] = [];
+      const seenW = new Set<string>();
+      for (const w of looked) {
+        if (w && !saved.has(w.wordId) && !seenW.has(w.wordId)) {
+          seenW.add(w.wordId);
+          words.push(w);
+        }
+      }
+      return words;
+    } catch (e) {
+      setError(message(e));
+      return [];
+    } finally {
+      setDomainLoading(false);
+    }
+  }, [para, level, learning, nativeLang, saved, domainLoading]);
+
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
   const markUnknown = useCallback(
     async (word: Word) => {
@@ -434,6 +485,8 @@ export function useTranslate(userId: string) {
     addablePrimaries, reviewablePrimaries,
     addableCount: addablePrimaries.length,
     reviewableCount: reviewablePrimaries.length, applyReview,
+    // #12 domain expansion: study related domain words at your level.
+    exploreDomain, domainLoading,
     // add buttons: tag to ALL / a sub-list (idempotent) + create-and-tag.
     lists, addWords, createNamedList,
     submit,
