@@ -159,3 +159,33 @@ describe("read-through cache", () => {
     expect(stub.fromCalls).toEqual(["words"]); // findCachedWord served from cache
   });
 });
+
+describe("NFC normalization at the cache + DB boundary", () => {
+  // が: U+304C (composed, what the edge stores) vs か + combining dakuten
+  // U+304B U+3099 (decomposed) — NFC unifies them. A caller that forgot to
+  // normalize must NOT fork the cache key or miss the stored row.
+  const COMPOSED = "\u304C"; // が (precomposed)
+  const DECOMPOSED = "\u304B\u3099"; // か + combining dakuten → NFC → が
+
+  it("queries the DB with the NFC-composed input, even given a decomposed one", async () => {
+    stub.queueFrom("words", { data: [], error: null });
+    await findWordTranslations({ input: DECOMPOSED, sourceLang: "JA", targetLang: "EN" });
+    const eqInput = stub.callsFor("words", "eq").find((c) => c.args[0] === "input");
+    expect(eqInput?.args[1]).toBe(COMPOSED); // normalized for the query, not raw decomposed
+  });
+
+  it("a decomposed lookup hits a cache entry primed under the composed form", async () => {
+    stub.queueFrom("words", { data: [row()], error: null });
+    await findWordTranslations({ input: COMPOSED, sourceLang: "JA", targetLang: "EN" }); // primes
+    const hit = await findWordTranslations({ input: DECOMPOSED, sourceLang: "JA", targetLang: "EN" });
+    expect(hit).toHaveLength(1);
+    expect(stub.fromCalls).toEqual(["words"]); // 2nd call served from cache — same key
+  });
+
+  it("findWordTranslationsBatch normalizes each input before the .in() query", async () => {
+    stub.queueFrom("words", { data: [], error: null });
+    await findWordTranslationsBatch({ inputs: [DECOMPOSED], sourceLang: "JA", targetLang: "EN" });
+    const inCall = stub.callsFor("words", "in").find((c) => c.args[0] === "input");
+    expect(inCall?.args[1]).toEqual([COMPOSED]);
+  });
+});

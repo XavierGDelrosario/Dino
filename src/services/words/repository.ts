@@ -76,14 +76,16 @@ function toWord(row: WordRow): Word {
  * or null. RLS scopes visibility to verified rows.
  *
  * OUTPUT: the single preferred Word, or null.
- * CONSTRAINTS: inputs must be pre-normalized/concrete.
+ * CONSTRAINTS: source/target must be concrete; input is NFC-normalized here so
+ * the cache key + DB query always match what the edge stored.
  */
 export async function findCachedWord(params: {
   input: string;
   sourceLang: LangCode;
   targetLang: LangCode;
 }): Promise<Word | null> {
-  const { input, sourceLang, targetLang } = params;
+  const { sourceLang, targetLang } = params;
+  const input = params.input.normalize("NFC");
 
   // Read-through: if the full sense list is memoized, the preferred sense is its
   // first element (same verified-first order) — no round-trip. A miss keeps the
@@ -113,14 +115,15 @@ export async function findCachedWord(params: {
  * to show them all. `findCachedWord` returns only the preferred one.
  *
  * OUTPUT: Word[] — every sense (may be empty).
- * CONSTRAINTS: inputs must be pre-normalized; RLS-scoped (verified).
+ * CONSTRAINTS: input is NFC-normalized here (matching the stored rows); RLS-scoped (verified).
  */
 export async function findWordTranslations(params: {
   input: string;
   sourceLang: LangCode;
   targetLang: LangCode;
 }): Promise<Word[]> {
-  const { input, sourceLang, targetLang } = params;
+  const { sourceLang, targetLang } = params;
+  const input = params.input.normalize("NFC");
 
   const cached = getCachedSenses(input, sourceLang, targetLang);
   if (cached) return cached;
@@ -146,15 +149,15 @@ export async function findWordTranslations(params: {
  * paragraph to its senses without N round-trips.
  *
  * OUTPUT: Map<input, Word[]> keyed by the stored input string.
- * CONSTRAINTS: query with the same normalization used when words were stored.
+ * CONSTRAINTS: inputs are NFC-normalized here (matching the stored rows).
  */
 export async function findWordTranslationsBatch(params: {
   inputs: string[];
   sourceLang: LangCode;
   targetLang: LangCode;
 }): Promise<Map<string, Word[]>> {
-  const { inputs, sourceLang, targetLang } = params;
-  const unique = [...new Set(inputs)];
+  const { sourceLang, targetLang } = params;
+  const unique = [...new Set(params.inputs.map((i) => i.normalize("NFC")))];
   const byWord = new Map<string, Word[]>();
   if (unique.length === 0) return byWord;
 

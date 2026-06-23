@@ -33,9 +33,11 @@ const store = new Map<string, Word[]>();
 
 // JSON.stringify of the tuple: unambiguous (each part is quoted/escaped) and plain
 // ASCII, so distinct keys can't collide and the source stays text (no separator
-// control chars).
+// control chars). NFC-normalize the input here too — the single chokepoint that
+// GUARANTEES a consistent key (composed vs decomposed Japanese can't fork it),
+// regardless of whether a caller remembered to normalize. Idempotent + cheap.
 const keyFor = (input: string, source: LangCode, target: LangCode) =>
-  JSON.stringify([source, target, input]);
+  JSON.stringify([source, target, input.normalize("NFC")]);
 
 /** Cached senses for a lookup, or undefined if not memoized yet (≠ "no senses"). */
 export function getCachedSenses(

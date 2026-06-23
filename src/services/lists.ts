@@ -61,7 +61,8 @@ export async function createList(params: {
   listName: string;
 }): Promise<List> {
   const { userId } = params;
-  const name = params.listName.trim();
+  // NFC so a composed vs decomposed Japanese name can't bypass UNIQUE(user_id,name).
+  const name = params.listName.trim().normalize("NFC");
   if (!name) throw new ServiceError("List name is required", "validation");
   assertNotReservedName(name);
 
@@ -84,7 +85,7 @@ export async function renameList(params: {
   listName: string;
 }): Promise<void> {
   const { listId } = params;
-  const name = params.listName.trim();
+  const name = params.listName.trim().normalize("NFC");
   if (!name) throw new ServiceError("List name is required", "validation");
   assertNotReservedName(name);
 
