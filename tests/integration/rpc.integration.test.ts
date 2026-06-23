@@ -501,3 +501,42 @@ describe.skipIf(!ENABLED)("rpc: related_words", () => {
     expect(error !== null || (data ?? []).length === 0).toBe(true); // denied or empty — never vectors
   });
 });
+
+// ── privilege lockdown + delete_account (#hardening §1b) ────────────────────
+describe.skipIf(!ENABLED || !SERVICE_KEY)("privilege lockdown", () => {
+  it("service_role cannot DELETE user data", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "守る", meaning: "to protect" });
+    const { error } = await svc.from("user_words").delete().eq("user_word_id", w);
+    expect(error).not.toBeNull(); // 42501 permission denied
+    const { data } = await u.client.from("user_words").select("user_word_id").eq("user_word_id", w);
+    expect(data ?? []).toHaveLength(1); // row survives
+  });
+
+  it("delete_account erases the caller's data (+ audit) and leaves others intact", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const a = await makeUser();
+    const b = await makeUser();
+    await makeStandaloneWord(a, { input: "消す", meaning: "to erase" });
+    await makeList(a, "DoomedList");
+    const bWord = await makeStandaloneWord(b, { input: "残る", meaning: "to remain" });
+
+    const { error } = await a.client.rpc("delete_account");
+    expect(error).toBeNull();
+
+    // A's data is gone (queried as A — same uid, now no rows)
+    expect((await a.client.from("user_words").select("user_word_id")).data ?? []).toHaveLength(0);
+    expect((await a.client.from("lists").select("list_id")).data ?? []).toHaveLength(0);
+    // B untouched
+    expect(
+      (await b.client.from("user_words").select("user_word_id").eq("user_word_id", bWord)).data ?? [],
+    ).toHaveLength(1);
+    // audit row written (service_role-readable only)
+    expect(
+      (await svc.from("account_deletion_log").select("user_id").eq("user_id", a.userId)).data ?? [],
+    ).toHaveLength(1);
+  });
+});
