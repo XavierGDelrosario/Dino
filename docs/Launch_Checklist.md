@@ -5,8 +5,12 @@ non-feature work (auth, deploy, security, cost, legal). Tags: `[concern]` = a
 concern raised directly · `[#N]` = roadmap item · `[§N]` = `Production_Hardening.md`.
 
 ## ✅ Done (baseline)
-Translate (JMdict + MT), Lists, Review (SRS), **#10 calibration**, **#11 word map**;
-perf pass, NFC hardening, integration-test coverage on the risky DB paths.
+Translate (JMdict + MT), Lists, Review (SRS), and the **full differentiator thread**:
+**#8** difficulty · **#9** extract-and-quiz · **#10** calibration (silent) · **#11**
+word map (pgvector, 22.6k embedded) · **#12** domain quizzes ("Explore related
+words"). Plus the perf pass, NFC hardening, delete-lockdown, and integration-test
+coverage on the risky DB paths. **The product roadmap (differentiator) is complete;
+what remains below is the path to shipping it.**
 
 ## 🚫 Tier 0 — Launch blockers (security & cost)
 1. **Lock down deletes** — `[concern · §1b]` ✅ **DONE** (`20260624_privileges.sql`):
@@ -38,15 +42,15 @@ perf pass, NFC hardening, integration-test coverage on the risky DB paths.
     shell, audit the `.catch(()=>{})` swallowed errors, spot-check comments.
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
-**#12 domain-tailored quizzes** (the differentiator — sits on #10+#11, but a feature
-not a gate) · real furigana (#16) · i18n (#17) · FSRS (#19) · native app (#18) ·
-abandoned-guest cleanup.
+~~#12 domain-tailored quizzes~~ ✅ **DONE** (the differentiator) · real furigana
+(#16) · i18n (#17) · FSRS (#19) · native app (#18) · abandoned-guest cleanup ·
+#12 refinements (per-sense embeddings / prod regen — see "Discovered" below).
 
 ---
-**Throughline:** Tier 0 + Tier 1 *is* the whole gap to publishable — roughly auth,
-deploy, and the security/cost/legal hardening. Everything in Tier 3 (incl. the
-differentiator #12) can wait. Remaining quick/local wins are limited — most of
-Tier 0/1 needs hosted infra, external accounts, or the auth build.
+**Throughline:** with the differentiator thread (#8–#12) **complete**, Tier 0 + Tier 1
+*is* the whole remaining gap to publishable — auth, deploy, and the security/cost/
+legal hardening. Most of it needs hosted infra, external accounts, or the auth build;
+the local hardening (delete-lockdown, RLS audit, swallowed-error logging) is done.
 
 ## ➕ Discovered this session (append; slot into tiers as you go)
 - **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
