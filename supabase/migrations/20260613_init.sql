@@ -350,8 +350,16 @@ RETURNS SETOF user_words
 LANGUAGE plpgsql
 VOLATILE
 AS $$
+DECLARE
+  v_rows user_words[];
 BEGIN
-  RETURN QUERY
+  -- Insert (or no-op re-add) every verified sense, collecting the rows. This is
+  -- its OWN statement on purpose: the list_words tag below is a SEPARATE
+  -- statement so the new user_words rows are VISIBLE to the list_words RLS
+  -- WITH CHECK (which EXISTS-checks user_words ownership). A single-statement
+  -- CTE would tag against the pre-statement snapshot — rows not yet visible —
+  -- and fail the policy (42501). The single-word save_dictionary_word works for
+  -- the same reason (it tags in a separate statement).
   WITH ins AS (
     INSERT INTO user_words
       (user_id, input, source_lang, target_lang, dictionary_word_id, custom_translation)
@@ -360,20 +368,18 @@ BEGIN
      WHERE w.word_id = ANY(p_dictionary_word_ids)
        AND w.is_verified = TRUE
     ON CONFLICT (user_id, dictionary_word_id) DO UPDATE
-      SET input = EXCLUDED.input      -- no-op-ish; surfaces the existing row in RETURNING
+      SET input = EXCLUDED.input      -- no-op-ish; surfaces the existing row
     RETURNING *
-  ),
-  -- Tag every inserted/existing row into the sub-list when one is given. A
-  -- data-modifying CTE runs to completion even though the final SELECT ignores
-  -- it, so the tags are written; the two-sided list_words RLS still applies.
-  tagged AS (
-    INSERT INTO list_words (list_id, user_word_id)
-    SELECT p_list_id, ins.user_word_id FROM ins
-     WHERE p_list_id IS NOT NULL
-    ON CONFLICT (list_id, user_word_id) DO NOTHING
-    RETURNING 1
   )
-  SELECT ins.* FROM ins;
+  SELECT array_agg(ins) INTO v_rows FROM ins;
+
+  IF p_list_id IS NOT NULL AND v_rows IS NOT NULL THEN
+    INSERT INTO list_words (list_id, user_word_id)
+    SELECT p_list_id, r.user_word_id FROM unnest(v_rows) AS r
+    ON CONFLICT (list_id, user_word_id) DO NOTHING;
+  END IF;
+
+  RETURN QUERY SELECT * FROM unnest(v_rows);
 END;
 $$;
 
