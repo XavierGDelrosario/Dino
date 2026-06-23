@@ -467,3 +467,37 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_translation_quota", () =
     expect((usage![0] as { chars_used: number }).chars_used).toBe(20);
   });
 });
+
+// ── related_words (#11) ─────────────────────────────────────────────────────
+// word_embeddings is superuser-write-only (server-only, like jmdict_*): even
+// service_role is denied, so we don't seed here — we exercise the RPC against the
+// real ingested vectors (self-skipping the ordering assertion when absent) and
+// assert the lockdown directly.
+describe.skipIf(!ENABLED)("rpc: related_words", () => {
+  const NEKO = "1467640"; // 猫 in JMdict — embedded once build-embeddings.py has run
+
+  it("returns distance-ordered neighbours for an embedded entry (skips if not embedded)", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("related_words", { p_entry_id: NEKO, p_limit: 5 });
+    expect(error).toBeNull();
+    const rows = (data ?? []) as { entry_id: string; distance: number }[];
+    if (rows.length === 0) return; // embeddings not ingested in this env → skip the ordering check
+    expect(rows.length).toBeLessThanOrEqual(5);
+    expect(rows[0].entry_id).not.toBe(NEKO); // never returns the entry itself
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i].distance).toBeGreaterThanOrEqual(rows[i - 1].distance); // nearest first
+    }
+  });
+
+  it("returns nothing for an entry that has no embedding", async () => {
+    const u = await makeUser();
+    const { data } = await u.client.rpc("related_words", { p_entry_id: "___no_such_entry___", p_limit: 5 });
+    expect((data as unknown[]) ?? []).toHaveLength(0);
+  });
+
+  it("does not expose raw vectors to clients (server-only table)", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.from("word_embeddings").select("embedding").limit(1);
+    expect(error !== null || (data ?? []).length === 0).toBe(true); // denied or empty — never vectors
+  });
+});

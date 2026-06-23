@@ -540,6 +540,15 @@ export type Database = {
           writing: string
         }[]
       }
+      related_words: {
+        Args: { p_entry_id: string; p_limit?: number }
+        Returns: {
+          entry_id: string
+          writing: string | null
+          gloss: string | null
+          distance: number
+        }[]
+      }
       record_review: {
         Args: { p_grade: number; p_user_word_id: string }
         Returns: {
