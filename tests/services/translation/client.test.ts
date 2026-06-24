@@ -23,8 +23,12 @@ describe("translate", () => {
     const out = await translate({ input: "猫", sourceLang: "JA", targetLang: "EN" });
 
     expect(stub.functions.invoke).toHaveBeenCalledWith("translate", {
-      body: { input: "猫", sourceLang: "JA", targetLang: "EN" },
+      body: expect.objectContaining({ input: "猫", sourceLang: "JA", targetLang: "EN" }),
     });
+    // A per-call idempotency key is attached so retries replay (not re-spend).
+    const sent = stub.functions.invoke.mock.calls[0][1].body;
+    expect(typeof sent.idempotencyKey).toBe("string");
+    expect(sent.idempotencyKey.length).toBeGreaterThan(0);
     expect(out).toBe(result);
   });
 
@@ -75,7 +79,7 @@ describe("translateBatch", () => {
     const map = await translateBatch({ inputs: ["猫", "犬", "鳥"], sourceLang: "JA", targetLang: "EN" });
 
     expect(stub.functions.invoke).toHaveBeenCalledWith("translate", {
-      body: { inputs: ["猫", "犬", "鳥"], sourceLang: "JA", targetLang: "EN" },
+      body: expect.objectContaining({ inputs: ["猫", "犬", "鳥"], sourceLang: "JA", targetLang: "EN" }),
     });
     expect(map.get("猫")).toEqual([neko]);
     expect(map.get("犬")).toEqual([inu]);

@@ -328,6 +328,45 @@ async function fetchVerifiedMany(
   return (data ?? []) as WordRow[];
 }
 
+// ── Idempotency (see migration 20260626) ───────────────────────────────────
+// A retried request that already ran the PAID MT path must not re-call Google /
+// re-reserve quota. We replay the stored response for the client's per-request key.
+// Both helpers fail OPEN (a store blip just means the retry redoes the work — the
+// same fail-open stance as the quota reserve).
+
+/** Prior stored response for this key, or null (miss / disabled / error). */
+async function lookupIdempotent(
+  supabase: Supa,
+  key: string | null,
+): Promise<{ response: unknown; status: number } | null> {
+  if (!key) return null;
+  const { data, error } = await supabase
+    .from("idempotency_keys")
+    .select("response, status")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) {
+    console.error("idempotency lookup failed:", error.message);
+    return null;
+  }
+  return data ? { response: data.response, status: data.status } : null;
+}
+
+/** Persist a paid response under the key so a retry replays it. Best-effort.
+ *  INSERT-or-do-nothing: a key's response is immutable (first write wins), so this
+ *  needs only INSERT — no UPDATE grant, and concurrent stores can't clobber. */
+async function storeIdempotent(
+  supabase: Supa,
+  key: string,
+  response: unknown,
+  status: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from("idempotency_keys")
+    .upsert({ key, response, status }, { onConflict: "key", ignoreDuplicates: true });
+  if (error) console.error("idempotency store failed:", error.message);
+}
+
 /** The success response for a set of verified rows (primary = first row). */
 function respondWords(rows: WordRow[]) {
   return {
@@ -470,14 +509,30 @@ Deno.serve(async (req) => {
     }
   }
 
-  // SINGLE mode: { input, persist? }. NFC-normalize to match cache keys + jmdict_*.
+  // SINGLE mode: { input, persist?, idempotencyKey? }. NFC-normalize to match cache.
   const input = String(body.input ?? "").trim().normalize("NFC");
   // persist=false → translate for display only (a whole paragraph in context)
   // without reading/writing the cache; we don't store unique paragraphs.
   const persist = body.persist !== false;
+  const idempotencyKey =
+    typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : null;
   if (!input) {
     return reply({ error: "input, sourceLang and targetLang are required" }, 400);
   }
+
+  // 0. Idempotency replay: a retried PAID request already has its response stored
+  //    (only the MT path stores — see usedMT below), so return it without re-spending.
+  const prior = await lookupIdempotent(supabase, idempotencyKey);
+  if (prior) return reply(prior.response, prior.status);
+
+  // Did this request run the PAID MT path? Only then is the response stored, so a
+  // retry replays it instead of re-calling Google / re-reserving quota.
+  let usedMT = false;
+  /** Reply, first storing the response under the idempotency key when MT was used. */
+  const finish = async (resBody: unknown, status = 200) => {
+    if (idempotencyKey && usedMT) await storeIdempotent(supabase, idempotencyKey, resBody, status);
+    return reply(resBody, status);
+  };
 
   // 1. Verified-cache check (all senses) -> no JMdict re-query. Words only;
   //    display-only paragraph translations skip the cache entirely.
@@ -522,16 +577,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // The paid path ran (quota reserved + Google attempted), so this response is
+    // stored under the idempotency key — a retry replays it, no re-spend.
+    usedMT = true;
     const mt = await callTranslationProvider(input, sourceLang, targetLang);
     if (mt) results = [mt];
   }
   if (results.length === 0) {
-    return reply({ translated: false, translation: null, word: null, words: [] });
+    return finish({ translated: false, translation: null, word: null, words: [] });
   }
 
   // 3. Display-only (paragraph): return the primary text without caching.
   if (!persist) {
-    return reply({
+    return finish({
       translated: true,
       translation: results[0].translation,
       word: null,

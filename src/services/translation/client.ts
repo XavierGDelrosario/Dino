@@ -66,11 +66,19 @@ function isTransient(error: { name?: string; context?: unknown }): boolean {
 
 /** Invoke the edge function with the transient-failure retry/backoff, shared by
  *  the single and batch entry points. Throws on a deliberate (4xx) or exhausted
- *  failure; returns the function's data otherwise. */
+ *  failure; returns the function's data otherwise.
+ *
+ *  Idempotency: a key is generated ONCE per logical call (not per attempt), so all
+ *  retries carry the SAME key. The edge replays the stored response for a retried
+ *  PAID request (the persist=false paragraph gloss) instead of re-calling Google /
+ *  re-reserving quota. The batch path ignores it (already cache-idempotent). */
 async function invokeTranslate<T>(body: Record<string, unknown>): Promise<T> {
+  const idempotencyKey =
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const keyedBody = { ...body, idempotencyKey };
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const { data, error } = await supabase.functions.invoke<T>("translate", { body });
+    const { data, error } = await supabase.functions.invoke<T>("translate", { body: keyedBody });
 
     if (!error) {
       if (!data) throw new ServiceError("Empty response from translate function");
