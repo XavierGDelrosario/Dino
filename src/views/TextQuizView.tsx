@@ -7,17 +7,15 @@
 import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
+import { useI18n, type MessageKey } from "../i18n";
 import type { Word } from "../services/words/repository";
 import type { ReviewGrade } from "../services/review";
 import "../components/flashcards/flashcards.css";
 
-const CONFIDENCE: { grade: ReviewGrade; label: string }[] = [
-  { grade: 1, label: "Forgot" },
-  { grade: 2, label: "Hard" },
-  { grade: 3, label: "OK" },
-  { grade: 4, label: "Good" },
-  { grade: 5, label: "Easy" },
-];
+const GRADES: ReviewGrade[] = [1, 2, 3, 4, 5];
+const GRADE_KEY: Record<ReviewGrade, MessageKey> = {
+  1: "review.grade1", 2: "review.grade2", 3: "review.grade3", 4: "review.grade4", 5: "review.grade5",
+};
 
 export type QuizMode = "learn" | "review";
 
@@ -39,21 +37,19 @@ export function TextQuizView({
   // mode "learn" = NEW words (first-encounter recall), the right signal to
   // calibrate the user's level on — done silently in the hook (no UI here).
   const q = useTextQuiz(userId, words, { onGraded, calibrate: mode === "learn" });
+  const { t } = useI18n();
+  const noun = (n: number) => t(n === 1 ? "common.word" : "common.words");
 
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
-      ← Back to reader
+      {t("quiz.back")}
     </button>
   );
 
   if (q.status === "empty") {
     return (
       <div className="review__msg">
-        <p>
-          {mode === "review"
-            ? "No saved words in this text to review yet."
-            : "No new words in this text to quiz — you know them all. 🎉"}
-        </p>
+        <p>{mode === "review" ? t("quiz.emptyReview") : t("quiz.emptyLearn")}</p>
         {close}
       </div>
     );
@@ -64,12 +60,12 @@ export function TextQuizView({
       <div className="review__msg">
         <p>
           {mode === "review"
-            ? `Reviewed ${q.reviewedCount} ${q.reviewedCount === 1 ? "word" : "words"}. 🎉`
-            : `Added ${q.reviewedCount} new ${q.reviewedCount === 1 ? "word" : "words"} to your vocabulary. 🎉`}
+            ? t("quiz.doneReview", { n: q.reviewedCount, noun: noun(q.reviewedCount) })
+            : t("quiz.doneLearn", { n: q.reviewedCount, noun: noun(q.reviewedCount) })}
         </p>
         <div className="review__foot">
           <button className="btn" onClick={q.restart}>
-            Quiz again
+            {t("quiz.again")}
           </button>
           {close}
         </div>
@@ -81,9 +77,7 @@ export function TextQuizView({
   return (
     <section className="review">
       <p className="review__scope">
-        {mode === "review"
-          ? "Reviewing words from this text"
-          : "Quizzing new words from this text"}
+        {mode === "review" ? t("quiz.scopeReview") : t("quiz.scopeLearn")}
       </p>
       <ProgressBar position={q.position} total={q.total} />
 
@@ -92,23 +86,26 @@ export function TextQuizView({
       {q.error && <pre className="review__error">{q.error}</pre>}
 
       {q.flipped ? (
-        <div className="grades" aria-label="How well did you recall it?">
-          {CONFIDENCE.map(({ grade, label }) => (
-            <button
-              key={grade}
-              className={`grade grade--c${grade}`}
-              disabled={q.submitting}
-              onClick={() => q.grade(grade)}
-              title={`${grade} — ${label}`}
-            >
-              <span className="grade__num">{grade}</span>
-              <span className="grade__label">{label}</span>
-            </button>
-          ))}
+        <div className="grades" aria-label={t("review.recallAria")}>
+          {GRADES.map((grade) => {
+            const label = t(GRADE_KEY[grade]);
+            return (
+              <button
+                key={grade}
+                className={`grade grade--c${grade}`}
+                disabled={q.submitting}
+                onClick={() => q.grade(grade)}
+                title={`${grade} — ${label}`}
+              >
+                <span className="grade__num">{grade}</span>
+                <span className="grade__label">{label}</span>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <button className="btn review__reveal" onClick={q.flip}>
-          Reveal answer
+          {t("review.reveal")}
         </button>
       )}
 

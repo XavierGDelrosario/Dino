@@ -6,6 +6,7 @@ import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { SenseText } from "../common/SenseText";
 import { AddToListButton } from "./AddToListButton";
+import { useI18n } from "../../i18n";
 import "./translate.css";
 
 export function WordResults({
@@ -26,11 +27,12 @@ export function WordResults({
   onCreateList: (name: string) => Promise<string>;
 }) {
   const [showOthers, setShowOthers] = useState(false);
+  const { t } = useI18n();
 
   if (meanings.length === 0) {
     return (
       <div className="results results--empty">
-        <p>No translation found.</p>
+        <p>{t("results.noTranslation")}</p>
         <p className="results__echo">{headword}</p>
       </div>
     );
@@ -47,7 +49,7 @@ export function WordResults({
       <AddToListButton
         words={[word]}
         lists={lists}
-        label="+ Add"
+        label={t("translate.addBtn")}
         alreadyAdded={saved.has(word.wordId)}
         onAdd={onAdd}
         onCreateList={onCreateList}
@@ -62,7 +64,7 @@ export function WordResults({
       {others.length > 0 && (
         <>
           <button className="results__more" onClick={() => setShowOthers((v) => !v)} aria-expanded={showOthers}>
-            {showOthers ? "Hide other meanings" : `Other meanings (${others.length})`}
+            {showOthers ? t("lists.hideOthers") : t("lists.otherMeanings", { n: others.length })}
           </button>
           {showOthers && <ul className="results__others">{others.map((w) => row(w))}</ul>}
         </>

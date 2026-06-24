@@ -3,6 +3,7 @@
 // the select/create callbacks.
 import { useState } from "react";
 import type { List } from "../../services/lists";
+import { useI18n } from "../../i18n";
 import "./translate.css";
 
 export function DestinationPicker({
@@ -18,23 +19,24 @@ export function DestinationPicker({
 }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const { t } = useI18n();
 
   return (
     <div className="destpicker">
-      <span className="destpicker__label">Add to:</span>
+      <span className="destpicker__label">{t("dest.addTo")}</span>
       {creating ? (
         <>
           <input
             className="input input--sm"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="New list name"
-            aria-label="New list name"
+            placeholder={t("lists.newListPlaceholder")}
+            aria-label={t("lists.newListAria")}
             autoFocus
           />
           <button
             className="iconbtn"
-            title="Create list"
+            title={t("common.create")}
             onClick={() => {
               if (name.trim()) onCreate(name);
               setName("");
@@ -45,7 +47,7 @@ export function DestinationPicker({
           </button>
           <button
             className="iconbtn"
-            title="Cancel"
+            title={t("common.cancel")}
             onClick={() => {
               setName("");
               setCreating(false);
@@ -62,15 +64,15 @@ export function DestinationPicker({
             if (e.target.value === "__new__") setCreating(true);
             else onSelect(e.target.value || null);
           }}
-          aria-label="Destination list"
+          aria-label={t("dest.all")}
         >
-          <option value="">ALL (everything)</option>
+          <option value="">{t("dest.all")}</option>
           {lists.map((l) => (
             <option key={l.listId} value={l.listId}>
               {l.listName}
             </option>
           ))}
-          <option value="__new__">＋ New list…</option>
+          <option value="__new__">{t("add.newListEllipsis")}</option>
         </select>
       )}
     </div>

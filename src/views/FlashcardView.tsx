@@ -4,41 +4,42 @@
 import { useReview } from "../hooks/useReview";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
+import { useI18n, type MessageKey } from "../i18n";
 import type { ReviewGrade } from "../services/review";
 import "../components/flashcards/flashcards.css";
 
-const CONFIDENCE: { grade: ReviewGrade; label: string }[] = [
-  { grade: 1, label: "Forgot" },
-  { grade: 2, label: "Hard" },
-  { grade: 3, label: "OK" },
-  { grade: 4, label: "Good" },
-  { grade: 5, label: "Easy" },
-];
+const GRADES: ReviewGrade[] = [1, 2, 3, 4, 5];
+const GRADE_KEY: Record<ReviewGrade, MessageKey> = {
+  1: "review.grade1", 2: "review.grade2", 3: "review.grade3", 4: "review.grade4", 5: "review.grade5",
+};
 
 export function FlashcardView({
   userId,
   listId = null,
-  listName = "All words",
+  listName,
 }: {
   userId: string;
   listId?: string | null;
   listName?: string;
 }) {
   const r = useReview(userId, listId);
+  const { t } = useI18n();
+  const scopeName = listName || t("lists.allWords");
+  const noun = (n: number) => t(n === 1 ? "common.word" : "common.words");
 
-  const scope = <p className="review__scope">Reviewing: {listName}</p>;
+  const scope = <p className="review__scope">{t("review.scope", { name: scopeName })}</p>;
 
   if (r.status === "loading") {
-    return <p className="review__msg">Loading review…</p>;
+    return <p className="review__msg">{t("review.loading")}</p>;
   }
 
   if (r.status === "error") {
     return (
       <div className="review__msg">
-        <p>Couldn’t load the review.</p>
+        <p>{t("review.errorTitle")}</p>
         {r.error && <pre className="review__error">{r.error}</pre>}
         <button className="btn" onClick={r.restart}>
-          Retry
+          {t("common.retry")}
         </button>
       </div>
     );
@@ -48,11 +49,7 @@ export function FlashcardView({
     return (
       <div className="review__msg">
         {scope}
-        <p>
-          {listId
-            ? "No words in this list to review yet."
-            : "Nothing to review yet — add some words to your vocabulary first."}
-        </p>
+        <p>{listId ? t("review.emptyList") : t("review.emptyAll")}</p>
       </div>
     );
   }
@@ -60,12 +57,9 @@ export function FlashcardView({
   if (r.status === "done") {
     return (
       <div className="review__msg">
-        <p>
-          Done — reviewed {r.reviewedCount}{" "}
-          {r.reviewedCount === 1 ? "word" : "words"}. 🎉
-        </p>
+        <p>{t("review.done", { n: r.reviewedCount, noun: noun(r.reviewedCount) })}</p>
         <button className="btn" onClick={r.restart}>
-          Review again
+          {t("review.again")}
         </button>
       </div>
     );
@@ -82,23 +76,26 @@ export function FlashcardView({
       {r.error && <pre className="review__error">{r.error}</pre>}
 
       {r.flipped ? (
-        <div className="grades" aria-label="How well did you recall it?">
-          {CONFIDENCE.map(({ grade, label }) => (
-            <button
-              key={grade}
-              className={`grade grade--c${grade}`}
-              disabled={r.submitting}
-              onClick={() => r.grade(grade)}
-              title={`${grade} — ${label}`}
-            >
-              <span className="grade__num">{grade}</span>
-              <span className="grade__label">{label}</span>
-            </button>
-          ))}
+        <div className="grades" aria-label={t("review.recallAria")}>
+          {GRADES.map((grade) => {
+            const label = t(GRADE_KEY[grade]);
+            return (
+              <button
+                key={grade}
+                className={`grade grade--c${grade}`}
+                disabled={r.submitting}
+                onClick={() => r.grade(grade)}
+                title={`${grade} — ${label}`}
+              >
+                <span className="grade__num">{grade}</span>
+                <span className="grade__label">{label}</span>
+              </button>
+            );
+          })}
         </div>
       ) : (
         <button className="btn review__reveal" onClick={r.flip}>
-          Reveal answer
+          {t("review.reveal")}
         </button>
       )}
     </section>

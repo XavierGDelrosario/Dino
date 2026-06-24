@@ -1,6 +1,7 @@
 // One flashcard. Front shows the term only (recall the meaning); the back
 // reveals the reading (furigana) + the translation. Readings come straight off
 // the source row — authoritative for the no-context surface (see CLAUDE.md).
+import { useI18n } from "../../i18n";
 import "./flashcards.css";
 
 /** The minimal face a card renders — satisfied by both a ReviewQueueItem (a saved
@@ -21,6 +22,7 @@ export function FlashcardCard({
   flipped: boolean;
   onFlip: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className={`flashcard${flipped ? " flashcard--flipped" : ""}`}
@@ -44,7 +46,7 @@ export function FlashcardCard({
           <div className="flashcard__translation">{word.translation}</div>
         </div>
       ) : (
-        <div className="flashcard__hint">Tap to reveal</div>
+        <div className="flashcard__hint">{t("flashcard.tapToReveal")}</div>
       )}
     </div>
   );

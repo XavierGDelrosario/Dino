@@ -6,6 +6,7 @@
 import { useRef, useState } from "react";
 import type { List } from "../../services/lists";
 import type { Word } from "../../services/words/repository";
+import { useI18n } from "../../i18n";
 import "./translate.css";
 
 const CHECK_MS = 1000;
@@ -39,6 +40,7 @@ export function AddToListButton({
   const [phase, setPhase] = useState<Phase>(alreadyAdded ? "armed" : "idle");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const { t } = useI18n();
   // The set we're operating on, frozen at the first add (the live `words` empties
   // once they're saved, but the menu still needs to tag the originals).
   const frozen = useRef<Word[]>(words);
@@ -87,7 +89,7 @@ export function AddToListButton({
   };
 
   if (phase === "check") {
-    return <button className={`${className} add--done`} disabled aria-label="Added">✓</button>;
+    return <button className={`${className} add--done`} disabled aria-label={t("add.addedAria")}>✓</button>;
   }
   if (phase === "busy") {
     return <button className={className} disabled>…</button>;
@@ -105,7 +107,7 @@ export function AddToListButton({
 
       {phase === "menu" && (
         <div className="addmenu" role="menu">
-          <div className="addmenu__title">Add to a list</div>
+          <div className="addmenu__title">{t("add.menuTitle")}</div>
           {lists.map((l) => (
             <button key={l.listId} className="addmenu__item" onClick={() => addToList(l.listId)}>
               {l.listName}
@@ -117,15 +119,15 @@ export function AddToListButton({
                 className="input input--sm"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="New list name"
-                aria-label="New list name"
+                placeholder={t("lists.newListPlaceholder")}
+                aria-label={t("lists.newListAria")}
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && createAndAdd()}
               />
-              <button className="iconbtn" title="Create" onClick={createAndAdd}>✓</button>
+              <button className="iconbtn" title={t("common.create")} onClick={createAndAdd}>✓</button>
               <button
                 className="iconbtn"
-                title="Cancel"
+                title={t("common.cancel")}
                 onClick={() => {
                   setCreating(false);
                   setName("");
@@ -136,11 +138,11 @@ export function AddToListButton({
             </div>
           ) : (
             <button className="addmenu__item addmenu__new" onClick={() => setCreating(true)}>
-              ＋ New list…
+              {t("add.newListEllipsis")}
             </button>
           )}
           <button className="addmenu__close" onClick={() => setPhase("armed")}>
-            Done
+            {t("add.done")}
           </button>
         </div>
       )}

@@ -41,9 +41,10 @@ export function App() {
   }, []);
   // which vocabulary the Review tab quizzes (null = ALL). Set by a list's
   // "Review" button, which also jumps to the Review tab.
+  // name "" = the virtual ALL list; FlashcardView localizes it ("All words"/全単語).
   const [reviewScope, setReviewScope] = useState<{ listId: string | null; name: string }>({
     listId: null,
-    name: "All words",
+    name: "",
   });
 
   return (

@@ -110,6 +110,46 @@ export const en = {
   "period.week": "this week",
   "period.month": "this month",
   "period.year": "this year",
+
+  // review / flashcards
+  "common.retry": "Retry",
+  "review.grade1": "Forgot",
+  "review.grade2": "Hard",
+  "review.grade3": "OK",
+  "review.grade4": "Good",
+  "review.grade5": "Easy",
+  "review.scope": "Reviewing: {name}",
+  "review.loading": "Loading review…",
+  "review.errorTitle": "Couldn’t load the review.",
+  "review.emptyList": "No words in this list to review yet.",
+  "review.emptyAll": "Nothing to review yet — add some words to your vocabulary first.",
+  "review.done": "Done — reviewed {n} {noun}. 🎉",
+  "review.again": "Review again",
+  "review.recallAria": "How well did you recall it?",
+  "review.reveal": "Reveal answer",
+  "flashcard.tapToReveal": "Tap to reveal",
+
+  // text quiz
+  "quiz.back": "← Back to reader",
+  "quiz.emptyReview": "No saved words in this text to review yet.",
+  "quiz.emptyLearn": "No new words in this text to quiz — you know them all. 🎉",
+  "quiz.doneReview": "Reviewed {n} {noun}. 🎉",
+  "quiz.doneLearn": "Added {n} new {noun} to your vocabulary. 🎉",
+  "quiz.again": "Quiz again",
+  "quiz.scopeReview": "Reviewing words from this text",
+  "quiz.scopeLearn": "Quizzing new words from this text",
+
+  // add-to-list button / destination picker
+  "add.addedAria": "Added",
+  "add.menuTitle": "Add to a list",
+  "add.newListEllipsis": "＋ New list…",
+  "add.done": "Done",
+  "dest.addTo": "Add to:",
+  "dest.all": "ALL (everything)",
+
+  // word results
+  "results.noTranslation": "No translation found.",
+  "translate.addBtn": "+ Add",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -205,6 +245,42 @@ export const ja: Record<MessageKey, string> = {
   "period.week": "今週",
   "period.month": "今月",
   "period.year": "今年",
+
+  "common.retry": "再試行",
+  "review.grade1": "忘れた",
+  "review.grade2": "難しい",
+  "review.grade3": "まあまあ",
+  "review.grade4": "よい",
+  "review.grade5": "簡単",
+  "review.scope": "復習中：{name}",
+  "review.loading": "復習を読み込み中…",
+  "review.errorTitle": "復習を読み込めませんでした。",
+  "review.emptyList": "このリストに復習する単語がまだありません。",
+  "review.emptyAll": "まだ復習するものがありません — まず語彙に単語を追加してください。",
+  "review.done": "完了 — {n}{noun}を復習しました。🎉",
+  "review.again": "もう一度復習",
+  "review.recallAria": "どれくらい思い出せましたか？",
+  "review.reveal": "答えを表示",
+  "flashcard.tapToReveal": "タップして表示",
+
+  "quiz.back": "← リーダーに戻る",
+  "quiz.emptyReview": "このテキストに復習する保存済みの単語がまだありません。",
+  "quiz.emptyLearn": "このテキストにクイズする新しい単語はありません — すべて習得済みです。🎉",
+  "quiz.doneReview": "{n}{noun}を復習しました。🎉",
+  "quiz.doneLearn": "{n}個の新しい{noun}を語彙に追加しました。🎉",
+  "quiz.again": "もう一度クイズ",
+  "quiz.scopeReview": "このテキストの単語を復習中",
+  "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
+
+  "add.addedAria": "追加しました",
+  "add.menuTitle": "リストに追加",
+  "add.newListEllipsis": "＋ 新しいリスト…",
+  "add.done": "完了",
+  "dest.addTo": "追加先：",
+  "dest.all": "すべて（全体）",
+
+  "results.noTranslation": "翻訳が見つかりません。",
+  "translate.addBtn": "＋ 追加",
 };
 
 export const LOCALES = [

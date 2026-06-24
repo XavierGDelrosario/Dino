@@ -94,7 +94,7 @@ export function ListView({
           <button
             className="btn btn--sm lists__reviewbtn"
             onClick={() =>
-              onReview(L.selectedListId, selectedList ? selectedList.listName : t("lists.allWords"))
+              onReview(L.selectedListId, selectedList ? selectedList.listName : "")
             }
             title={t("lists.reviewTitle")}
           >
