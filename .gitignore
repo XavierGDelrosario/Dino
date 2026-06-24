@@ -33,3 +33,7 @@ supabase/.temp/
 jmdict-*.json
 jmdict-*.json.tgz
 jmdict-*.json.zip
+
+# Generated seed dump (JMdict + embeddings), ~120MB — regenerate with
+# `npm run db:dump-seed` after an ingest/embed; auto-loaded on `db reset`.
+supabase/seeds/

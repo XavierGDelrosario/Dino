@@ -68,7 +68,10 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+# JMdict + word_embeddings data, captured by `npm run db:dump-seed` so a `db reset`
+# restores the dictionary instantly instead of re-running the (slow) ingest/embed.
+# A glob (not an explicit file) so a fresh checkout with no seeds/ just loads nothing.
+sql_paths = ["./seeds/*.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
