@@ -26,14 +26,11 @@ import {
   type UserWord,
 } from "../services/words/userWords";
 import { lookupWord } from "../services/lookup";
+import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 import type { LangCode, SourceSelection } from "../services/language";
 
 export type ListStatus = "loading" | "ready" | "error";
-
-function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 export function useLists(userId: string) {
   const [lists, setLists] = useState<List[]>([]);

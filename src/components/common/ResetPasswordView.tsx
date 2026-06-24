@@ -3,14 +3,9 @@
 // signed in to that account; onDone clears the recovery flag → back to the app.
 import { useState } from "react";
 import { setNewPassword } from "../../services/session";
+import { errorMessage as message } from "../../lib/errorMessage";
 import { useI18n } from "../../i18n";
 import "./common.css";
-
-function message(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
-  return String(e);
-}
 
 export function ResetPasswordView({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();

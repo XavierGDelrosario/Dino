@@ -4,14 +4,9 @@
 // The auth listener in useSession updates the app, so these just call the service.
 import { useState } from "react";
 import { upgradeToAccount, signIn, signOut, requestPasswordReset } from "../../services/session";
+import { errorMessage as message } from "../../lib/errorMessage";
 import { useI18n } from "../../i18n";
 import "./common.css";
-
-function message(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
-  return String(e);
-}
 
 export function AccountMenu({
   isAnonymous,

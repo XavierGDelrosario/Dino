@@ -29,14 +29,11 @@ import {
   type LangCode,
   type SourceSelection,
 } from "../services/language";
+import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 
 export type TranslateMode = "word" | "paragraph";
 export type TranslateStatus = "idle" | "loading" | "done" | "error";
-
-function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 export function useTranslate(userId: string) {
   const [source, setSource] = useState<SourceSelection>(AUTO_DETECT);

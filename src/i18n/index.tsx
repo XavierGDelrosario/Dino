@@ -1,3 +1,6 @@
+/* eslint-disable react-refresh/only-export-components -- the provider, the useI18n
+   hook, and the catalog re-exports are intentionally co-located as the i18n entry
+   point; splitting them for Fast Refresh isn't worth the indirection. */
 // =========================================================
 // i18n runtime (#17). A tiny React context over the string catalog: current
 // locale (persisted) + a `t(key, params?)` lookup with `{name}` interpolation.

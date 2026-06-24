@@ -9,13 +9,10 @@ import { saveDictionaryWord } from "../services/words/userWords";
 import { recordReview, type ReviewGrade } from "../services/review";
 import { estimateLevel, setUserLevel, type CalibrationSample } from "../services/calibration";
 import { getDifficulty } from "../services/difficulty";
+import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 
 export type TextQuizStatus = "reviewing" | "empty" | "done" | "error";
-
-function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 /** Called after a word is saved + graded, so the caller (the reader) can sync its
  *  own saved/confidence state without re-translating. */

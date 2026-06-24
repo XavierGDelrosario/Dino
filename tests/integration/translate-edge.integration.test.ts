@@ -31,7 +31,7 @@ async function post(body: unknown, headers: Record<string, string> = {}) {
     headers: { Authorization: `Bearer ${ANON}`, "Content-Type": "application/json", ...headers },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
-  let json: any = null;
+  let json: Record<string, unknown> = {};
   try { json = await res.json(); } catch { /* non-JSON */ }
   return { status: res.status, json };
 }
@@ -68,18 +68,20 @@ describe.skipIf(!ENABLED)("edge: translate HTTP shell", () => {
     const { status, json } = await post({ input: "猫", sourceLang: "JA", targetLang: "EN" });
     expect(status).toBe(200);
     expect(json.translated).toBe(true);
-    expect(json.words.length).toBeGreaterThan(0);
-    expect(json.word.input).toBe("猫");
+    const words = json.words as Array<{ input: string; inputReading: string | null }>;
+    const word = json.word as { input: string };
+    expect(words.length).toBeGreaterThan(0);
+    expect(word.input).toBe("猫");
     // The common reading is among the senses. (Not asserting it's the PRIMARY:
     // homograph entries each carry sense_pos 0, and fetchVerified orders by
     // sense_pos only, so which 猫 entry sorts first isn't pinned — see #7 ranking.)
-    expect(json.words.some((w: any) => w.inputReading === "ねこ")).toBe(true);
+    expect(words.some((w) => w.inputReading === "ねこ")).toBe(true);
   });
 
   it("caps the EN→JA reverse-gloss result (LIMIT 12)", async () => {
     const { json } = await post({ input: "the", sourceLang: "EN", targetLang: "JA" });
     expect(json.translated).toBe(true);
-    expect(json.words.length).toBeLessThanOrEqual(12);
+    expect((json.words as unknown[]).length).toBeLessThanOrEqual(12);
   });
 
   it("batch mode returns one entry per input", async () => {
@@ -87,8 +89,9 @@ describe.skipIf(!ENABLED)("edge: translate HTTP shell", () => {
       inputs: ["猫", "犬"], sourceLang: "JA", targetLang: "EN",
     });
     expect(status).toBe(200);
-    expect(json.results.map((r: any) => r.input)).toEqual(["猫", "犬"]);
-    expect(json.results.every((r: any) => r.translated)).toBe(true);
+    const results = json.results as Array<{ input: string; translated: boolean }>;
+    expect(results.map((r) => r.input)).toEqual(["猫", "犬"]);
+    expect(results.every((r) => r.translated)).toBe(true);
   });
 });
 

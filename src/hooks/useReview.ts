@@ -9,14 +9,11 @@ import {
   type ReviewGrade,
   type ReviewQueueItem,
 } from "../services/review";
+import { errorMessage as message } from "../lib/errorMessage";
 
 export type ReviewStatus = "loading" | "reviewing" | "empty" | "done" | "error";
 
 const DEFAULT_LIMIT = 20;
-
-function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 /** Fisher–Yates shuffle (copy) — quiz order is randomized so the same weakest
  *  words don't always appear in the same sequence. getReviewQueue still SELECTS

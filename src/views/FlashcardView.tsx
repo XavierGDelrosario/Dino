@@ -4,14 +4,9 @@
 import { useReview } from "../hooks/useReview";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
-import { useI18n, type MessageKey } from "../i18n";
-import type { ReviewGrade } from "../services/review";
+import { useI18n } from "../i18n";
+import { GRADES, GRADE_KEY } from "../components/flashcards/grades";
 import "../components/flashcards/flashcards.css";
-
-const GRADES: ReviewGrade[] = [1, 2, 3, 4, 5];
-const GRADE_KEY: Record<ReviewGrade, MessageKey> = {
-  1: "review.grade1", 2: "review.grade2", 3: "review.grade3", 4: "review.grade4", 5: "review.grade5",
-};
 
 export function FlashcardView({
   userId,
