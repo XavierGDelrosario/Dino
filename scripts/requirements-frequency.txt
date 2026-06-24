@@ -1,0 +1,11 @@
+# Pinned deps for scripts/build-frequency.py (the #7 difficulty/frequency export).
+# One-time tooling. Lightweight (no torch) — keep its venv SEPARATE from the
+# embeddings venv so the frequency job stays fast to set up.
+#
+#   python3 -m venv /tmp/wfvenv
+#   /tmp/wfvenv/bin/pip install -r scripts/requirements-frequency.txt
+#   /tmp/wfvenv/bin/python scripts/build-frequency.py ja
+#
+# Version-floored, not frozen. After a verified build, lock exact versions:
+#   /tmp/wfvenv/bin/pip freeze > scripts/requirements-frequency.txt
+wordfreq

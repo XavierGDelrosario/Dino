@@ -13,9 +13,9 @@
 #
 # USAGE (throwaway venv, like build-frequency.py):
 #   python3 -m venv /tmp/embvenv
-#   /tmp/embvenv/bin/pip install sentence-transformers psycopg2-binary 'numpy<2'
-#     (numpy<2 is REQUIRED: torch 2.2 was built against numpy 1.x; numpy 2.0 breaks
-#      its ABI → "RuntimeError: Numpy is not available" at encode time.)
+#   /tmp/embvenv/bin/pip install -r scripts/requirements-embeddings.txt
+#     (numpy<2 is REQUIRED there: torch 2.2 was built against numpy 1.x; numpy 2.0
+#      breaks its ABI → "RuntimeError: Numpy is not available" at encode time.)
 #   /tmp/embvenv/bin/python scripts/build-embeddings.py                    # DEFAULT: common ∪ freq≥250 (~41k for JA)
 #   /tmp/embvenv/bin/python scripts/build-embeddings.py --freq-floor 150   # deeper into the tail (~62k for JA)
 #   /tmp/embvenv/bin/python scripts/build-embeddings.py --common-only      # editorial set only (~22.6k)

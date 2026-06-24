@@ -67,9 +67,10 @@ the local hardening (delete-lockdown, RLS audit, swallowed-error logging) is don
   or writing-weighted embedding. Also: regenerate embeddings on the prod DB at
   deploy, tune HNSW params under load, and add per-language embeddings (KO/ZH) when
   those ship.
-- **Reproducible embedding build** — `[deploy/tooling]` pin the one-time venv deps
-  (`sentence-transformers`, `psycopg2-binary`, `numpy<2`) in a requirements file so
-  `build-embeddings.py` reproduces (the numpy<2 pin is load-bearing — torch 2.2 ABI).
+- **Reproducible embedding build** — `[deploy/tooling]` ✅ **DONE (2026-06-24):**
+  `scripts/requirements-embeddings.txt` (numpy<2 load-bearing) + `requirements-
+  frequency.txt`; script headers install via `-r`. Version-floored, not frozen —
+  `pip freeze` into them after the next verified build to lock exact versions.
 - **Full migration-reset verification** — `[Tier 1 / §11]` object-level coverage is
   confirmed, but a clean `supabase db reset` reproducing the live schema is still
   unverified. **Update (2026-06-24):** reset no longer *wipes* the dictionary —

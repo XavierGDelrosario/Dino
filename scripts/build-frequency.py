@@ -17,7 +17,8 @@
 # It's also a transform of facts (frequencies), not a copy of any source list.
 #
 # USAGE (regeneration only — NOT an app/runtime dependency, like the JMdict pull):
-#   python3 -m venv /tmp/wfvenv && /tmp/wfvenv/bin/pip install wordfreq
+#   python3 -m venv /tmp/wfvenv
+#   /tmp/wfvenv/bin/pip install -r scripts/requirements-frequency.txt
 #   /tmp/wfvenv/bin/python scripts/build-frequency.py ja
 #   (wordfreq's 'large' list is used for coverage; MeCab is NOT needed — we read
 #    the stored per-token dict directly, no query tokenization.)

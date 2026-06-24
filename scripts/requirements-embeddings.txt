@@ -1,0 +1,17 @@
+# Pinned deps for scripts/build-embeddings.py (the #11 word-map embedding job).
+# One-time / regeneration tooling — NOT an app runtime dependency.
+#
+#   python3 -m venv /tmp/embvenv
+#   /tmp/embvenv/bin/pip install -r scripts/requirements-embeddings.txt
+#   /tmp/embvenv/bin/python scripts/build-embeddings.py
+#
+# numpy<2 is LOAD-BEARING: torch 2.2 was built against numpy 1.x; numpy 2.0 breaks
+# its ABI -> "RuntimeError: Numpy is not available" at encode time. Keep the hard
+# pin even when locking exact versions below.
+#
+# These are version-floored, not frozen. After a verified build, lock the exact
+# working set:  /tmp/embvenv/bin/pip freeze > scripts/requirements-embeddings.txt
+# (then re-add this header + the numpy<2 note).
+numpy<2
+sentence-transformers
+psycopg2-binary
