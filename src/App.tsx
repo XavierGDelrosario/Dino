@@ -1,35 +1,24 @@
-// App shell. Bootstraps the guest session, then a simple tab nav over the two
-// live surfaces wired to the service layer: Translate (look up + save words)
-// and Review (flashcards). Lists / paragraph-translate views come next.
-import { Suspense, lazy, useEffect, useState } from "react";
+// App layout + route switch. The session (a guest by default) is always present, so
+// there's no login wall — /signin and /signup are optional pages reached from the
+// person-icon menu. Header (menu + title) and footer wrap every route; the
+// password-recovery flow is a takeover regardless of route.
+import { useEffect } from "react";
 import { useSession } from "./hooks/useSession";
 import { warmJapaneseAnalyzer } from "./services/language";
 import { AttributionFooter } from "./components/common/AttributionFooter";
-import { LanguagePicker } from "./components/common/LanguagePicker";
-import { AccountMenu } from "./components/common/AccountMenu";
+import { ProfileMenu } from "./components/common/ProfileMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
+import { HomeView } from "./views/HomeView";
+import { AuthPage } from "./views/AuthPage";
+import { ProfilePage } from "./views/ProfilePage";
 import { useI18n } from "./i18n";
+import { useRouter, Link } from "./router";
 import "./components/common/common.css";
-
-// Each tab's view is its own lazy chunk, so the initial bundle ships only the
-// shell + the first surface — the Lists/Review code loads when first opened.
-// (Named exports → map to a default for React.lazy.)
-const TranslateView = lazy(() =>
-  import("./views/TranslateView").then((m) => ({ default: m.TranslateView })),
-);
-const ListView = lazy(() =>
-  import("./views/ListView").then((m) => ({ default: m.ListView })),
-);
-const FlashcardView = lazy(() =>
-  import("./views/FlashcardView").then((m) => ({ default: m.FlashcardView })),
-);
-
-type Tab = "translate" | "lists" | "review";
 
 export function App() {
   const { userId, email, isAnonymous, recovering, clearRecovery, loading, error } = useSession();
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>("translate");
+  const { path } = useRouter();
 
   // Preload kuromoji's dictionary during idle time so the first Japanese analysis
   // (the Translate reader) isn't slowed by the ~12MB load. Best-effort only.
@@ -37,24 +26,16 @@ export function App() {
     const w = window as typeof window & { requestIdleCallback?: (cb: () => void) => void };
     if (w.requestIdleCallback) w.requestIdleCallback(() => warmJapaneseAnalyzer());
     else {
-      const t = setTimeout(() => warmJapaneseAnalyzer(), 1500);
-      return () => clearTimeout(t);
+      const id = setTimeout(() => warmJapaneseAnalyzer(), 1500);
+      return () => clearTimeout(id);
     }
   }, []);
-  // which vocabulary the Review tab quizzes (null = ALL). Set by a list's
-  // "Review" button, which also jumps to the Review tab.
-  // name "" = the virtual ALL list; FlashcardView localizes it ("All words"/全単語).
-  const [reviewScope, setReviewScope] = useState<{ listId: string | null; name: string }>({
-    listId: null,
-    name: "",
-  });
 
   return (
     <main className="app">
       <header className="app__header">
-        {userId && <AccountMenu isAnonymous={isAnonymous} email={email} />}
-        <h1 className="app__title">DINO 大脳</h1>
-        <LanguagePicker />
+        {userId && <ProfileMenu isAnonymous={isAnonymous} email={email} />}
+        <Link to="/" className="app__titlelink"><h1 className="app__title">DINO 大脳</h1></Link>
       </header>
 
       {loading && <p className="review__msg">{t("app.startingSession")}</p>}
@@ -65,57 +46,14 @@ export function App() {
         </div>
       )}
 
-      {/* Password-recovery takeover: the user followed a reset link → set a new
-          password before the normal app. */}
+      {/* Password-recovery takeover: followed a reset link → set a new password first. */}
       {recovering && <ResetPasswordView onDone={clearRecovery} />}
 
       {userId && !recovering && (
-        <>
-          <nav className="tabs">
-            <button
-              className={`tab${tab === "translate" ? " tab--active" : ""}`}
-              onClick={() => setTab("translate")}
-            >
-              {t("tabs.translate")}
-            </button>
-            <button
-              className={`tab${tab === "lists" ? " tab--active" : ""}`}
-              onClick={() => setTab("lists")}
-            >
-              {t("tabs.lists")}
-            </button>
-            <button
-              className={`tab${tab === "review" ? " tab--active" : ""}`}
-              onClick={() => setTab("review")}
-            >
-              {t("tabs.review")}
-            </button>
-          </nav>
-
-          {/* key on userId so a sign-in/out/upgrade-to-different-uid fully resets
-              each view's hooks instead of showing the previous user's data. */}
-          <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
-            {tab === "translate" && <TranslateView key={userId} userId={userId} />}
-            {tab === "lists" && (
-              <ListView
-                key={userId}
-                userId={userId}
-                onReview={(listId, name) => {
-                  setReviewScope({ listId, name });
-                  setTab("review");
-                }}
-              />
-            )}
-            {tab === "review" && (
-              <FlashcardView
-                key={userId}
-                userId={userId}
-                listId={reviewScope.listId}
-                listName={reviewScope.name}
-              />
-            )}
-          </Suspense>
-        </>
+        path === "/signin" ? <AuthPage mode="signin" />
+        : path === "/signup" ? <AuthPage mode="signup" />
+        : path === "/profile" ? <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />
+        : <HomeView userId={userId} />
       )}
 
       <AttributionFooter />

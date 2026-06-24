@@ -1,0 +1,4 @@
+# SPA fallback (Cloudflare Pages / Netlify): serve index.html for client routes
+# (/signin, /signup, /profile, …). Real files (assets, /dict/*.gz) are served first;
+# only unmatched paths fall through to the app shell.
+/*    /index.html    200

@@ -49,6 +49,45 @@ export type Database = {
         }
         Relationships: []
       }
+      global_translation_usage: {
+        Row: {
+          chars_used: number
+          period_month: string
+          updated_at: string
+        }
+        Insert: {
+          chars_used?: number
+          period_month: string
+          updated_at?: string
+        }
+        Update: {
+          chars_used?: number
+          period_month?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      idempotency_keys: {
+        Row: {
+          created_at: string
+          key: string
+          response: Json
+          status: number
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          response: Json
+          status?: number
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          response?: Json
+          status?: number
+        }
+        Relationships: []
+      }
       jmdict_entries: {
         Row: {
           entry_id: string
@@ -430,19 +469,25 @@ export type Database = {
         Row: {
           date_created: string
           email: string
+          learning_language: string | null
           level: number | null
+          native_language: string | null
           user_id: string
         }
         Insert: {
           date_created?: string
           email: string
+          learning_language?: string | null
           level?: number | null
+          native_language?: string | null
           user_id: string
         }
         Update: {
           date_created?: string
           email?: string
+          learning_language?: string | null
           level?: number | null
+          native_language?: string | null
           user_id?: string
         }
         Relationships: []
@@ -531,6 +576,13 @@ export type Database = {
     }
     Functions: {
       confidence_from_stability: { Args: { s: number }; Returns: number }
+      consume_global_quota: {
+        Args: { p_chars: number; p_quota: number }
+        Returns: {
+          allowed: boolean
+          used: number
+        }[]
+      }
       consume_translation_quota: {
         Args: { p_chars: number; p_quota: number; p_user_id: string }
         Returns: {
@@ -602,6 +654,11 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      refund_global_quota: { Args: { p_chars: number }; Returns: undefined }
+      refund_translation_quota: {
+        Args: { p_chars: number; p_user_id: string }
+        Returns: undefined
       }
       related_words: {
         Args: { p_entry_id: string; p_limit?: number }

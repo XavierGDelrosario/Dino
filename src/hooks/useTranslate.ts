@@ -15,6 +15,7 @@ import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
+import { getUserProfile } from "../services/session";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { expandDomain } from "../services/domain";
 import { isExplicitSuggestion } from "../services/contentSafety";
@@ -90,6 +91,17 @@ export function useTranslate(userId: string) {
   const [level, setLevel] = useState<LevelValue | null>(null);
   useEffect(() => {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
+  }, [userId]);
+
+  // Default the directions from the user's profile prefs (Profile page): native →
+  // translation OUTPUT (target), learning → "I'm learning"/input. Only applied when
+  // set (a fresh guest keeps the JA defaults). Runs once per user.
+  useEffect(() => {
+    getUserProfile(userId).then((p) => {
+      if (!p) return;
+      if (p.nativeLanguage) setTarget(p.nativeLanguage as LangCode);
+      if (p.learningLanguage) setLearning(p.learningLanguage as LangCode);
+    }).catch((e) => console.warn("useTranslate: failed to load language prefs", e));
   }, [userId]);
 
   // The explanation language the reader's words were studied in (set by submit);

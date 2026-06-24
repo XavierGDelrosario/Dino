@@ -15,6 +15,10 @@ export interface UserProfile {
   userId: string;
   email: string;
   dateCreated: string;
+  /** Native language → default translation OUTPUT (target). null = app default. */
+  nativeLanguage: string | null;
+  /** Language being studied → default "I'm learning" + input. null = app default. */
+  learningLanguage: string | null;
 }
 
 /** The live auth identity for the UI: who the user is and whether they're still a
@@ -193,7 +197,7 @@ async function ensureUserProfile(userId: string, email: string): Promise<void> {
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from("users")
-    .select<string, UserRow>("user_id, email, date_created")
+    .select<string, UserRow>("user_id, email, date_created, native_language, learning_language")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -204,5 +208,24 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     userId: data.user_id,
     email: data.email,
     dateCreated: data.date_created,
+    nativeLanguage: data.native_language,
+    learningLanguage: data.learning_language,
   };
+}
+
+/**
+ * Update the caller's language preferences (native / learning). RLS scopes the
+ * write to the caller's own row. Pass only the fields to change.
+ */
+export async function updateUserLanguages(params: {
+  userId: string;
+  nativeLanguage?: string;
+  learningLanguage?: string;
+}): Promise<void> {
+  const patch: Database["public"]["Tables"]["users"]["Update"] = {};
+  if (params.nativeLanguage !== undefined) patch.native_language = params.nativeLanguage;
+  if (params.learningLanguage !== undefined) patch.learning_language = params.learningLanguage;
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await supabase.from("users").update(patch).eq("user_id", params.userId);
+  if (error) throw toServiceError(error);
 }

@@ -175,6 +175,21 @@ export const en = {
   "auth.resetDone": "Password updated — you're signed in.",
   "auth.pwShort": "Password must be at least 8 characters.",
   "auth.pwWeak": "Password must include both letters and numbers.",
+  "auth.signInTitle": "Sign in",
+  "auth.signUpTitle": "Create account",
+  "auth.toSignIn": "Already have an account? Sign in",
+  "auth.toSignUp": "No account? Create one",
+
+  // profile
+  "profile.title": "Profile",
+  "profile.profileLink": "Profile",
+  "profile.menuAria": "Account menu",
+  "profile.guest": "Guest",
+  "profile.created": "Member since",
+  "profile.nativeLanguage": "Native language",
+  "profile.learningLanguage": "Learning",
+  "profile.appLanguage": "App language",
+  "profile.back": "← Back to app",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -329,6 +344,20 @@ export const ja: Record<MessageKey, string> = {
   "auth.resetDone": "パスワードを更新しました — ログインしました。",
   "auth.pwShort": "パスワードは8文字以上にしてください。",
   "auth.pwWeak": "パスワードには英字と数字の両方を含めてください。",
+  "auth.signInTitle": "ログイン",
+  "auth.signUpTitle": "アカウント作成",
+  "auth.toSignIn": "すでにアカウントをお持ちですか？ログイン",
+  "auth.toSignUp": "アカウントがありませんか？作成する",
+
+  "profile.title": "プロフィール",
+  "profile.profileLink": "プロフィール",
+  "profile.menuAria": "アカウントメニュー",
+  "profile.guest": "ゲスト",
+  "profile.created": "登録日",
+  "profile.nativeLanguage": "母語",
+  "profile.learningLanguage": "学習中",
+  "profile.appLanguage": "アプリの言語",
+  "profile.back": "← アプリに戻る",
 };
 
 export const LOCALES = [
