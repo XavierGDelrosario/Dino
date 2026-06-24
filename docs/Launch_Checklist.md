@@ -46,8 +46,11 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
    uptime). In-code side done.
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
-- real furigana (#16) · i18n (#17) · FSRS (#19) · native app (#18) · abandoned-guest
-  cleanup.
+- i18n (#17) · native app (#18).
+- **Purge dev/test guests before the first real DB** — a trivial one-time `DELETE`;
+  the current anonymous rows are all throwaway (dev + me). NOT auth-gated — can run
+  any time before publishing the real DB. (Ongoing abandoned-guest reaping only
+  matters later, once there's public traffic + the #13 upgrade path.)
 - **EN→JA reader sense quality** — the `LIMIT 12` cap stops the noise, but the
   reverse-gloss tail is still loosely matched; needs real EN→JA sense ranking.
 - **Embeddings (#11) follow-ups:**
@@ -70,6 +73,11 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
 - **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
   app's PUBLIC-schema data but NOT the Supabase `auth.users` row; pair it with the
   auth admin API when real auth lands, else deleted users can still sign in.
+- **Real furigana (#16)** — *very low priority.* Ruby above the kanji + peel-matching-
+  kana alignment (`alignFurigana`); group ruby is correct meanwhile.
+- **FSRS (#19)** — *very low priority.* Upgrade the SRS to the D/S/R model (power-law
+  curve, fit constants to `review_log`); a new `record_review()` body, same API. The
+  HLR curve is fine for now.
 
 ---
 **Throughline:** Tier 0 + Tier 1 is the real remaining BUILD work — cost protection,
