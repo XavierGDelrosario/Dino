@@ -12,6 +12,21 @@ describe("isExplicitSuggestion", () => {
     expect(isExplicitSuggestion("痴漢", "groper")).toBe(true);
   });
 
+  it("catches English inflections/plurals (audit bypass cases)", () => {
+    for (const g of ["strippers", "sluts", "whores", "raped", "raping", "fucking",
+      "fucked", "masturbating", "penises", "prostitution"]) {
+      expect(isExplicitSuggestion(null, g)).toBe(true);
+    }
+  });
+
+  it("catches Japanese katakana variants + slang via kana folding (audit cases)", () => {
+    for (const w of ["マンコ", "ちんこ", "オナニー", "アナル", "クンニ"]) {
+      expect(isExplicitSuggestion(w, null)).toBe(true);
+    }
+    // cross-language rescue: the JA term アナル also has the EN gloss "anal"
+    expect(isExplicitSuggestion("アナル", "anal")).toBe(true);
+  });
+
   it("matches English as WHOLE words — no false positives on substrings", () => {
     expect(isExplicitSuggestion("クラス", "class")).toBe(false); // ⊅ "ass"
     expect(isExplicitSuggestion("通過", "pass; passage")).toBe(false);

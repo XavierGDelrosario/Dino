@@ -17,6 +17,7 @@ import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { expandDomain } from "../services/domain";
+import { isExplicitSuggestion } from "../services/contentSafety";
 import { mapLimit } from "../lib/concurrency";
 import { MAX_TRANSLATION_CONCURRENCY } from "../services/translation";
 import {
@@ -375,19 +376,24 @@ export function useTranslate(userId: string) {
         if (eid && !seenE.has(eid)) { seenE.add(eid); seedEntryIds.push(eid); }
       }
       const candidates = await expandDomain({ seedEntryIds, userLevel: level, limit: 18 });
-      // Resolve each candidate writing to a quizzable Word (learning→native).
+      // Resolve each candidate to a quizzable Word (learning→native). Prefer the
+      // sense whose STABLE entry id matches the embedded candidate (lookupWord
+      // matches by surface, so a homograph would otherwise resolve to the most
+      // frequent entry, not the one the word map clustered — see #1 identity).
       const looked = await mapLimit(candidates, MAX_TRANSLATION_CONCURRENCY, (c) =>
         lookupWord({ input: c.writing, sourceLang: learning, targetLang: nativeLang })
-          .then((r) => r.meanings[0] ?? null)
+          .then((r) => r.meanings.find((m) => m.jmdictEntryId === c.entryId) ?? r.meanings[0] ?? null)
           .catch(() => null),
       );
       const words: Word[] = [];
       const seenW = new Set<string>();
       for (const w of looked) {
-        if (w && !saved.has(w.wordId) && !seenW.has(w.wordId)) {
-          seenW.add(w.wordId);
-          words.push(w);
-        }
+        if (!w || saved.has(w.wordId) || seenW.has(w.wordId)) continue;
+        // CONTENT SAFETY (defense in depth): re-check the EXACT gloss the quiz will
+        // show — the resolved Word can differ from the vetted related_words gloss.
+        if (isExplicitSuggestion(w.input, w.translation)) continue;
+        seenW.add(w.wordId);
+        words.push(w);
       }
       return words;
     } catch (e) {
