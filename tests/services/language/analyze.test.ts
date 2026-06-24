@@ -50,6 +50,43 @@ describe("analyze — Japanese (kuromoji)", () => {
   );
 });
 
+describe("analyze — specific short words (今 / これ / 単語)", () => {
+  it(
+    "単語 → one content token read たんご (unambiguous)",
+    async () => {
+      const toks = await analyze("単語", "JA");
+      expect(toks.map((t) => t.text)).toEqual(["単語"]);
+      expect(toks[0].reading).toBe("たんご");
+      expect(toks[0].pos).toBe("名詞"); // a content word (vocabulary in the reader)
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "これ → one token, hiragana reading これ",
+    async () => {
+      const toks = await analyze("これ", "JA");
+      expect(toks.map((t) => t.text)).toEqual(["これ"]);
+      expect(toks[0].reading).toBe("これ");
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "今 in isolation → one content token with a (best-effort) hiragana reading",
+    async () => {
+      // kuromoji is unreliable on a bare short token (may read 今 as こん, not いま —
+      // a documented caveat). We assert only what's stable: one token, hiragana
+      // reading present. The authoritative reading comes from `words`, not here.
+      const toks = await analyze("今", "JA");
+      expect(toks.map((t) => t.text)).toEqual(["今"]);
+      expect(toks[0].reading).toBeTruthy();
+      expect(toks[0].reading).not.toMatch(KATAKANA);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+});
+
 describe("analyze — non-Japanese falls back to segmentation only", () => {
   it("returns tokens with null reading/lemma for English", async () => {
     const toks = await analyze("hello world", "EN");

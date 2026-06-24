@@ -425,6 +425,46 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     expect(rows[0].translation).toBeTruthy();
     expect(rows[0].jmdict_entry_id).toBeTruthy();
   });
+
+  // Readings switched correctly: a "usually kana" (uk) word headlines as KANA with
+  // the kanji in the reading slot; a normal word keeps the KANJI headword + kana
+  // reading. (The なる(成る) vs 鳴る(なる) behavior, asserted data-drivenly.)
+  const hasKanji = (s: string) => /[一-龯]/.test(s);
+  type LookupRow = { writing: string; input_reading: string | null; jmdict_entry_id: string };
+
+  it("uk entries headline as KANA with the kanji in the reading slot", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // A primary-sense (position 0) uk entry that ALSO has a kanji form (so the
+    // kana-vs-kanji switch is observable). Skip if JMdict/uk data isn't present.
+    const { data: ukSenses } = await svc
+      .from("jmdict_senses").select("entry_id").eq("usually_kana", true).eq("position", 0).limit(50);
+    if (!ukSenses?.length) return;
+    let entry: string | null = null, kanji: string | null = null;
+    for (const s of ukSenses as Array<{ entry_id: string }>) {
+      const { data: k } = await svc.from("jmdict_kanji").select("text").eq("entry_id", s.entry_id).limit(1);
+      if (k?.length) { entry = s.entry_id; kanji = (k[0] as { text: string }).text; break; }
+    }
+    if (!entry || !kanji) return;
+
+    const { data } = await svc.rpc("jmdict_lookup", { p_input: kanji, p_source: "JA", p_target: "EN" });
+    const row = ((data ?? []) as LookupRow[]).find((r) => r.jmdict_entry_id === entry);
+    expect(row).toBeTruthy();
+    expect(hasKanji(row!.writing)).toBe(false);             // headword is KANA
+    expect(hasKanji(row!.input_reading ?? "")).toBe(true);  // kanji rides in the reading slot
+  });
+
+  it("non-uk entries keep the KANJI headword + kana reading (猫→ねこ)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data } = await svc.rpc("jmdict_lookup", { p_input: "猫", p_source: "JA", p_target: "EN" });
+    const rows = (data ?? []) as LookupRow[];
+    if (rows.length === 0) return; // 猫 not in the loaded subset
+    const neko = rows.find((r) => r.writing === "猫");
+    expect(neko).toBeTruthy();
+    expect(hasKanji(neko!.writing)).toBe(true);                 // kanji headword
+    expect(neko!.input_reading).toBe("ねこ");                    // kana reading
+  });
 });
 
 // ── consume_translation_quota (service-role only) ──────────────────────────
@@ -479,8 +519,10 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_global_quota", () => {
   it("reserves within the global cap and atomically denies over it", async () => {
     const svc = serviceClient();
     if (!svc) return;
-    // Reset this month's global counter so the test is deterministic.
-    await svc.from("global_translation_usage").delete().neq("period_month", "1900-01-01");
+    // Reset this month's global counter so the test is deterministic. UPDATE (not
+    // DELETE — service_role has no DELETE grant on this server-only table); a
+    // no-existing-row month just starts at 0.
+    await svc.from("global_translation_usage").update({ chars_used: 0 }).neq("period_month", "1900-01-01");
     const quota = 25;
     const call = (chars: number) =>
       svc.rpc("consume_global_quota", { p_chars: chars, p_quota: quota });
@@ -495,7 +537,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_global_quota", () => {
 
     const { data: usage } = await svc.from("global_translation_usage").select("chars_used");
     expect((usage![0] as { chars_used: number }).chars_used).toBe(20);
-    await svc.from("global_translation_usage").delete().neq("period_month", "1900-01-01");
+    await svc.from("global_translation_usage").update({ chars_used: 0 }).neq("period_month", "1900-01-01");
   });
 });
 
