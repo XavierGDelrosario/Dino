@@ -274,6 +274,38 @@ async function reserveQuota(
   return { allowed: row?.allowed !== false, used: row?.used ?? 0 };
 }
 
+// ── Global cost controls (#1) ───────────────────────────────────────────────
+// EMERGENCY KILL-SWITCH: set the MT_DISABLED secret to instantly stop ALL paid
+// Google calls (the app degrades to JMdict-only) WITHOUT a redeploy. Checked before
+// any quota reserve or provider call, so a flipped switch costs nothing.
+function mtDisabled(): boolean {
+  const v = (Deno.env.get("MT_DISABLED") ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+// GLOBAL monthly char cap across ALL users (the aggregate billing risk the per-user
+// quota can't bound). null = unset = no global cap.
+function globalCharQuota(): number | null {
+  const v = Number(Deno.env.get("GLOBAL_MONTHLY_CHAR_QUOTA"));
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+/** ATOMICALLY reserve `chars` against the GLOBAL monthly cap. Fails OPEN on an RPC
+ *  error (a DB blip shouldn't break translation; the per-user quota + kill-switch
+ *  remain). Returns true when the call is allowed. */
+async function reserveGlobalQuota(supabase: Supa, chars: number, quota: number): Promise<boolean> {
+  const { data, error } = await supabase.rpc("consume_global_quota", {
+    p_chars: chars,
+    p_quota: quota,
+  });
+  if (error) {
+    console.error("global quota reservation failed:", error.message);
+    return true; // fail open
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.allowed !== false;
+}
+
 /** All verified `words` rows for a lookup tuple (the multi-sense cache read). */
 async function fetchVerified(
   supabase: Supa,
@@ -429,15 +461,19 @@ async function resolveBatch(
   let limits: ResolvedLimits | null = null;
   const userId = userIdFromAuth(authHeader);
   const perInput: { input: string; results: ProviderResult[] }[] = [];
+  const gQuota = globalCharQuota();
   for (const input of missing) {
     let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
-    if (results.length === 0) {
-      // MT is the paid path. Meter per word when attributable; one word over
-      // quota is just skipped (empty result), never a whole-batch failure.
+    // Kill-switch (MT_DISABLED) skips the paid path; per-word over-quota (per-user
+    // OR the global cap) is just skipped (empty result), never a whole-batch failure.
+    if (results.length === 0 && !mtDisabled()) {
       let allowed = true;
       if (userId) {
         if (!limits) limits = await resolveLimits(supabase, userId);
         allowed = (await reserveQuota(supabase, userId, input.length, limits.monthlyCharQuota)).allowed;
+      }
+      if (allowed && gQuota !== null) {
+        allowed = await reserveGlobalQuota(supabase, input.length, gQuota);
       }
       if (allowed) {
         const mt = await callTranslationProvider(input, sourceLang, targetLang);
@@ -553,9 +589,10 @@ async function handleRequest(req: Request): Promise<Response> {
     if (cached.length > 0) return reply(respondWords(cached));
   }
 
-  // 2. Resolve senses: JMdict first, then the Google MT fallback.
+  // 2. Resolve senses: JMdict first, then the Google MT fallback. The kill-switch
+  //    (MT_DISABLED) skips the paid path entirely → JMdict-only, no spend.
   let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
-  if (results.length === 0) {
+  if (results.length === 0 && !mtDisabled()) {
     // MT is the only PAID path → enforce the caller's limits here, the hard
     // server-side gate (the client also pre-checks for UX). Both checks happen
     // BEFORE the provider call, so a rejected request costs nothing.
@@ -586,6 +623,17 @@ async function handleRequest(req: Request): Promise<Response> {
           { error: "Monthly translation quota reached", used, quota: monthlyCharQuota },
           429,
         );
+      }
+    }
+
+    // (c) GLOBAL monthly cap across ALL users (the aggregate billing ceiling) → 429.
+    //     Reserved atomically before the paid call, same as the per-user quota.
+    const gQuota = globalCharQuota();
+    if (gQuota !== null) {
+      const ok = await reserveGlobalQuota(supabase, input.length, gQuota);
+      if (!ok) {
+        console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
+        return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
       }
     }
 

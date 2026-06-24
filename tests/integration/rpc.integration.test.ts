@@ -468,6 +468,37 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_translation_quota", () =
   });
 });
 
+// ── consume_global_quota (#1 cost protection) ───────────────────────────────
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_global_quota", () => {
+  it("is NOT callable by a client (no EXECUTE grant)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("consume_global_quota", { p_chars: 10, p_quota: 100 });
+    expect(error).not.toBeNull();
+  });
+
+  it("reserves within the global cap and atomically denies over it", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // Reset this month's global counter so the test is deterministic.
+    await svc.from("global_translation_usage").delete().neq("period_month", "1900-01-01");
+    const quota = 25;
+    const call = (chars: number) =>
+      svc.rpc("consume_global_quota", { p_chars: chars, p_quota: quota });
+
+    const r = (x: { data: unknown }) => (Array.isArray(x.data) ? x.data[0] : x.data) as {
+      allowed: boolean;
+      used: number;
+    };
+    expect(r(await call(10))).toEqual({ allowed: true, used: 10 });
+    expect(r(await call(10))).toEqual({ allowed: true, used: 20 });
+    expect(r(await call(10))).toEqual({ allowed: false, used: 20 }); // denied, no increment
+
+    const { data: usage } = await svc.from("global_translation_usage").select("chars_used");
+    expect((usage![0] as { chars_used: number }).chars_used).toBe(20);
+    await svc.from("global_translation_usage").delete().neq("period_month", "1900-01-01");
+  });
+});
+
 // ── related_words (#11) ─────────────────────────────────────────────────────
 // word_embeddings is superuser-write-only (server-only, like jmdict_*): even
 // service_role is denied, so we don't seed here — we exercise the RPC against the

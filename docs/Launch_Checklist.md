@@ -14,28 +14,30 @@ shell, black-box) · swallowed-error logging · JMdict/wordfreq attribution noti
 reset` that reproduces the schema and reseeds the dictionary (no re-ingest) · retry
 idempotency for the paid MT path · in-code observability (health check, request log,
 MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
-`db:restore-test`) · UI i18n — full EN/JA localization layer with a language picker (#17).
-
-## 🚫 Tier 0 — Launch blockers (security & cost; need code)
-1. **Cost protection** — `[concern · §3]` anon-signup rate limit + global MT spend
-   kill-switch + hard billing caps. Billing caps are a hosted-console action, but the
-   rate-limit / spend kill-switch still need code → a real blocker, not just config.
+`db:restore-test`) · UI i18n — full EN/JA localization layer with a language picker (#17)
+· cost-control code (#1): MT kill-switch (`MT_DISABLED`) + global monthly spend cap
+(`GLOBAL_MONTHLY_CHAR_QUOTA` / `consume_global_quota`).
 
 ## 🔴 Tier 1 — Required for a real launch (build work)
-2. **Real auth + guest→account upgrade** — `[#13]` replace ephemeral guests,
+*(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
+and the cost-control code (#1 kill-switch + global cap) are all done.)*
+1. **Real auth + guest→account upgrade** — `[#13]` replace ephemeral guests,
    preserve vocab/lists/level; also blunts the anon-quota loophole.
-3. **Deploy** — `[#14]` hosted Supabase (ingest JMdict + frequency + embeddings on
+2. **Deploy** — `[#14]` hosted Supabase (ingest JMdict + frequency + embeddings on
    the cloud DB, prod `/dict/` serving) + frontend on a static host. **This is the
    gate that unlocks Tier 2.**
-4. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
+3. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
 
 ## 🔒 Tier 2 — Hosted-only (our side DONE; finish on the live production Supabase)
 Code/in-repo work is complete; the only remaining step is a one-time action on the
 hosted Supabase or an external console **after #3 (Deploy)** stands it up. None of
 these can be progressed locally — that's why they're deferred, not unfinished. (Once
 prod is live with real data you can't just `db reset`, hence "not easily changed".)
-5. **Prod security config** — `[§4/§5]` set `ALLOWED_ORIGINS`, verify-jwt ON, restrict
+4. **Prod security config** — `[§4/§5]` set `ALLOWED_ORIGINS`, verify-jwt ON, restrict
    the Google key (code seams ready). *Repo-side piece doable pre-launch: secret-scan CI.*
+5. **Cost protection — hosted** — `[concern · §3]` anon-signup rate limit (Supabase
+   auth dashboard) + hard billing caps (Google & Supabase consoles). The code side is
+   done (MT kill-switch + global monthly cap); these are the external-console backstops.
 6. **Forward-only migrations** — `[concern · §11]` adopt the forward-only, never-edit-
    an-applied-migration discipline. It only bites once prod holds data you can't
    `db reset`; clean-reset reproduction is already proven.
@@ -81,7 +83,7 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
   HLR curve is fine for now.
 
 ---
-**Throughline:** Tier 0 + Tier 1 is the real remaining BUILD work — cost protection,
-auth, deploy, privacy/ToS. **Tier 2 is code-complete and just waiting on the hosted
-Supabase that Deploy (#3) stands up** — config/toggles/wiring, not engineering. Tier 3
-is post-launch polish.
+**Throughline:** the security/cost CODE blockers are cleared, so **Tier 1 is the real
+remaining BUILD work — auth, deploy, privacy/ToS** (deploy is the gate). **Tier 2 is
+code-complete and just waiting on the hosted Supabase that Deploy (#2) stands up** —
+config/toggles/console actions, not engineering. Tier 3 is post-launch polish.
