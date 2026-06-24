@@ -566,6 +566,30 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_global_quota", () => {
   });
 });
 
+// ── refund_translation_quota (reserve → refund on a no-spend MT failure) ──────
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: refund_translation_quota", () => {
+  it("is NOT callable by a client (no EXECUTE grant)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("refund_translation_quota", { p_user_id: u.userId, p_chars: 1 });
+    expect(error).not.toBeNull();
+  });
+
+  it("decrements the reserved chars and floors at 0", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    await svc.rpc("consume_translation_quota", { p_user_id: u.userId, p_chars: 10, p_quota: 1000 });
+    await svc.rpc("refund_translation_quota", { p_user_id: u.userId, p_chars: 4 });
+    const read = async () => {
+      const { data } = await svc.from("translation_usage").select("chars_used").eq("user_id", u.userId);
+      return (data?.[0] as { chars_used: number } | undefined)?.chars_used ?? 0;
+    };
+    expect(await read()).toBe(6); // 10 reserved − 4 refunded
+    await svc.rpc("refund_translation_quota", { p_user_id: u.userId, p_chars: 100 }); // over-refund
+    expect(await read()).toBe(0); // floored, never negative
+  });
+});
+
 // ── related_words (#11) ─────────────────────────────────────────────────────
 // word_embeddings is superuser-write-only (server-only, like jmdict_*): even
 // service_role is denied, so we don't seed here — we exercise the RPC against the

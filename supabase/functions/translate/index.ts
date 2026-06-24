@@ -292,10 +292,25 @@ function mtConfigured(): boolean {
 }
 
 // GLOBAL monthly char cap across ALL users (the aggregate billing risk the per-user
-// quota can't bound). null = unset = no global cap.
-function globalCharQuota(): number | null {
+// quota can't bound). Always finite: a generous BUILT-IN default applies when the
+// env override is unset, so the aggregate spend is never fully unbounded by default
+// (the deploy can lower it). ≈$30/mo worst case at Google rates.
+const DEFAULT_GLOBAL_MONTHLY_CHAR_QUOTA = 2_000_000;
+function globalCharQuota(): number {
   const v = Number(Deno.env.get("GLOBAL_MONTHLY_CHAR_QUOTA"));
-  return Number.isFinite(v) && v > 0 ? v : null;
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_GLOBAL_MONTHLY_CHAR_QUOTA;
+}
+
+/** Refund reserved chars when the paid call ultimately spent nothing (Google
+ *  returned null). Best-effort: a failed refund just leaves the reservation (the
+ *  conservative direction — never under-counts spend). */
+async function refundQuota(supabase: Supa, userId: string, chars: number): Promise<void> {
+  const { error } = await supabase.rpc("refund_translation_quota", { p_user_id: userId, p_chars: chars });
+  if (error) console.error("quota refund failed:", error.message);
+}
+async function refundGlobalQuota(supabase: Supa, chars: number): Promise<void> {
+  const { error } = await supabase.rpc("refund_global_quota", { p_chars: chars });
+  if (error) console.error("global quota refund failed:", error.message);
 }
 
 /** ATOMICALLY reserve `chars` against the GLOBAL monthly cap. Fails CLOSED on an RPC
@@ -486,13 +501,17 @@ async function resolveBatch(
     // result), never a whole-batch failure.
     if (results.length === 0 && canMT) {
       if (!limits) limits = await resolveLimits(supabase, userId!);
-      let allowed = (await reserveQuota(supabase, userId!, input.length, limits.monthlyCharQuota)).allowed;
-      if (allowed && gQuota !== null) {
-        allowed = await reserveGlobalQuota(supabase, input.length, gQuota);
-      }
-      if (allowed) {
+      const userOk = (await reserveQuota(supabase, userId!, input.length, limits.monthlyCharQuota)).allowed;
+      const globalOk = userOk && (await reserveGlobalQuota(supabase, input.length, gQuota));
+      if (userOk && !globalOk) await refundQuota(supabase, userId!, input.length); // global denied → undo per-user
+      if (userOk && globalOk) {
         const mt = await callTranslationProvider(input, sourceLang, targetLang);
-        if (mt) results = [mt];
+        if (mt) {
+          results = [mt];
+        } else {
+          await refundQuota(supabase, userId!, input.length);
+          await refundGlobalQuota(supabase, input.length);
+        }
       }
     }
     if (results.length > 0) perInput.push({ input, results });
@@ -645,19 +664,25 @@ async function handleRequest(req: Request): Promise<Response> {
     // (c) GLOBAL monthly cap across ALL users (the aggregate billing ceiling) → 429.
     //     Reserved atomically before the paid call, same as the per-user quota.
     const gQuota = globalCharQuota();
-    if (gQuota !== null) {
-      const ok = await reserveGlobalQuota(supabase, input.length, gQuota);
-      if (!ok) {
-        console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
-        return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
-      }
+    const ok = await reserveGlobalQuota(supabase, input.length, gQuota);
+    if (!ok) {
+      // refund the per-user reservation we just took — this request won't spend
+      await refundQuota(supabase, userId, input.length);
+      console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
+      return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
     }
 
     // The paid path ran (quota reserved + Google attempted), so this response is
     // stored under the idempotency key — a retry replays it, no re-spend.
     usedMT = true;
     const mt = await callTranslationProvider(input, sourceLang, targetLang);
-    if (mt) results = [mt];
+    if (mt) {
+      results = [mt];
+    } else {
+      // Google spent nothing (non-2xx / network / empty) — refund both reservations.
+      await refundQuota(supabase, userId, input.length);
+      await refundGlobalQuota(supabase, input.length);
+    }
   }
   if (results.length === 0) {
     return finish({ translated: false, translation: null, word: null, words: [] });
