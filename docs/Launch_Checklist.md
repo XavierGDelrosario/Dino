@@ -72,4 +72,32 @@ the local hardening (delete-lockdown, RLS audit, swallowed-error logging) is don
   `build-embeddings.py` reproduces (the numpy<2 pin is load-bearing — torch 2.2 ABI).
 - **Full migration-reset verification** — `[Tier 1 / §11]` object-level coverage is
   confirmed, but a clean `supabase db reset` reproducing the live schema is still
-  unverified (deferred — it wipes the embeddings; re-run `build-embeddings.py` after).
+  unverified. **Update (2026-06-24):** reset no longer *wipes* the dictionary —
+  `supabase/seeds/*.sql` (gitignored, ~128MB, regen via `npm run db:dump-seed`) now
+  auto-restores JMdict + embeddings, so reset = no re-ingest. The schema-reproduction
+  proof itself is still open.
+
+### Added 2026-06-24 (reader/embeddings session)
+- **EN→JA reader sense ranking** — `[Tier 3]` ✅ partial: capped `jmdict_lookup`
+  EN→JA at `LIMIT 12` (the branch is a reverse gloss search returning 400+ entries
+  for common words — "the"→411). Fixes the noise/URL-bloat; EN-reader sense quality
+  is still coarse (the long tail is loosely-matched). Root cause that surfaced it:
+  unbounded sense ids → a 414 URI-too-long on `getUserWordStates` killed the English
+  reader entirely (now chunked, see below).
+- **`getUserWordStates` chunking** — `[Tier 2 / §11]` ✅ partial: the unbounded
+  `.in()` now chunks (100 ids/req) so it can't 414. Still unbounded in *result size* —
+  true pagination remains.
+- **e5-large embedding upgrade** — `[Tier 3 / #11]` katakana LOANWORDS cluster by
+  spelling, not meaning (ストライカー→streaker/stripper, observed live). Small e5
+  anchors on orthography for single tokens. Fix = a stronger model (e5-large 1024-dim
+  / LaBSE) — needs the `word_embeddings.embedding` column migrated off `vector(384)` +
+  a full re-embed (~2GB model dl). Deferred.
+- **Re-embed under the frequency-floor policy** — `[Tier 3 / #11]` the live 22.6k
+  vectors were built `--common-only`; the new default policy (`EMBED_FREQ_FLOOR`,
+  common ∪ freq≥250 ≈ 41k) isn't applied until a re-embed + `npm run db:dump-seed`.
+- **English as a LEARNING target** — `[Tier 3 / #11/#12]` the word map is JA-only:
+  `word_embeddings` has only `source_lang='JA'`, and `exploreDomain` with `learning=EN`
+  mismatches. The embeddings KEY is now multi-language (`(source_lang, dictionary_ref)`,
+  no JMdict FK) and `build-embeddings.py` has a per-source seam (`SOURCE_FETCHERS`,
+  `--source-lang`), but a non-JA language still needs its own dictionary source +
+  `<source>_lookup()` + per-source `related_words` projection.
