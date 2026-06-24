@@ -31,8 +31,9 @@ what remains below is the path to shipping it.**
    clean `db reset` reproduces the schema; forward-only numbered migrations.
 8. **Backups + PITR** — `[concern · §2]` enable before real data; protect the
    irreplaceable tables (`review_log` etc.); test a restore.
-9. **Legal** — `[§10]` EDRDG/JMdict attribution in UI `[#15]` + privacy policy
-   (user text → Google) + ToS.
+9. **Legal** — `[§10]` EDRDG/JMdict + wordfreq attribution in UI `[#15]` ✅ **DONE**
+   (app footer, `AttributionFooter.tsx`). Remaining: privacy policy (user text →
+   Google) + ToS.
 
 ## 🟡 Tier 2 — Strongly recommended around launch
 10. **Observability** — `[§9]` error logging/alerting, MT-spend metric, health check.

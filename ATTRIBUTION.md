@@ -33,4 +33,5 @@ The dictionary content (`jmdict_*` tables, ingested via `scripts/ingest-jmdict.t
 from the scriptin/jmdict-simplified release) is **JMdict**, owned by the
 **Electronic Dictionary Research and Development Group (EDRDG)** and used under the
 EDRDG license (https://www.edrdg.org/edrdg/licence.html). Attribution to EDRDG is
-required; a user-facing notice is a known to-do before public release.
+required; the user-facing notice ships in the app footer
+(`src/components/common/AttributionFooter.tsx`).

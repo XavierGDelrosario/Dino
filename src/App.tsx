@@ -4,6 +4,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useSession } from "./hooks/useSession";
 import { warmJapaneseAnalyzer } from "./services/language";
+import { AttributionFooter } from "./components/common/AttributionFooter";
 import "./components/common/common.css";
 
 // Each tab's view is its own lazy chunk, so the initial bundle ships only the
@@ -100,6 +101,8 @@ export function App() {
           </Suspense>
         </>
       )}
+
+      <AttributionFooter />
     </main>
   );
 }
