@@ -283,6 +283,14 @@ function mtDisabled(): boolean {
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
+// The paid MT path runs ONLY when MT is configured: a key is present AND the
+// kill-switch is off. Gating on this (not just inside callTranslationProvider)
+// means an unconfigured/disabled MT never reserves quota — no phantom spend, no
+// quota burned on a call that can't happen.
+function mtConfigured(): boolean {
+  return !mtDisabled() && !!Deno.env.get("TRANSLATION_API_KEY");
+}
+
 // GLOBAL monthly char cap across ALL users (the aggregate billing risk the per-user
 // quota can't bound). null = unset = no global cap.
 function globalCharQuota(): number | null {
@@ -290,17 +298,18 @@ function globalCharQuota(): number | null {
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
-/** ATOMICALLY reserve `chars` against the GLOBAL monthly cap. Fails OPEN on an RPC
- *  error (a DB blip shouldn't break translation; the per-user quota + kill-switch
- *  remain). Returns true when the call is allowed. */
+/** ATOMICALLY reserve `chars` against the GLOBAL monthly cap. Fails CLOSED on an RPC
+ *  error: the global cap is the hard SPEND backstop, so if it can't be checked we
+ *  must not spend (denies the paid call). Per-user quota stays fail-open for
+ *  availability; this one protects the bill. Returns true when the call is allowed. */
 async function reserveGlobalQuota(supabase: Supa, chars: number, quota: number): Promise<boolean> {
   const { data, error } = await supabase.rpc("consume_global_quota", {
     p_chars: chars,
     p_quota: quota,
   });
   if (error) {
-    console.error("global quota reservation failed:", error.message);
-    return true; // fail open
+    console.error("global quota reservation failed (deny):", error.message);
+    return false; // fail closed — don't spend if the spend cap can't be verified
   }
   const row = Array.isArray(data) ? data[0] : data;
   return row?.allowed !== false;
@@ -441,6 +450,12 @@ async function resolveBatch(
   targetLang: string,
   authHeader: string | null,
 ): Promise<BatchEntry[]> {
+  // IDEMPOTENCY: unlike the single path, batch has no idempotency_keys entry — it
+  // relies on the `words` cache instead. On success each MT word is upserted, so a
+  // retry hits the cache (no re-spend). The only exposure is the narrow window where
+  // MT ran but the upsert threw before caching: a retry re-calls MT + re-meters the
+  // uncached subset. Accepted (rare; bounded by the per-word quota). Thread an
+  // idempotency key here if exact batch metering ever matters.
   // NFC-normalize + dedupe, preserving first-seen order.
   const inputs: string[] = [];
   const seen = new Set<string>();
@@ -462,16 +477,16 @@ async function resolveBatch(
   const userId = userIdFromAuth(authHeader);
   const perInput: { input: string; results: ProviderResult[] }[] = [];
   const gQuota = globalCharQuota();
+  // Paid MT runs only when configured AND attributable to a user (see the single
+  // path) — an anon-key/no-session batch is JMdict-only, never spends.
+  const canMT = mtConfigured() && !!userId;
   for (const input of missing) {
     let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
-    // Kill-switch (MT_DISABLED) skips the paid path; per-word over-quota (per-user
-    // OR the global cap) is just skipped (empty result), never a whole-batch failure.
-    if (results.length === 0 && !mtDisabled()) {
-      let allowed = true;
-      if (userId) {
-        if (!limits) limits = await resolveLimits(supabase, userId);
-        allowed = (await reserveQuota(supabase, userId, input.length, limits.monthlyCharQuota)).allowed;
-      }
+    // Per-word over-quota (per-user OR the global cap) is just skipped (empty
+    // result), never a whole-batch failure.
+    if (results.length === 0 && canMT) {
+      if (!limits) limits = await resolveLimits(supabase, userId!);
+      let allowed = (await reserveQuota(supabase, userId!, input.length, limits.monthlyCharQuota)).allowed;
       if (allowed && gQuota !== null) {
         allowed = await reserveGlobalQuota(supabase, input.length, gQuota);
       }
@@ -553,7 +568,8 @@ async function handleRequest(req: Request): Promise<Response> {
       );
       return reply({ results });
     } catch (e) {
-      return reply({ error: e instanceof Error ? e.message : String(e) }, 500);
+      console.error("batch resolve failed:", e); // detail server-side only
+      return reply({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
     }
   }
 
@@ -589,14 +605,17 @@ async function handleRequest(req: Request): Promise<Response> {
     if (cached.length > 0) return reply(respondWords(cached));
   }
 
-  // 2. Resolve senses: JMdict first, then the Google MT fallback. The kill-switch
-  //    (MT_DISABLED) skips the paid path entirely → JMdict-only, no spend.
+  // 2. Resolve senses: JMdict first, then the Google MT fallback.
+  //    The paid path runs ONLY when MT is configured (key + kill-switch off) AND the
+  //    request is attributable to a user (a JWT `sub`). A call on the public anon key
+  //    with no user session is NOT metered, so it must not spend → JMdict-only.
+  //    (The app's guests are real anonymous-auth users, so they always have a sub.)
+  const userId = userIdFromAuth(req.headers.get("Authorization"));
   let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
-  if (results.length === 0 && !mtDisabled()) {
+  if (results.length === 0 && mtConfigured() && userId) {
     // MT is the only PAID path → enforce the caller's limits here, the hard
     // server-side gate (the client also pre-checks for UX). Both checks happen
     // BEFORE the provider call, so a rejected request costs nothing.
-    const userId = userIdFromAuth(req.headers.get("Authorization"));
     const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
 
     // (a) per-request paragraph cap → 413
@@ -612,18 +631,15 @@ async function handleRequest(req: Request): Promise<Response> {
     }
     // (b) cumulative MONTHLY quota → 429 (the hard free-tier ceiling). Reserve
     //     the chars ATOMICALLY before the paid call (no check-then-meter race);
-    //     a denied reservation costs nothing. Only when usage is attributable to a
-    //     user (a JWT sub); anon-keyed calls skip metering.
-    if (userId) {
-      const { allowed, used } = await reserveQuota(
-        supabase, userId, input.length, monthlyCharQuota,
+    //     a denied reservation costs nothing.
+    const { allowed, used } = await reserveQuota(
+      supabase, userId, input.length, monthlyCharQuota,
+    );
+    if (!allowed) {
+      return reply(
+        { error: "Monthly translation quota reached", used, quota: monthlyCharQuota },
+        429,
       );
-      if (!allowed) {
-        return reply(
-          { error: "Monthly translation quota reached", used, quota: monthlyCharQuota },
-          429,
-        );
-      }
     }
 
     // (c) GLOBAL monthly cap across ALL users (the aggregate billing ceiling) → 429.
@@ -672,7 +688,10 @@ async function handleRequest(req: Request): Promise<Response> {
     .from("words")
     .upsert(rows, { onConflict: "dictionary_ref,source_lang,target_lang" })
     .select("*");
-  if (insertError) return reply({ error: insertError.message }, 500);
+  if (insertError) {
+    console.error("words upsert failed:", insertError.message); // detail server-side only
+    return reply({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
+  }
 
   const ordered = sortBySensePos((saved ?? []) as WordRow[]);
   return reply(ordered.length > 0 ? respondWords(ordered) : {

@@ -465,6 +465,31 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     expect(hasKanji(neko!.writing)).toBe(true);                 // kanji headword
     expect(neko!.input_reading).toBe("ねこ");                    // kana reading
   });
+
+  // Homograph readings are never swapped: 辛い splits into からい / つらい on SEPARATE
+  // entries, each carrying its own reading (a load-bearing invariant per CLAUDE.md).
+  it("keeps homograph readings on their own entries (辛い → からい, つらい separate)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const rows = ((await svc.rpc("jmdict_lookup", { p_input: "辛い", p_source: "JA", p_target: "EN" })).data ?? []) as LookupRow[];
+    if (rows.length === 0) return; // 辛い not in the loaded subset
+    // The kanji-headword 辛い entry reads からい (spicy) — NEVER swapped to つらい.
+    const karai = rows.find((r) => r.writing === "辛い");
+    expect(karai?.input_reading).toBe("からい");
+    // つらい (painful) is a SEPARATE entry — uk, so it headlines as the kana writing.
+    expect(rows.some((r) => r.writing === "つらい")).toBe(true);
+  });
+
+  // Headword frequency ordering: a kana search returns the most COMMON writing first
+  // (いく → 行く ≫ 幾 / 逝く). Guards the ORDER BY frequency in jmdict_lookup.
+  it("orders by headword frequency (いく → 行く first)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data } = await svc.rpc("jmdict_lookup", { p_input: "いく", p_source: "JA", p_target: "EN" });
+    const rows = (data ?? []) as LookupRow[];
+    if (rows.length === 0) return; // いく not in the loaded subset
+    expect(rows[0].writing).toBe("行く");
+  });
 });
 
 // ── consume_translation_quota (service-role only) ──────────────────────────

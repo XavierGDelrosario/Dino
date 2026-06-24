@@ -59,6 +59,12 @@ export function useSession(): SessionState {
       if (u) {
         const isAnonymous = (u as { is_anonymous?: boolean }).is_anonymous === true;
         setStatus({ userId: u.id, email: isAnonymous ? null : u.email || null, isAnonymous });
+      } else if (event === "SIGNED_OUT") {
+        // No session (explicit sign-out, token expiry, or another-tab sign-out).
+        // Self-heal into a fresh guest so the UI never sits on a dead identity that
+        // 401/403s every read/write. ensureSession dedupes concurrent calls, and its
+        // SIGNED_IN event repopulates status via the branch above.
+        ensureSession().catch((e) => active && setError(describeError(e)));
       }
     });
 

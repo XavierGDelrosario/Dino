@@ -21,19 +21,28 @@
 // =========================================================
 import { describe, it, expect } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { URL, ANON, SERVICE_KEY, ENABLED } from "./_support";
+import { URL, ANON, SERVICE_KEY, ENABLED, makeUser } from "./_support";
 
 const FN = `${URL}/functions/v1/translate`;
 
-async function post(body: unknown, headers: Record<string, string> = {}) {
+// POST with a given bearer token (default the bare anon key — no user session).
+async function postAs(token: string, body: unknown) {
   const res = await fetch(FN, {
     method: "POST",
-    headers: { Authorization: `Bearer ${ANON}`, "Content-Type": "application/json", ...headers },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
   let json: Record<string, unknown> = {};
   try { json = await res.json(); } catch { /* non-JSON */ }
   return { status: res.status, json };
+}
+const post = (body: unknown) => postAs(ANON, body);
+
+/** A fresh user's id + access-token (a real JWT `sub` → the paid path is metered). */
+async function makeTokenUser(): Promise<{ userId: string; token: string }> {
+  const u = await makeUser();
+  const { data } = await u.client.auth.getSession();
+  return { userId: u.userId, token: data.session!.access_token };
 }
 
 describe.skipIf(!ENABLED)("edge: translate HTTP shell", () => {
@@ -122,13 +131,58 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("edge: retry idempotency", () => {
 
   it("STORES the paid response under a fresh key", async () => {
     const admin = adminClient();
+    // Needs a real user JWT: the paid path (which sets usedMT → stores) only runs for
+    // an attributable user, so a bare-anon-key call would skip MT and store nothing.
+    const { token } = await makeTokenUser();
     const key = `it-store-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    await post({
+    await postAs(token, {
       input: "今日はとても良い天気", sourceLang: "JA", targetLang: "EN", persist: false, idempotencyKey: key,
     });
     const { data } = await admin
       .from("idempotency_keys").select("key").eq("key", key).maybeSingle();
     expect(data).not.toBeNull();
     await admin.from("idempotency_keys").delete().eq("key", key);
+  });
+});
+
+// Cost-control gates (#1): the paid MT path must 413/429 BEFORE calling Google.
+// Needs a user JWT (the paid path is metered only for an attributable user) + a
+// JMdict-MISS input (so the MT path is reached) + a seeded low limit. No spend
+// occurs: both gates return before the provider call.
+const MISS = "zxqwvk"; // not a JMdict entry → routes to the MT fallback
+describe.skipIf(!ENABLED || !SERVICE_KEY)("edge: cost-control gates", () => {
+  const adminClient = () =>
+    createClient(URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+
+  it("413s an input over the per-request paragraph limit", async () => {
+    const admin = adminClient();
+    const { userId, token } = await makeTokenUser();
+    await admin.from("user_limits").upsert(
+      { user_id: userId, paragraph_char_limit: 3, monthly_char_quota: 1_000_000 },
+      { onConflict: "user_id" },
+    );
+    const { status } = await postAs(token, { input: MISS, sourceLang: "JA", targetLang: "EN" });
+    // 413 if MT is configured on the served fn; if not, the path no-ops to 200 (skip).
+    if (status === 200) return;
+    expect(status).toBe(413);
+  });
+
+  it("429s once the monthly quota is exhausted", async () => {
+    const admin = adminClient();
+    const { userId, token } = await makeTokenUser();
+    await admin.from("user_limits").upsert(
+      { user_id: userId, paragraph_char_limit: 2000, monthly_char_quota: 1 },
+      { onConflict: "user_id" },
+    );
+    const { status } = await postAs(token, { input: MISS, sourceLang: "JA", targetLang: "EN" });
+    if (status === 200) return; // MT not configured on the served fn → skip
+    expect(status).toBe(429);
+  });
+
+  it("does NOT meter / spend for a bare anon key (no user session)", async () => {
+    // No JWT sub → the paid path is skipped entirely → JMdict-only (translated:false
+    // for a miss), never reaching the provider or the quota.
+    const { json } = await post({ input: MISS, sourceLang: "JA", targetLang: "EN" });
+    expect(json.translated).toBe(false);
   });
 });
