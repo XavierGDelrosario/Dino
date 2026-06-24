@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { setNewPassword } from "../../services/session";
 import { errorMessage as message } from "../../lib/errorMessage";
+import { checkPassword } from "../../lib/password";
 import { useI18n } from "../../i18n";
 import "./common.css";
 
@@ -15,6 +16,8 @@ export function ResetPasswordView({ onDone }: { onDone: () => void }) {
 
   const submit = async () => {
     if (busy || password === "") return;
+    const issue = checkPassword(password);
+    if (issue) { setErr(t(issue === "short" ? "auth.pwShort" : "auth.pwWeak")); return; }
     setBusy(true);
     setErr(null);
     try {

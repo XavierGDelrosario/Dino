@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { upgradeToAccount, signIn, signOut, requestPasswordReset } from "../../services/session";
 import { errorMessage as message } from "../../lib/errorMessage";
+import { checkPassword } from "../../lib/password";
 import { useI18n } from "../../i18n";
 import "./common.css";
 
@@ -89,7 +90,14 @@ export function AccountMenu({
                 <button
                   className="btn btn--sm"
                   disabled={!canSubmit}
-                  onClick={() => run(() => upgradeToAccount({ email: emailInput, password }))}
+                  onClick={() => {
+                    // Enforce the password policy client-side before the round-trip
+                    // (the server also rejects weak passwords). Sign-in does NOT
+                    // re-validate — existing accounts may predate the policy.
+                    const issue = checkPassword(password);
+                    if (issue) { setErr(t(issue === "short" ? "auth.pwShort" : "auth.pwWeak")); return; }
+                    run(() => upgradeToAccount({ email: emailInput, password }));
+                  }}
                 >
                   {t("auth.createAccount")}
                 </button>

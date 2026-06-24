@@ -173,6 +173,8 @@ export const en = {
   "auth.newPasswordPlaceholder": "New password",
   "auth.updatePassword": "Update password",
   "auth.resetDone": "Password updated — you're signed in.",
+  "auth.pwShort": "Password must be at least 8 characters.",
+  "auth.pwWeak": "Password must include both letters and numbers.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -325,6 +327,8 @@ export const ja: Record<MessageKey, string> = {
   "auth.newPasswordPlaceholder": "新しいパスワード",
   "auth.updatePassword": "パスワードを更新",
   "auth.resetDone": "パスワードを更新しました — ログインしました。",
+  "auth.pwShort": "パスワードは8文字以上にしてください。",
+  "auth.pwWeak": "パスワードには英字と数字の両方を含めてください。",
 };
 
 export const LOCALES = [
