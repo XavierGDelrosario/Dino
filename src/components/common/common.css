@@ -37,6 +37,18 @@ body {
 .app__header {
   text-align: center;
   margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.langpicker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 .app__footer {

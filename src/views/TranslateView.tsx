@@ -16,11 +16,14 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
 import { targetOptions } from "../services/language";
+import { useI18n } from "../i18n";
 import type { Word } from "../services/words/repository";
 import "../components/translate/translate.css";
 
 export function TranslateView({ userId }: { userId: string }) {
   const t = useTranslate(userId);
+  const { t: tr } = useI18n();
+  const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ words: Word[]; mode: QuizMode } | null>(null);
   const [domainNote, setDomainNote] = useState<string | null>(null);
 
@@ -30,7 +33,7 @@ export function TranslateView({ userId }: { userId: string }) {
     setDomainNote(null);
     const words = await t.exploreDomain();
     if (words.length > 0) setQuiz({ words, mode: "learn" });
-    else setDomainNote("No related words at your level — try a longer or more common passage.");
+    else setDomainNote(tr("translate.noDomain"));
   };
 
   // Snapshot a paragraph's NEW words ONCE when its result arrives. The live
@@ -81,17 +84,17 @@ export function TranslateView({ userId }: { userId: string }) {
           className="textarea translate__box"
           value={t.input}
           onChange={(e) => t.setInput(e.target.value)}
-          placeholder="Type a word or a sentence…"
+          placeholder={tr("translate.inputPlaceholder")}
           rows={4}
-          aria-label="Text to translate"
+          aria-label={tr("translate.inputAria")}
         />
-        <div className="translate__box translate__out" aria-label="Translation">
+        <div className="translate__box translate__out" aria-label={tr("translate.outputAria")}>
           {t.status === "loading" ? (
-            <span className="translate__placeholder">Translating…</span>
+            <span className="translate__placeholder">{tr("translate.translating")}</span>
           ) : t.output ? (
             t.output
           ) : (
-            <span className="translate__placeholder">Translation</span>
+            <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
           )}
         </div>
       </div>
@@ -102,19 +105,19 @@ export function TranslateView({ userId }: { userId: string }) {
           onClick={() => t.submit()}
           disabled={t.status === "loading" || !t.input.trim()}
         >
-          {t.status === "loading" ? "…" : "Translate"}
+          {t.status === "loading" ? "…" : tr("translate.submit")}
         </button>
       </div>
 
       {/* The language you're learning: the study section below always targets it
           (its words get added/quizzed), whether you typed it or it's the output. */}
       <label className="learnpick">
-        I'm learning:
+        {tr("translate.learning")}
         <select
           className="select select--sm"
           value={t.learning}
           onChange={(e) => t.setLearning(e.target.value)}
-          aria-label="Language I'm learning"
+          aria-label={tr("translate.learningAria")}
         >
           {targetOptions().map((o) => (
             <option key={o.code} value={o.code}>
@@ -149,7 +152,7 @@ export function TranslateView({ userId }: { userId: string }) {
                     <AddToListButton
                       words={addAllWords}
                       lists={t.lists}
-                      label={`+ Add all ${addAllWords.length} new ${addAllWords.length === 1 ? "word" : "words"}`}
+                      label={tr("translate.addAll", { n: addAllWords.length, noun: noun(addAllWords.length) })}
                       onAdd={t.addWords}
                       onCreateList={t.createNamedList}
                       className="btn reader__addall"
@@ -160,7 +163,7 @@ export function TranslateView({ userId }: { userId: string }) {
                       className="btn"
                       onClick={() => setQuiz({ words: t.addablePrimaries, mode: "learn" })}
                     >
-                      Quiz {t.addableCount} new {t.addableCount === 1 ? "word" : "words"}
+                      {tr("translate.quizNew", { n: t.addableCount, noun: noun(t.addableCount) })}
                     </button>
                   )}
                   {t.reviewableCount > 0 && (
@@ -168,11 +171,11 @@ export function TranslateView({ userId }: { userId: string }) {
                       className="btn"
                       onClick={() => setQuiz({ words: t.reviewablePrimaries, mode: "review" })}
                     >
-                      Review {t.reviewableCount} saved {t.reviewableCount === 1 ? "word" : "words"}
+                      {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
                     </button>
                   )}
                   <button className="btn btn--ghost" disabled={t.domainLoading} onClick={onExplore}>
-                    {t.domainLoading ? "Finding related words…" : "Explore related words"}
+                    {t.domainLoading ? tr("translate.exploreLoading") : tr("translate.explore")}
                   </button>
                 </div>
               )}

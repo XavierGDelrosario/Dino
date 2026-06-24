@@ -5,6 +5,8 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { useSession } from "./hooks/useSession";
 import { warmJapaneseAnalyzer } from "./services/language";
 import { AttributionFooter } from "./components/common/AttributionFooter";
+import { LanguagePicker } from "./components/common/LanguagePicker";
+import { useI18n } from "./i18n";
 import "./components/common/common.css";
 
 // Each tab's view is its own lazy chunk, so the initial bundle ships only the
@@ -24,6 +26,7 @@ type Tab = "translate" | "lists" | "review";
 
 export function App() {
   const { userId, loading, error } = useSession();
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("translate");
 
   // Preload kuromoji's dictionary during idle time so the first Japanese analysis
@@ -47,12 +50,13 @@ export function App() {
     <main className="app">
       <header className="app__header">
         <h1 className="app__title">DINO 大脳</h1>
+        <LanguagePicker />
       </header>
 
-      {loading && <p className="review__msg">Starting session…</p>}
+      {loading && <p className="review__msg">{t("app.startingSession")}</p>}
       {error && (
         <div className="review__msg">
-          <p>Couldn’t start a session.</p>
+          <p>{t("app.sessionErrorTitle")}</p>
           <pre className="review__error">{error.message}</pre>
         </div>
       )}
@@ -64,23 +68,23 @@ export function App() {
               className={`tab${tab === "translate" ? " tab--active" : ""}`}
               onClick={() => setTab("translate")}
             >
-              Translate
+              {t("tabs.translate")}
             </button>
             <button
               className={`tab${tab === "lists" ? " tab--active" : ""}`}
               onClick={() => setTab("lists")}
             >
-              Lists
+              {t("tabs.lists")}
             </button>
             <button
               className={`tab${tab === "review" ? " tab--active" : ""}`}
               onClick={() => setTab("review")}
             >
-              Review
+              {t("tabs.review")}
             </button>
           </nav>
 
-          <Suspense fallback={<p className="review__msg">Loading…</p>}>
+          <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
             {tab === "translate" && <TranslateView userId={userId} />}
             {tab === "lists" && (
               <ListView
