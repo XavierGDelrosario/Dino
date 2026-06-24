@@ -23,7 +23,8 @@ CI (GitHub Actions: quality gate + real-DB integration job) · content-safety fi
 errorMessage / grades; eslint clean) · multi-agent pre-publish review (37 agents)
 with all 11 confirmed findings fixed · quota refund + default global spend cap ·
 password strength · router + separate auth pages + profile page (native/learning/app
-language prefs).
+language prefs) · Google login wiring + email-confirmation handling · Privacy/ToS
+pages (draft).
 
 ## 🔴 Tier 1 — Required for a real launch (build work)
 *(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
@@ -46,8 +47,11 @@ and the cost-control code (#1 kill-switch + global cap) are all done.)*
    hosted Supabase project + `db push` + ingest, set edge secrets (incl.
    `ALLOWED_ORIGINS`), `functions deploy`, build with cloud env + upload `dist/` to
    Cloudflare Pages.
-3. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
-4. **Account & auth UX** — `[#13 cont.]` mostly DONE (2026-06-24):
+3. **Legal — privacy + ToS** — `[§10]` ✅ **DRAFTED (2026-06-24):** in-app `/privacy`
+   + `/terms` pages (footer-linked) reflecting the real data flows (Supabase storage;
+   Google receives translated text; account deletion). *Remaining: counsel review*
+   before publishing (they're marked DRAFT).
+4. **Account & auth UX** — `[#13 cont.]` DONE (2026-06-24):
    - ✅ **Password strength** — server (`minimum_password_length=8` +
      `password_requirements="letters_digits"`) + client validation.
    - ✅ **Separate pages** — in-house router; `/signin`, `/signup`, `/profile`, `/`;
@@ -55,11 +59,12 @@ and the cost-control code (#1 kill-switch + global cap) are all done.)*
    - ✅ **Profile page + person-icon dropdown** — email, member-since, **native
      language** (`users.native_language`, drives default output), learning language,
      app language; native/learning persist + default the Translate directions.
-   - ⬜ **Email confirmation + verification** — code handles immediate apply (local
-     confirmations off); prod must enable `[auth.email] enable_confirmations` + add a
-     "check your email" pending state. *(deploy-gated to verify)*
-   - ⬜ **Google login** — `[auth.external.google]` provider + a "Continue with
-     Google" button. *(needs your Google OAuth creds to verify)*
+   - ✅ **Email confirmation** — `upgradeToAccount` detects pending (prod confirmations
+     on) → AuthPage shows "check your email"; local (off) applies immediately. *(verify
+     once prod enables `[auth.email] enable_confirmations`.)*
+   - ✅ **Google login** — `linkGoogle` (signup→same uid) / `signInWithGoogle` (signin)
+     + "Continue with Google" buttons + a documented (disabled) `[auth.external.google]`
+     config. *(enable the provider + set OAuth creds to use.)*
 
 ## 🔒 Tier 2 — Hosted-only (our side DONE; finish on the live production Supabase)
 Code/in-repo work is complete; the only remaining step is a one-time action on the
@@ -159,10 +164,10 @@ A hard gate as we approach v1: do this before going public, not after.
   HLR curve is fine for now.
 
 ---
-**Throughline:** the security/cost CODE blockers are cleared. **Tier 1 is the remaining
-BUILD work — auth core ✅ + the account/auth UX (pages, profile, Google, email
-confirm, password rules), deploy (the gate), privacy/ToS.** **Tier 2** is config/
-console actions once Deploy stands up the hosted Supabase. The **Pre-publish QA gate**
-(strict real-DB test coverage + code-QA + leak/optimistic-UI sweeps) and **Content
-safety** (profanity filter on suggestions) are hard gates before the first public
-build. **Admin tooling** is operational. Tier 3 is post-launch polish.
+**Throughline:** the v1 ENGINEERING is essentially done — auth (incl. pages, profile,
+Google, email-confirm, password rules), content safety, the QA gate (CI + tests +
+multi-agent review), and the cost/metering hardening are all in. **What's left to
+publish is non-code:** **Deploy (#2, the gate — needs your cloud accounts)**, counsel
+review of the drafted Privacy/ToS, and the **Tier 2** console config that Deploy
+unlocks. Google + email-confirmation are wired and just need creds / prod
+confirmations to verify. **Admin tooling** + Tier 3 are post-launch.
