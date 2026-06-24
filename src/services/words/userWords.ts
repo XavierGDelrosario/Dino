@@ -17,6 +17,7 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { mapLimit } from "../../lib/concurrency";
 import { ServiceError, toServiceError } from "../errors";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
@@ -362,6 +363,12 @@ export interface UserWordState {
  * OUTPUT: Map<dictionaryWordId, UserWordState>.
  * CONSTRAINTS: RLS-scoped to the caller's own rows.
  */
+// Max ids per `.in()` GET. A UUID is ~39 URL-encoded chars (36 + `%2C`), so 100
+// keeps a single query URL near ~4 KB — well under typical server/proxy limits.
+const ID_CHUNK_SIZE = 100;
+// A long EN→JA paragraph can produce many chunks; cap in-flight requests.
+const ID_CHUNK_CONCURRENCY = 6;
+
 export async function getUserWordStates(params: {
   userId: string;
   dictionaryWordIds: string[];
@@ -377,23 +384,39 @@ export async function getUserWordStates(params: {
   );
   if (uniqueIds.length === 0) return states;
 
-  const { data, error } = await supabase
-    .from("user_words")
-    .select<string, UserWordRow>(
-      "user_word_id, dictionary_word_id, confidence_rating, last_reviewed_date"
-    )
-    .eq("user_id", userId)
-    .in("dictionary_word_id", uniqueIds);
-  if (error) throw toServiceError(error);
+  // CHUNK the `.in()` filter. The id set is unbounded — a single EN→JA paragraph
+  // word can carry HUNDREDS of senses (JMdict reverse-matches the English token in
+  // every Japanese gloss: "the" → 400+), so a whole paragraph yields thousands of
+  // ids. Inlining them all makes a PostgREST GET URL that exceeds the server limit
+  // (414 URI Too Long → the fetch throws → the reader never renders). One bounded
+  // GET per ID_CHUNK_SIZE ids keeps every URL small; results merge into `states`.
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueIds.length; i += ID_CHUNK_SIZE) {
+    chunks.push(uniqueIds.slice(i, i + ID_CHUNK_SIZE));
+  }
 
-  for (const r of data ?? []) {
-    if (!r.dictionary_word_id) continue;
-    states.set(r.dictionary_word_id, {
-      tracked: true,
-      userWordId: r.user_word_id,
-      confidenceRating: r.confidence_rating,
-      lastReviewedDate: r.last_reviewed_date,
-    });
+  const rowsPerChunk = await mapLimit(chunks, ID_CHUNK_CONCURRENCY, async (ids) => {
+    const { data, error } = await supabase
+      .from("user_words")
+      .select<string, UserWordRow>(
+        "user_word_id, dictionary_word_id, confidence_rating, last_reviewed_date"
+      )
+      .eq("user_id", userId)
+      .in("dictionary_word_id", ids);
+    if (error) throw toServiceError(error);
+    return data ?? [];
+  });
+
+  for (const rows of rowsPerChunk) {
+    for (const r of rows) {
+      if (!r.dictionary_word_id) continue;
+      states.set(r.dictionary_word_id, {
+        tracked: true,
+        userWordId: r.user_word_id,
+        confidenceRating: r.confidence_rating,
+        lastReviewedDate: r.last_reviewed_date,
+      });
+    }
   }
   return states;
 }

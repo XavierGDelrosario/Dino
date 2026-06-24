@@ -285,7 +285,15 @@ BEGIN
                     WHERE nn.entry_id = ent.entry_id
                     ORDER BY nn.common DESC, nn.position ASC LIMIT 1) ka ON TRUE
       ) pref ON TRUE
-      WHERE pref.writing IS NOT NULL;
+      WHERE pref.writing IS NOT NULL
+      -- CAP the EN->JA result. Unlike JA->EN (one headword → its few real senses),
+      -- this branch is a REVERSE gloss search: it returns every Japanese entry whose
+      -- gloss mentions the word ("the" → 400+). The ORDER BY above already ranks the
+      -- relevant ones first (head-match → core → frequency), so keep only the top
+      -- slice — the long tail is noise (and an uncapped set ballooned the reader's
+      -- per-word senses). sense_position is contiguous post-WHERE, so order by it.
+      ORDER BY sense_position
+      LIMIT 12;
   END IF;
 END;
 $$;
