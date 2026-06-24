@@ -11,6 +11,10 @@ export interface SessionState {
   email: string | null;
   /** true until the user creates/links a permanent account. */
   isAnonymous: boolean;
+  /** true while the user is in a password-recovery session (followed a reset link)
+   *  — the app shows the set-new-password form until they finish (clearRecovery). */
+  recovering: boolean;
+  clearRecovery: () => void;
   loading: boolean;
   error: Error | null;
 }
@@ -31,6 +35,7 @@ function describeError(e: unknown): Error {
 
 export function useSession(): SessionState {
   const [status, setStatus] = useState<AuthStatus | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -45,9 +50,11 @@ export function useSession(): SessionState {
         if (active) setError(describeError(e));
       });
 
-    // 2. Keep the identity live across upgrade (USER_UPDATED) / sign-in / sign-out.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    // 2. Keep the identity live across upgrade (USER_UPDATED) / sign-in / sign-out,
+    //    and catch PASSWORD_RECOVERY (the user followed a reset link).
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
       const u = session?.user;
       if (u) {
         const isAnonymous = (u as { is_anonymous?: boolean }).is_anonymous === true;
@@ -65,6 +72,8 @@ export function useSession(): SessionState {
     userId: status?.userId ?? null,
     email: status?.email ?? null,
     isAnonymous: status?.isAnonymous ?? true,
+    recovering,
+    clearRecovery: () => setRecovering(false),
     loading: status === null && error === null,
     error,
   };

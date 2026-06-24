@@ -45,6 +45,13 @@ supabase secrets set GLOBAL_MONTHLY_CHAR_QUOTA=<aggregate-cap>     # e.g. 500000
 ```
 `verify_jwt` is ON by default for deployed functions (do NOT pass --no-verify-jwt).
 
+**Auth URL config (for password-reset / magic links):** in the dashboard →
+Authentication → URL Configuration, set **Site URL** to the Pages domain and add it
+to **Redirect URLs**. Locally this is `config.toml` `site_url` /
+`additional_redirect_urls` (already `localhost:5173`). Without it, reset links bounce
+to the wrong origin. Consider enabling email confirmations in prod (local has them
+off) — the upgrade/reset code already round-trips through email.
+
 ## 3. Frontend → Cloudflare Pages
 ```bash
 # Build against the CLOUD project (anon key is public; RLS protects data).

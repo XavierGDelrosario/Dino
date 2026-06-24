@@ -88,6 +88,26 @@ export async function signOut(): Promise<string> {
   return ensureSession();
 }
 
+/**
+ * Send a password-reset email. The link returns the user to the app in a
+ * PASSWORD_RECOVERY session (useSession surfaces it as `recovering`), where
+ * setNewPassword finishes the reset. `redirectTo` is the app origin and must be in
+ * the project's auth URL allow-list (config.toml `additional_redirect_urls` locally;
+ * Supabase dashboard → Authentication → URL Configuration in prod).
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
+  if (error) throw toServiceError(error, "Could not send the reset email");
+}
+
+/** Set a new password for the user currently in a recovery session (after they
+ *  followed the reset link). Leaves them signed in to that account. */
+export async function setNewPassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw toServiceError(error, "Could not update your password");
+}
+
 // The `users` table row, derived from the generated schema types.
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 

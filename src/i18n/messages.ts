@@ -165,6 +165,14 @@ export const en = {
   "auth.signIn": "Sign in",
   "auth.signOut": "Sign out",
   "auth.upgradeNote": "Create an account to keep your words across devices — the words you saved as a guest carry over. Already have one? Sign in (guest words stay with the guest).",
+  "auth.forgot": "Forgot password?",
+  "auth.sendReset": "Send reset link",
+  "auth.resetSent": "Check your email for a reset link.",
+  "auth.back": "Back",
+  "auth.resetTitle": "Set a new password",
+  "auth.newPasswordPlaceholder": "New password",
+  "auth.updatePassword": "Update password",
+  "auth.resetDone": "Password updated — you're signed in.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -309,6 +317,14 @@ export const ja: Record<MessageKey, string> = {
   "auth.signIn": "ログイン",
   "auth.signOut": "ログアウト",
   "auth.upgradeNote": "アカウントを作成すると、ゲストとして保存した単語が引き継がれ、デバイス間で保存されます。アカウントをお持ちの場合はログインしてください（ゲストの単語はゲストに残ります）。",
+  "auth.forgot": "パスワードをお忘れですか？",
+  "auth.sendReset": "リセットリンクを送信",
+  "auth.resetSent": "リセットリンクをメールでご確認ください。",
+  "auth.back": "戻る",
+  "auth.resetTitle": "新しいパスワードを設定",
+  "auth.newPasswordPlaceholder": "新しいパスワード",
+  "auth.updatePassword": "パスワードを更新",
+  "auth.resetDone": "パスワードを更新しました — ログインしました。",
 };
 
 export const LOCALES = [

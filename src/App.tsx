@@ -7,6 +7,7 @@ import { warmJapaneseAnalyzer } from "./services/language";
 import { AttributionFooter } from "./components/common/AttributionFooter";
 import { LanguagePicker } from "./components/common/LanguagePicker";
 import { AccountMenu } from "./components/common/AccountMenu";
+import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { useI18n } from "./i18n";
 import "./components/common/common.css";
 
@@ -26,7 +27,7 @@ const FlashcardView = lazy(() =>
 type Tab = "translate" | "lists" | "review";
 
 export function App() {
-  const { userId, email, isAnonymous, loading, error } = useSession();
+  const { userId, email, isAnonymous, recovering, clearRecovery, loading, error } = useSession();
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("translate");
 
@@ -64,7 +65,11 @@ export function App() {
         </div>
       )}
 
-      {userId && (
+      {/* Password-recovery takeover: the user followed a reset link → set a new
+          password before the normal app. */}
+      {recovering && <ResetPasswordView onDone={clearRecovery} />}
+
+      {userId && !recovering && (
         <>
           <nav className="tabs">
             <button

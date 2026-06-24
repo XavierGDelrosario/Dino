@@ -3,7 +3,7 @@
 // Sign-in (an existing account). When permanent, shows the email + Sign out.
 // The auth listener in useSession updates the app, so these just call the service.
 import { useState } from "react";
-import { upgradeToAccount, signIn, signOut } from "../../services/session";
+import { upgradeToAccount, signIn, signOut, requestPasswordReset } from "../../services/session";
 import { useI18n } from "../../i18n";
 import "./common.css";
 
@@ -22,6 +22,7 @@ export function AccountMenu({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"auth" | "forgot" | "sent">("auth");
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,49 +55,99 @@ export function AccountMenu({
   }
 
   const canSubmit = !busy && emailInput.trim() !== "" && password !== "";
+  const emailField = (
+    <input
+      className="input input--sm"
+      type="email"
+      value={emailInput}
+      onChange={(e) => setEmailInput(e.target.value)}
+      placeholder={t("auth.emailPlaceholder")}
+      aria-label={t("auth.emailPlaceholder")}
+      autoComplete="email"
+    />
+  );
+
   return (
     <div className="account">
-      <button className="btn btn--sm" onClick={() => setOpen((o) => !o)}>
+      <button
+        className="btn btn--sm"
+        onClick={() => { setMode("auth"); setErr(null); setOpen((o) => !o); }}
+      >
         {t("auth.signInCreate")}
       </button>
       {open && (
         <div className="account__panel">
-          <input
-            className="input input--sm"
-            type="email"
-            value={emailInput}
-            onChange={(e) => setEmailInput(e.target.value)}
-            placeholder={t("auth.emailPlaceholder")}
-            aria-label={t("auth.emailPlaceholder")}
-            autoComplete="email"
-          />
-          <input
-            className="input input--sm"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t("auth.passwordPlaceholder")}
-            aria-label={t("auth.passwordPlaceholder")}
-            autoComplete="current-password"
-          />
-          {err && <pre className="review__error">{err}</pre>}
-          <div className="account__actions">
-            <button
-              className="btn btn--sm"
-              disabled={!canSubmit}
-              onClick={() => run(() => upgradeToAccount({ email: emailInput, password }))}
-            >
-              {t("auth.createAccount")}
-            </button>
-            <button
-              className="btn btn--sm btn--ghost"
-              disabled={!canSubmit}
-              onClick={() => run(() => signIn({ email: emailInput, password }))}
-            >
-              {t("auth.signIn")}
-            </button>
-          </div>
-          <p className="account__note">{t("auth.upgradeNote")}</p>
+          {mode === "auth" && (
+            <>
+              {emailField}
+              <input
+                className="input input--sm"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t("auth.passwordPlaceholder")}
+                aria-label={t("auth.passwordPlaceholder")}
+                autoComplete="current-password"
+              />
+              {err && <pre className="review__error">{err}</pre>}
+              <div className="account__actions">
+                <button
+                  className="btn btn--sm"
+                  disabled={!canSubmit}
+                  onClick={() => run(() => upgradeToAccount({ email: emailInput, password }))}
+                >
+                  {t("auth.createAccount")}
+                </button>
+                <button
+                  className="btn btn--sm btn--ghost"
+                  disabled={!canSubmit}
+                  onClick={() => run(() => signIn({ email: emailInput, password }))}
+                >
+                  {t("auth.signIn")}
+                </button>
+              </div>
+              <button
+                className="account__link"
+                onClick={() => { setErr(null); setMode("forgot"); }}
+              >
+                {t("auth.forgot")}
+              </button>
+              <p className="account__note">{t("auth.upgradeNote")}</p>
+            </>
+          )}
+
+          {mode === "forgot" && (
+            <>
+              {emailField}
+              {err && <pre className="review__error">{err}</pre>}
+              <div className="account__actions">
+                <button
+                  className="btn btn--sm"
+                  disabled={busy || emailInput.trim() === ""}
+                  onClick={async () => {
+                    // Not run(): keep the panel open and show the "sent" note.
+                    setBusy(true);
+                    setErr(null);
+                    try {
+                      await requestPasswordReset(emailInput);
+                      setMode("sent");
+                    } catch (e) {
+                      setErr(message(e));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {t("auth.sendReset")}
+                </button>
+                <button className="btn btn--sm btn--ghost" onClick={() => { setErr(null); setMode("auth"); }}>
+                  {t("auth.back")}
+                </button>
+              </div>
+            </>
+          )}
+
+          {mode === "sent" && <p className="account__note">{t("auth.resetSent")}</p>}
         </div>
       )}
     </div>
