@@ -13,6 +13,7 @@ import {
 } from "../../services/language";
 import type { Word } from "../../services/words/repository";
 import { SenseText } from "../common/SenseText";
+import { useI18n } from "../../i18n";
 import "./lists.css";
 
 export function AddWord({
@@ -35,6 +36,7 @@ export function AddWord({
   const [result, setResult] = useState<{ input: string; meanings: Word[] } | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [showOthers, setShowOthers] = useState(false);
+  const { t } = useI18n();
 
   const reset = () => {
     setResult(null);
@@ -46,7 +48,7 @@ export function AddWord({
   if (!open) {
     return (
       <button className="btn lists__addtoggle" onClick={() => setOpen(true)}>
-        ＋ Add word
+        {t("lists.addWordToggle")}
       </button>
     );
   }
@@ -59,7 +61,7 @@ export function AddWord({
     try {
       const r = await lookup({ input, sourceLang, targetLang });
       if (r.meanings.length === 0) {
-        setErr(`No dictionary match for "${r.input}".`);
+        setErr(t("lists.noMatchFor", { input: r.input }));
         return;
       }
       setResult(r);
@@ -93,7 +95,7 @@ export function AddWord({
             className="select select--sm"
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
-            aria-label="Word language"
+            aria-label={t("lists.wordLangAria")}
           >
             {sourceOptions().map((o) => (
               <option key={o.code} value={o.code}>
@@ -106,7 +108,7 @@ export function AddWord({
             className="select select--sm"
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value as LangCode)}
-            aria-label="Meaning language"
+            aria-label={t("lists.meaningLangAria")}
           >
             {targetOptions().map((o) => (
               <option key={o.code} value={o.code}>
@@ -119,11 +121,11 @@ export function AddWord({
           className="input input--sm"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Word"
-          aria-label="Word to look up"
+          placeholder={t("lists.wordPlaceholder")}
+          aria-label={t("lists.wordLookupAria")}
         />
         <button className="btn" onClick={submit} disabled={!input.trim() || busy}>
-          {busy ? "…" : "Add"}
+          {busy ? "…" : t("common.add")}
         </button>
         <button
           className="iconbtn"
@@ -132,7 +134,7 @@ export function AddWord({
             setInput("");
             reset();
           }}
-          title="Close"
+          title={t("common.close")}
         >
           ✕
         </button>
@@ -143,13 +145,13 @@ export function AddWord({
       {primary && (
         <div className="addword__result">
           <div className="addword__added">
-            ✓ Added <SenseText word={primary} />
+            {t("lists.addedPrefix")} <SenseText word={primary} />
           </div>
 
           {others.length > 0 && (
             <>
               <button className="results__more" onClick={() => setShowOthers((v) => !v)}>
-                {showOthers ? "Hide other meanings" : `Other meanings (${others.length})`}
+                {showOthers ? t("lists.hideOthers") : t("lists.otherMeanings", { n: others.length })}
               </button>
               {showOthers && (
                 <ul className="addword__others">

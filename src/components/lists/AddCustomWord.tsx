@@ -3,6 +3,7 @@
 // supplies the create callback.
 import { useState } from "react";
 import { targetOptions, type LangCode } from "../../services/language";
+import { useI18n } from "../../i18n";
 import "./lists.css";
 
 export function AddCustomWord({
@@ -20,11 +21,12 @@ export function AddCustomWord({
   const [translation, setTranslation] = useState("");
   const [sourceLang, setSourceLang] = useState<LangCode>("JA");
   const [targetLang, setTargetLang] = useState<LangCode>("EN");
+  const { t } = useI18n();
 
   if (!open) {
     return (
       <button className="btn lists__addtoggle" onClick={() => setOpen(true)}>
-        ＋ Add custom word
+        {t("lists.addCustomToggle")}
       </button>
     );
   }
@@ -44,7 +46,7 @@ export function AddCustomWord({
           className="select select--sm"
           value={sourceLang}
           onChange={(e) => setSourceLang(e.target.value as LangCode)}
-          aria-label="Word language"
+          aria-label={t("lists.wordLangAria")}
         >
           {targetOptions().map((o) => (
             <option key={o.code} value={o.code}>
@@ -57,7 +59,7 @@ export function AddCustomWord({
           className="select select--sm"
           value={targetLang}
           onChange={(e) => setTargetLang(e.target.value as LangCode)}
-          aria-label="Meaning language"
+          aria-label={t("lists.meaningLangAria")}
         >
           {targetOptions().map((o) => (
             <option key={o.code} value={o.code}>
@@ -70,20 +72,20 @@ export function AddCustomWord({
         className="input input--sm"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="Word"
-        aria-label="Custom word"
+        placeholder={t("lists.wordPlaceholder")}
+        aria-label={t("lists.customWordAria")}
       />
       <input
         className="input input--sm"
         value={translation}
         onChange={(e) => setTranslation(e.target.value)}
-        placeholder="Meaning"
-        aria-label="Custom meaning"
+        placeholder={t("lists.meaningPlaceholder")}
+        aria-label={t("lists.customMeaningAria")}
       />
       <button className="btn" onClick={submit} disabled={!input.trim() || !translation.trim()}>
-        Add
+        {t("common.add")}
       </button>
-      <button className="iconbtn" onClick={() => setOpen(false)} title="Cancel">
+      <button className="iconbtn" onClick={() => setOpen(false)} title={t("common.cancel")}>
         ✕
       </button>
     </div>

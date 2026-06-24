@@ -13,6 +13,7 @@ import { AddWord } from "../components/lists/AddWord";
 import { AddCustomWord } from "../components/lists/AddCustomWord";
 import { PeriodSelect, periodCutoff, type DatePeriod } from "../components/lists/PeriodSelect";
 import { targetOptions, type LangCode } from "../services/language";
+import { useI18n } from "../i18n";
 import type { UserWord } from "../services/words/userWords";
 import "../components/lists/lists.css";
 
@@ -29,6 +30,7 @@ export function ListView({
   onReview: (listId: string | null, name: string) => void;
 }) {
   const L = useLists(userId);
+  const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
   const [sort, setSort] = useState<SortBy>("newest");
@@ -85,30 +87,30 @@ export function ListView({
 
       <div className="lists__bar">
         <h2 className="lists__title">
-          {selectedList ? selectedList.listName : "All words"}
+          {selectedList ? selectedList.listName : t("lists.allWords")}
           <span className="lists__count">{visible.length}</span>
         </h2>
         {L.words.length > 0 && (
           <button
             className="btn btn--sm lists__reviewbtn"
             onClick={() =>
-              onReview(L.selectedListId, selectedList ? selectedList.listName : "All words")
+              onReview(L.selectedListId, selectedList ? selectedList.listName : t("lists.allWords"))
             }
-            title="Review this list with flashcards"
+            title={t("lists.reviewTitle")}
           >
-            ▶ Review
+            {t("lists.reviewBtn")}
           </button>
         )}
         {selectedList && (
           <button
             className="btn btn--sm btn--danger lists__deletebtn"
             onClick={() => {
-              if (confirm(`Delete the list "${selectedList.listName}"? Words stay in your vocabulary.`))
+              if (confirm(t("lists.deleteConfirm", { name: selectedList.listName })))
                 L.deleteListById(selectedList.listId);
             }}
-            title="Delete this sub-list"
+            title={t("lists.deleteListTitle")}
           >
-            Delete list
+            {t("lists.deleteListBtn")}
           </button>
         )}
       </div>
@@ -123,12 +125,12 @@ export function ListView({
               className="select select--sm"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortBy)}
-              aria-label="Sort words"
+              aria-label={t("lists.sortAria")}
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="conf-asc">Confidence: low → high</option>
-              <option value="conf-desc">Confidence: high → low</option>
+              <option value="newest">{t("lists.sortNewest")}</option>
+              <option value="oldest">{t("lists.sortOldest")}</option>
+              <option value="conf-asc">{t("lists.sortConfAsc")}</option>
+              <option value="conf-desc">{t("lists.sortConfDesc")}</option>
             </select>
 
             {langsPresent.length > 1 && (
@@ -136,9 +138,9 @@ export function ListView({
                 className="select select--sm"
                 value={langFilter}
                 onChange={(e) => setLangFilter(e.target.value as LangCode | "all")}
-                aria-label="Filter by input language"
+                aria-label={t("lists.langFilterAria")}
               >
-                <option value="all">All languages</option>
+                <option value="all">{t("lists.allLanguages")}</option>
                 {langsPresent.map((code) => (
                   <option key={code} value={code}>
                     {langName(code)}
@@ -148,21 +150,21 @@ export function ListView({
             )}
 
             <PeriodSelect
-              label="Added"
+              label={t("lists.added")}
               value={addedFilter}
               onChange={setAddedFilter}
-              ariaLabel="Filter by date added"
+              ariaLabel={t("lists.addedAria")}
             />
             <PeriodSelect
-              label="Reviewed"
+              label={t("lists.reviewed")}
               value={reviewedFilter}
               onChange={setReviewedFilter}
-              ariaLabel="Filter by date last reviewed"
+              ariaLabel={t("lists.reviewedAria")}
             />
 
-            <div className="confrange" title="Filter by confidence range">
+            <div className="confrange" title={t("lists.confRangeTitle")}>
               <span className="confrange__label">
-                Confidence {confMin}–{confMax}
+                {t("lists.confidenceRange", { min: confMin, max: confMax })}
               </span>
               {/* dual-thumb range: two inputs overlaid on one track */}
               <div className="dualrange">
@@ -181,7 +183,7 @@ export function ListView({
                   max={5}
                   value={confMin}
                   onChange={(e) => setConfMin(Math.min(Number(e.target.value), confMax))}
-                  aria-label="Minimum confidence"
+                  aria-label={t("lists.confMinAria")}
                 />
                 <input
                   type="range"
@@ -190,7 +192,7 @@ export function ListView({
                   max={5}
                   value={confMax}
                   onChange={(e) => setConfMax(Math.max(Number(e.target.value), confMin))}
-                  aria-label="Maximum confidence"
+                  aria-label={t("lists.confMaxAria")}
                 />
               </div>
             </div>
@@ -200,18 +202,16 @@ export function ListView({
 
       {L.error && <pre className="review__error">{L.error}</pre>}
 
-      {L.status === "loading" && <p className="review__msg">Loading…</p>}
+      {L.status === "loading" && <p className="review__msg">{t("common.loading")}</p>}
 
       {L.status === "ready" && L.words.length === 0 && (
         <p className="review__msg">
-          {selectedList
-            ? "No words tagged into this list yet."
-            : "No words yet — translate some, or add a custom one above."}
+          {selectedList ? t("lists.emptyList") : t("lists.emptyAll")}
         </p>
       )}
 
       {L.status === "ready" && L.words.length > 0 && visible.length === 0 && (
-        <p className="review__msg">No words match this filter.</p>
+        <p className="review__msg">{t("lists.noMatch")}</p>
       )}
 
       {L.status === "ready" && visible.length > 0 && (
@@ -237,7 +237,7 @@ export function ListView({
       {L.status === "ready" && L.hasMore && (
         <div className="listrows__more">
           <button className="btn" onClick={L.loadMore} disabled={L.loadingMore}>
-            {L.loadingMore ? "Loading…" : "Load more"}
+            {L.loadingMore ? t("common.loading") : t("common.loadMore")}
           </button>
         </div>
       )}

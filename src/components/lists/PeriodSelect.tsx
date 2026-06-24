@@ -1,6 +1,7 @@
 // A calendar-period filter dropdown (All time / Today / This week / This month
 // / This year) and the matching cutoff helper. Owns the DatePeriod type so the
 // list view and this control share one definition.
+import { useI18n } from "../../i18n";
 import "./lists.css";
 
 export type DatePeriod = "all" | "today" | "week" | "month" | "year";
@@ -29,6 +30,7 @@ export function PeriodSelect({
   onChange: (v: DatePeriod) => void;
   ariaLabel: string;
 }) {
+  const { t } = useI18n();
   return (
     <select
       className="select select--sm"
@@ -36,11 +38,11 @@ export function PeriodSelect({
       onChange={(e) => onChange(e.target.value as DatePeriod)}
       aria-label={ariaLabel}
     >
-      <option value="all">{label}: all time</option>
-      <option value="today">{label}: today</option>
-      <option value="week">{label}: this week</option>
-      <option value="month">{label}: this month</option>
-      <option value="year">{label}: this year</option>
+      <option value="all">{label}: {t("period.allTime")}</option>
+      <option value="today">{label}: {t("period.today")}</option>
+      <option value="week">{label}: {t("period.week")}</option>
+      <option value="month">{label}: {t("period.month")}</option>
+      <option value="year">{label}: {t("period.year")}</option>
     </select>
   );
 }

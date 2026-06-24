@@ -2,6 +2,7 @@
 // Presentational — the parent owns the lists and the select/create callbacks.
 import { useState } from "react";
 import type { List } from "../../services/lists";
+import { useI18n } from "../../i18n";
 import "./lists.css";
 
 export function ListChips({
@@ -17,6 +18,7 @@ export function ListChips({
 }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const { t } = useI18n();
 
   return (
     <div className="chips">
@@ -24,7 +26,7 @@ export function ListChips({
         className={`chip${selectedListId === null ? " chip--active" : ""}`}
         onClick={() => onSelect(null)}
       >
-        ALL
+        {t("lists.allChip")}
       </button>
       {lists.map((l) => (
         <button
@@ -42,8 +44,8 @@ export function ListChips({
             className="input input--sm"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="List name"
-            aria-label="New list name"
+            placeholder={t("lists.newListPlaceholder")}
+            aria-label={t("lists.newListAria")}
             autoFocus
           />
           <button
@@ -54,7 +56,7 @@ export function ListChips({
               setName("");
               setCreating(false);
             }}
-            title="Create"
+            title={t("common.create")}
           >
             ✓
           </button>
@@ -64,14 +66,14 @@ export function ListChips({
               setName("");
               setCreating(false);
             }}
-            title="Cancel"
+            title={t("common.cancel")}
           >
             ✕
           </button>
         </span>
       ) : (
         <button className="chip chip--ghost" onClick={() => setCreating(true)}>
-          ＋ New list
+          {t("lists.newList")}
         </button>
       )}
     </div>

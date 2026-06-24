@@ -6,11 +6,13 @@
 import { useState } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
+import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
 
 function ConfidenceDots({ rating }: { rating: number }) {
+  const { t } = useI18n();
   return (
-    <span className="dots" aria-label={`confidence ${rating} of 5`}>
+    <span className="dots" aria-label={t("lists.confidenceOf", { n: rating })}>
       {[0, 1, 2, 3, 4].map((i) => (
         <span key={i} className={`dot${i < rating ? " dot--on" : ""}`} />
       ))}
@@ -18,10 +20,10 @@ function ConfidenceDots({ rating }: { rating: number }) {
   );
 }
 
-/** ISO timestamp → short readable date, or "never" for null. */
-function fmtDate(iso: string | null): string {
-  if (!iso) return "never";
-  return new Date(iso).toLocaleDateString(undefined, {
+/** ISO timestamp → short readable date in the UI locale, or "never" for null. */
+function fmtDate(iso: string | null, locale: Locale, never: string): string {
+  if (!iso) return never;
+  return new Date(iso).toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -46,6 +48,9 @@ export function ListRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(word.translation);
+  const { t, locale } = useI18n();
+  const added = fmtDate(word.originallyTranslatedDate, locale, t("lists.never"));
+  const reviewed = fmtDate(word.lastReviewedDate, locale, t("lists.never"));
 
   return (
     <li className="listrow">
@@ -61,7 +66,7 @@ export function ListRow({
               className="input input--sm"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              aria-label="Edit meaning"
+              aria-label={t("lists.editMeaningAria")}
             />
             <button
               className="iconbtn"
@@ -70,7 +75,7 @@ export function ListRow({
                 if (v) onEdit(v);
                 setEditing(false);
               }}
-              title="Save"
+              title={t("common.save")}
             >
               ✓
             </button>
@@ -80,7 +85,7 @@ export function ListRow({
                 setDraft(word.translation);
                 setEditing(false);
               }}
-              title="Cancel"
+              title={t("common.cancel")}
             >
               ✕
             </button>
@@ -99,8 +104,8 @@ export function ListRow({
         <span
           className="listrow__info"
           role="img"
-          aria-label={`Added ${fmtDate(word.originallyTranslatedDate)}, last reviewed ${fmtDate(word.lastReviewedDate)}`}
-          title={`Added: ${fmtDate(word.originallyTranslatedDate)}\nLast reviewed: ${fmtDate(word.lastReviewedDate)}`}
+          aria-label={t("lists.infoAria", { added, reviewed })}
+          title={t("lists.infoTitle", { added, reviewed })}
         >
           ?
         </span>
@@ -109,7 +114,7 @@ export function ListRow({
 
         {!editing && (
           <>
-            <button className="iconbtn" onClick={() => setEditing(true)} title="Edit meaning">
+            <button className="iconbtn" onClick={() => setEditing(true)} title={t("lists.editMeaningTitle")}>
               ✎
             </button>
 
@@ -121,10 +126,10 @@ export function ListRow({
                   if (e.target.value) onTag(e.target.value);
                   e.target.value = "";
                 }}
-                aria-label="Add to a sub-list"
-                title="Add to a sub-list"
+                aria-label={t("lists.addToSublist")}
+                title={t("lists.addToSublist")}
               >
-                <option value="">＋ list</option>
+                <option value="">{t("lists.addListOption")}</option>
                 {lists.map((l) => (
                   <option key={l.listId} value={l.listId}>
                     {l.listName}
@@ -137,7 +142,7 @@ export function ListRow({
               <button
                 className="iconbtn"
                 onClick={onRemoveFromList}
-                title="Remove from this list (keeps it in your vocabulary)"
+                title={t("lists.removeFromList")}
               >
                 −
               </button>
@@ -146,7 +151,7 @@ export function ListRow({
             <button
               className="iconbtn iconbtn--danger"
               onClick={onDelete}
-              title="Delete from vocabulary"
+              title={t("lists.deleteFromVocab")}
             >
               🗑
             </button>
