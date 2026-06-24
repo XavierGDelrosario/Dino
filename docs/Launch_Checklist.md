@@ -21,7 +21,9 @@ email/password accounts + data-preserving guest→account upgrade + password res
 CI (GitHub Actions: quality gate + real-DB integration job) · content-safety filter
 (explicit words filtered from suggestions, not lookup) · QA dedup (shared
 errorMessage / grades; eslint clean) · multi-agent pre-publish review (37 agents)
-with all 11 confirmed findings fixed.
+with all 11 confirmed findings fixed · quota refund + default global spend cap ·
+password strength · router + separate auth pages + profile page (native/learning/app
+language prefs).
 
 ## 🔴 Tier 1 — Required for a real launch (build work)
 *(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
@@ -45,21 +47,19 @@ and the cost-control code (#1 kill-switch + global cap) are all done.)*
    `ALLOWED_ORIGINS`), `functions deploy`, build with cloud env + upload `dist/` to
    Cloudflare Pages.
 3. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
-4. **Account & auth UX** — `[#13 cont.]` the auth surface beyond the working core:
-   - **Email confirmation + verification** — enable confirmations in prod; a user
-     must not be able to claim someone else's email (confirmation IS the proof);
-     "check your email" pending state.
-   - **Password strength** — enforce server-side (`config.toml` `minimum_password_
-     length` + `password_requirements`) AND client-side validation (currently min 6,
-     no rules).
-   - **Google login** — `[auth.external.google]` OAuth provider + a "Continue with
-     Google" button.
-   - **Separate pages** for Create account · Sign in · main app (needs a router —
-     currently a single page + dropdown panel).
-   - **Profile page + top-right person-icon dropdown** — "Profile" → email, date
-     created, **native language** (NEW field on `users`; decides default *output*),
-     **learning language** (default "I'm learning" + input), **app language**
-     (localization, #17). Sign-in entry from the dropdown.
+4. **Account & auth UX** — `[#13 cont.]` mostly DONE (2026-06-24):
+   - ✅ **Password strength** — server (`minimum_password_length=8` +
+     `password_requirements="letters_digits"`) + client validation.
+   - ✅ **Separate pages** — in-house router; `/signin`, `/signup`, `/profile`, `/`;
+     SPA fallback (`public/_redirects`).
+   - ✅ **Profile page + person-icon dropdown** — email, member-since, **native
+     language** (`users.native_language`, drives default output), learning language,
+     app language; native/learning persist + default the Translate directions.
+   - ⬜ **Email confirmation + verification** — code handles immediate apply (local
+     confirmations off); prod must enable `[auth.email] enable_confirmations` + add a
+     "check your email" pending state. *(deploy-gated to verify)*
+   - ⬜ **Google login** — `[auth.external.google]` provider + a "Continue with
+     Google" button. *(needs your Google OAuth creds to verify)*
 
 ## 🔒 Tier 2 — Hosted-only (our side DONE; finish on the live production Supabase)
 Code/in-repo work is complete; the only remaining step is a one-time action on the
