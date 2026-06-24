@@ -30,8 +30,14 @@ MT-spend metric).
    migrations (stop hand-editing `init.sql`); reconcile `init.sql` ↔ live. *(A clean
    `db reset` now reproduces the schema + reseeds — verified 2026-06-24; the
    discipline of not editing applied migrations is what remains.)*
-6. **Backups + PITR** — `[concern · §2]` enable before real data; protect the
-   irreplaceable tables (`review_log` etc.); test a restore.
+6. **Backups + PITR** — `[concern · §2]` *(in-repo half DONE 2026-06-24)* off-site
+   logical export of the 7 irreplaceable user tables (`users`, `user_words`,
+   `lists`, `list_words`, `review_log`, `user_limits`, `translation_usage`) via
+   `npm run db:backup`, and a **tested** restore (`npm run db:restore-test` clones
+   the live schema into a scratch DB, replays the dump, asserts every row count
+   matches live — verified PASS on consistent / FAIL+exit-1 on drift). *Remaining
+   (deploy-gated):* enable hosted-Supabase **automated daily backups + PITR** (a
+   paid-tier toggle) and schedule `db:backup` off the DB host.
 7. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
    *(JMdict/EDRDG + wordfreq attribution ✅ shipped in the app footer.)*
 

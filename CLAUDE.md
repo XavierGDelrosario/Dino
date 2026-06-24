@@ -44,6 +44,14 @@ supabase functions deploy translate     # deploy
 npm run ingest:jmdict -- ./jmdict-eng-common-<ver>.json
 #   Connects to local Postgres (port 54322) by default; override with DATABASE_URL.
 #   See scripts/ingest-jmdict.ts. NEVER touches words/user_words/lists.
+
+# Backups — off-site export of the IRREPLACEABLE user tables (NOT the reproducible
+# dictionary; that's db:dump-seed). The in-repo half of Launch-Checklist #6 / §2:
+npm run db:backup          # pg_dump users/user_words/lists/list_words/review_log/
+                           #   user_limits/translation_usage -> backups/<stamp>.sql (gitignored)
+npm run db:restore-test    # prove it restores: clone live schema into a scratch DB,
+                           #   replay the dump, assert every row count matches live
+#   (hosted automated-backups + PITR is a deploy-time paid-tier toggle, still TODO.)
 ```
 
 **Tests:** Vitest. Specs live under `tests/` mirroring `src/` (e.g. `tests/services/words/repository.test.ts`); shared helpers in `tests/support/` (a chainable Supabase-client stub, seed `Word` fixtures, and mock sense/translate providers). Imports use path aliases `@/*` → `src/*` and `@test/*` → `tests/support/*` (defined in both `vitest.config.ts` and `tsconfig.json`). Pure modules (`language/`, `concurrency`) are tested directly; orchestration services (`dictionary`, `lookup`, `customWords`) mock their dependency modules; leaf data modules (`lists`, `userWords`, `repository`, `session`) mock the Supabase client. The edge function's **PURE logic is extracted to `supabase/functions/translate/_lib.ts`** (CORS resolution, JWT-`sub` decode, lang mapping, and the dedupe/`dictionary_ref` projection) and **unit-tested in Node/Vitest** (`tests/edge/translate-lib.test.ts`, 20 cases) — that's the high-bug-density logic, now in the default green gate. What remains uncovered: the Deno **I/O shell** (the `Deno.serve` handler wiring, `Deno.env`, the `fetch` to Google, the DB calls) and the Node `scripts/ingest-jmdict.ts` loader (separate runtimes / one-shot ETL) — the edge function's `toWord` / conflict-tuple logic still mirrors the tested `repository.ts`. The Postgres FUNCTIONS are covered by the gated integration suite (`tests/integration/rpc.integration.test.ts`): `jmdict_lookup`, `record_review`, `save_dictionary_word`, `create_custom_word`, `consume_translation_quota` run for real against live Postgres. Node must be on PATH (installed at `/usr/local/bin/node`).

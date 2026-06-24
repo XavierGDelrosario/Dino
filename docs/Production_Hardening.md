@@ -59,6 +59,14 @@ Tables: `user_words`, `lists`, `list_words`, `review_log`, `users`, `user_limits
   (`ingest-jmdict`, `build-frequency.py`, `build-embeddings.py`). Keep those pinned.
 - **Test restores** periodically (an untested backup is a hypothesis). Keep an
   off-site export of the irreplaceable user tables on a schedule.
+- **DONE (in-repo, 2026-06-24):** `npm run db:backup` (`scripts/backup-user-data.sh`)
+  pg_dumps the 7 irreplaceable user tables (FK-safe order) to a timestamped,
+  gitignored `backups/` file; `npm run db:restore-test`
+  (`scripts/restore-test.sh`) proves it restores by cloning the live schema into a
+  throwaway scratch DB, replaying the dump, and asserting every table's row count
+  matches live (PASS on match, FAIL + exit 1 on any mismatch/load error — both
+  verified). **Still deploy-gated:** the hosted **automated-backup + PITR** toggle
+  (paid tier) and a cron that runs `db:backup` and copies the file OFF the host.
 
 ## 3. Rate limiting & abuse — the biggest gap
 - The paid path is the `translate` edge function (Google MT). It already has a
