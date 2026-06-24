@@ -150,6 +150,12 @@ export const en = {
   // word results
   "results.noTranslation": "No translation found.",
   "translate.addBtn": "+ Add",
+
+  // translation-language bar (source/target selectors + swap)
+  "langbar.sourceAria": "Source language",
+  "langbar.targetAria": "Target language",
+  "langbar.swapTitle": "Swap languages",
+  "langbar.swapAria": "Swap source and target languages",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -281,6 +287,11 @@ export const ja: Record<MessageKey, string> = {
 
   "results.noTranslation": "翻訳が見つかりません。",
   "translate.addBtn": "＋ 追加",
+
+  "langbar.sourceAria": "翻訳元の言語",
+  "langbar.targetAria": "翻訳先の言語",
+  "langbar.swapTitle": "言語を入れ替える",
+  "langbar.swapAria": "翻訳元と翻訳先を入れ替える",
 };
 
 export const LOCALES = [

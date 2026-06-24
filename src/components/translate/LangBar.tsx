@@ -13,6 +13,7 @@ import {
   type LangCode,
   type SourceSelection,
 } from "../../services/language";
+import { useI18n } from "../../i18n";
 import "./translate.css";
 
 export function LangBar({
@@ -30,6 +31,7 @@ export function LangBar({
    *  swaps the language selectors. */
   onSwap?: () => void;
 }) {
+  const { t } = useI18n();
   const swap = () => {
     if (onSwap) {
       onSwap();
@@ -50,7 +52,7 @@ export function LangBar({
         className="select"
         value={source}
         onChange={(e) => onSource(e.target.value)}
-        aria-label="Source language"
+        aria-label={t("langbar.sourceAria")}
       >
         {sourceOptions().map((o) => (
           <option key={o.code} value={o.code}>
@@ -63,8 +65,8 @@ export function LangBar({
         type="button"
         className="langbar__swap"
         onClick={swap}
-        title="Swap languages"
-        aria-label="Swap source and target languages"
+        title={t("langbar.swapTitle")}
+        aria-label={t("langbar.swapAria")}
       >
         ⇄
       </button>
@@ -73,7 +75,7 @@ export function LangBar({
         className="select"
         value={target}
         onChange={(e) => onTarget(e.target.value as LangCode)}
-        aria-label="Target language"
+        aria-label={t("langbar.targetAria")}
       >
         {targetOptions().map((o) => (
           <option key={o.code} value={o.code}>
