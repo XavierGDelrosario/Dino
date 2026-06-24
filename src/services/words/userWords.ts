@@ -307,36 +307,58 @@ export async function removeUserWordFromList(params: {
   if (error) throw toServiceError(error);
 }
 
+/** Default page size for the vocabulary reads (load-more pagination). A power
+ *  user's list is unbounded, so reads are paged rather than pulling every row. */
+export const USER_WORDS_PAGE_SIZE = 100;
+
 /**
- * The user's whole vocabulary (= the virtual ALL list), newest first, each with
- * its resolved meaning and mastery.
+ * One PAGE of the user's whole vocabulary (= the virtual ALL list), newest first,
+ * each with its resolved meaning and mastery. Order has a `user_word_id` tiebreaker
+ * so ranges are stable across calls (originally_translated_date isn't unique).
  *
- * OUTPUT: UserWord[] (may be empty).
+ * OUTPUT: UserWord[] (≤ limit; may be empty). A full page implies more may exist.
  * CONSTRAINTS: RLS-scoped to the caller's own rows.
  */
-export async function getAllUserWords(params: { userId: string }): Promise<UserWord[]> {
+export async function getAllUserWords(params: {
+  userId: string;
+  limit?: number;
+  offset?: number;
+}): Promise<UserWord[]> {
+  const limit = params.limit ?? USER_WORDS_PAGE_SIZE;
+  const offset = params.offset ?? 0;
   const { data, error } = await supabase
     .from("user_words")
     .select<string, UserWordRow>(SELECT_WITH_DICTIONARY)
     .eq("user_id", params.userId)
-    .order("originally_translated_date", { ascending: false });
+    .order("originally_translated_date", { ascending: false })
+    .order("user_word_id", { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) throw toServiceError(error);
   return (data ?? []).map(toUserWord);
 }
 
 /**
- * The words tagged into a sub-list, each with resolved meaning and mastery.
+ * One PAGE of the words tagged into a sub-list, each with resolved meaning and
+ * mastery. Ordered by `user_word_id` for stable ranges.
  *
- * OUTPUT: UserWord[] (may be empty).
+ * OUTPUT: UserWord[] (≤ limit; may be empty). A full page implies more may exist.
  * CONSTRAINTS: RLS-scoped via the parent list.
  */
-export async function getUserWordsInList(params: { listId: string }): Promise<UserWord[]> {
+export async function getUserWordsInList(params: {
+  listId: string;
+  limit?: number;
+  offset?: number;
+}): Promise<UserWord[]> {
+  const limit = params.limit ?? USER_WORDS_PAGE_SIZE;
+  const offset = params.offset ?? 0;
   const { data, error } = await supabase
     .from("list_words")
     .select<string, { user_words: UserWordRow | null }>(
-      `user_words(${SELECT_WITH_DICTIONARY})`
+      `user_word_id, user_words(${SELECT_WITH_DICTIONARY})`
     )
-    .eq("list_id", params.listId);
+    .eq("list_id", params.listId)
+    .order("user_word_id", { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) throw toServiceError(error);
 
   return (data ?? [])

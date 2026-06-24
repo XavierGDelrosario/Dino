@@ -16,6 +16,7 @@ import {
 import {
   getAllUserWords,
   getUserWordsInList,
+  USER_WORDS_PAGE_SIZE,
   saveDictionaryWord,
   createCustomWord,
   editUserWord,
@@ -38,6 +39,8 @@ export function useLists(userId: string) {
   const [lists, setLists] = useState<List[]>([]);
   const [selectedListId, setSelectedListId] = useState<string | null>(null); // null = ALL
   const [words, setWords] = useState<UserWord[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [status, setStatus] = useState<ListStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
@@ -49,21 +52,47 @@ export function useLists(userId: string) {
     }
   }, [userId]);
 
+  // Fetch one page (the ALL vocabulary or a sub-list) at the given offset.
+  const fetchPage = useCallback(
+    (offset: number) =>
+      selectedListId === null
+        ? getAllUserWords({ userId, offset, limit: USER_WORDS_PAGE_SIZE })
+        : getUserWordsInList({ listId: selectedListId, offset, limit: USER_WORDS_PAGE_SIZE }),
+    [userId, selectedListId]
+  );
+
+  // (Re)load the FIRST page — used on list switch and after every mutation. A full
+  // page implies more rows; the view shows a "Load more" affordance then.
   const loadWords = useCallback(async () => {
     setStatus("loading");
     setError(null);
     try {
-      const w =
-        selectedListId === null
-          ? await getAllUserWords({ userId })
-          : await getUserWordsInList({ listId: selectedListId });
+      const w = await fetchPage(0);
       setWords(w);
+      setHasMore(w.length === USER_WORDS_PAGE_SIZE);
       setStatus("ready");
     } catch (e) {
       setError(message(e));
       setStatus("error");
     }
-  }, [userId, selectedListId]);
+  }, [fetchPage]);
+
+  // Append the next page (offset = current count). No-op while one is in flight or
+  // there's nothing more.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const more = await fetchPage(words.length);
+      setWords((cur) => [...cur, ...more]);
+      setHasMore(more.length === USER_WORDS_PAGE_SIZE);
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [fetchPage, words.length, hasMore, loadingMore]);
 
   useEffect(() => {
     loadLists();
@@ -182,6 +211,9 @@ export function useLists(userId: string) {
     selectedListId,
     setSelectedListId,
     words,
+    hasMore,
+    loadMore,
+    loadingMore,
     status,
     error,
     addCustomWord,

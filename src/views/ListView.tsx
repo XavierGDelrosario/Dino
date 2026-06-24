@@ -231,6 +231,16 @@ export function ListView({
           ))}
         </ul>
       )}
+
+      {/* Load-more: the reads are paged, so a long vocabulary isn't pulled at once.
+          Shown whenever more rows exist (filters apply client-side to loaded ones). */}
+      {L.status === "ready" && L.hasMore && (
+        <div className="listrows__more">
+          <button className="btn" onClick={L.loadMore} disabled={L.loadingMore}>
+            {L.loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
