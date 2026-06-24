@@ -23,9 +23,15 @@ MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
 and the cost-control code (#1 kill-switch + global cap) are all done.)*
 1. **Real auth + guest→account upgrade** — `[#13]` replace ephemeral guests,
    preserve vocab/lists/level; also blunts the anon-quota loophole.
-2. **Deploy** — `[#14]` hosted Supabase (ingest JMdict + frequency + embeddings on
-   the cloud DB, prod `/dict/` serving) + frontend on a static host. **This is the
-   gate that unlocks Tier 2.**
+2. **Deploy** — `[#14]` **This is the gate that unlocks Tier 2.** *Prep DONE
+   (2026-06-24):* prod build verified green; prod `/dict/*.gz` serving fixed via
+   `public/_headers` (Cloudflare Pages / Netlify; the prod equivalent of the dev
+   `serveDictRaw` plugin); step-by-step runbook in `docs/Deploy.md`. *Targets:*
+   hosted Supabase **Free + common JMdict** → clean upgrade to Pro + full later
+   (re-ingest, no code change). *Remaining (needs your cloud accounts):* create the
+   hosted Supabase project + `db push` + ingest, set edge secrets (incl.
+   `ALLOWED_ORIGINS`), `functions deploy`, build with cloud env + upload `dist/` to
+   Cloudflare Pages.
 3. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
 
 ## 🔒 Tier 2 — Hosted-only (our side DONE; finish on the live production Supabase)

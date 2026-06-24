@@ -1,0 +1,16 @@
+# Static-host headers (Cloudflare Pages / Netlify — same format). Vite copies this
+# from public/ into dist/ at build, so the deployed site serves these rules.
+#
+# CRITICAL (kuromoji): the dictionary ships as pre-gzipped *.dat.gz files that
+# kuromoji's loader fetches and GUNZIPS ITSELF. They must be served as opaque
+# binary — Content-Type application/octet-stream, and NObody re-compressing them /
+# setting Content-Encoding: gzip (or the browser auto-decompresses and kuromoji's
+# gunzip dies with "invalid file signature"). octet-stream keeps the host from
+# compressing them. Mirrors the dev-only serveDictRaw Vite plugin (vite.config.ts).
+/dict/*
+  Content-Type: application/octet-stream
+  Cache-Control: public, max-age=31536000, immutable
+
+# Vite content-hashes JS/CSS filenames, so they're safe to cache forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
