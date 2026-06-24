@@ -17,7 +17,10 @@ MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
 `db:restore-test`) · UI i18n — full EN/JA localization layer with a language picker (#17)
 · cost-control code (#1): MT kill-switch (`MT_DISABLED`) + global monthly spend cap
 (`GLOBAL_MONTHLY_CHAR_QUOTA` / `consume_global_quota`) · real auth core (#13):
-email/password accounts + data-preserving guest→account upgrade + password reset.
+email/password accounts + data-preserving guest→account upgrade + password reset ·
+CI (GitHub Actions: quality gate + real-DB integration job) · content-safety filter
+(explicit words filtered from suggestions, not lookup) · QA dedup (shared
+errorMessage / grades; eslint clean).
 
 ## 🔴 Tier 1 — Required for a real launch (build work)
 *(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
@@ -91,28 +94,29 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
 
 ## 🧪 Pre-publish QA gate — STRICT audit before the first published build
 A hard gate as we approach v1: do this before going public, not after.
-- **Test coverage — strict, real-DB, verifiable.**
-  - Make the **integration suite (real Postgres) a first-class/CI gate**, not just
-    `RUN_INTEGRATION`-opt-in; the default suite mocks and only asserts intent.
-  - **Translate**: explicit single-word, paragraph, AND **roundtrip (input = target)**
-    coverage; the `今 / これ / 単語` cases; readings — the **kana-vs-kanji switch**
-    (`uk`) cases (e.g. なる→なる(成る) vs 鳴る(なる)) as named tests.
-  - Frequency/embedding + language paths: extension seams covered per language/provider.
-- **Code-QA pass.** Minimal coupling, single-purpose files, no needless repetition:
-  dedup known smells (the grade arrays in FlashcardView/TextQuizView, the per-component
-  `message(e)` helper); confirm each file is single-purpose; the edge↔repository mirror.
-- **"Never show success on a failed write"** audit — every mutation that flips UI to a
-  done/✓ state must await the DB write (audit `AddToListButton`'s optimistic ✓, etc.).
+- ✅ **Real-DB tests as a CI gate (DONE 2026-06-24)** — `.github/workflows/ci.yml`:
+  a `quality` job (typecheck + lint + unit) and an `integration` job that boots
+  Supabase and runs the integration suite (RLS, constraints, RPCs, edge I/O shell)
+  on every push/PR. JMdict ingest is best-effort (the dict-dependent tests self-skip
+  if absent), so the build can't go red on a release hiccup.
+- ✅ **Test coverage (DONE)** — `今 / これ / 単語` analyze cases; readings kana-vs-kanji
+  switch (`uk`) cases (data-driven); single-word + batch + roundtrip (input=target →
+  400) covered in the edge spec. *(Remaining nicety: deeper paragraph-gloss assertions.)*
+- ✅ **Code-QA pass (DONE)** — deduped the grade arrays + the `message(e)` helper
+  (shared `errorMessage` / `grades`); eslint 0 problems.
+- ✅ **"Never show success on a failed write" (DONE — audited clean)** — every
+  mutation sets its done/✓ state only AFTER awaiting the write (`AddToListButton`
+  flashes ✓ on resolved `onAdd`, reverts on catch; save/review flows all await first).
 - **Leak/security sweep** — no password/email in logs or error messages; API/keys
-  server-only; ownership re-checked on every user-data mutation.
+  server-only; ownership re-checked on every user-data mutation. *(remaining)*
 - **Known-AI-flaw sweep** — hallucinated/stale comments, half-wired features, silent
-  catches, off-by-one in ranking/caps, etc.
+  catches, off-by-one in ranking/caps, etc. *(remaining — good multi-agent-review fit)*
 
 ## 🛡 Content safety
-- **Profanity / explicit filter on SUGGESTIONS** — explicit words may be looked up
-  directly but must NOT be *suggested* as related words (the `stryker→stripper`
-  symptom). Apply a blocklist to `related_words` / domain expansion output (not to
-  direct lookup). Per-language list; extensible.
+- ✅ **Profanity / explicit filter on SUGGESTIONS (DONE 2026-06-24)** —
+  `contentSafety.ts` blocklist (per-language, extensible) applied in
+  `rankDomainCandidates`; the `stryker→stripper` class is filtered from the word map /
+  "Explore related words", while direct lookup stays unfiltered. Unit-tested.
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 ✅ done — EN/JA; add a locale = one entry in

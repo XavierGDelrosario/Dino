@@ -30,6 +30,9 @@ npm run dev         # Vite dev server; needs .env (throws at supabaseClient.ts o
 npm test            # vitest run — service-layer unit tests (no env / Supabase needed)
 npm run test:watch  # vitest in watch mode
 npm run test:integration  # RLS spec vs a LIVE instance; fails without one (see tests/integration/)
+# CI: .github/workflows/ci.yml — `quality` job (typecheck + lint + npm test) and an
+# `integration` job that boots Supabase + runs test:integration on every push/PR
+# (JMdict ingest best-effort; dict-dependent tests self-skip if absent).
 
 cp .env.example .env   # then set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 

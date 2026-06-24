@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast gate: no DB needed. typecheck + lint + unit tests (the mocked suite).
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+  # Real-DB gate: boots the local Supabase stack and runs the integration suite
+  # (RLS, DB constraints, the Postgres RPCs, and the edge function's I/O shell).
+  # JMdict ingest is best-effort — the jmdict_lookup / edge dictionary tests
+  # self-skip when it isn't loaded, so a release hiccup can't red the build; the
+  # RLS / constraint / RPC / quota / edge-shell coverage always runs and gates.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Start Supabase (DB + auth + migrations)
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+
+      - name: Export Supabase env for the test harness
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Ingest common JMdict (best-effort — tests self-skip if absent)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          url=$(curl -sSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/scriptin/jmdict-simplified/releases/latest \
+            | jq -r '[.assets[] | select(.name|test("^jmdict-eng-common-.*\\.json\\.zip$"))][0].browser_download_url')
+          echo "JMdict asset: $url"
+          curl -sSL -o jmdict.zip "$url"
+          unzip -o -q jmdict.zip
+          f=$(ls jmdict-eng-common-*.json | head -1)
+          npm run ingest:jmdict -- "./$f"
+
+      - name: Serve the translate edge function (for the edge I/O-shell spec)
+        run: |
+          nohup supabase functions serve translate --no-verify-jwt > edge.log 2>&1 &
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+              "$VITE_SUPABASE_URL/functions/v1/translate" || true)
+            [ "$code" = "200" ] && { echo "edge up"; break; }
+            sleep 2
+          done
+
+      - name: Integration tests (real Postgres)
+        run: npm run test:integration
+
+      - name: Edge function logs (on failure)
+        if: failure()
+        run: cat edge.log || true
