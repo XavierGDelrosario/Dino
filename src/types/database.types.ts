@@ -34,6 +34,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_log: {
+        Row: {
+          deleted_at: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       jmdict_entries: {
         Row: {
           entry_id: string
@@ -432,6 +447,30 @@ export type Database = {
         }
         Relationships: []
       }
+      word_embeddings: {
+        Row: {
+          dictionary_ref: string
+          embedded_at: string
+          embedding: string
+          model: string
+          source_lang: string
+        }
+        Insert: {
+          dictionary_ref: string
+          embedded_at?: string
+          embedding: string
+          model: string
+          source_lang: string
+        }
+        Update: {
+          dictionary_ref?: string
+          embedded_at?: string
+          embedding?: string
+          model?: string
+          source_lang?: string
+        }
+        Relationships: []
+      }
       words: {
         Row: {
           dictionary_ref: string | null
@@ -491,6 +530,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confidence_from_stability: { Args: { s: number }; Returns: number }
       consume_translation_quota: {
         Args: { p_chars: number; p_quota: number; p_user_id: string }
         Returns: {
@@ -527,6 +567,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_account: { Args: never; Returns: undefined }
       jmdict_lookup: {
         Args: { p_input: string; p_source: string; p_target: string }
         Returns: {
@@ -538,16 +579,6 @@ export type Database = {
           translation: string
           translation_reading: string
           writing: string
-        }[]
-      }
-      related_words: {
-        Args: { p_entry_id: string; p_limit?: number }
-        Returns: {
-          entry_id: string
-          writing: string | null
-          gloss: string | null
-          frequency: number | null
-          distance: number
         }[]
       }
       record_review: {
@@ -571,6 +602,36 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      related_words: {
+        Args: { p_entry_id: string; p_limit?: number }
+        Returns: {
+          distance: number
+          entry_id: string
+          frequency: number
+          gloss: string
+          writing: string
+        }[]
+      }
+      review_queue: {
+        Args: { p_limit: number; p_list_id?: string; p_user_id: string }
+        Returns: {
+          confidence_rating: number
+          custom_translation: string
+          dictionary_word_id: string
+          input: string
+          input_reading: string
+          last_reviewed_date: string
+          originally_translated_date: string
+          retrievability: number
+          source_lang: string
+          stability: number
+          target_lang: string
+          translation: string
+          translation_reading: string
+          user_id: string
+          user_word_id: string
+        }[]
       }
       save_dictionary_word: {
         Args: {
@@ -602,6 +663,7 @@ export type Database = {
       save_dictionary_words: {
         Args: {
           p_dictionary_word_ids: string[]
+          // gen-types can't model nullable array ELEMENTS; null = cold-start (no seed).
           p_initial_stabilities?: (number | null)[]
           p_list_id?: string
           p_user_id: string
@@ -625,26 +687,6 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
-      }
-      review_queue: {
-        Args: { p_limit: number; p_list_id?: string; p_user_id: string }
-        Returns: {
-          confidence_rating: number
-          custom_translation: string | null
-          dictionary_word_id: string | null
-          input: string
-          input_reading: string | null
-          last_reviewed_date: string | null
-          originally_translated_date: string
-          retrievability: number
-          source_lang: string
-          stability: number | null
-          target_lang: string
-          translation: string
-          translation_reading: string | null
-          user_id: string
-          user_word_id: string
-        }[]
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
