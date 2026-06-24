@@ -20,7 +20,8 @@ MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
 email/password accounts + data-preserving guest→account upgrade + password reset ·
 CI (GitHub Actions: quality gate + real-DB integration job) · content-safety filter
 (explicit words filtered from suggestions, not lookup) · QA dedup (shared
-errorMessage / grades; eslint clean).
+errorMessage / grades; eslint clean) · multi-agent pre-publish review (37 agents)
+with all 11 confirmed findings fixed.
 
 ## 🔴 Tier 1 — Required for a real launch (build work)
 *(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
@@ -107,10 +108,14 @@ A hard gate as we approach v1: do this before going public, not after.
 - ✅ **"Never show success on a failed write" (DONE — audited clean)** — every
   mutation sets its done/✓ state only AFTER awaiting the write (`AddToListButton`
   flashes ✓ on resolved `onAdd`, reverts on catch; save/review flows all await first).
-- **Leak/security sweep** — no password/email in logs or error messages; API/keys
-  server-only; ownership re-checked on every user-data mutation. *(remaining)*
-- **Known-AI-flaw sweep** — hallucinated/stale comments, half-wired features, silent
-  catches, off-by-one in ranking/caps, etc. *(remaining — good multi-agent-review fit)*
+- ✅ **Leak/security + AI-flaw sweeps (DONE 2026-06-24)** — ran a 37-agent
+  multi-agent review (6 dimensions, adversarially verified) → 11 confirmed findings,
+  ALL fixed: content-safety bypass on the displayed quiz gloss + blocklist
+  inflection/kana gaps; anon/no-JWT MT metering bypass (now deny-by-default) +
+  global cap fail-closed; edge raw-error leak on 5xx; `useSession` SIGNED_OUT
+  self-heal; homograph candidates resolved by stable entryId; + new cost-control
+  (413/429/anon) and homograph/frequency integration tests. (Re-run the review after
+  major changes.)
 
 ## 🛡 Content safety
 - ✅ **Profanity / explicit filter on SUGGESTIONS (DONE 2026-06-24)** —
