@@ -156,6 +156,15 @@ export const en = {
   "langbar.targetAria": "Target language",
   "langbar.swapTitle": "Swap languages",
   "langbar.swapAria": "Swap source and target languages",
+
+  // account / auth
+  "auth.signInCreate": "Sign in / Create account",
+  "auth.emailPlaceholder": "Email",
+  "auth.passwordPlaceholder": "Password",
+  "auth.createAccount": "Create account",
+  "auth.signIn": "Sign in",
+  "auth.signOut": "Sign out",
+  "auth.upgradeNote": "Create an account to keep your words across devices — the words you saved as a guest carry over. Already have one? Sign in (guest words stay with the guest).",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -292,6 +301,14 @@ export const ja: Record<MessageKey, string> = {
   "langbar.targetAria": "翻訳先の言語",
   "langbar.swapTitle": "言語を入れ替える",
   "langbar.swapAria": "翻訳元と翻訳先を入れ替える",
+
+  "auth.signInCreate": "ログイン / アカウント作成",
+  "auth.emailPlaceholder": "メールアドレス",
+  "auth.passwordPlaceholder": "パスワード",
+  "auth.createAccount": "アカウント作成",
+  "auth.signIn": "ログイン",
+  "auth.signOut": "ログアウト",
+  "auth.upgradeNote": "アカウントを作成すると、ゲストとして保存した単語が引き継がれ、デバイス間で保存されます。アカウントをお持ちの場合はログインしてください（ゲストの単語はゲストに残ります）。",
 };
 
 export const LOCALES = [

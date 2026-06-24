@@ -16,13 +16,20 @@ idempotency for the paid MT path · in-code observability (health check, request
 MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
 `db:restore-test`) · UI i18n — full EN/JA localization layer with a language picker (#17)
 · cost-control code (#1): MT kill-switch (`MT_DISABLED`) + global monthly spend cap
-(`GLOBAL_MONTHLY_CHAR_QUOTA` / `consume_global_quota`).
+(`GLOBAL_MONTHLY_CHAR_QUOTA` / `consume_global_quota`) · real auth core (#13):
+email/password accounts + data-preserving guest→account upgrade.
 
 ## 🔴 Tier 1 — Required for a real launch (build work)
 *(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
 and the cost-control code (#1 kill-switch + global cap) are all done.)*
-1. **Real auth + guest→account upgrade** — `[#13]` replace ephemeral guests,
-   preserve vocab/lists/level; also blunts the anon-quota loophole.
+1. **Real auth** — `[#13]` **CORE DONE (2026-06-24):** email/password accounts via
+   an in-place **guest→account upgrade** (`updateUser` keeps the same `auth.uid()`,
+   so all vocab/lists/reviews carry over — verified live), plus sign-in to an
+   existing account and sign-out → fresh guest. `AccountMenu` in the header; RLS
+   unchanged (already keyed on `auth.uid()`). *Remaining:* password-reset flow;
+   prod email-confirmation handling (local has confirmations OFF → applies
+   immediately; prod should enable them + add a "check your email" pending state);
+   optional OAuth (additive — Supabase config + a button).
 2. **Deploy** — `[#14]` **This is the gate that unlocks Tier 2.** *Prep DONE
    (2026-06-24):* prod build verified green; prod `/dict/*.gz` serving fixed via
    `public/_headers` (Cloudflare Pages / Netlify; the prod equivalent of the dev

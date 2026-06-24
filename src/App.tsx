@@ -6,6 +6,7 @@ import { useSession } from "./hooks/useSession";
 import { warmJapaneseAnalyzer } from "./services/language";
 import { AttributionFooter } from "./components/common/AttributionFooter";
 import { LanguagePicker } from "./components/common/LanguagePicker";
+import { AccountMenu } from "./components/common/AccountMenu";
 import { useI18n } from "./i18n";
 import "./components/common/common.css";
 
@@ -25,7 +26,7 @@ const FlashcardView = lazy(() =>
 type Tab = "translate" | "lists" | "review";
 
 export function App() {
-  const { userId, loading, error } = useSession();
+  const { userId, email, isAnonymous, loading, error } = useSession();
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("translate");
 
@@ -50,6 +51,7 @@ export function App() {
   return (
     <main className="app">
       <header className="app__header">
+        {userId && <AccountMenu isAnonymous={isAnonymous} email={email} />}
         <h1 className="app__title">DINO 大脳</h1>
         <LanguagePicker />
       </header>
@@ -85,10 +87,13 @@ export function App() {
             </button>
           </nav>
 
+          {/* key on userId so a sign-in/out/upgrade-to-different-uid fully resets
+              each view's hooks instead of showing the previous user's data. */}
           <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
-            {tab === "translate" && <TranslateView userId={userId} />}
+            {tab === "translate" && <TranslateView key={userId} userId={userId} />}
             {tab === "lists" && (
               <ListView
+                key={userId}
                 userId={userId}
                 onReview={(listId, name) => {
                   setReviewScope({ listId, name });
@@ -98,6 +103,7 @@ export function App() {
             )}
             {tab === "review" && (
               <FlashcardView
+                key={userId}
                 userId={userId}
                 listId={reviewScope.listId}
                 listName={reviewScope.name}

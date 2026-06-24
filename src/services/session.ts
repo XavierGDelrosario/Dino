@@ -17,6 +17,77 @@ export interface UserProfile {
   dateCreated: string;
 }
 
+/** The live auth identity for the UI: who the user is and whether they're still a
+ *  guest (anonymous) or a permanent account. */
+export interface AuthStatus {
+  userId: string;
+  /** The real email for a permanent account; null while still an anonymous guest. */
+  email: string | null;
+  isAnonymous: boolean;
+}
+
+interface SupaUser {
+  id: string;
+  email?: string | null;
+  is_anonymous?: boolean;
+}
+
+function toStatus(u: SupaUser): AuthStatus {
+  const isAnonymous = u.is_anonymous === true;
+  return { userId: u.id, email: isAnonymous ? null : u.email || null, isAnonymous };
+}
+
+/** Current auth identity, or null if there's no session yet. */
+export async function getAuthStatus(): Promise<AuthStatus | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user ? toStatus(data.user as SupaUser) : null;
+}
+
+/**
+ * Upgrade the CURRENT anonymous guest to a permanent email/password account. This
+ * sets the email + password on the SAME auth.uid(), so every user_words / list /
+ * review row (all keyed on that uid) carries over automatically — no data migration.
+ *
+ * OUTPUT: the new AuthStatus (isAnonymous=false).
+ * CONSTRAINTS: normalizes the email; keeps the public.users row's email in sync.
+ * Local dev has email confirmations OFF, so the email applies immediately; with
+ * confirmations ON in prod, the email change is pending until confirmed.
+ */
+export async function upgradeToAccount(params: { email: string; password: string }): Promise<AuthStatus> {
+  const email = params.email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.updateUser({ email, password: params.password });
+  if (error) throw toServiceError(error, "Could not create your account");
+  if (!data.user) throw toServiceError(null, "Could not create your account");
+  // The profile row carried a @guest.dino placeholder — point it at the real email.
+  await ensureUserProfile(data.user.id, email);
+  return toStatus(data.user as SupaUser);
+}
+
+/**
+ * Sign in to an EXISTING account (e.g. returning on a new device). This switches the
+ * session to that account's uid — words saved as the current guest stay with the
+ * guest (use upgradeToAccount to keep them). Ensures the account's public.users row.
+ *
+ * OUTPUT: the AuthStatus for the signed-in account.
+ */
+export async function signIn(params: { email: string; password: string }): Promise<AuthStatus> {
+  const email = params.email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: params.password });
+  if (error) throw toServiceError(error, "Sign in failed");
+  if (!data.user) throw toServiceError(null, "Sign in failed");
+  await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
+  return toStatus(data.user as SupaUser);
+}
+
+/**
+ * Sign out and return to a FRESH anonymous guest (no login wall — the app keeps
+ * working). Returns the new guest's userId.
+ */
+export async function signOut(): Promise<string> {
+  await supabase.auth.signOut().catch(() => {});
+  return ensureSession();
+}
+
 // The `users` table row, derived from the generated schema types.
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
