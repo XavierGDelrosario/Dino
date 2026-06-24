@@ -192,6 +192,10 @@ export const en = {
   "profile.learningLanguage": "Learning",
   "profile.appLanguage": "App language",
   "profile.back": "← Back to app",
+
+  // legal
+  "legal.privacy": "Privacy",
+  "legal.terms": "Terms",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -362,6 +366,9 @@ export const ja: Record<MessageKey, string> = {
   "profile.learningLanguage": "学習中",
   "profile.appLanguage": "アプリの言語",
   "profile.back": "← アプリに戻る",
+
+  "legal.privacy": "プライバシー",
+  "legal.terms": "利用規約",
 };
 
 export const LOCALES = [

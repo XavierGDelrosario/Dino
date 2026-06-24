@@ -217,6 +217,38 @@ body {
   margin-top: 0.5rem;
 }
 
+.app__footer-links {
+  margin: 0 0 0.5rem;
+}
+
+/* legal pages */
+.legal {
+  max-width: 40rem;
+  margin: 1.5rem auto;
+  line-height: 1.55;
+  text-align: left;
+}
+.legal__title {
+  font-size: 1.3rem;
+  margin: 0.25rem 0 0.75rem;
+}
+.legal h3 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.35rem;
+}
+.legal__draft {
+  font-size: 0.8rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.legal__updated {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 1.25rem;
+}
+
 .app__footer {
   margin-top: 3rem;
   padding-top: 1rem;

@@ -11,6 +11,7 @@ import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
+import { LegalView } from "./views/LegalView";
 import { useI18n } from "./i18n";
 import { useRouter, Link } from "./router";
 import "./components/common/common.css";
@@ -53,6 +54,8 @@ export function App() {
         path === "/signin" ? <AuthPage mode="signin" />
         : path === "/signup" ? <AuthPage mode="signup" />
         : path === "/profile" ? <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />
+        : path === "/privacy" ? <LegalView doc="privacy" />
+        : path === "/terms" ? <LegalView doc="terms" />
         : <HomeView userId={userId} />
       )}
 

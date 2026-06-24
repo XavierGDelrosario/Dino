@@ -1,9 +1,18 @@
-// Required data-source attribution (legal must-before-public, #15). Credits the
-// dictionary (JMdict/EDRDG) and the frequency data (wordfreq, CC-BY-SA). Full
-// detail + license terms live in ATTRIBUTION.md; this is the user-facing notice.
+// Required data-source attribution (legal must-before-public, #15) + the legal-page
+// links. Credits the dictionary (JMdict/EDRDG) and the frequency data (wordfreq,
+// CC-BY-SA). Full detail + license terms live in ATTRIBUTION.md.
+import { useI18n } from "../../i18n";
+import { Link } from "../../router";
+
 export function AttributionFooter() {
+  const { t } = useI18n();
   return (
     <footer className="app__footer">
+      <p className="app__footer-links">
+        <Link to="/privacy">{t("legal.privacy")}</Link>
+        {" · "}
+        <Link to="/terms">{t("legal.terms")}</Link>
+      </p>
       Dictionary data from{" "}
       <a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener noreferrer">
         JMdict
