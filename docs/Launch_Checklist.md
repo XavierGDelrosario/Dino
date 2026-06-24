@@ -16,27 +16,34 @@ idempotency for the paid MT path · in-code observability (health check, request
 MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
 `db:restore-test`).
 
-## 🚫 Tier 0 — Launch blockers (security & cost)
+## 🚫 Tier 0 — Launch blockers (security & cost; need code)
 1. **Cost protection** — `[concern · §3]` anon-signup rate limit + global MT spend
-   kill-switch + hard billing caps (Google & Supabase). *(needs deploy/config)*
-2. **Prod security config** — `[§4/§5]` set `ALLOWED_ORIGINS`, verify-jwt ON,
-   keys server-only, restrict the Google key, secret-scan CI. *(deploy-time)*
+   kill-switch + hard billing caps. Billing caps are a hosted-console action, but the
+   rate-limit / spend kill-switch still need code → a real blocker, not just config.
 
-## 🔴 Tier 1 — Required for a real launch
-3. **Real auth + guest→account upgrade** — `[#13]` replace ephemeral guests,
+## 🔴 Tier 1 — Required for a real launch (build work)
+2. **Real auth + guest→account upgrade** — `[#13]` replace ephemeral guests,
    preserve vocab/lists/level; also blunts the anon-quota loophole.
-4. **Deploy** — `[#14]` hosted Supabase (ingest JMdict + frequency + embeddings on
-   the cloud DB, prod `/dict/` serving) + frontend on a static host.
-5. **Forward-only migrations** — `[concern · §11]` adopt numbered forward-only
-   migrations (stop hand-editing `init.sql`); never edit an applied migration.
-6. **Automated backups + PITR** — `[concern · §2]` enable hosted-Supabase automated
-   daily backups + PITR (a paid-tier toggle) and schedule `db:backup` off the DB host.
-7. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
+3. **Deploy** — `[#14]` hosted Supabase (ingest JMdict + frequency + embeddings on
+   the cloud DB, prod `/dict/` serving) + frontend on a static host. **This is the
+   gate that unlocks Tier 2.**
+4. **Legal — privacy + ToS** — `[§10]` privacy policy (user text → Google) + ToS.
 
-## 🟡 Tier 2 — Strongly recommended around launch
-8. **Observability — alerting pipeline** — `[§9]` wire the structured logs to
-   alerting at deploy (MT-spend threshold alert, 5xx alert, uptime ping on the GET
-   health check).
+## 🔒 Tier 2 — Hosted-only (our side DONE; finish on the live production Supabase)
+Code/in-repo work is complete; the only remaining step is a one-time action on the
+hosted Supabase or an external console **after #3 (Deploy)** stands it up. None of
+these can be progressed locally — that's why they're deferred, not unfinished. (Once
+prod is live with real data you can't just `db reset`, hence "not easily changed".)
+5. **Prod security config** — `[§4/§5]` set `ALLOWED_ORIGINS`, verify-jwt ON, restrict
+   the Google key (code seams ready). *Repo-side piece doable pre-launch: secret-scan CI.*
+6. **Forward-only migrations** — `[concern · §11]` adopt the forward-only, never-edit-
+   an-applied-migration discipline. It only bites once prod holds data you can't
+   `db reset`; clean-reset reproduction is already proven.
+7. **Automated backups + PITR** — `[concern · §2]` flip the hosted paid-tier toggle +
+   schedule `db:backup` off the DB host. Backup + tested-restore tooling is done.
+8. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
+   request / `mt_spend`, all emitting) at hosted alerting (spend threshold, 5xx,
+   uptime). In-code side done.
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - real furigana (#16) · i18n (#17) · FSRS (#19) · native app (#18) · abandoned-guest
@@ -65,6 +72,7 @@ MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
   auth admin API when real auth lands, else deleted users can still sign in.
 
 ---
-**Throughline:** Tier 0 + Tier 1 *is* the remaining gap to publishable — cost/security
-config, auth, deploy, backups, and the privacy/ToS legal. Most of it needs hosted
-infra, external accounts, or the auth build.
+**Throughline:** Tier 0 + Tier 1 is the real remaining BUILD work — cost protection,
+auth, deploy, privacy/ToS. **Tier 2 is code-complete and just waiting on the hosted
+Supabase that Deploy (#3) stands up** — config/toggles/wiring, not engineering. Tier 3
+is post-launch polish.
