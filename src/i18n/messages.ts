@@ -179,6 +179,8 @@ export const en = {
   "auth.signUpTitle": "Create account",
   "auth.toSignIn": "Already have an account? Sign in",
   "auth.toSignUp": "No account? Create one",
+  "auth.google": "Continue with Google",
+  "auth.confirmEmail": "Check your email to confirm your address, then you're all set.",
 
   // profile
   "profile.title": "Profile",
@@ -348,6 +350,8 @@ export const ja: Record<MessageKey, string> = {
   "auth.signUpTitle": "アカウント作成",
   "auth.toSignIn": "すでにアカウントをお持ちですか？ログイン",
   "auth.toSignUp": "アカウントがありませんか？作成する",
+  "auth.google": "Google で続ける",
+  "auth.confirmEmail": "メールを確認してアドレスを認証してください。それで完了です。",
 
   "profile.title": "プロフィール",
   "profile.profileLink": "プロフィール",

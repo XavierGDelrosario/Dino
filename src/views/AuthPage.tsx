@@ -2,7 +2,7 @@
 // the password policy. On success → home. "Create account" upgrades the current
 // guest in place (keeps their words); "Sign in" switches to an existing account.
 import { useState } from "react";
-import { upgradeToAccount, signIn, requestPasswordReset } from "../services/session";
+import { upgradeToAccount, signIn, requestPasswordReset, linkGoogle, signInWithGoogle } from "../services/session";
 import { errorMessage } from "../lib/errorMessage";
 import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
@@ -18,6 +18,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [err, setErr] = useState<string | null>(null);
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
+  const [confirmSent, setConfirmSent] = useState(false);
 
   const submit = async () => {
     if (busy || !email.trim() || password === "") return;
@@ -28,12 +29,28 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     setBusy(true);
     setErr(null);
     try {
-      if (mode === "signup") await upgradeToAccount({ email, password });
-      else await signIn({ email, password });
+      if (mode === "signup") {
+        const { emailPending } = await upgradeToAccount({ email, password });
+        if (emailPending) { setConfirmSent(true); return; } // prod: confirm via email first
+      } else {
+        await signIn({ email, password });
+      }
       navigate("/");
     } catch (e) {
       setErr(errorMessage(e));
     } finally {
+      setBusy(false);
+    }
+  };
+
+  // Google redirects away on success (onAuthStateChange resumes on return).
+  const google = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await (mode === "signup" ? linkGoogle() : signInWithGoogle());
+    } catch (e) {
+      setErr(errorMessage(e));
       setBusy(false);
     }
   };
@@ -76,6 +93,16 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     );
   }
 
+  if (confirmSent) {
+    return (
+      <section className="authpage">
+        <h2 className="authpage__title">{t("auth.signUpTitle")}</h2>
+        <p className="review__msg">{t("auth.confirmEmail")}</p>
+        <Link to="/" className="account__link">{t("profile.back")}</Link>
+      </section>
+    );
+  }
+
   return (
     <section className="authpage">
       <h2 className="authpage__title">{mode === "signup" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h2>
@@ -90,6 +117,10 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       {err && <pre className="review__error">{err}</pre>}
       <button className="btn" disabled={busy || !email.trim() || password === ""} onClick={submit}>
         {mode === "signup" ? t("auth.createAccount") : t("auth.signIn")}
+      </button>
+
+      <button className="btn btn--ghost" disabled={busy} onClick={google}>
+        {t("auth.google")}
       </button>
 
       {mode === "signin" && (

@@ -57,14 +57,19 @@ export async function getAuthStatus(): Promise<AuthStatus | null> {
  * Local dev has email confirmations OFF, so the email applies immediately; with
  * confirmations ON in prod, the email change is pending until confirmed.
  */
-export async function upgradeToAccount(params: { email: string; password: string }): Promise<AuthStatus> {
+export async function upgradeToAccount(
+  params: { email: string; password: string },
+): Promise<{ status: AuthStatus; emailPending: boolean }> {
   const email = params.email.trim().toLowerCase();
   const { data, error } = await supabase.auth.updateUser({ email, password: params.password });
   if (error) throw toServiceError(error, "Could not create your account");
   if (!data.user) throw toServiceError(null, "Could not create your account");
-  // The profile row carried a @guest.dino placeholder — point it at the real email.
-  await ensureUserProfile(data.user.id, email);
-  return toStatus(data.user as SupaUser);
+  // With email confirmations ON (prod), the email change is PENDING until the user
+  // clicks the link — `user.email` isn't the new address yet. Locally (confirmations
+  // off) it applies immediately. Only sync the profile email once it's actually applied.
+  const applied = (data.user.email || "").toLowerCase() === email;
+  if (applied) await ensureUserProfile(data.user.id, email);
+  return { status: toStatus(data.user as SupaUser), emailPending: !applied };
 }
 
 /**
@@ -81,6 +86,25 @@ export async function signIn(params: { email: string; password: string }): Promi
   if (!data.user) throw toServiceError(null, "Sign in failed");
   await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
   return toStatus(data.user as SupaUser);
+}
+
+/**
+ * Google OAuth. `linkGoogle` UPGRADES the current guest by linking a Google identity
+ * to the SAME uid (data preserved) — use it from the create-account page. `signInWithGoogle`
+ * signs into the Google account as its own user (switches uid) — use it from sign-in.
+ * Both redirect to Google and return to the app origin, where onAuthStateChange picks
+ * up the session. Requires the Google provider enabled with OAuth creds in the
+ * Supabase project (see config.toml [auth.external.google]); unconfigured → errors.
+ */
+export async function linkGoogle(): Promise<void> {
+  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+  const { error } = await supabase.auth.linkIdentity({ provider: "google", options: { redirectTo } });
+  if (error) throw toServiceError(error, "Could not link Google");
+}
+export async function signInWithGoogle(): Promise<void> {
+  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+  const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+  if (error) throw toServiceError(error, "Google sign-in failed");
 }
 
 /**

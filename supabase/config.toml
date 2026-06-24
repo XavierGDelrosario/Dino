@@ -341,6 +341,18 @@ skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
 
+# Google OAuth (#13 "Continue with Google"). DISABLED by default so `supabase start`
+# needs no creds. To enable: set enabled = true and provide the OAuth client creds
+# via env (SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID / _SECRET) here and in the hosted
+# project's Authentication → Providers. The buttons in AuthPage call
+# linkIdentity/signInWithOAuth({provider:"google"}); they error until this is on.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+# Required for local Google sign-in (skips the nonce check).
+skip_nonce_check = true
+
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
 [auth.web3.solana]
