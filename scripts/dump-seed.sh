@@ -23,14 +23,21 @@ OUT="$(dirname "$0")/../supabase/seeds"
 mkdir -p "$OUT"
 
 echo "[dump-seed] dumping jmdict_* + word_embeddings from $CONTAINER …"
+# IMPORTANT: --rows-per-insert (INSERT statements), NOT the pg_dump default COPY.
+# `supabase db reset` runs the seed by sending SQL batches over the wire and does
+# NOT honor `COPY ... FROM stdin` (a psql client feature) — a COPY-format dump dies
+# with "syntax error" on the first data row. Multi-row INSERTs load fine. We also
+# strip the psql-only `\restrict`/`\unrestrict` meta-commands pg_dump 17 emits, for
+# the same reason. (psql DOES handle COPY, so a manual restore can still use it.)
 docker exec "$CONTAINER" pg_dump -U postgres -d postgres \
-  --data-only --no-owner --no-privileges \
+  --data-only --no-owner --no-privileges --rows-per-insert=1000 \
   -t public.jmdict_entries \
   -t public.jmdict_kanji \
   -t public.jmdict_kana \
   -t public.jmdict_senses \
   -t public.jmdict_glosses \
   -t public.word_embeddings \
+  | grep -vE '^\\(un)?restrict' \
   > "$OUT/jmdict_data.sql"
 
 SIZE="$(du -h "$OUT/jmdict_data.sql" | cut -f1)"
