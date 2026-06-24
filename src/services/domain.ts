@@ -13,6 +13,7 @@
 
 import { relatedWords, type RelatedWord } from "./embeddings";
 import { getDifficulty, type LevelValue } from "./difficulty";
+import { isExplicitSuggestion } from "./contentSafety";
 import type { Word } from "./words/repository";
 import { mapLimit } from "../lib/concurrency";
 
@@ -62,6 +63,9 @@ export function rankDomainCandidates(
   for (const results of perSeed) {
     for (const r of results) {
       if (!r.writing || seeds.has(r.entryId)) continue; // skip null-writing + seed words
+      // CONTENT SAFETY: never RECOMMEND an explicit/profane word (still searchable
+      // directly). Filters the `stryker→stripper` class out of the word map.
+      if (isExplicitSuggestion(r.writing, r.gloss)) continue;
       const existing = pool.get(r.entryId);
       if (existing) {
         existing.affinity += 1;

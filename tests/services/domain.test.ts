@@ -27,6 +27,15 @@ describe("rankDomainCandidates", () => {
     expect(ranked.map((c) => c.entryId)).toEqual(["X", "Y", "Z"]); // then aff-1 by distance
   });
 
+  it("drops explicit/profane candidates from suggestions (content safety)", () => {
+    const perSeed = [[
+      r("OK", 510, 0.1),
+      { entryId: "EXP", writing: "ストリッパー", gloss: "stripper", frequency: 510, distance: 0.05 } as RelatedWord,
+    ]];
+    // EXP would rank first by distance, but it's filtered out as explicit.
+    expect(rankDomainCandidates(perSeed, [], 1, 10).map((c) => c.entryId)).toEqual(["OK"]);
+  });
+
   it("excludes the seed words themselves and null-writing rows", () => {
     const perSeed = [[
       r("A", 510, 0.1), // A is a seed → excluded
