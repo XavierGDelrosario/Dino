@@ -8,10 +8,12 @@ as they land — this list is the REMAINING work.
 **Done so far:** Translate (JMdict + MT) · Lists · Review (SRS) · the full
 differentiator thread (#8 difficulty · #9 extract-and-quiz · #10 calibration · #11
 word map · #12 domain quizzes) · perf pass · NFC hardening · delete-lockdown · RLS
-audit (all 14 tables) · integration coverage on risky DB paths · swallowed-error
-logging · JMdict/wordfreq attribution notice (#15) · vocabulary pagination ·
-reproducible embedding build · a clean `supabase db reset` that reproduces the schema
-and reseeds the dictionary (no re-ingest).
+audit (all 14 tables) · integration coverage on risky DB paths (incl. the edge I/O
+shell, black-box) · swallowed-error logging · JMdict/wordfreq attribution notice
+(#15) · vocabulary pagination · reproducible embedding build · a clean `supabase db
+reset` that reproduces the schema and reseeds the dictionary (no re-ingest) · retry
+idempotency for the paid MT path · in-code observability (health check, request log,
+MT-spend metric).
 
 ## 🚫 Tier 0 — Launch blockers (security & cost)
 1. **Cost protection** — `[concern · §3]` anon-signup rate limit + global MT spend
@@ -34,9 +36,10 @@ and reseeds the dictionary (no re-ingest).
    *(JMdict/EDRDG + wordfreq attribution ✅ shipped in the app footer.)*
 
 ## 🟡 Tier 2 — Strongly recommended around launch
-8. **Observability** — `[§9]` error logging/alerting, MT-spend metric, health check.
-9. **AI-code audit pass** — `[§12]` integration coverage on the untested edge I/O
-   shell; spot-check comments. *(swallowed-error logging ✅ done.)*
+8. **Observability — alerting pipeline** — `[§9]` wire the structured logs to
+   alerting at deploy (MT-spend threshold alert, 5xx alert, uptime ping on the GET
+   health check). *(In-code done: GET health check, per-request access log, and the
+   `mt_spend` metric all emit from the edge function — verified live.)*
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - real furigana (#16) · i18n (#17) · FSRS (#19) · native app (#18) · abandoned-guest
@@ -63,9 +66,6 @@ and reseeds the dictionary (no re-ingest).
 - **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
   app's PUBLIC-schema data but NOT the Supabase `auth.users` row; pair it with the
   auth admin API when real auth lands, else deleted users can still sign in.
-- **Retry idempotency** — `[Tier 2 / §11]` the translate client retries on 5xx, so a
-  succeeded-but-lost response double-counts MT quota (over-counts, never over-spends).
-  Add an idempotency key if exact metering matters.
 
 ---
 **Throughline:** Tier 0 + Tier 1 *is* the remaining gap to publishable — cost/security
