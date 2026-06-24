@@ -14,7 +14,7 @@ shell, black-box) · swallowed-error logging · JMdict/wordfreq attribution noti
 reset` that reproduces the schema and reseeds the dictionary (no re-ingest) · retry
 idempotency for the paid MT path · in-code observability (health check, request log,
 MT-spend metric) · off-site user-data backup + tested restore (`db:backup` /
-`db:restore-test`).
+`db:restore-test`) · UI i18n — full EN/JA localization layer with a language picker (#17).
 
 ## 🚫 Tier 0 — Launch blockers (security & cost; need code)
 1. **Cost protection** — `[concern · §3]` anon-signup rate limit + global MT spend
@@ -46,7 +46,8 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
    uptime). In-code side done.
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
-- i18n (#17) · native app (#18).
+- native app (#18). *(i18n #17 ✅ done — EN/JA; add a locale = one entry in
+  `src/i18n/messages.ts`, compile-checked.)*
 - **Purge dev/test guests before the first real DB** — a trivial one-time `DELETE`;
   the current anonymous rows are all throwaway (dev + me). NOT auth-gated — can run
   any time before publishing the real DB. (Ongoing abandoned-guest reaping only
