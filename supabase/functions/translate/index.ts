@@ -195,6 +195,15 @@ async function callTranslationProvider(
     const body = await res.json();
     const translated: string | undefined =
       body?.data?.translations?.[0]?.translatedText;
+    // MT-SPEND METRIC (#8 observability): one structured line per PAID Google call,
+    // so spend = sum(mt_chars) over these logs. Drives the MT-spend dashboard/alert.
+    console.log(JSON.stringify({
+      evt: "mt_spend",
+      mt_chars: text.length,
+      source: toGoogleLang(sourceLang),
+      target: toGoogleLang(targetLang),
+      ok: Boolean(translated),
+    }));
     return translated ? { translation: translated } : null;
   } catch (e) {
     console.error("MT provider request failed:", e);
@@ -466,7 +475,7 @@ async function resolveBatch(
 // CONSTRAINTS: POST only (+ OPTIONS/CORS); requires input/sourceLang/targetLang;
 // rejects source == target; NFC-normalizes input; persist=false skips the cache
 // (display-only); verified writes are system-owned (service role bypasses RLS).
-Deno.serve(async (req) => {
+async function handleRequest(req: Request): Promise<Response> {
   const cors = corsHeaders(
     req.headers.get("Origin"),
     parseAllowedOrigins(Deno.env.get("ALLOWED_ORIGINS")),
@@ -475,6 +484,9 @@ Deno.serve(async (req) => {
   const reply = (body: unknown, status = 200) => json(body, status, cors);
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  // HEALTH CHECK (#8 observability): a GET is a cheap liveness probe for uptime
+  // monitors / load balancers — no DB or provider call, never spends.
+  if (req.method === "GET") return reply({ status: "ok" }, 200);
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
 
   let body: Record<string, unknown>;
@@ -621,4 +633,28 @@ Deno.serve(async (req) => {
     word: null,
     words: [],
   });
+}
+
+// Entry point: time every request and emit ONE structured access-log line (#8
+// observability) — method, status, duration. A 5xx also logs as an error so it
+// surfaces in alerting. Errors never escape (a thrown handler → logged 500), so a
+// bug can't take the function down silently.
+Deno.serve(async (req) => {
+  const start = Date.now();
+  let res: Response;
+  try {
+    res = await handleRequest(req);
+  } catch (e) {
+    console.error("translate handler crashed:", e);
+    res = json({ error: "Internal error" }, 500);
+  }
+  const line = JSON.stringify({
+    evt: "request",
+    method: req.method,
+    status: res.status,
+    ms: Date.now() - start,
+  });
+  if (res.status >= 500) console.error(line);
+  else console.log(line);
+  return res;
 });
