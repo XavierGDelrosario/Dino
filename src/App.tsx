@@ -8,6 +8,7 @@ import { needsTermsAcceptance } from "./services/session";
 import { warmJapaneseAnalyzer } from "./services/language";
 import { AttributionFooter } from "./components/common/AttributionFooter";
 import { ProfileMenu } from "./components/common/ProfileMenu";
+import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { TermsGateView } from "./components/common/TermsGateView";
 import { HomeView } from "./views/HomeView";
@@ -50,6 +51,7 @@ export function App() {
   return (
     <main className="app">
       <header className="app__header">
+        <LanguageMenu />
         {userId && <ProfileMenu isAnonymous={isAnonymous} email={email} />}
         <Link to="/" className="app__titlelink"><h1 className="app__title">DINO</h1></Link>
       </header>
