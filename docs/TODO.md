@@ -6,47 +6,44 @@ The product is built; the gap to publishable is almost entirely non-feature work
 **everything shipped is logged at the bottom under [Completed](#-completed) with dates.**
 (Renamed from `Launch_Checklist.md` → `TODO.md` on 2026-06-25.)
 
-## 🔴 Tier 1 — Required for a real launch (build work)
-*(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
-and the cost-control code (#1 kill-switch + global cap) are all done.)*
-1. **Legal — privacy + ToS** — `[§10]` **DRAFTED (2026-06-24):** in-app `/privacy`
-   + `/terms` pages (footer-linked) reflecting the real data flows (Supabase storage;
-   Google receives translated text; account deletion). *Remaining: counsel review*
-   before publishing (they're marked DRAFT).
-*(Real auth (#13) + the full account/auth UX, and Deploy (#14, live at
-`dino-86y.pages.dev`) are DONE; see Completed.)*
+## ✅ Tier 1 — Launch build work: DONE
+Tier 0 (security/cost CODE blockers — delete-lockdown, RLS audit, kill-switch +
+global cap) and Tier 1 (real auth #13, the full account/auth UX, Deploy #14 — live at
+`dino-86y.pages.dev`) are all done; see Completed. The drafted Privacy/ToS counsel
+review is **not** a build blocker — moved to Open follow-ups (it isn't urgent while the
+app isn't publicly launched).
 
 ## 🔒 Tier 2 — Hosted-only (external-console actions on the LIVE prod project)
 The app is deployed; what remains are one-time toggles in external consoles
-(Supabase / Google Cloud / Cloudflare) that only YOU can do — they need your logins
-and can't be progressed from the repo. The deploy script already set what it can
-(`verify_jwt` ON, `ALLOWED_ORIGINS` via `lockdown`, `GLOBAL_MONTHLY_CHAR_QUOTA`); the
-items below are the console-only backstops. **Verify each on the live dashboards.**
+(Supabase / Google Cloud / Cloudflare) that only YOU can do. **Supabase-dashboard
+auth config is DONE (2026-06-26)** — URL config, email confirmation, Google provider,
+anon rate limit (see Completed). What's left is **Google Cloud** (API-key restriction +
+billing cap), the repo-side secret-scan CI, and the **Pro-gated** items (Supabase spend
+cap, automated backups/PITR) deferred while on Free.
 2. **Prod security config** — `[§4/§5]` confirm `ALLOWED_ORIGINS` = the live Pages URL
    (the `lockdown` step) + `verify_jwt` ON (both set by the deploy script — verify);
    **restrict the Google Translation API key** to the Translation API + HTTP-referrer/IP
-   (Google Cloud console — manual). *Repo-side: secret-scan CI (I can add this).*
-3. **Prod auth config** — `[#13 cont.]` Supabase dashboard: set **Site URL + Redirect
-   URLs** (password-reset links); enable `[auth.email] enable_confirmations` + verify the
-   "check your email" state; enable the **Google OAuth provider** (creds already in
-   `.env.deploy` — paste + toggle on) + `security_manual_linking_enabled`. All wired in
-   code; only the console toggles remain. (Account-linking collisions → Open follow-ups.)
-4. **Cost protection — hosted** — `[concern · §3]` anon-signup **rate limit** (Supabase
-   auth dashboard) + hard **billing caps** (Google Cloud budget alert/cap + Supabase
-   spend cap). Code side done (MT kill-switch + global monthly cap); these are the
-   external-console backstops.
-5. **Forward-only migrations** — `[concern · §11]` now that prod holds data you can't
+   (Google Cloud console — manual). *Secret-scan CI ✅ DONE (2026-06-26) — gitleaks job
+   in `.github/workflows/ci.yml`, scans full history, fails on any committed secret.*
+3. **Cost protection — hosted** — `[concern · §3]` anon-signup **rate limit** ✅ DONE
+   (Supabase dashboard, 2026-06-26). Still TODO: hard **billing cap on Google Cloud**
+   (budget alert/cap). **Supabase spend cap: N/A — project is still on the FREE tier**
+   (no billing to cap; Free can't overspend, it pauses/limits). Revisit the Supabase
+   spend cap when/if upgrading to Pro. Code side done (MT kill-switch + global monthly
+   cap).
+4. **Forward-only migrations** — `[concern · §11]` now that prod holds data you can't
    `db reset`, adopt the forward-only, never-edit-an-applied-migration discipline
    (process, not a task). Clean-reset reproduction already proven.
-6. **Automated backups + PITR** — `[concern · §2]` flip the hosted paid-tier toggle
-   (needs **Pro**) + schedule `db:backup` off the DB host. Backup + tested-restore
-   tooling is done.
-7. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
+5. **Automated backups + PITR** — `[concern · §2]` needs **Pro** (Free has none) — flip
+   the paid-tier toggle + schedule `db:backup` off the DB host. Deferred while on Free;
+   backup + tested-restore tooling is done. *(Interim safety on Free: run `db:backup`
+   manually / on a cron from your own machine.)*
+6. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
    request / `mt_spend`, all emitting) at hosted alerting (spend threshold, 5xx,
    uptime). In-code side done.
 
 ## 🛠 Admin tooling (operational; build as a gated admin surface)
-8. **Admin webpage** — a privileged surface (role-gated; NOT a normal user) for ops:
+7. **Admin webpage** — a privileged surface (role-gated; NOT a normal user) for ops:
     - **Edit the `words` dictionary cache** — drive the deferred re-projection sweep
       (see #3 / `projection_version`): flag rows older than `CURRENT_PROJECTION_VERSION`
       as outdated and re-project / merge them (the destructive sweep gated on a test
@@ -223,6 +220,12 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **Legal — Privacy/ToS counsel review** — `[§10]` in-app `/privacy` + `/terms` are
+  DRAFTED + footer-linked (real data flows: Supabase storage; Google receives translated
+  text; account deletion). Remaining: **counsel review before going truly public**. NOT
+  urgent — the app isn't publicly launched yet; get sign-off before a public push, not
+  before a private/soft test. (Bump `CURRENT_TERMS_VERSION` in `src/lib/terms.ts` when the
+  reviewed copy lands, so the post-login Terms gate re-prompts existing accounts.)
 - **English-as-a-learning-target — dictionary QUALITY epic** — `[#11 / secondary market]`
   English ALREADY works as a learning target: it's a selectable language and EN→JA lookups
   resolve via reverse-JMdict (now uk-correct — `this → これ/この`). What's thin is QUALITY,
@@ -299,6 +302,11 @@ Newest first. Dates from CLAUDE.md's verification log + git history. Items here 
 DONE (some have minor "remaining" notes tracked in the tiers above).
 
 ### 2026-06-26
+- **Prod auth config (Supabase dashboard)** — on the live project: **URL Configuration**
+  (Site URL + Redirect URLs for reset/confirm links), **email confirmation** enabled,
+  **Google OAuth provider** enabled (creds from `.env.deploy`) + manual linking, and the
+  **anonymous sign-up rate limit**. (Account-linking collision edge cases still in Open
+  follow-ups.)
 - **Production deploy (#14)** — app **live at `dino-86y.pages.dev`** (Cloudflare Pages)
   on hosted Supabase (Free + common JMdict). `scripts/deploy-prod.sh` ran the full
   pipeline: link + migrations + dictionary seed, edge functions (`translate` +
