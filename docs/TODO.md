@@ -84,6 +84,19 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
       Anthropic). Pull via each provider's API where possible; show "expires in N days" +
       "X / limit this period" with a warning threshold. (Several of these creds are rotation
       candidates — see the launch checklist.)
+    - **Grant feature privileges (with expiry) — GRANT-ONLY, never revoke.** From the admin
+      page, grant a user a feature entitlement (the `user_limits`-style per-user columns:
+      raise a quota, unlock voice/camera/LLM) **and set a duration/expiry** for the grant.
+      **Hard rule: a granted privilege can be EXTENDED but NEVER taken away** — for legal
+      reasons, once we reach the stage where a user has PAID for privileges, removing a paid
+      entitlement is not allowed. Model this as append-only grant rows (grant + optional
+      future expiry; lapse is by expiry, not deletion) rather than a mutable flag an admin
+      can flip off. Server-enforced (service role writes grants; RLS read-own); the active
+      entitlement = the union of non-expired grants.
+    - **Error-code log (append-only, viewable from the admin page)** — persist every error
+      with its **date/time, the error code, and the input** that triggered it, queryable +
+      viewable in the admin UI (filter by user / code / date). Append-only audit record so
+      failures (esp. on paid features) are traceable after the fact.
     Server-enforced admin role (RLS / a `is_admin` claim); never a client-only gate.
 
 ## 🧪 Pre-publish QA gate — STRICT audit before the first published build

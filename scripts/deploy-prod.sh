@@ -105,15 +105,15 @@ deploy_frontend() {
   echo "==> Ensuring Cloudflare Pages project '$CF_PROJECT' exists"
   # Idempotent: only create when it's not already in the project list (re-creating
   # an existing project returns a generic API error, which we don't want to surface).
-  if npx --no-install wrangler pages project list 2>/dev/null | grep -qw "$CF_PROJECT"; then
+  if npx -y wrangler@4.104.0 pages project list 2>/dev/null | grep -qw "$CF_PROJECT"; then
     echo "    '$CF_PROJECT' already exists — skipping create"
   else
-    npx --no-install wrangler pages project create "$CF_PROJECT" --production-branch main
+    npx -y wrangler@4.104.0 pages project create "$CF_PROJECT" --production-branch main
   fi
 
   echo "==> Deploying dist/ to Cloudflare Pages project '$CF_PROJECT'"
   echo "    (headless via CLOUDFLARE_API_TOKEN; no browser login needed)"
-  npx --no-install wrangler pages deploy dist --project-name "$CF_PROJECT" --branch main
+  npx -y wrangler@4.104.0 pages deploy dist --project-name "$CF_PROJECT" --branch main
 
   echo "==> Frontend deployed. Copy the *.pages.dev URL it printed, then run:"
   echo "    ./scripts/deploy-prod.sh lockdown https://<your>.pages.dev"
