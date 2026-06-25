@@ -226,6 +226,14 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **Dedicated app email + sending domain** — `[launch polish]` right now BOTH the Google
+  OAuth support address AND the Brevo SMTP sender are the founder's PERSONAL gmail
+  (`xaviergdelrosario@gmail.com`). Create a dedicated app mailbox (e.g. a fresh
+  `dino…@gmail.com`, or `noreply@<domain>` once a domain exists) and point Google's consent
+  support email + Brevo sender at it. Tied to the custom-domain item: a domain enables
+  `noreply@dino.app` WITH SPF/DKIM, which is also what fixes deliverability (without it,
+  single-sender Brevo mail can land in spam) — so doing the domain solves email branding,
+  deliverability, the app URL, and the Google `…supabase.co` text together.
 - **Custom domain + branded auth** — `[launch polish]` prod is on the default
   `dino-86y.pages.dev` (Cloudflare appends a random suffix to every new Pages
   subdomain — a clean `dino.pages.dev` isn't obtainable) and Google's consent screen
