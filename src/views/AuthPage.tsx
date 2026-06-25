@@ -2,7 +2,7 @@
 // the password policy. On success → home. "Create account" upgrades the current
 // guest in place (keeps their words); "Sign in" switches to an existing account.
 import { useState } from "react";
-import { upgradeToAccount, signIn, requestPasswordReset, linkGoogle, signInWithGoogle } from "../services/session";
+import { upgradeToAccount, signIn, requestPasswordReset, linkGoogle, signInWithGoogle, recordTermsAgreement } from "../services/session";
 import { errorMessage } from "../lib/errorMessage";
 import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
@@ -19,9 +19,13 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
+  // Signup requires accepting the Terms/Privacy; sign-in doesn't.
+  const needsAgreement = mode === "signup" && !agreed;
 
   const submit = async () => {
-    if (busy || !email.trim() || password === "") return;
+    if (busy || !email.trim() || password === "" || needsAgreement) return;
     if (mode === "signup") {
       const issue = checkPassword(password);
       if (issue) { setErr(t(issue === "short" ? "auth.pwShort" : "auth.pwWeak")); return; }
@@ -31,6 +35,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     try {
       if (mode === "signup") {
         const { emailPending } = await upgradeToAccount({ email, password });
+        await recordTermsAgreement(); // stamp acceptance on the (same-uid) account
         if (emailPending) { setConfirmSent(true); return; } // prod: confirm via email first
       } else {
         await signIn({ email, password });
@@ -45,9 +50,12 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
 
   // Google redirects away on success (onAuthStateChange resumes on return).
   const google = async () => {
+    if (needsAgreement) return;
     setBusy(true);
     setErr(null);
     try {
+      // Signup links Google to the SAME uid; stamp the agreement before redirecting.
+      if (mode === "signup") await recordTermsAgreement();
       await (mode === "signup" ? linkGoogle() : signInWithGoogle());
     } catch (e) {
       setErr(errorMessage(e));
@@ -114,12 +122,24 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         autoComplete={mode === "signup" ? "new-password" : "current-password"}
         onChange={(e) => setPassword(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()} />
+      {mode === "signup" && (
+        <label className="authpage__agree">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+          <span>
+            {t("auth.agreePre")}
+            <Link to="/terms" className="account__link">{t("auth.termsLink")}</Link>
+            {t("auth.agreeMid")}
+            <Link to="/privacy" className="account__link">{t("auth.privacyLink")}</Link>
+            {t("auth.agreeSuf")}
+          </span>
+        </label>
+      )}
       {err && <pre className="review__error">{err}</pre>}
-      <button className="btn" disabled={busy || !email.trim() || password === ""} onClick={submit}>
+      <button className="btn" disabled={busy || !email.trim() || password === "" || needsAgreement} onClick={submit}>
         {mode === "signup" ? t("auth.createAccount") : t("auth.signIn")}
       </button>
 
-      <button className="btn btn--ghost" disabled={busy} onClick={google}>
+      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={google}>
         {t("auth.google")}
       </button>
 

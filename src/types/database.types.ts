@@ -472,6 +472,8 @@ export type Database = {
           learning_language: string | null
           level: number | null
           native_language: string | null
+          terms_agreed_at: string | null
+          terms_version: string | null
           user_id: string
         }
         Insert: {
@@ -480,6 +482,8 @@ export type Database = {
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
+          terms_agreed_at?: string | null
+          terms_version?: string | null
           user_id: string
         }
         Update: {
@@ -488,6 +492,8 @@ export type Database = {
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
+          terms_agreed_at?: string | null
+          terms_version?: string | null
           user_id?: string
         }
         Relationships: []

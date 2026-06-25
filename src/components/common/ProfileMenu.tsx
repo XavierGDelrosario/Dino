@@ -25,7 +25,10 @@ export function ProfileMenu({ isAnonymous, email }: { isAnonymous: boolean; emai
       {open && (
         <div className="profilemenu__panel" role="menu">
           {!isAnonymous && email && <div className="profilemenu__email">{email}</div>}
-          <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>
+          {/* Guests have no real account → no profile; just the sign-in/create path. */}
+          {!isAnonymous && (
+            <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>
+          )}
           {isAnonymous ? (
             <Link to="/signin" className="profilemenu__item" onClick={close}>{t("auth.signInCreate")}</Link>
           ) : (

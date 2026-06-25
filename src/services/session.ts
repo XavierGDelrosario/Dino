@@ -9,6 +9,7 @@
 
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
+import { CURRENT_TERMS_VERSION } from "../lib/terms";
 import type { Database } from "../types/database.types";
 
 export interface UserProfile {
@@ -19,6 +20,10 @@ export interface UserProfile {
   nativeLanguage: string | null;
   /** Language being studied → default "I'm learning" + input. null = app default. */
   learningLanguage: string | null;
+  /** When the user last accepted the Terms/Privacy (null = never, e.g. a guest). */
+  termsAgreedAt: string | null;
+  /** The Terms version they accepted (compare to CURRENT_TERMS_VERSION). */
+  termsVersion: string | null;
 }
 
 /** The live auth identity for the UI: who the user is and whether they're still a
@@ -105,6 +110,25 @@ export async function signInWithGoogle(): Promise<void> {
   const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
   const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
   if (error) throw toServiceError(error, "Google sign-in failed");
+}
+
+/**
+ * Stamp the current user's `users` row with the Terms/Privacy acceptance (the
+ * moment + the CURRENT_TERMS_VERSION). Called from the signup flow once the user
+ * ticks the agreement box. RLS scopes the write to the caller's own row. For
+ * Google signup this must run BEFORE the OAuth redirect (the uid is preserved by
+ * linkGoogle, so the stamp survives the redirect); for email it runs after the
+ * upgrade. Safe no-op if there's no session.
+ */
+export async function recordTermsAgreement(): Promise<void> {
+  const { data } = await supabase.auth.getUser();
+  const uid = data.user?.id;
+  if (!uid) return;
+  const { error } = await supabase
+    .from("users")
+    .update({ terms_agreed_at: new Date().toISOString(), terms_version: CURRENT_TERMS_VERSION })
+    .eq("user_id", uid);
+  if (error) throw toServiceError(error);
 }
 
 /**
@@ -221,7 +245,7 @@ async function ensureUserProfile(userId: string, email: string): Promise<void> {
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from("users")
-    .select<string, UserRow>("user_id, email, date_created, native_language, learning_language")
+    .select<string, UserRow>("user_id, email, date_created, native_language, learning_language, terms_agreed_at, terms_version")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -234,6 +258,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     dateCreated: data.date_created,
     nativeLanguage: data.native_language,
     learningLanguage: data.learning_language,
+    termsAgreedAt: data.terms_agreed_at,
+    termsVersion: data.terms_version,
   };
 }
 

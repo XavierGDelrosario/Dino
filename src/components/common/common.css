@@ -200,6 +200,22 @@ body {
   margin: 0;
   font-size: 0.85rem;
 }
+/* Agree-to-Terms checkbox — small print, like a typical signup consent line. */
+.authpage__agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #555;
+}
+.authpage__agree input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+.authpage__agree .account__link {
+  font-size: inherit;
+}
 .profile__row {
   display: flex;
   align-items: center;

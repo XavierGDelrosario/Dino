@@ -36,7 +36,7 @@ export function App() {
     <main className="app">
       <header className="app__header">
         {userId && <ProfileMenu isAnonymous={isAnonymous} email={email} />}
-        <Link to="/" className="app__titlelink"><h1 className="app__title">DINO 大脳</h1></Link>
+        <Link to="/" className="app__titlelink"><h1 className="app__title">DINO</h1></Link>
       </header>
 
       {loading && <p className="review__msg">{t("app.startingSession")}</p>}
@@ -53,7 +53,7 @@ export function App() {
       {userId && !recovering && (
         path === "/signin" ? <AuthPage mode="signin" />
         : path === "/signup" ? <AuthPage mode="signup" />
-        : path === "/profile" ? <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />
+        : path === "/profile" ? (isAnonymous ? <AuthPage mode="signup" /> : <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />)
         : path === "/privacy" ? <LegalView doc="privacy" />
         : path === "/terms" ? <LegalView doc="terms" />
         : <HomeView userId={userId} />

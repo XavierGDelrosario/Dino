@@ -3,11 +3,11 @@
 // and APP language (UI localization). Native/learning persist on `users` (follow the
 // account); app language is the client-side i18n locale.
 import { useEffect, useState } from "react";
-import { getUserProfile, updateUserLanguages, signOut } from "../services/session";
+import { getUserProfile, updateUserLanguages } from "../services/session";
 import { targetOptions } from "../services/language";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, LOCALES, type Locale } from "../i18n";
-import { useRouter, Link } from "../router";
+import { Link } from "../router";
 import "../components/common/common.css";
 
 export function ProfilePage({
@@ -20,8 +20,8 @@ export function ProfilePage({
   email: string | null;
 }) {
   const { t, locale, setLocale } = useI18n();
-  const { navigate } = useRouter();
   const [created, setCreated] = useState<string | null>(null);
+  const [termsAgreedAt, setTermsAgreedAt] = useState<string | null>(null);
   const [native, setNative] = useState<string>("EN");
   const [learning, setLearning] = useState<string>("JA");
   const [err, setErr] = useState<string | null>(null);
@@ -33,6 +33,7 @@ export function ProfilePage({
       .then((p) => {
         if (!active || !p) return;
         setCreated(p.dateCreated);
+        setTermsAgreedAt(p.termsAgreedAt);
         if (p.nativeLanguage) setNative(p.nativeLanguage);
         if (p.learningLanguage) setLearning(p.learningLanguage);
       })
@@ -69,6 +70,12 @@ export function ProfilePage({
           <span>{fmtDate(created)}</span>
         </div>
       )}
+      {termsAgreedAt && (
+        <div className="profile__row">
+          <span className="profile__label">{t("profile.termsAgreed")}</span>
+          <span>{fmtDate(termsAgreedAt)}</span>
+        </div>
+      )}
 
       <div className="profile__row">
         <label className="profile__label" htmlFor="pf-native">{t("profile.nativeLanguage")}</label>
@@ -92,13 +99,7 @@ export function ProfilePage({
       {err && <pre className="review__error">{err}</pre>}
 
       <div className="profile__actions">
-        {isAnonymous ? (
-          <Link to="/signup" className="btn btn--sm">{t("auth.signInCreate")}</Link>
-        ) : (
-          <button className="btn btn--sm" onClick={() => signOut().then(() => navigate("/"))}>
-            {t("auth.signOut")}
-          </button>
-        )}
+        {/* Sign-out lives in the top-right account menu (ProfileMenu); not duplicated here. */}
         <Link to="/" className="account__link">{t("profile.back")}</Link>
       </div>
     </section>
