@@ -494,3 +494,12 @@
   font-size: 0.8rem;
   cursor: pointer;
 }
+
+/* Word-by-word reader loading indicator (shown under the translation while the
+   reader's kuromoji analysis + lookups stream in). */
+.reader__loading {
+  margin: 0.75rem 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}

@@ -61,6 +61,10 @@ export function useTranslate(userId: string) {
 
   // paragraph mode
   const [para, setPara] = useState<ParagraphTranslation | null>(null);
+  // True while the word-by-word reader (kuromoji analysis + per-word lookups) is
+  // still loading AFTER the whole-sentence translation is already shown — lets the
+  // UI display the translation immediately with a spinner below for the reader.
+  const [readerLoading, setReaderLoading] = useState(false);
   const [analyzedInput, setAnalyzedInput] = useState("");
 
   // Per-SENSE state, keyed by dictionary wordId — shared by both modes so the
@@ -128,10 +132,11 @@ export function useTranslate(userId: string) {
     target?: LangCode;
   }) => {
     const text = (override?.text ?? input).trim();
-    if (!text || status === "loading") return;
+    if (!text || status === "loading" || readerLoading) return;
     const src = override?.source ?? source;
     const tgt = override?.target ?? target;
     setStatus("loading");
+    setReaderLoading(false);
     setError(null);
     try {
       const resolvedSource = resolveSourceLanguage(text, src);
@@ -298,21 +303,39 @@ export function useTranslate(userId: string) {
         return;
       }
       setAnalyzedInput(learningText.normalize("NFC"));
-      const p = await translateParagraph({ input: learningText, sourceLang: learning, targetLang: native });
+      setMode("paragraph");
+      setPara(null);
+      setMeanings([]);
+
+      // Show the whole-sentence TRANSLATION as soon as it's known, then stream the
+      // word-by-word reader in below (kuromoji's first load + lookups are the slow
+      // part). For !typedLearning the output IS the learning translation (already
+      // known); for typedLearning it's the gloss, revealed via onGloss the moment it
+      // lands. Either way status flips to "done" (output visible) with readerLoading
+      // true (spinner under the reader) until the tokens/meanings arrive.
+      const revealReader = () => { setReaderLoading(true); setStatus("done"); };
+      if (!typedLearning) { setOutput(outputText); revealReader(); }
+
+      const p = await translateParagraph({
+        input: learningText,
+        sourceLang: learning,
+        targetLang: native,
+        onGloss: typedLearning
+          ? (g) => { setOutput(g.translated ? g.translation : ""); revealReader(); }
+          : undefined,
+      });
       const ids: string[] = [];
       p.meanings.forEach((senses) => senses.forEach((s) => ids.push(s.wordId)));
       await loadSenseState(ids);
       setPara(p);
-      setMeanings([]);
-      if (typedLearning) outputText = p.translated ? p.translation : "";
-      setOutput(outputText);
-      setMode("paragraph");
+      setReaderLoading(false);
       setStatus("done");
     } catch (e) {
       setError(message(e));
       setStatus("error");
+      setReaderLoading(false);
     }
-  }, [input, source, target, status, userId, limits, learning]);
+  }, [input, source, target, status, readerLoading, userId, limits, learning]);
 
   /** Swap source↔target, move the OUTPUT text into the input, and re-translate —
    *  the Google-Translate swap. Just swaps languages when there's nothing to move. */
@@ -510,7 +533,7 @@ export function useTranslate(userId: string) {
     // word mode
     headword, meanings,
     // paragraph mode
-    para, analyzedInput,
+    para, analyzedInput, readerLoading,
     // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
     // the state-sync callback the quiz uses after each grade.
     addablePrimaries, reviewablePrimaries,

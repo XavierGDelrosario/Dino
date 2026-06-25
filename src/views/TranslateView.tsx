@@ -129,6 +129,12 @@ export function TranslateView({ userId }: { userId: string }) {
 
       {t.error && <pre className="review__error">{t.error}</pre>}
 
+      {/* The translation shows above as soon as it's ready; the word-by-word reader
+          (kuromoji + lookups) streams in after — spinner while it loads. */}
+      {t.mode === "paragraph" && t.readerLoading && !t.para && (
+        <p className="reader__loading">{tr("translate.readerLoading")}</p>
+      )}
+
       {/* STUDY section: add/quiz/review controls + the hover-for-meaning reader. */}
       {(wordStudy || paraStudy) && (
         <div className="study">

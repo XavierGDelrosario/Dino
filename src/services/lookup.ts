@@ -157,6 +157,10 @@ export async function translateParagraph(params: {
   input: string;
   targetLang: LangCode;
   sourceLang?: SourceSelection;
+  /** Fired the moment the whole-sentence gloss is ready — BEFORE the slower
+   *  morphological analysis + per-word lookups — so the UI can show the
+   *  translation immediately and stream the word-by-word reader in after. */
+  onGloss?: (gloss: { translation: string; translated: boolean }) => void;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
   const input = params.input.normalize("NFC");
@@ -169,6 +173,7 @@ export async function translateParagraph(params: {
     targetLang,
     persist: false,
   });
+  params.onGloss?.({ translation: para.translation ?? "", translated: para.translated });
 
   // 2. Morphologically analyze into tokens. Offsets stay pointed at the original
   //    paragraph (for display); for JA this also yields per-token reading + lemma.
