@@ -83,18 +83,24 @@ export function App() {
       {/* Password-recovery takeover: followed a reset link → set a new password first. */}
       {recovering && <ResetPasswordView onDone={clearRecovery} />}
 
-      {/* Terms-acceptance takeover: account owes acceptance (Google bypass / Terms update). */}
-      {userId && !isAnonymous && needsTerms && !recovering && (
+      {/* Legal docs are ALWAYS reachable — even while the Terms gate is up, the user
+          must be able to read what they're accepting (the gate links here in a new tab). */}
+      {!recovering && (path === "/privacy" || path === "/terms") && (
+        <LegalView doc={path === "/terms" ? "terms" : "privacy"} />
+      )}
+
+      {/* Terms-acceptance takeover: account owes acceptance (Google bypass / Terms update).
+          Not shown over the legal docs themselves (above). */}
+      {userId && !isAnonymous && needsTerms && !recovering && path !== "/privacy" && path !== "/terms" && (
         <TermsGateView onDone={() => setNeedsTerms(false)} />
       )}
 
-      {userId && !recovering && !needsTerms && (
+      {/* Main app (gated by Terms; legal routes handled above). */}
+      {userId && !recovering && !needsTerms && path !== "/privacy" && path !== "/terms" && (
         path === "/signin" ? <AuthPage mode="signin" />
         : path === "/signup" ? <AuthPage mode="signup" />
         : path === "/profile" ? (isAnonymous ? <AuthPage mode="signup" /> : <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />)
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
-        : path === "/privacy" ? <LegalView doc="privacy" />
-        : path === "/terms" ? <LegalView doc="terms" />
         : <HomeView userId={userId} />
       )}
 

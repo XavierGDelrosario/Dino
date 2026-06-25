@@ -136,9 +136,12 @@ export function useTranslate(userId: string) {
     try {
       const resolvedSource = resolveSourceLanguage(text, src);
 
-      // Input language == output language → nothing to translate. Echo the input
-      // straight into the output box; make NO API calls and render NO reader.
-      if (resolvedSource === tgt) {
+      // Input language == output language → nothing to TRANSLATE: echo the input,
+      // no API calls, no reader. BUT never short-circuit the learning language —
+      // studying it (the reader) is the point even when source==target==learning
+      // (the default JA→JA case), and the type-native-to-study-its-translation flow
+      // also lands here. Only echo when neither side is the learning language.
+      if (resolvedSource === tgt && resolvedSource !== learning) {
         setOutput(text);
         setMeanings([]);
         setPara(null);

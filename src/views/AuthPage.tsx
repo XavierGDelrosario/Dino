@@ -34,8 +34,11 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     setErr(null);
     try {
       if (mode === "signup") {
+        // Stamp acceptance on the guest row FIRST (same uid survives the upgrade), so
+        // the post-login terms-gate check can't race ahead of the stamp and wrongly
+        // re-prompt a user who just ticked the box.
+        await recordTermsAgreement();
         const { emailPending } = await upgradeToAccount({ email, password });
-        await recordTermsAgreement(); // stamp acceptance on the (same-uid) account
         if (emailPending) { setConfirmSent(true); return; } // prod: confirm via email first
       } else {
         await signIn({ email, password });

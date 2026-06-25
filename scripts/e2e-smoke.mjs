@@ -99,11 +99,11 @@ try {
   await page.waitForSelector("textarea", { timeout: 30000 });
   await page.waitForTimeout(4000);
 
-  // 1. Drive the paragraph reader through REAL kuromoji. Set JA -> EN explicitly:
-  // the default target is JA, and a JA input with target JA hits the
-  // input==output short-circuit (echo, no reader) by design.
-  await page.locator("select").nth(0).selectOption("JA").catch(() => {});
-  await page.locator("select").nth(1).selectOption("EN").catch(() => {});
+  // 1. Drive the paragraph reader through REAL kuromoji, using the DEFAULT direction
+  // (source=Detect, target=JA, learning=JA) — i.e. a fresh guest studying Japanese.
+  // This guards TWO regressions at once: the kuromoji loader hang AND the
+  // input==output short-circuit wrongly echoing the default study flow (source JA ==
+  // target JA), which must still render the reader because it's the learning language.
   const ta = page.locator("textarea").first();
   await ta.click();
   await ta.pressSequentially("これは本です", { delay: 15 });
