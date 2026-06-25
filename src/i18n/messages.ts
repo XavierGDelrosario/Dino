@@ -186,6 +186,8 @@ export const en = {
   "auth.agreeMid": " and ",
   "auth.privacyLink": "Privacy Policy",
   "auth.agreeSuf": ".",
+  "terms.gateTitle": "Please review our terms",
+  "terms.gateContinue": "Agree and continue",
 
   // profile
   "profile.title": "Profile",
@@ -367,6 +369,8 @@ export const ja: Record<MessageKey, string> = {
   "auth.agreeMid": "と",
   "auth.privacyLink": "プライバシーポリシー",
   "auth.agreeSuf": "に同意します",
+  "terms.gateTitle": "規約をご確認ください",
+  "terms.gateContinue": "同意して続ける",
 
   "profile.title": "プロフィール",
   "profile.profileLink": "プロフィール",

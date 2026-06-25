@@ -235,15 +235,12 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   + Google authorized origins/redirects to the new domain; (2) for the Google branding,
   add a Supabase **custom auth domain** (`auth.<domain>`) — requires **Pro** ($25/mo).
   Interim done: Google consent **App name = DINO** (free; shows "continue to DINO").
-- **Post-login Terms gate (initial + re-prompt)** — `[#13 / §10]` the DATA is in place
-  (`users.terms_agreed_at` + `terms_version`, stamped on email signup; `src/lib/terms.ts`
-  `CURRENT_TERMS_VERSION`). TWO gaps the enforcement UI closes: (1) **Google signup BYPASSES
-  initial acceptance** — the Terms checkbox lives only on the email-signup form, so a
-  "Continue with Google" (esp. from /signin, which creates a new account) never agrees; (2)
-  **re-prompt on Terms update**. Fix both with ONE post-auth takeover: on login, if a
-  non-anonymous account's `terms_version` is NULL or < current, force acceptance (re-stamp via
-  `recordTermsAgreement`) before continuing — mirror the `ResetPasswordView` takeover. Bump
-  `CURRENT_TERMS_VERSION` whenever LegalView changes.
+- **Post-login Terms gate — DONE (2026-06-25).** `TermsGateView` takeover (`App.tsx`,
+  gated on `needsTermsAcceptance`): a permanent account whose `terms_version` is NULL or
+  behind `CURRENT_TERMS_VERSION` must accept before using the app. Closes BOTH the Google-
+  signup bypass (checkbox was email-form-only) AND re-prompt-on-update. Guests never gated;
+  fails open on a check error. To re-prompt everyone after editing LegalView, bump
+  `CURRENT_TERMS_VERSION` in `src/lib/terms.ts`.
 - **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
   app's PUBLIC-schema data but NOT the Supabase `auth.users` row; pair it with the
   auth admin API when real auth lands, else deleted users can still sign in.

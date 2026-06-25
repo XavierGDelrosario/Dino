@@ -132,6 +132,18 @@ export async function recordTermsAgreement(): Promise<void> {
 }
 
 /**
+ * Does this account still owe Terms acceptance? True when its stored
+ * `terms_version` is missing or behind CURRENT_TERMS_VERSION — i.e. a Google
+ * signup that bypassed the signup checkbox, or anyone after the Terms were
+ * updated. The caller (App) only checks this for permanent accounts; guests are
+ * never gated. Reads the caller's own row (RLS).
+ */
+export async function needsTermsAcceptance(userId: string): Promise<boolean> {
+  const profile = await getUserProfile(userId);
+  return !profile || profile.termsVersion !== CURRENT_TERMS_VERSION;
+}
+
+/**
  * Sign out and return to a FRESH anonymous guest (no login wall — the app keeps
  * working). Returns the new guest's userId.
  */
