@@ -234,6 +234,28 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **English-as-a-learning-target — dictionary QUALITY epic** — `[#11 / secondary market]`
+  English ALREADY works as a learning target: it's a selectable language and EN→JA lookups
+  resolve via reverse-JMdict (now uk-correct — `this → これ/この`). What's thin is QUALITY,
+  and it's mostly RANKING/content, NOT storage — fits the free tier (see the storage note;
+  Pro is only forced by English *embeddings*). Cheap-first order:
+  1. **EN→JA reverse-gloss ranking.** The data's already in `jmdict_glosses`; results are
+     noisy (`do → な`). Concrete cheap win found: JMdict glosses verbs as "to do; …", so the
+     head-match regex (`^do(...)`) misses them → verbs rank by raw frequency. Allow an
+     optional leading `to ` in the EN→JA head-match (`^(to )?<input>(...)`) so `do → する/やる`,
+     `eat → 食べる` head-match and rank properly. One-spot SQL change, ~0 storage.
+  2. **English frequency** (wordfreq EN → `data/frequency/en.tsv`, ~3 MB) so an English word's
+     DIFFICULTY uses English frequency, not the matched JA entry's. Needs an `english_frequency`
+     lookup applied to EN-source `words` at projection (today EN words inherit the JA entry's
+     frequency — wrong axis).
+  3. **English lemmatizer** so `ran/running → run` (kuromoji is JA-only; EN uses Intl.Segmenter
+     with no lemma).
+  4. **(optional) Japanese WordNet (wnjpn)** for richer EN→JA coverage (~20–40 MB, free, fits).
+  5. **English embeddings / word-map** (#11) — the storage hog (~80 MB+) and the real Free→Pro
+     trigger; until then "Explore related words" is hidden for non-JA learning langs (done).
+- **Explore-related hidden for non-JA learning languages — DONE (2026-06-25).** The word-map
+  (pgvector embeddings) exists only for JA, so the "Explore related words" button is gated to
+  `learning === "JA"`. Re-enable per language as its embeddings ship (epic item 5 above).
 - **Account-linking edge cases (email ↔ Google, same person)** — `[#13 auth]` partially
   handled. (1) **Sign-up "Continue with Google" uses `linkIdentity`**, which needs
   `security_manual_linking_enabled=true` (was OFF → that path errored); enabling it makes the

@@ -180,9 +180,14 @@ export function TranslateView({ userId }: { userId: string }) {
                       {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
                     </button>
                   )}
-                  <button className="btn btn--ghost" disabled={t.domainLoading} onClick={onExplore}>
-                    {t.domainLoading ? tr("translate.exploreLoading") : tr("translate.explore")}
-                  </button>
+                  {/* "Explore related words" needs the word-map (pgvector embeddings),
+                      which currently exists only for Japanese. Hide it for other
+                      learning languages until their embeddings ship. */}
+                  {t.learning === "JA" && (
+                    <button className="btn btn--ghost" disabled={t.domainLoading} onClick={onExplore}>
+                      {t.domainLoading ? tr("translate.exploreLoading") : tr("translate.explore")}
+                    </button>
+                  )}
                 </div>
               )}
               {domainNote && <p className="review__scope">{domainNote}</p>}
