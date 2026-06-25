@@ -27,7 +27,7 @@ jobs:
           ver=8.30.1
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" \
             | tar -xz gitleaks
-          ./gitleaks git . --redact --verbose --exit-code 1
+          ./gitleaks git . --config .gitleaks.toml --redact --verbose --exit-code 1
 
   # Fast gate: no DB needed. typecheck + lint + unit tests (the mocked suite).
   quality:

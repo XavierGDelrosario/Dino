@@ -1,0 +1,17 @@
+# gitleaks config for DINO — used by the `secrets` job in .github/workflows/ci.yml.
+# Extends the upstream default ruleset and adds a narrow allowlist for KNOWN
+# non-secrets, so the scan fails only on a genuine leak.
+[extend]
+useDefault = true
+
+# The Supabase ANON key is public by design (it ships in the browser bundle; RLS
+# protects the data — see CLAUDE.md "anon key is public"). The only committed
+# JWT-ish string is the deliberately-fake placeholder in scripts/e2e.sh
+# (host e2e.test.supabase.co, signature literally ".e2e") used so the prod bundle
+# boots during the mocked browser smoke test. Allow that EXACT value only — a real
+# key would not match, so this can't mask an actual leak.
+[[allowlists]]
+description = "Fake placeholder Supabase anon JWT used by the E2E smoke test (not a secret)"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJyb2xlIjoiYW5vbiJ9\.e2e''',
+]
