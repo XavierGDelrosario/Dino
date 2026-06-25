@@ -226,6 +226,24 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **Custom domain + branded auth** — `[launch polish]` prod is on the default
+  `dino-86y.pages.dev` (Cloudflare appends a random suffix to every new Pages
+  subdomain — a clean `dino.pages.dev` isn't obtainable) and Google's consent screen
+  shows "Sign in to <ref>.supabase.co". Both are cosmetic; login + app work. To fix at
+  real launch: (1) register a domain (~$10/yr) → attach to Cloudflare Pages (free) for a
+  clean app URL — also update Supabase Auth Site URL/redirects + the edge `ALLOWED_ORIGINS`
+  + Google authorized origins/redirects to the new domain; (2) for the Google branding,
+  add a Supabase **custom auth domain** (`auth.<domain>`) — requires **Pro** ($25/mo).
+  Interim done: Google consent **App name = DINO** (free; shows "continue to DINO").
+- **Post-login Terms gate (initial + re-prompt)** — `[#13 / §10]` the DATA is in place
+  (`users.terms_agreed_at` + `terms_version`, stamped on email signup; `src/lib/terms.ts`
+  `CURRENT_TERMS_VERSION`). TWO gaps the enforcement UI closes: (1) **Google signup BYPASSES
+  initial acceptance** — the Terms checkbox lives only on the email-signup form, so a
+  "Continue with Google" (esp. from /signin, which creates a new account) never agrees; (2)
+  **re-prompt on Terms update**. Fix both with ONE post-auth takeover: on login, if a
+  non-anonymous account's `terms_version` is NULL or < current, force acceptance (re-stamp via
+  `recordTermsAgreement`) before continuing — mirror the `ResetPasswordView` takeover. Bump
+  `CURRENT_TERMS_VERSION` whenever LegalView changes.
 - **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
   app's PUBLIC-schema data but NOT the Supabase `auth.users` row; pair it with the
   auth admin API when real auth lands, else deleted users can still sign in.
