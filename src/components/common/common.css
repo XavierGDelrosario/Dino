@@ -137,6 +137,31 @@ body {
 .langmenu {
   right: 2.6rem;
 }
+
+/* Profile footer: Back (left) · Delete account (right). */
+.profile__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.profile__deletelink {
+  color: #c0392b;
+}
+/* Warning copy + confirm button on the delete-account page. */
+.profile__dangerwarn {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.btn--danger {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #fff;
+}
 .profilemenu__btn {
   width: 2.1rem;
   height: 2.1rem;

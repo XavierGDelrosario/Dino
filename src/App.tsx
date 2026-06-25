@@ -14,6 +14,7 @@ import { TermsGateView } from "./components/common/TermsGateView";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
+import { DeleteAccountPage } from "./views/DeleteAccountPage";
 import { LegalView } from "./views/LegalView";
 import { useI18n } from "./i18n";
 import { useRouter, Link } from "./router";
@@ -27,6 +28,9 @@ export function App() {
   // Terms gate: a permanent account that hasn't accepted the current Terms version
   // (Google signup that skipped the checkbox, or anyone after a Terms update) must
   // accept before using the app. Guests are never gated. Fail open on a check error.
+  // One header menu open at a time (globe ↔ profile): opening one closes the other.
+  const [openMenu, setOpenMenu] = useState<"lang" | "profile" | null>(null);
+
   const [needsTerms, setNeedsTerms] = useState(false);
   useEffect(() => {
     if (!userId || isAnonymous || recovering) { setNeedsTerms(false); return; }
@@ -51,8 +55,20 @@ export function App() {
   return (
     <main className="app">
       <header className="app__header">
-        <LanguageMenu />
-        {userId && <ProfileMenu isAnonymous={isAnonymous} email={email} />}
+        <LanguageMenu
+          open={openMenu === "lang"}
+          onToggle={() => setOpenMenu((m) => (m === "lang" ? null : "lang"))}
+          onClose={() => setOpenMenu(null)}
+        />
+        {userId && (
+          <ProfileMenu
+            isAnonymous={isAnonymous}
+            email={email}
+            open={openMenu === "profile"}
+            onToggle={() => setOpenMenu((m) => (m === "profile" ? null : "profile"))}
+            onClose={() => setOpenMenu(null)}
+          />
+        )}
         <Link to="/" className="app__titlelink"><h1 className="app__title">DINO</h1></Link>
       </header>
 
@@ -76,6 +92,7 @@ export function App() {
         path === "/signin" ? <AuthPage mode="signin" />
         : path === "/signup" ? <AuthPage mode="signup" />
         : path === "/profile" ? (isAnonymous ? <AuthPage mode="signup" /> : <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />)
+        : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
         : path === "/privacy" ? <LegalView doc="privacy" />
         : path === "/terms" ? <LegalView doc="terms" />
         : <HomeView userId={userId} />

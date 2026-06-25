@@ -21,7 +21,6 @@ export function ProfilePage({
 }) {
   const { t, locale, setLocale } = useI18n();
   const [created, setCreated] = useState<string | null>(null);
-  const [termsAgreedAt, setTermsAgreedAt] = useState<string | null>(null);
   const [native, setNative] = useState<string>("EN");
   const [learning, setLearning] = useState<string>("JA");
   const [err, setErr] = useState<string | null>(null);
@@ -33,7 +32,6 @@ export function ProfilePage({
       .then((p) => {
         if (!active || !p) return;
         setCreated(p.dateCreated);
-        setTermsAgreedAt(p.termsAgreedAt);
         if (p.nativeLanguage) setNative(p.nativeLanguage);
         if (p.learningLanguage) setLearning(p.learningLanguage);
       })
@@ -70,13 +68,6 @@ export function ProfilePage({
           <span>{fmtDate(created)}</span>
         </div>
       )}
-      {termsAgreedAt && (
-        <div className="profile__row">
-          <span className="profile__label">{t("profile.termsAgreed")}</span>
-          <span>{fmtDate(termsAgreedAt)}</span>
-        </div>
-      )}
-
       <div className="profile__row">
         <label className="profile__label" htmlFor="pf-native">{t("profile.nativeLanguage")}</label>
         <select id="pf-native" className="select select--sm" value={native} onChange={(e) => saveNative(e.target.value)}>
@@ -98,9 +89,15 @@ export function ProfilePage({
 
       {err && <pre className="review__error">{err}</pre>}
 
-      <div className="profile__actions">
-        {/* Sign-out lives in the top-right account menu (ProfileMenu); not duplicated here. */}
+      {/* Footer: Back (left) · Delete account (right). Sign-out lives in the
+          top-right account menu; delete is its own confirmation page. */}
+      <div className="profile__footer">
         <Link to="/" className="account__link">{t("profile.back")}</Link>
+        {!isAnonymous && (
+          <Link to="/delete-account" className="account__link profile__deletelink">
+            {t("profile.deleteAccount")}
+          </Link>
+        )}
       </div>
     </section>
   );

@@ -52,9 +52,10 @@ deploy_supabase() {
   echo "    (the seed is ~145MB over the wire — give it a few minutes)"
   sb db push --linked --include-seed -p "$SUPABASE_DB_PASSWORD" --yes
 
-  echo "==> [3/4] Deploying the 'translate' edge function (verify_jwt stays ON)"
+  echo "==> [3/4] Deploying edge functions (verify_jwt stays ON)"
   # --use-api bundles server-side (no local Docker required).
   sb functions deploy translate --use-api
+  sb functions deploy delete-account --use-api
 
   echo "==> [4/4] Setting edge secrets"
   load_translation_key

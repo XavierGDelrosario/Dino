@@ -1,16 +1,28 @@
 // Person-icon dropdown (top-right). Profile link + sign-in (guest) / sign-out
 // (account). The forms live on their own pages now (AuthPage); this just navigates.
-import { useState } from "react";
 import { signOut } from "../../services/session";
 import { useI18n } from "../../i18n";
 import { useRouter, Link } from "../../router";
 import "./common.css";
 
-export function ProfileMenu({ isAnonymous, email }: { isAnonymous: boolean; email: string | null }) {
+// Controlled by App so it and LanguageMenu are mutually exclusive (opening one
+// closes the other).
+export function ProfileMenu({
+  isAnonymous,
+  email,
+  open,
+  onToggle,
+  onClose,
+}: {
+  isAnonymous: boolean;
+  email: string | null;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
   const { t } = useI18n();
   const { navigate } = useRouter();
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const close = onClose;
 
   return (
     <div className="profilemenu">
@@ -18,7 +30,7 @@ export function ProfileMenu({ isAnonymous, email }: { isAnonymous: boolean; emai
         className="profilemenu__btn"
         aria-label={t("profile.menuAria")}
         aria-haspopup="menu"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
       >
         <span aria-hidden="true">👤</span>
       </button>

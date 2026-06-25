@@ -165,6 +165,18 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (error) throw toServiceError(error, "Could not send the reset email");
 }
 
+/**
+ * Permanently delete the caller's account — BOTH their public-schema data AND
+ * their Supabase auth identity — via the `delete-account` edge function (the auth
+ * row removal needs the service role; a client can't do it). On success we sign
+ * out, so `useSession` self-heals into a fresh guest. Irreversible.
+ */
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.functions.invoke("delete-account", { body: {} });
+  if (error) throw toServiceError(error, "Could not delete your account");
+  await supabase.auth.signOut().catch(() => {});
+}
+
 /** Set a new password for the user currently in a recovery session (after they
  *  followed the reset link). Leaves them signed in to that account. */
 export async function setNewPassword(password: string): Promise<void> {

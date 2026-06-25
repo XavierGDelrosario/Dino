@@ -2,13 +2,21 @@
 // UI language (i18n locale) — distinct from the translation source/target. Always
 // available (localization works before any session). Reuses the ProfileMenu
 // button/panel styles; positioned left of it via the .langmenu class.
-import { useState } from "react";
 import { useI18n, LOCALES, type Locale } from "../../i18n";
 import "./common.css";
 
-export function LanguageMenu() {
+// Controlled by App so it and ProfileMenu are mutually exclusive (opening one
+// closes the other).
+export function LanguageMenu({
+  open,
+  onToggle,
+  onClose,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
   const { t, locale, setLocale } = useI18n();
-  const [open, setOpen] = useState(false);
 
   return (
     <div className="profilemenu langmenu">
@@ -16,7 +24,7 @@ export function LanguageMenu() {
         className="profilemenu__btn"
         aria-label={t("ui.language")}
         aria-haspopup="menu"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
       >
         <span aria-hidden="true">🌐</span>
       </button>
@@ -27,7 +35,7 @@ export function LanguageMenu() {
               key={l.code}
               className="profilemenu__item"
               aria-current={l.code === locale}
-              onClick={() => { setLocale(l.code as Locale); setOpen(false); }}
+              onClick={() => { setLocale(l.code as Locale); onClose(); }}
             >
               {l.label}{l.code === locale ? " ✓" : ""}
             </button>
