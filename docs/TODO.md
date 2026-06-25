@@ -14,36 +14,39 @@ review is **not** a build blocker — moved to Open follow-ups (it isn't urgent 
 app isn't publicly launched).
 
 ## 🔒 Tier 2 — Hosted-only (external-console actions on the LIVE prod project)
-The app is deployed; what remains are one-time toggles in external consoles
-(Supabase / Google Cloud / Cloudflare) that only YOU can do. **Supabase-dashboard
-auth config is DONE (2026-06-26)** — URL config, email confirmation, Google provider,
-anon rate limit (see Completed). What's left is **Google Cloud** (API-key restriction +
-billing cap), the repo-side secret-scan CI, and the **Pro-gated** items (Supabase spend
-cap, automated backups/PITR) deferred while on Free.
-2. **Prod security config** — `[§4/§5]` confirm `ALLOWED_ORIGINS` = the live Pages URL
-   (the `lockdown` step) + `verify_jwt` ON (both set by the deploy script — verify);
-   **restrict the Google Translation API key** to the Translation API + HTTP-referrer/IP
-   (Google Cloud console — manual). *Secret-scan CI ✅ DONE (2026-06-26) — gitleaks job
-   in `.github/workflows/ci.yml`, scans full history, fails on any committed secret.*
-3. **Cost protection — hosted** — `[concern · §3]` anon-signup **rate limit** ✅ DONE
-   (Supabase dashboard, 2026-06-26). Still TODO: hard **billing cap on Google Cloud**
-   (budget alert/cap). **Supabase spend cap: N/A — project is still on the FREE tier**
-   (no billing to cap; Free can't overspend, it pauses/limits). Revisit the Supabase
-   spend cap when/if upgrading to Pro. Code side done (MT kill-switch + global monthly
-   cap).
-4. **Forward-only migrations** — `[concern · §11]` now that prod holds data you can't
+The app is deployed and the **launch-critical console hardening is DONE (2026-06-26)** —
+Supabase auth config, the Google Translation key restriction + budget alert, and the
+repo-side secret-scan CI (items 2–4 below). What's left is only the **Pro-gated** items
+(Supabase spend cap, automated backups/PITR) deferred while on Free, plus hosted
+alerting — none blocking launch.
+2. **Prod security config** — `[§4/§5]` ✅ DONE (2026-06-26): `ALLOWED_ORIGINS` = live
+   Pages URL + `verify_jwt` ON (deploy script); **Google Translation API key restricted**
+   to the Cloud Translation API (application-restriction **None** — it's a server-side
+   key called by the edge function, so there's no browser referrer / stable IP to gate;
+   the API restriction is the real protection); **secret-scan CI** (gitleaks job in
+   `.github/workflows/ci.yml`, scans full history, fails on any committed secret).
+3. **Prod auth config** — `[#13 cont.]` ✅ DONE (2026-06-26): Supabase dashboard —
+   **Site URL + Redirect URLs**, **email confirmation**, **Google OAuth provider** (creds
+   from `.env.deploy`) + manual linking, **anon sign-up rate limit**. All were wired in
+   code; these were the console toggles. (Account-linking collisions → Open follow-ups.)
+4. **Cost protection — hosted** — `[concern · §3]` anon-signup **rate limit** ✅ DONE
+   (Supabase) + **Google Cloud budget alert** ✅ DONE (early-warning email; the hard
+   ceiling is the app-level `GLOBAL_MONTHLY_CHAR_QUOTA`). **Supabase spend cap: N/A —
+   project is still on the FREE tier** (Free can't overspend; revisit at Pro). Code side
+   done (MT kill-switch + global monthly cap).
+5. **Forward-only migrations** — `[concern · §11]` now that prod holds data you can't
    `db reset`, adopt the forward-only, never-edit-an-applied-migration discipline
    (process, not a task). Clean-reset reproduction already proven.
-5. **Automated backups + PITR** — `[concern · §2]` needs **Pro** (Free has none) — flip
+6. **Automated backups + PITR** — `[concern · §2]` needs **Pro** (Free has none) — flip
    the paid-tier toggle + schedule `db:backup` off the DB host. Deferred while on Free;
    backup + tested-restore tooling is done. *(Interim safety on Free: run `db:backup`
    manually / on a cron from your own machine.)*
-6. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
+7. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
    request / `mt_spend`, all emitting) at hosted alerting (spend threshold, 5xx,
    uptime). In-code side done.
 
 ## 🛠 Admin tooling (operational; build as a gated admin surface)
-7. **Admin webpage** — a privileged surface (role-gated; NOT a normal user) for ops:
+8. **Admin webpage** — a privileged surface (role-gated; NOT a normal user) for ops:
     - **Edit the `words` dictionary cache** — drive the deferred re-projection sweep
       (see #3 / `projection_version`): flag rows older than `CURRENT_PROJECTION_VERSION`
       as outdated and re-project / merge them (the destructive sweep gated on a test
