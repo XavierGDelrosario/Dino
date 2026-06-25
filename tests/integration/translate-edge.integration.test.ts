@@ -19,7 +19,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY=<service>   # enables the idempotency-replay assertion
 //   npm run test:integration -- translate-edge
 // =========================================================
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { URL, ANON, SERVICE_KEY, ENABLED, makeUser } from "./_support";
 
@@ -38,6 +38,22 @@ async function postAs(token: string, body: unknown) {
 }
 const post = (body: unknown) => postAs(ANON, body);
 
+// `supabase functions serve` COLD-STARTS the Deno runtime on the first request
+// (boot + remote imports), which can exceed a test's default 5s timeout and flake
+// the health check in CI. Absorb that cold start ONCE here, with a generous budget,
+// so every test below runs against a warm edge. (No-op when not running integration.)
+beforeAll(async () => {
+  if (!ENABLED) return;
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(FN, { headers: { Authorization: `Bearer ${ANON}` } });
+      if (res.status === 200) return;
+    } catch { /* edge not up yet */ }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}, 60_000);
+
 /** A fresh user's id + access-token (a real JWT `sub` → the paid path is metered). */
 async function makeTokenUser(): Promise<{ userId: string; token: string }> {
   const u = await makeUser();
@@ -50,7 +66,7 @@ describe.skipIf(!ENABLED)("edge: translate HTTP shell", () => {
     const res = await fetch(FN, { headers: { Authorization: `Bearer ${ANON}` } });
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe("ok");
-  });
+  }, 30_000); // generous: CI edge cold start can be slow even after warmup
 
   it("rejects an unsupported method → 405", async () => {
     const res = await fetch(FN, { method: "PUT", headers: { Authorization: `Bearer ${ANON}` } });
