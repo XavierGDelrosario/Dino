@@ -234,6 +234,17 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **Account-linking edge cases (email ↔ Google, same person)** — `[#13 auth]` partially
+  handled. (1) **Sign-up "Continue with Google" uses `linkIdentity`**, which needs
+  `security_manual_linking_enabled=true` (was OFF → that path errored); enabling it makes the
+  guest→Google upgrade preserve vocab. (2) **Collision: email/password account + later Google
+  (same email)** auto-links into one account ONLY if the email is CONFIRMED — an unconfirmed
+  account can fork into two with split vocab. (3) **Google account first, then email/password
+  signup** → `updateUser` errors "email already registered" with no UI path to set a password
+  on the Google account. (4) **Guest with words → sign-in-page Google** switches uid → guest
+  words don't carry (sign-in ≠ upgrade), surprising. TODO: clear messaging on collision
+  ("this email already signs in with Google — use that"), a claim/merge story, and a decision
+  on guest-data carry for the sign-in Google path. Verify the auto-link behavior live.
 - **Source-language mismatch robustness** — `[translate UX]` when the user sets a CONCRETE
   source language that clearly doesn't match the typed text's script (e.g. source = Japanese
   but the input is plain Latin/English), the flow produces garbage (MT echoes the input,
