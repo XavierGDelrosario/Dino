@@ -75,16 +75,34 @@ export function ParagraphReader({
 
   const hoveredSenses = hover ? meaningsByWord.get(hover.word) ?? [] : [];
 
+  // Place the card below the word, but flip above when there's more room there —
+  // and cap its height to the available space so a long sense list stays on-screen
+  // and scrolls internally (otherwise it ran off the bottom with no way to reach it).
+  const GAP = 6;
+  const placement = hover
+    ? (() => {
+        const below = window.innerHeight - hover.rect.bottom - GAP;
+        const above = hover.rect.top - GAP;
+        const flipUp = below < 220 && above > below;
+        return {
+          maxHeight: Math.round(Math.max(flipUp ? above : below, 140)),
+          ...(flipUp
+            ? { bottom: Math.round(window.innerHeight - hover.rect.top + GAP) }
+            : { top: Math.round(hover.rect.bottom + GAP) }),
+        };
+      })()
+    : null;
+
   return (
     <>
       <p className="reader">{parts}</p>
-      {hover && hoveredSenses.length > 0 && (
+      {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"
           style={{
             position: "fixed",
-            top: Math.round(hover.rect.bottom + 6),
-            left: Math.round(Math.min(hover.rect.left, window.innerWidth - 300)),
+            left: Math.round(Math.min(hover.rect.left, window.innerWidth - 280)),
+            ...placement,
           }}
           onMouseEnter={cancelHide}
           onMouseLeave={scheduleHide}

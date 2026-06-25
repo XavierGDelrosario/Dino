@@ -157,6 +157,10 @@
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.95rem;
+  /* Scroll the sense list itself when the card is height-capped near a viewport
+     edge — the word header stays pinned, the senses below it scroll. */
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /* .sense* and .results__more moved to common/SenseText.css (shared sense-list
