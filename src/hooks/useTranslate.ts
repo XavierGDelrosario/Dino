@@ -136,6 +136,19 @@ export function useTranslate(userId: string) {
     try {
       const resolvedSource = resolveSourceLanguage(text, src);
 
+      // Input language == output language → nothing to translate. Echo the input
+      // straight into the output box; make NO API calls and render NO reader.
+      if (resolvedSource === tgt) {
+        setOutput(text);
+        setMeanings([]);
+        setPara(null);
+        setAnalyzedInput("");
+        setHeadword(text);
+        setMode("word");
+        setStatus("done");
+        return;
+      }
+
       // The STUDY orients on the LEARNING language; `native` is the OTHER side
       // (the explanation language). If the user typed the learning language we
       // study the input directly; otherwise we translate the input INTO the
