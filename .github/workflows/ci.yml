@@ -84,3 +84,25 @@ jobs:
       - name: Edge function logs (on failure)
         if: failure()
         run: cat edge.log || true
+
+  # Browser E2E against the PRODUCTION build (Rollup output), backend MOCKED.
+  # Catches prod-build-only regressions the jsdom unit suite can't — most
+  # importantly the kuromoji dictionary loader: a bad bundle makes analyze() hang
+  # and every Japanese paragraph spins forever (shipped once as the zlibjs Gunzip
+  # bug). Builds, serves dist, and drives a real browser through the reader.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: E2E smoke (prod build, mocked backend)
+        run: npm run test:e2e
+      - name: Preview log (on failure)
+        if: failure()
+        run: cat /tmp/e2e-preview.log || true

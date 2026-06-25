@@ -19,7 +19,8 @@
     "db:dump-seed": "bash scripts/dump-seed.sh",
     "db:backup": "bash scripts/backup-user-data.sh",
     "db:restore-test": "bash scripts/restore-test.sh",
-    "gen:types": "supabase gen types typescript --local > src/types/database.types.ts"
+    "gen:types": "supabase gen types typescript --local > src/types/database.types.ts",
+    "test:e2e": "bash scripts/e2e.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
