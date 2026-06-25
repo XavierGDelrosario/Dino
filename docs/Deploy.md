@@ -87,3 +87,9 @@ so kuromoji's own gunzip works — the prod equivalent of the dev `serveDictRaw`
    The cache (`words`) re-projects lazily on lookup; bump `CURRENT_PROJECTION_VERSION`
    in the edge function if the projection logic changed (see CLAUDE.md #3).
 3. Nothing else changes — same migrations, same frontend, same edge function.
+
+## 6. Branch workflow (main is protected)
+`main` = production and is **branch-protected**: no direct pushes; every change goes
+**branch → PR → green CI → merge**. Required status checks: `quality`, `integration`,
+`e2e` (must pass + branch up-to-date); enforced for admins too. Deploys still run from
+`scripts/deploy-prod.sh` after a change lands on `main`.
