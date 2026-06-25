@@ -9,64 +9,44 @@ The product is built; the gap to publishable is almost entirely non-feature work
 ## 🔴 Tier 1 — Required for a real launch (build work)
 *(Tier 0 — the security/cost CODE blockers — is cleared: delete-lockdown, RLS audit,
 and the cost-control code (#1 kill-switch + global cap) are all done.)*
-1. **Real auth** — `[#13]` **DONE (2026-06-24):** email/password accounts via an
-   in-place **guest→account upgrade** (`updateUser` keeps the same `auth.uid()`, so
-   all vocab/lists/reviews carry over), sign-in/sign-out, and **password reset**
-   (request email → recovery link → set new password — full flow verified live via
-   Mailpit). `AccountMenu` + `ResetPasswordView`; RLS unchanged (keyed on
-   `auth.uid()`). *Remaining (minor):* prod email-confirmation handling (local has
-   confirmations OFF → applies immediately; prod should enable them + a "check your
-   email" state); optional OAuth (additive — config + a button); the existing
-   "complete account deletion" follow-up (`delete_account` ≠ `auth.users` row).
-2. **Deploy** — `[#14]` **This is the gate that unlocks Tier 2.** *Prep DONE
-   (2026-06-24):* prod build verified green; prod `/dict/*.gz` serving fixed via
-   `public/_headers` (Cloudflare Pages / Netlify; the prod equivalent of the dev
-   `serveDictRaw` plugin); step-by-step runbook in `docs/Deploy.md`. *Targets:*
-   hosted Supabase **Free + common JMdict** → clean upgrade to Pro + full later
-   (re-ingest, no code change). *Remaining (needs your cloud accounts):* create the
-   hosted Supabase project + `db push` + ingest, set edge secrets (incl.
-   `ALLOWED_ORIGINS`), `functions deploy`, build with cloud env + upload `dist/` to
-   Cloudflare Pages.
-3. **Legal — privacy + ToS** — `[§10]` ✅ **DRAFTED (2026-06-24):** in-app `/privacy`
+1. **Legal — privacy + ToS** — `[§10]` **DRAFTED (2026-06-24):** in-app `/privacy`
    + `/terms` pages (footer-linked) reflecting the real data flows (Supabase storage;
    Google receives translated text; account deletion). *Remaining: counsel review*
    before publishing (they're marked DRAFT).
-4. **Account & auth UX** — `[#13 cont.]` DONE (2026-06-24):
-   - ✅ **Password strength** — server (`minimum_password_length=8` +
-     `password_requirements="letters_digits"`) + client validation.
-   - ✅ **Separate pages** — in-house router; `/signin`, `/signup`, `/profile`, `/`;
-     SPA fallback (`public/_redirects`).
-   - ✅ **Profile page + person-icon dropdown** — email, member-since, **native
-     language** (`users.native_language`, drives default output), learning language,
-     app language; native/learning persist + default the Translate directions.
-   - ✅ **Email confirmation** — `upgradeToAccount` detects pending (prod confirmations
-     on) → AuthPage shows "check your email"; local (off) applies immediately. *(verify
-     once prod enables `[auth.email] enable_confirmations`.)*
-   - ✅ **Google login** — `linkGoogle` (signup→same uid) / `signInWithGoogle` (signin)
-     + "Continue with Google" buttons + a documented (disabled) `[auth.external.google]`
-     config. *(enable the provider + set OAuth creds to use.)*
+*(Real auth (#13) + the full account/auth UX, and Deploy (#14, live at
+`dino-86y.pages.dev`) are DONE; see Completed.)*
 
-## 🔒 Tier 2 — Hosted-only (our side DONE; finish on the live production Supabase)
-Code/in-repo work is complete; the only remaining step is a one-time action on the
-hosted Supabase or an external console **after #3 (Deploy)** stands it up. None of
-these can be progressed locally — that's why they're deferred, not unfinished. (Once
-prod is live with real data you can't just `db reset`, hence "not easily changed".)
-5. **Prod security config** — `[§4/§5]` set `ALLOWED_ORIGINS`, verify-jwt ON, restrict
-   the Google key (code seams ready). *Repo-side piece doable pre-launch: secret-scan CI.*
-6. **Cost protection — hosted** — `[concern · §3]` anon-signup rate limit (Supabase
-   auth dashboard) + hard billing caps (Google & Supabase consoles). The code side is
-   done (MT kill-switch + global monthly cap); these are the external-console backstops.
-7. **Forward-only migrations** — `[concern · §11]` adopt the forward-only, never-edit-
-   an-applied-migration discipline. It only bites once prod holds data you can't
-   `db reset`; clean-reset reproduction is already proven.
-8. **Automated backups + PITR** — `[concern · §2]` flip the hosted paid-tier toggle +
-   schedule `db:backup` off the DB host. Backup + tested-restore tooling is done.
-9. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
+## 🔒 Tier 2 — Hosted-only (external-console actions on the LIVE prod project)
+The app is deployed; what remains are one-time toggles in external consoles
+(Supabase / Google Cloud / Cloudflare) that only YOU can do — they need your logins
+and can't be progressed from the repo. The deploy script already set what it can
+(`verify_jwt` ON, `ALLOWED_ORIGINS` via `lockdown`, `GLOBAL_MONTHLY_CHAR_QUOTA`); the
+items below are the console-only backstops. **Verify each on the live dashboards.**
+2. **Prod security config** — `[§4/§5]` confirm `ALLOWED_ORIGINS` = the live Pages URL
+   (the `lockdown` step) + `verify_jwt` ON (both set by the deploy script — verify);
+   **restrict the Google Translation API key** to the Translation API + HTTP-referrer/IP
+   (Google Cloud console — manual). *Repo-side: secret-scan CI (I can add this).*
+3. **Prod auth config** — `[#13 cont.]` Supabase dashboard: set **Site URL + Redirect
+   URLs** (password-reset links); enable `[auth.email] enable_confirmations` + verify the
+   "check your email" state; enable the **Google OAuth provider** (creds already in
+   `.env.deploy` — paste + toggle on) + `security_manual_linking_enabled`. All wired in
+   code; only the console toggles remain. (Account-linking collisions → Open follow-ups.)
+4. **Cost protection — hosted** — `[concern · §3]` anon-signup **rate limit** (Supabase
+   auth dashboard) + hard **billing caps** (Google Cloud budget alert/cap + Supabase
+   spend cap). Code side done (MT kill-switch + global monthly cap); these are the
+   external-console backstops.
+5. **Forward-only migrations** — `[concern · §11]` now that prod holds data you can't
+   `db reset`, adopt the forward-only, never-edit-an-applied-migration discipline
+   (process, not a task). Clean-reset reproduction already proven.
+6. **Automated backups + PITR** — `[concern · §2]` flip the hosted paid-tier toggle
+   (needs **Pro**) + schedule `db:backup` off the DB host. Backup + tested-restore
+   tooling is done.
+7. **Observability — alerting** — `[§9]` point the edge's structured logs (health /
    request / `mt_spend`, all emitting) at hosted alerting (spend threshold, 5xx,
    uptime). In-code side done.
 
 ## 🛠 Admin tooling (operational; build as a gated admin surface)
-10. **Admin webpage** — a privileged surface (role-gated; NOT a normal user) for ops:
+8. **Admin webpage** — a privileged surface (role-gated; NOT a normal user) for ops:
     - **Edit the `words` dictionary cache** — drive the deferred re-projection sweep
       (see #3 / `projection_version`): flag rows older than `CURRENT_PROJECTION_VERSION`
       as outdated and re-project / merge them (the destructive sweep gated on a test
@@ -100,37 +80,12 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
     Server-enforced admin role (RLS / a `is_admin` claim); never a client-only gate.
 
 ## 🧪 Pre-publish QA gate — STRICT audit before the first published build
-A hard gate as we approach v1: do this before going public, not after.
-- ✅ **Real-DB tests as a CI gate (DONE 2026-06-24)** — `.github/workflows/ci.yml`:
-  a `quality` job (typecheck + lint + unit) and an `integration` job that boots
-  Supabase and runs the integration suite (RLS, constraints, RPCs, edge I/O shell)
-  on every push/PR. JMdict ingest is best-effort (the dict-dependent tests self-skip
-  if absent), so the build can't go red on a release hiccup.
-- ✅ **Test coverage (DONE)** — `今 / これ / 単語` analyze cases; readings kana-vs-kanji
-  switch (`uk`) cases (data-driven); single-word + batch + roundtrip (input=target →
-  400) covered in the edge spec. *(Remaining nicety: deeper paragraph-gloss assertions.)*
-- ✅ **Code-QA pass (DONE)** — deduped the grade arrays + the `message(e)` helper
-  (shared `errorMessage` / `grades`); eslint 0 problems.
-- ✅ **"Never show success on a failed write" (DONE — audited clean)** — every
-  mutation sets its done/✓ state only AFTER awaiting the write (`AddToListButton`
-  flashes ✓ on resolved `onAdd`, reverts on catch; save/review flows all await first).
-- ✅ **Leak/security + AI-flaw sweeps (DONE 2026-06-24)** — ran a 37-agent
-  multi-agent review (6 dimensions, adversarially verified) → 11 confirmed findings,
-  ALL fixed: content-safety bypass on the displayed quiz gloss + blocklist
-  inflection/kana gaps; anon/no-JWT MT metering bypass (now deny-by-default) +
-  global cap fail-closed; edge raw-error leak on 5xx; `useSession` SIGNED_OUT
-  self-heal; homograph candidates resolved by stable entryId; + new cost-control
-  (413/429/anon) and homograph/frequency integration tests. (Re-run the review after
-  major changes.)
-
-## 🛡 Content safety
-- ✅ **Profanity / explicit filter on SUGGESTIONS (DONE 2026-06-24)** —
-  `contentSafety.ts` blocklist (per-language, extensible) applied in
-  `rankDomainCandidates`; the `stryker→stripper` class is filtered from the word map /
-  "Explore related words", while direct lookup stays unfiltered. Unit-tested.
+A hard gate as we approach v1: do this before going public, not after. **All items
+DONE (2026-06-24) — see Completed.** Standing reminder: **re-run the multi-agent
+pre-publish review after any major change.**
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
-- native app (#18). *(i18n #17 ✅ done — EN/JA; add a locale = one entry in
+- native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in
   `src/i18n/messages.ts`, compile-checked.)*
 - **Purge dev/test guests before the first real DB** — a trivial one-time `DELETE`;
   the current anonymous rows are all throwaway (dev + me). NOT auth-gated — can run
@@ -159,6 +114,13 @@ New capabilities to add AFTER launch (not blockers). Feasibility + cost analyzed
 2026-06-25; the throughline is **these are free on-device on native (#18) but
 paid/heavy on web**, so they're an argument for the native track over throwaway web
 versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
+> **⚠️ Scope flag (temporary, financial): ship the input-modality features below
+> (speech-to-text, camera/OCR, handwriting) as iOS-ONLY at first.** The free on-device
+> path works on BOTH iOS and Android, but maintaining two native builds costs money we
+> don't want to spend pre-revenue — so do iOS first, add Android once it's justified.
+> This is a delivery-scope decision only, NOT architectural: `analyze()` and the
+> services stay platform-neutral, so Android is purely additive later (re-skin the
+> views + the per-platform `analyze()` swap noted in CLAUDE.md `#18`).
 - **Speech-to-text input** — cheapest win. **Web:** Web Speech API (`SpeechRecognition`,
   `ja-JP`) — free, Chrome-only, no infra, no quota; output feeds the existing
   `analyze()` → JMdict pipeline. **Native:** free + on-device + offline on BOTH iOS
@@ -174,6 +136,20 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   free-but-rough client-side fallback. **Native:** FREE + on-device — **ML Kit Text
   Recognition v2** (JA model, works on iOS AND Android = one library) + iOS Vision /
   Live Text. No Cloud Vision bill on native.
+- **Handwriting input ("draw the character")** `[iOS-only first — see scope flag]` —
+  finger/stylus stroke-based recognition (Google Translate's "draw" mode), so a learner
+  can look up a kanji they can SEE but can't type. Output is plain text → feeds the same
+  `analyze()` → JMdict pipeline unchanged (like speech/OCR). **Native (the clean path):**
+  Google **ML Kit Digital Ink Recognition** — on-device, FREE, no quota, Japanese
+  supported (300+ langs / 25+ scripts); cost is only a ~20 MB per-language model
+  download (bundle / wifi-once, like the kuromoji `/dict/` payload). **Web:** no
+  supported free Google ink/stroke API — ML Kit is mobile-only; options are the
+  unofficial `inputtools.google.com` endpoint (free but undocumented/ToS-gray, can
+  break) or rasterize the canvas → **Cloud Vision** OCR (reuses the camera/OCR seam +
+  quota, but lower quality for a single drawn char). Canvas stroke capture is trivial;
+  *recognition* is the whole problem. **Lowest-priority modality** — typing + IME
+  already works, and the camera/OCR path overlaps (photograph the kanji instead of
+  drawing it). Analyzed 2026-06-26.
 - **AI agents — generative study aids** `[extends #12 thread E]` — needs an LLM (Claude),
   a NEW cost center: add `ANTHROPIC_API_KEY` as an edge secret + a generations/month
   quota column; same reserve-before-call seam. Cost is tiny (sample sentence ~50–150
@@ -252,11 +228,8 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   resolve via reverse-JMdict (now uk-correct — `this → これ/この`). What's thin is QUALITY,
   and it's mostly RANKING/content, NOT storage — fits the free tier (see the storage note;
   Pro is only forced by English *embeddings*). Cheap-first order:
-  1. **EN→JA reverse-gloss ranking.** The data's already in `jmdict_glosses`; results are
-     noisy (`do → な`). Concrete cheap win found: JMdict glosses verbs as "to do; …", so the
-     head-match regex (`^do(...)`) misses them → verbs rank by raw frequency. Allow an
-     optional leading `to ` in the EN→JA head-match (`^(to )?<input>(...)`) so `do → する/やる`,
-     `eat → 食べる` head-match and rank properly. One-spot SQL change, ~0 storage.
+  1. ~~EN→JA reverse-gloss ranking~~ — done 2026-06-26 (migration `20260702`); see
+     Completed. *(The `LIMIT 12` reader-sense tail is still loose — separate item above.)*
   2. **English frequency** (wordfreq EN → `data/frequency/en.tsv`, ~3 MB) so an English word's
      DIFFICULTY uses English frequency, not the matched JA entry's. Needs an `english_frequency`
      lookup applied to EN-source `words` at projection (today EN words inherit the JA entry's
@@ -266,9 +239,6 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   4. **(optional) Japanese WordNet (wnjpn)** for richer EN→JA coverage (~20–40 MB, free, fits).
   5. **English embeddings / word-map** (#11) — the storage hog (~80 MB+) and the real Free→Pro
      trigger; until then "Explore related words" is hidden for non-JA learning langs (done).
-- **Explore-related hidden for non-JA learning languages — DONE (2026-06-25).** The word-map
-  (pgvector embeddings) exists only for JA, so the "Explore related words" button is gated to
-  `learning === "JA"`. Re-enable per language as its embeddings ship (epic item 5 above).
 - **Account-linking edge cases (email ↔ Google, same person)** — `[#13 auth]` partially
   handled. (1) **Sign-up "Continue with Google" uses `linkIdentity`**, which needs
   `security_manual_linking_enabled=true` (was OFF → that path errored); enabling it makes the
@@ -305,12 +275,6 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   + Google authorized origins/redirects to the new domain; (2) for the Google branding,
   add a Supabase **custom auth domain** (`auth.<domain>`) — requires **Pro** ($25/mo).
   Interim done: Google consent **App name = DINO** (free; shows "continue to DINO").
-- **Post-login Terms gate — DONE (2026-06-25).** `TermsGateView` takeover (`App.tsx`,
-  gated on `needsTermsAcceptance`): a permanent account whose `terms_version` is NULL or
-  behind `CURRENT_TERMS_VERSION` must accept before using the app. Closes BOTH the Google-
-  signup bypass (checkbox was email-form-only) AND re-prompt-on-update. Guests never gated;
-  fails open on a check error. To re-prompt everyone after editing LegalView, bump
-  `CURRENT_TERMS_VERSION` in `src/lib/terms.ts`.
 - **Complete account deletion** — `[Tier 1 / #13]` `delete_account()` erases this
   app's PUBLIC-schema data but NOT the Supabase `auth.users` row; pair it with the
   auth admin API when real auth lands, else deleted users can still sign in.
@@ -321,20 +285,54 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   HLR curve is fine for now.
 
 ---
-**Throughline:** the v1 ENGINEERING is essentially done — auth (incl. pages, profile,
-Google, email-confirm, password rules), content safety, the QA gate (CI + tests +
-multi-agent review), and the cost/metering hardening are all in. **What's left to
-publish is non-code:** **Deploy (#2, the gate — needs your cloud accounts)**, counsel
-review of the drafted Privacy/ToS, and the **Tier 2** console config that Deploy
-unlocks. Google + email-confirmation are wired and just need creds / prod
-confirmations to verify. **Admin tooling** + Tier 3 are post-launch.
+**Throughline:** the v1 ENGINEERING is done and **the app is DEPLOYED** (live at
+`dino-86y.pages.dev`) — auth (pages, profile, Google, email-confirm, password rules),
+content safety, the QA gate (CI + tests + multi-agent review), and the cost/metering
+hardening are all in. **What's left to publish is non-code:** counsel review of the
+drafted Privacy/ToS (Tier 1), and the **Tier 2** external-console hardening on the live
+project (CORS/JWT verify, Google-key restriction, auth toggles, billing caps, backups,
+alerting). **Admin tooling** + Tier 3 are post-launch.
 
 ---
 ## ✅ Completed
 Newest first. Dates from CLAUDE.md's verification log + git history. Items here are
 DONE (some have minor "remaining" notes tracked in the tiers above).
 
+### 2026-06-26
+- **Production deploy (#14)** — app **live at `dino-86y.pages.dev`** (Cloudflare Pages)
+  on hosted Supabase (Free + common JMdict). `scripts/deploy-prod.sh` ran the full
+  pipeline: link + migrations + dictionary seed, edge functions (`translate` +
+  `delete-account`, `verify_jwt` ON), edge secrets (`TRANSLATION_API_KEY`,
+  `GLOBAL_MONTHLY_CHAR_QUOTA`, `ALLOWED_ORIGINS` via `lockdown`), and the Cloudflare
+  build/upload. Remaining hardening = external-console toggles tracked in Tier 2.
+- **EN→JA verb-gloss ranking (epic item 1)** — migration
+  `20260702_en_ja_verb_ranking.sql`: head-match regex allows an optional leading `to `
+  (`^(to )?<input>`), so infinitive verb glosses head-match — `do → する/やる/行う`,
+  `eat → 食べる` rank correctly instead of by raw frequency. Zero new storage.
+- **Explore-related hidden for non-JA learning languages** — the word-map (pgvector
+  embeddings) exists only for JA, so "Explore related words" is gated to
+  `learning === "JA"` (`TranslateView.tsx`); re-enable per language as embeddings ship.
+
 ### 2026-06-25
+- **Post-login Terms gate** — `TermsGateView` takeover (`App.tsx`, gated on
+  `needsTermsAcceptance`): a permanent account whose `terms_version` is NULL/behind
+  `CURRENT_TERMS_VERSION` must accept before using the app. Closes the Google-signup
+  bypass + re-prompt-on-update; guests never gated; fails open on a check error.
+- **Per-account Terms acceptance + DINO branding** — `users.terms_version`/agreement
+  stamp (migration `20260630`); guest profile hidden; DINO consent-screen branding.
+- **Complete account deletion** — `/delete-account` page + header-menu entry (erases
+  public-schema data; the `auth.users` row still pairs with the auth admin API — see
+  the open follow-up).
+- **Globe app-locale menu** — in-header language picker for the UI locale (i18n).
+- **Translate UX** — show the translation immediately, stream the reader in below
+  (`f1ef78a`); echo the input when source language == target (`433200e`).
+- **Review-from-Lists** — clicking Review on a filtered Lists view quizzes only the
+  filtered words (`f975295`).
+- **kuromoji prod fix** — gunzip the dict via an `fflate` shim, fixing the prod
+  paragraph-reader hang (`cb0e2b1`).
+- **CI/QA** — browser e2e smoke test against the prod build (`06a9c64`); run CI on
+  Node 22 (supabase-js 2.108 needs native WebSocket); qa-audit fixes (default study
+  reader, legal docs while gated, gate race, CI skip).
 - **Paragraph reader hovercard scroll fix** — the sense popover was `position: fixed`
   with no height cap, so a word with many senses (or one low in the viewport) ran off
   the bottom unreachable. Now height-capped to available space with internal scroll +
