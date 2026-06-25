@@ -76,6 +76,14 @@ prod is live with real data you can't just `db reset`, hence "not easily changed
       hash) to maintain privacy.
     - **DB usage by table** — `pg_total_relation_size` per table (storage headroom vs
       the tier cap).
+    - **Third-party API health** — surface, per external service, the **API-key/credential
+      EXPIRY date** and **current USAGE vs quota/free-tier**, so nothing silently lapses or
+      caps out. Cover: **Brevo** (email send count / daily limit, SMTP key), **Google
+      Cloud** (Translation API key + spend/quota, OAuth client secret expiry), **Supabase**
+      (access token, Pro/billing caps), and any future provider (Cloud Vision/Speech,
+      Anthropic). Pull via each provider's API where possible; show "expires in N days" +
+      "X / limit this period" with a warning threshold. (Several of these creds are rotation
+      candidates — see the launch checklist.)
     Server-enforced admin role (RLS / a `is_admin` claim); never a client-only gate.
 
 ## 🧪 Pre-publish QA gate — STRICT audit before the first published build
@@ -226,6 +234,14 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **Source-language mismatch robustness** — `[translate UX]` when the user sets a CONCRETE
+  source language that clearly doesn't match the typed text's script (e.g. source = Japanese
+  but the input is plain Latin/English), the flow produces garbage (MT echoes the input,
+  reader shows un-looked-up words). The default "Detect language" source works; this only
+  bites a manual mismatch. Fix: in `resolveSourceLanguage` (or `useTranslate.submit`), if
+  `detectLanguage(text)` strongly disagrees with the selected source on SCRIPT (kana/kanji
+  vs Latin — unambiguous), override to the detected language (or warn). Low-risk: only fires
+  on a definite script mismatch, never on a plausible one.
 - **Dedicated app email + sending domain** — `[launch polish]` right now BOTH the Google
   OAuth support address AND the Brevo SMTP sender are the founder's PERSONAL gmail
   (`xaviergdelrosario@gmail.com`). Create a dedicated app mailbox (e.g. a fresh
