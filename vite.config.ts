@@ -46,6 +46,12 @@ export default defineConfig({
       // browser (→ silent fallback to Intl.Segmenter). Point `path` at a shim.
       // App code uses the `@/*` TS alias, never a bare `path` import.
       path: fileURLToPath(new URL("./src/shims/path.ts", import.meta.url)),
+      // kuromoji gunzips /dict/*.gz via zlibjs, whose Closure-UMD `this`-global
+      // export breaks in the strict-mode Rollup prod build (zlib.Zlib === undefined
+      // → ".Gunzip" throws → loader hangs → endless spinner). Shim it with fflate.
+      "zlibjs/bin/gunzip.min.js": fileURLToPath(
+        new URL("./src/shims/zlibjs-gunzip.ts", import.meta.url),
+      ),
     },
   },
 });
