@@ -18,10 +18,11 @@ export function HomeView({ userId }: { userId: string }) {
   const [tab, setTab] = useState<Tab>("translate");
   // which vocabulary the Review tab quizzes (null = ALL; name "" = the virtual ALL
   // list, which FlashcardView localizes). Set by a list's "Review" button.
-  const [reviewScope, setReviewScope] = useState<{ listId: string | null; name: string }>({
-    listId: null,
-    name: "",
-  });
+  const [reviewScope, setReviewScope] = useState<{
+    listId: string | null;
+    name: string;
+    userWordIds?: string[];
+  }>({ listId: null, name: "" });
 
   return (
     <>
@@ -45,8 +46,8 @@ export function HomeView({ userId }: { userId: string }) {
           <ListView
             key={userId}
             userId={userId}
-            onReview={(listId, name) => {
-              setReviewScope({ listId, name });
+            onReview={(listId, name, userWordIds) => {
+              setReviewScope({ listId, name, userWordIds });
               setTab("review");
             }}
           />
@@ -57,6 +58,7 @@ export function HomeView({ userId }: { userId: string }) {
             userId={userId}
             listId={reviewScope.listId}
             listName={reviewScope.name}
+            userWordIds={reviewScope.userWordIds}
           />
         )}
       </Suspense>

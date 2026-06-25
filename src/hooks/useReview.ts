@@ -30,7 +30,9 @@ function shuffle<T>(arr: T[]): T[] {
 export function useReview(
   userId: string,
   listId: string | null = null,
-  limit: number = DEFAULT_LIMIT
+  limit: number = DEFAULT_LIMIT,
+  /** When set, quiz EXACTLY these words (the Lists view's filtered subset). */
+  userWordIds?: string[]
 ) {
   const [queue, setQueue] = useState<ReviewQueueItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -43,7 +45,7 @@ export function useReview(
   const load = useCallback(() => {
     setStatus("loading");
     setError(null);
-    getReviewQueue({ userId, listId, limit })
+    getReviewQueue({ userId, listId, limit, userWordIds })
       .then((q) => {
         setQueue(shuffle(q));
         setIndex(0);
@@ -55,7 +57,7 @@ export function useReview(
         setError(message(e));
         setStatus("error");
       });
-  }, [userId, listId, limit]);
+  }, [userId, listId, limit, userWordIds]);
 
   useEffect(() => {
     load();

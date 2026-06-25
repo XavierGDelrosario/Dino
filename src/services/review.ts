@@ -93,15 +93,26 @@ export async function getReviewQueue(params: {
   userId: string;
   listId?: string | null;
   limit: number;
+  /** Restrict the queue to EXACTLY these user_word_ids (the Lists view's filtered
+   *  subset). Passing [] yields an empty queue (filters matched nothing). When
+   *  omitted, the whole list/vocabulary is queued as before. */
+  userWordIds?: string[];
 }): Promise<ReviewQueueItem[]> {
+  const restrict = params.userWordIds !== undefined ? new Set(params.userWordIds) : null;
   const { data, error } = await supabase.rpc("review_queue", {
     p_user_id: params.userId,
-    p_limit: Math.max(0, params.limit),
+    // When restricting, pull the whole ranked list so the subset is fully covered,
+    // then filter + slice below (retrievability ranking preserved within the subset).
+    p_limit: restrict ? 100000 : Math.max(0, params.limit),
     p_list_id: params.listId ?? undefined,
   });
   if (error) throw toServiceError(error);
 
-  return ((data ?? []) as ReviewQueueRow[]).map((r) => ({
+  let rows = (data ?? []) as ReviewQueueRow[];
+  if (restrict) {
+    rows = rows.filter((r) => restrict.has(r.user_word_id)).slice(0, Math.max(0, params.limit));
+  }
+  return rows.map((r) => ({
     userWordId: r.user_word_id,
     userId: r.user_id,
     input: r.input,

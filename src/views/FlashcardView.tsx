@@ -12,12 +12,15 @@ export function FlashcardView({
   userId,
   listId = null,
   listName,
+  userWordIds,
 }: {
   userId: string;
   listId?: string | null;
   listName?: string;
+  /** When set, quiz exactly these words (the Lists view's filtered subset). */
+  userWordIds?: string[];
 }) {
-  const r = useReview(userId, listId);
+  const r = useReview(userId, listId, undefined, userWordIds);
   const { t } = useI18n();
   const scopeName = listName || t("lists.allWords");
   const noun = (n: number) => t(n === 1 ? "common.word" : "common.words");

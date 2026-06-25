@@ -92,6 +92,28 @@ describe("getReviewQueue", () => {
     expect(queue).toEqual([]);
   });
 
+  it("restricts to userWordIds (the filtered subset), preserving rank order + slicing to limit", async () => {
+    stub.rpc.mockResolvedValue({
+      data: [
+        qrow({ user_word_id: "a", retrievability: 0 }),
+        qrow({ user_word_id: "b", retrievability: 0.1 }),
+        qrow({ user_word_id: "c", retrievability: 0.2 }),
+      ],
+      error: null,
+    });
+    const queue = await getReviewQueue({ userId: "u", listId: "L1", limit: 2, userWordIds: ["c", "a"] });
+    // pulls the WHOLE ranked list so the subset is fully covered, then filters
+    expect(stub.rpc).toHaveBeenCalledWith("review_queue", { p_user_id: "u", p_limit: 100000, p_list_id: "L1" });
+    // only the requested ids, in the ranked order the RPC returned (a before c)
+    expect(queue.map((w) => w.userWordId)).toEqual(["a", "c"]);
+  });
+
+  it("returns an empty queue when userWordIds is [] (filters matched nothing)", async () => {
+    stub.rpc.mockResolvedValue({ data: [qrow({ user_word_id: "a" })], error: null });
+    const queue = await getReviewQueue({ userId: "u", limit: 5, userWordIds: [] });
+    expect(queue).toEqual([]);
+  });
+
   it("throws on an RPC error", async () => {
     stub.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     await expect(getReviewQueue({ userId: "u", limit: 5 })).rejects.toBeTruthy();

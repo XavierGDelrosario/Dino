@@ -27,7 +27,7 @@ export function ListView({
   onReview,
 }: {
   userId: string;
-  onReview: (listId: string | null, name: string) => void;
+  onReview: (listId: string | null, name: string, userWordIds?: string[]) => void;
 }) {
   const L = useLists(userId);
   const { t } = useI18n();
@@ -39,6 +39,11 @@ export function ListView({
   const [reviewedFilter, setReviewedFilter] = useState<DatePeriod>("all");
   const [confMin, setConfMin] = useState(0);
   const [confMax, setConfMax] = useState(5);
+
+  // Any non-default filter narrowing WHICH words show (sort doesn't change the set).
+  const filtersActive =
+    langFilter !== "all" || addedFilter !== "all" || reviewedFilter !== "all" ||
+    confMin !== 0 || confMax !== 5;
 
   // input languages actually present in the current list (for the filter)
   const langsPresent = useMemo(
@@ -94,7 +99,13 @@ export function ListView({
           <button
             className="btn btn--sm lists__reviewbtn"
             onClick={() =>
-              onReview(L.selectedListId, selectedList ? selectedList.listName : "")
+              onReview(
+                L.selectedListId,
+                selectedList ? selectedList.listName : "",
+                // With a filter active, quiz exactly the filtered words shown;
+                // otherwise review the whole list/vocabulary as before.
+                filtersActive ? visible.map((w) => w.userWordId) : undefined
+              )
             }
             title={t("lists.reviewTitle")}
           >
