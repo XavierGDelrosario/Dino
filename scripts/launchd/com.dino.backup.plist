@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent: daily off-host backup of hosted-prod user data.
+  Runs scripts/backup-prod.sh (which reads ~/.dino/backup.env for DATABASE_URL etc.).
+
+  Install (per-user LaunchAgent, no sudo):
+    cp scripts/launchd/com.dino.backup.plist ~/Library/LaunchAgents/
+    launchctl load  ~/Library/LaunchAgents/com.dino.backup.plist     # enable
+    launchctl start com.dino.backup                                  # run once now to test
+    launchctl list | grep com.dino.backup                            # check it's registered
+  Update after editing this file:
+    launchctl unload ~/Library/LaunchAgents/com.dino.backup.plist
+    cp scripts/launchd/com.dino.backup.plist ~/Library/LaunchAgents/
+    launchctl load  ~/Library/LaunchAgents/com.dino.backup.plist
+  Disable:
+    launchctl unload ~/Library/LaunchAgents/com.dino.backup.plist
+
+  NOTE: if you clone the repo elsewhere, fix the script path below.
+  Logs go to ~/dino-backups/backup.log (tail it after `launchctl start`).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.dino.backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/xavierdelrosario/Dino/scripts/backup-prod.sh</string>
+  </array>
+
+  <!-- Daily at 03:30 local time. If the Mac is asleep/off at 03:30, launchd
+       runs the job once at the next wake (StartCalendarInterval catch-up). -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+
+  <!-- Don't run on every load/login — only on the schedule above. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/xavierdelrosario/dino-backups/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/xavierdelrosario/dino-backups/backup.log</string>
+</dict>
+</plist>
