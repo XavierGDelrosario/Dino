@@ -62,6 +62,13 @@ import {
 //       the raw reverse-gloss order; JA->EN rows are unaffected but re-stamped.
 const CURRENT_PROJECTION_VERSION = 4;
 
+// Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
+// `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
+// function keeps full RLS-bypass access after the legacy API keys are disabled
+// (key-rotation remediation). Falls back to the legacy key when the secret is unset.
+const SB_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SERVICE_ROLE_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 // corsHeaders(origin, allowedOrigins) is in _lib.ts (ALLOWED_ORIGINS env → echo a
 // listed Origin, else "*" in dev). NOTE: the local `supabase start` Kong gateway
 // rewrites the response header to "*"; the function's value is authoritative only
@@ -651,10 +658,7 @@ async function handleRequest(req: Request): Promise<Response> {
     return reply({ error: "Source and target language are the same" }, 400);
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  const supabase = createClient(SB_URL, SERVICE_KEY);
 
   // BATCH mode: { inputs: string[] } resolves many cacheable words in ONE request.
   if (Array.isArray(body.inputs)) {
@@ -832,10 +836,7 @@ Deno.serve(async (req) => {
     // Best-effort audit on an unhandled crash (own client — handleRequest's is
     // out of scope here). Never rethrows.
     try {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
+      const supabase = createClient(SB_URL, SERVICE_KEY);
       await recordError(supabase, {
         code: "translate_handler_crashed",
         source: "translate.handler",

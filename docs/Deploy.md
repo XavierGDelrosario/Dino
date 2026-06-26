@@ -54,9 +54,11 @@ off) — the upgrade/reset code already round-trips through email.
 
 ## 3. Frontend → Cloudflare Pages
 ```bash
-# Build against the CLOUD project (anon key is public; RLS protects data).
+# Build against the CLOUD project. Use the PUBLISHABLE key (sb_publishable_…), NOT
+# the legacy anon JWT — legacy API keys are DISABLED on this project (key-rotation
+# remediation; see §6). The publishable key is public; RLS protects data.
 VITE_SUPABASE_URL=https://<ref>.supabase.co \
-VITE_SUPABASE_ANON_KEY=<anon-key> \
+VITE_SUPABASE_ANON_KEY=sb_publishable_… \
 npm run build
 ```
 Deploy `dist/` to Cloudflare Pages (dashboard "Direct Upload", or
@@ -93,3 +95,19 @@ so kuromoji's own gunzip works — the prod equivalent of the dev `serveDictRaw`
 **branch → PR → green CI → merge**. Required status checks: `quality`, `integration`,
 `e2e` (must pass + branch up-to-date); enforced for admins too. Deploys still run from
 `scripts/deploy-prod.sh` after a change lands on `main`.
+
+## 7. API keys — new key system (legacy DISABLED)
+The project uses Supabase's **new API keys** (asymmetric JWT signing); the **legacy
+`anon` / `service_role` JWTs are disabled** (`GET /v1/projects/<ref>/api-keys/legacy`
+→ `{"enabled":false}`). This was a key-rotation remediation after a legacy
+`service_role` key leaked. Consequences for deploys:
+- **Frontend** builds with `VITE_SUPABASE_ANON_KEY=sb_publishable_…` (the publishable
+  key), not the legacy anon JWT (§3). A build with the old anon key produces a
+  broken app (every request 401s).
+- **Edge function** authenticates with the **secret key** via the `SERVICE_ROLE_SECRET`
+  edge secret (set with `sb_secret_…`). `index.ts` prefers it over the auto-injected
+  legacy `SUPABASE_SERVICE_ROLE_KEY` (which is now disabled), so the function keeps
+  full RLS-bypass access. If you ever re-enable legacy keys, the fallback still works.
+- To **rotate again**: roll the `sb_secret_…` key in the dashboard (or
+  `POST /v1/projects/<ref>/api-keys`), update the `SERVICE_ROLE_SECRET` edge secret,
+  redeploy the function; roll `sb_publishable_…` similarly + rebuild/redeploy the FE.
