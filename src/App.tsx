@@ -15,6 +15,7 @@ import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
 import { DeleteAccountPage } from "./views/DeleteAccountPage";
+import { AdminPage } from "./views/AdminPage";
 import { LegalView } from "./views/LegalView";
 import { useI18n } from "./i18n";
 import { useRouter, Link } from "./router";
@@ -101,6 +102,7 @@ export function App() {
         : path === "/signup" ? <AuthPage mode="signup" />
         : path === "/profile" ? (isAnonymous ? <AuthPage mode="signup" /> : <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />)
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
+        : path === "/admin" ? <AdminPage />
         : <HomeView userId={userId} />
       )}
 
