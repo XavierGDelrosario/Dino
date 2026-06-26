@@ -609,10 +609,41 @@ async function resolveBatch(
     savedRows = (data ?? []) as WordRow[];
   }
 
-  // 4. Group cache hits + freshly-saved rows back to each search term.
-  const byInput = groupByInput([...cachedRows, ...savedRows], inputs);
+  // 4. Map rows back to each SEARCH term.
+  //    - Cache hits matched by headword/reading (groupByInput), same as the
+  //      single-path cache read.
+  //    - Freshly-resolved rows are mapped by dictionary_ref to the term that
+  //      produced them. This is the fix for WRITING VARIANTS: 速い is a non-primary
+  //      writing of はやい, stored under headword 早い, so neither its headword (早い)
+  //      nor its reading (はやい) equals the search term 速い — groupByInput alone
+  //      drops it (the single path doesn't, hence the single/batch discrepancy).
+  const cachedByTerm = groupByInput(cachedRows, inputs);
+  const refToTerms = new Map<string, string[]>();
+  for (const { input, results } of perInput) {
+    for (const r of projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION)) {
+      const terms = refToTerms.get(r.dictionary_ref);
+      if (terms) { if (!terms.includes(input)) terms.push(input); }
+      else refToTerms.set(r.dictionary_ref, [input]);
+    }
+  }
+  const savedByTerm = new Map<string, WordRow[]>();
+  for (const row of savedRows) {
+    for (const term of refToTerms.get(row.dictionary_ref) ?? []) {
+      const list = savedByTerm.get(term);
+      if (list) list.push(row);
+      else savedByTerm.set(term, [row]);
+    }
+  }
+  const bySensePos = (a: WordRow, b: WordRow) => {
+    const ap = a.jmdict_sense_pos, bp = b.jmdict_sense_pos;
+    if (ap == null) return bp == null ? 0 : 1; // nulls last
+    if (bp == null) return -1;
+    return ap - bp;
+  };
   return inputs.map((input) => {
-    const ws = byInput.get(input) ?? [];
+    // An input is either a cache hit OR a miss (never both — see `missing`), so
+    // these two sources don't overlap; combine + order primary-first.
+    const ws = [...(cachedByTerm.get(input) ?? []), ...(savedByTerm.get(input) ?? [])].sort(bySensePos);
     return ws.length > 0
       ? { input, translated: true, translation: ws[0].translation, word: toWord(ws[0]), words: ws.map(toWord) }
       : { input, translated: false, translation: null, word: null, words: [] };

@@ -119,6 +119,24 @@ describe.skipIf(!ENABLED)("edge: translate HTTP shell", () => {
     if (!results.some((r) => r.translated)) return; // JMdict not ingested → skip content check
     expect(results.every((r) => r.translated)).toBe(true);
   });
+
+  it("batch resolves a WRITING VARIANT (速い → headword 早い), like the single path", async () => {
+    // 速い is a non-primary writing of はやい, stored under headword 早い (reading
+    // はやい) — so neither the headword nor the reading equals the search term, and
+    // groupByInput alone drops it. The single path always found it; this guards the
+    // batch path against that discrepancy via the dictionary_ref mapping.
+    const batch = await post({ inputs: ["速い"], sourceLang: "JA", targetLang: "EN" });
+    const r = (batch.json.results as Array<{ input: string; translated: boolean }>)[0];
+    expect(r.input).toBe("速い");
+    if (!r.translated) {
+      // Distinguish "JMdict not ingested" (skip) from a real regression: if the
+      // SINGLE path finds 速い but the batch didn't, the mapping broke.
+      const single = await post({ input: "速い", sourceLang: "JA", targetLang: "EN" });
+      if (!(single.json as { translated: boolean }).translated) return; // not ingested → skip
+      throw new Error("single path resolved 速い but batch did not — writing-variant mapping regressed");
+    }
+    expect(r.translated).toBe(true);
+  });
 });
 
 // Idempotency replay/store need the service role to seed/read idempotency_keys.
