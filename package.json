@@ -17,6 +17,7 @@
     "setup:dict": "test -f public/dict/base.dat.gz || (mkdir -p public/dict && cp -R node_modules/kuromoji/dict/. public/dict/)",
     "ingest:jmdict": "tsx scripts/ingest-jmdict.ts",
     "ingest:wordnet": "tsx scripts/ingest-wordnet.ts",
+    "db:up": "bash scripts/supabase-up.sh",
     "db:dump-seed": "bash scripts/dump-seed.sh",
     "db:backup": "bash scripts/backup-user-data.sh",
     "db:restore-test": "bash scripts/restore-test.sh",
