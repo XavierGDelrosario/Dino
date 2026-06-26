@@ -196,6 +196,10 @@ describe.skipIf(!ENABLED)("JMdict source tables are server-only", () => {
     "jmdict_kana",
     "jmdict_senses",
     "jmdict_glosses",
+    // WordNet source tables share the same server-only lockdown (migration 20260703).
+    "wordnet_synsets",
+    "wordnet_senses_en",
+    "wordnet_words_ja",
   ])("a client cannot read %s", async (table) => {
     const { error } = await user.client.from(table).select("*").limit(1);
     expect(error).not.toBeNull(); // permission denied (no grant)
