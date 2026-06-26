@@ -10,6 +10,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Secret scan: fail the build if a credential is committed anywhere in history.
+  # Local secret files (.env.deploy, supabase/functions/.env) are gitignored; this
+  # is the backstop against an accidental commit. Uses the gitleaks binary directly
+  # (no GITLEAKS_LICENSE needed, unlike the org-gated Action). If it ever flags a
+  # false positive, add an allowlist to .gitleaks.toml rather than disabling it.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history — catch a secret even if a later commit removed it
+      - name: gitleaks (scan git history for committed secrets)
+        run: |
+          set -euo pipefail
+          ver=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          ./gitleaks git . --config .gitleaks.toml --redact --verbose --exit-code 1
+
   # Fast gate: no DB needed. typecheck + lint + unit tests (the mocked suite).
   quality:
     runs-on: ubuntu-latest

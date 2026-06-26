@@ -493,6 +493,59 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
 });
 
 // ── consume_translation_quota (service-role only) ──────────────────────────
+// ── wordnet_en_ja_lookup (service-role only) ───────────────────────────────
+// The SEMANTIC EN->JA path (English lemma -> WordNet synsets -> Japanese lemmas,
+// resolved through JMdict). Self-skips unless BOTH WordNet and JMdict are ingested
+// (the function resolves JA lemmas against jmdict_*; an empty subset → no rows).
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: wordnet_en_ja_lookup", () => {
+  it("is NOT callable by a client (no EXECUTE grant)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("wordnet_en_ja_lookup", { p_input: "spring" });
+    expect(error).not.toBeNull(); // permission denied — server-only
+  });
+
+  type WnRow = {
+    translation: string;
+    translation_reading: string | null;
+    writing: string | null;
+    sense_position: number;
+    jmdict_entry_id: string | null;
+    frequency: number | null;
+  };
+
+  it("returns synset-grouped JA senses for an English lemma (skips if WordNet/JMdict not ingested)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // Bail early if the WordNet source isn't loaded in this environment.
+    const { data: probe } = await svc.from("wordnet_senses_en").select("lemma").limit(1);
+    if (!probe || probe.length === 0) return; // WordNet not ingested → skip
+
+    // Try a few common words; use the first that resolves (depends on which JMdict
+    // subset is loaded). If none resolve, the JMdict side is absent/minimal → skip.
+    const candidates = ["cat", "spring", "water", "book", "dog", "hand", "time"];
+    let rows: WnRow[] = [];
+    for (const word of candidates) {
+      const { data, error } = await svc.rpc("wordnet_en_ja_lookup", { p_input: word });
+      expect(error).toBeNull();
+      rows = (data ?? []) as WnRow[];
+      if (rows.length > 0) break;
+    }
+    if (rows.length === 0) return; // no candidate resolved against the loaded JMdict → skip
+
+    // Every result is JMdict-backed (so it carries an authoritative reading/freq).
+    for (const r of rows) {
+      expect(r.translation).toBeTruthy();
+      expect(r.jmdict_entry_id).toBeTruthy();
+      expect(r.writing).toBeNull(); // EN->JA has no headword column
+    }
+    // sense_position is contiguous from 0 (the renumbered display rank).
+    expect(rows.map((r) => r.sense_position)).toEqual(rows.map((_, i) => i));
+    // entries are distinct (deduped by jmdict_entry_id).
+    const ids = rows.map((r) => r.jmdict_entry_id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_translation_quota", () => {
   it("is NOT callable by a client (no EXECUTE grant)", async () => {
     const u = await makeUser();

@@ -189,6 +189,38 @@ export function projectMany(
 }
 
 /**
+ * Merge two ordered provider-result lists into one, PRIMARY first, deduped by
+ * jmdict_entry_id, capped at `limit`. Used by the EN->JA path: WordNet's
+ * synset-grouped results lead (higher quality, sense-disambiguated), and the
+ * reverse-gloss jmdict_lookup results fill any remaining slots (coverage for
+ * English words WordNet lacks / extra senses it missed). A result already present
+ * by entryId is dropped (same JMdict entry → same `words` row / dictionary_ref).
+ *
+ * sensePos is RE-NUMBERED to the merged index so the order survives the cache read
+ * (fetchVerified orders by jmdict_sense_pos). Safe for EN->JA: there sensePos is a
+ * display RANK, not a JMdict sense index, and is NOT part of the dictionary_ref
+ * ('<input>:<entry>'), so renumbering doesn't change a row's identity.
+ */
+export function mergeProviderResults(
+  primary: ProviderResult[],
+  fallback: ProviderResult[],
+  limit: number,
+): ProviderResult[] {
+  const seen = new Set<string>();
+  const merged: ProviderResult[] = [];
+  for (const r of [...primary, ...fallback]) {
+    if (merged.length >= limit) break;
+    const key = r.entryId ?? null;
+    if (key != null) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    merged.push(r);
+  }
+  return merged.map((r, i) => ({ ...r, sensePos: i }));
+}
+
+/**
  * Assign verified rows back to the SEARCH terms that asked for them, the same way
  * the single-word cache read matches: a row belongs to a term when the term equals
  * its stored headword (`input`) OR its reading (`input_reading`) — so a kana search

@@ -41,6 +41,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   corsHeaders,
   groupByInput,
+  mergeProviderResults,
   parseAllowedOrigins,
   projectMany,
   projectRows,
@@ -57,7 +58,9 @@ import {
 //   1 = pre-stable-identity baseline (no dictionary_ref)
 //   2 = stable JMdict identity (#1: jmdict_entry_id/sense_pos + dictionary_ref)
 //   3 = #7: frequency + part_of_speech projected; frequency-ranked ordering
-const CURRENT_PROJECTION_VERSION = 3;
+//   4 = WordNet-first EN->JA: synset-grouped senses (re-ranked sensePos) replace
+//       the raw reverse-gloss order; JA->EN rows are unaffected but re-stamped.
+const CURRENT_PROJECTION_VERSION = 4;
 
 // corsHeaders(origin, allowedOrigins) is in _lib.ts (ALLOWED_ORIGINS env → echo a
 // listed Origin, else "*" in dev). NOTE: the local `supabase start` Kong gateway
@@ -149,6 +152,59 @@ async function lookupJMdict(
     frequency: row.frequency ?? null,
     partOfSpeech: row.part_of_speech ?? null,
   }));
+}
+
+// SEMANTIC EN->JA provider: Japanese WordNet (see migration 20260703_wordnet.sql).
+// An English lemma -> its synsets (concept clusters) -> the Japanese lemmas in
+// each, resolved through JMdict for reading/frequency/POS. Returns sense-grouped
+// ProviderResults (same shape as lookupJMdict) ordered by WordNet sense rank. []
+// for words WordNet doesn't cover. EN->JA only.
+async function lookupWordNet(supabase: Supa, input: string): Promise<ProviderResult[]> {
+  const { data, error } = await supabase.rpc("wordnet_en_ja_lookup", { p_input: input });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row: {
+    translation: string;
+    input_reading: string | null;
+    translation_reading: string | null;
+    writing: string | null;
+    sense_position: number | null;
+    jmdict_entry_id: string | null;
+    frequency: number | null;
+    part_of_speech: string[] | null;
+  }) => ({
+    translation: row.translation,
+    inputReading: row.input_reading ?? null,
+    translationReading: row.translation_reading ?? null,
+    headword: row.writing ?? null, // null for EN->JA
+    entryId: row.jmdict_entry_id ?? null,
+    sensePos: row.sense_position ?? null,
+    frequency: row.frequency ?? null,
+    partOfSpeech: row.part_of_speech ?? null,
+  }));
+}
+
+// jmdict_lookup's EN->JA branch caps at 12; mirror that as the merged ceiling.
+const DICTIONARY_RESULT_LIMIT = 12;
+
+// Resolve a lookup to its dictionary senses. EN->JA leads with the SEMANTIC
+// WordNet results and falls back to the reverse-gloss jmdict_lookup only to fill
+// the remaining slots (coverage for words WordNet lacks) — skipping the gloss
+// query entirely when WordNet already fills the cap. Every other direction is
+// straight jmdict_lookup. The MT fallback (caller's job) still runs only when this
+// returns [].
+async function resolveDictionary(
+  supabase: Supa,
+  input: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<ProviderResult[]> {
+  if (sourceLang === "EN" && targetLang === "JA") {
+    const wn = await lookupWordNet(supabase, input);
+    if (wn.length >= DICTIONARY_RESULT_LIMIT) return wn;
+    const gloss = await lookupJMdict(supabase, input, sourceLang, targetLang);
+    return mergeProviderResults(wn, gloss, DICTIONARY_RESULT_LIMIT);
+  }
+  return lookupJMdict(supabase, input, sourceLang, targetLang);
 }
 
 // Google Cloud Translation API v2 endpoint (REST, API-key auth). Overridable via
@@ -496,7 +552,7 @@ async function resolveBatch(
   // path) — an anon-key/no-session batch is JMdict-only, never spends.
   const canMT = mtConfigured() && !!userId;
   for (const input of missing) {
-    let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
+    let results = await resolveDictionary(supabase, input, sourceLang, targetLang);
     // Per-word over-quota (per-user OR the global cap) is just skipped (empty
     // result), never a whole-batch failure.
     if (results.length === 0 && canMT) {
@@ -630,7 +686,7 @@ async function handleRequest(req: Request): Promise<Response> {
   //    with no user session is NOT metered, so it must not spend → JMdict-only.
   //    (The app's guests are real anonymous-auth users, so they always have a sub.)
   const userId = userIdFromAuth(req.headers.get("Authorization"));
-  let results = await lookupJMdict(supabase, input, sourceLang, targetLang);
+  let results = await resolveDictionary(supabase, input, sourceLang, targetLang);
   if (results.length === 0 && mtConfigured() && userId) {
     // MT is the only PAID path → enforce the caller's limits here, the hard
     // server-side gate (the client also pre-checks for UX). Both checks happen

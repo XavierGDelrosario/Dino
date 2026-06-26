@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import {
   corsHeaders,
   groupByInput,
+  mergeProviderResults,
   parseAllowedOrigins,
   projectMany,
   projectRows,
@@ -193,6 +194,55 @@ describe("projectMany (batch projection)", () => {
     );
     expect(rows).toHaveLength(1); // one row, so the single upsert can't hit 21000
     expect(rows[0].dictionary_ref).toBe("1578850:0");
+  });
+});
+
+describe("mergeProviderResults (WordNet-first EN→JA merge)", () => {
+  const wn = (entryId: string, translation: string, sensePos: number): ProviderResult =>
+    ({ translation, entryId, sensePos });
+
+  it("leads with the primary (WordNet) results, then appends fallback", () => {
+    const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
+    const fallback = [wn("200", "ばね", 0)];
+    const merged = mergeProviderResults(primary, fallback, 12);
+    expect(merged.map((r) => r.entryId)).toEqual(["100", "101", "200"]);
+  });
+
+  it("re-numbers sensePos contiguously so the merged order survives the cache read", () => {
+    const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
+    const fallback = [wn("200", "ばね", 0)]; // fallback also starts at 0 — must be renumbered
+    const merged = mergeProviderResults(primary, fallback, 12);
+    expect(merged.map((r) => r.sensePos)).toEqual([0, 1, 2]);
+  });
+
+  it("dedupes by entryId, keeping the primary occurrence (same JMdict entry = same row)", () => {
+    const primary = [wn("100", "春", 0)];
+    const fallback = [wn("100", "spring-from-gloss", 0), wn("201", "泉", 1)];
+    const merged = mergeProviderResults(primary, fallback, 12);
+    expect(merged.map((r) => r.entryId)).toEqual(["100", "201"]);
+    expect(merged[0].translation).toBe("春"); // WordNet's projection wins
+  });
+
+  it("empty primary → pure fallback (renumbered) — the no-WordNet-coverage case", () => {
+    const fallback = [wn("200", "x", 5), wn("201", "y", 9)];
+    const merged = mergeProviderResults([], fallback, 12);
+    expect(merged.map((r) => r.entryId)).toEqual(["200", "201"]);
+    expect(merged.map((r) => r.sensePos)).toEqual([0, 1]);
+  });
+
+  it("caps the merged list at the limit", () => {
+    const primary = Array.from({ length: 10 }, (_, i) => wn(`p${i}`, `t${i}`, i));
+    const fallback = Array.from({ length: 10 }, (_, i) => wn(`f${i}`, `g${i}`, i));
+    const merged = mergeProviderResults(primary, fallback, 12);
+    expect(merged).toHaveLength(12);
+    expect(merged.slice(0, 10).map((r) => r.entryId)).toEqual(primary.map((r) => r.entryId));
+  });
+
+  it("a skipped duplicate doesn't consume a slot", () => {
+    const primary = [wn("100", "a", 0)];
+    const fallback = [wn("100", "dup", 0), wn("101", "b", 1), wn("102", "c", 2)];
+    const merged = mergeProviderResults(primary, fallback, 3);
+    expect(merged.map((r) => r.entryId)).toEqual(["100", "101", "102"]); // dup dropped, c still fits
   });
 });
 
