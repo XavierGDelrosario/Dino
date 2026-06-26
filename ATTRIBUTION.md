@@ -35,3 +35,22 @@ from the scriptin/jmdict-simplified release) is **JMdict**, owned by the
 EDRDG license (https://www.edrdg.org/edrdg/licence.html). Attribution to EDRDG is
 required; the user-facing notice ships in the app footer
 (`src/components/common/AttributionFooter.tsx`).
+
+## Semantic EN→JA (Japanese WordNet)
+
+The EN→JA semantic lookup (`wordnet_*` tables, ingested via
+`scripts/ingest-wordnet.ts`) is derived from the **Japanese WordNet** (wnja, v1.1)
+from the bond-lab / NICT project (https://bond-lab.github.io/wnja/). It maps
+Princeton WordNet synsets to Japanese words; English-lemma → synset data and the
+Japanese mappings come from the released `wnjpn.db` + `wnjpn-ok.tab` files.
+
+- The **Japanese WordNet data** is distributed under a **BSD-like (3-clause)
+  license** (NICT, Francis Bond et al.); attribution required.
+- The **English / synset structure** derives from **Princeton WordNet**, used under
+  the **WordNet License** (https://wordnet.princeton.edu/license-and-commercial-use)
+  — a BSD-style permissive license requiring the Princeton copyright notice be
+  retained.
+
+We ship only the derived `wordnet_*` numbers/mappings (synset ids, lemmas, sense
+ranks), not the original release files. The user-facing app footer notice
+(`AttributionFooter.tsx`) credits these sources alongside JMdict.

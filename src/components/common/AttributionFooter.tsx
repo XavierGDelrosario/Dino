@@ -1,6 +1,7 @@
 // Required data-source attribution (legal must-before-public, #15) + the legal-page
-// links. Credits the dictionary (JMdict/EDRDG) and the frequency data (wordfreq,
-// CC-BY-SA). Full detail + license terms live in ATTRIBUTION.md.
+// links. Credits the dictionary (JMdict/EDRDG), the frequency data (wordfreq,
+// CC-BY-SA), and the semantic EN→JA source (Japanese WordNet + Princeton WordNet).
+// Full detail + license terms live in ATTRIBUTION.md.
 import { useI18n } from "../../i18n";
 import { Link } from "../../router";
 
@@ -33,7 +34,15 @@ export function AttributionFooter() {
       <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">
         CC BY-SA 4.0
       </a>
-      ).
+      ). English↔Japanese sense data from the{" "}
+      <a href="https://bond-lab.github.io/wnja/" target="_blank" rel="noopener noreferrer">
+        Japanese WordNet
+      </a>{" "}
+      and{" "}
+      <a href="https://wordnet.princeton.edu/" target="_blank" rel="noopener noreferrer">
+        Princeton WordNet
+      </a>
+      .
     </footer>
   );
 }

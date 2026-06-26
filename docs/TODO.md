@@ -91,8 +91,11 @@ pre-publish review after any major change.**
   the current anonymous rows are all throwaway (dev + me). NOT auth-gated — can run
   any time before publishing the real DB. (Ongoing abandoned-guest reaping only
   matters later, once there's public traffic + the #13 upgrade path.)
-- **EN→JA reader sense quality** — the `LIMIT 12` cap stops the noise, but the
-  reverse-gloss tail is still loosely matched; needs real EN→JA sense ranking.
+- **EN→JA reader sense quality** — ~~the `LIMIT 12` cap stops the noise, but the
+  reverse-gloss tail is still loosely matched; needs real EN→JA sense ranking.~~
+  Largely addressed 2026-06-26 by the **Japanese WordNet** semantic layer (synset
+  grouping now leads EN→JA; gloss search is the fallback) — see Completed. Remaining
+  polish: live-verify the synset grouping + tune the fallback merge size.
 - **Embeddings (#11) follow-ups:**
   - entry-level vectors blend homographs + produce gloss-string artifacts — consider
     per-sense or writing-weighted embedding.
@@ -242,7 +245,9 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
      frequency — wrong axis).
   3. **English lemmatizer** so `ran/running → run` (kuromoji is JA-only; EN uses Intl.Segmenter
      with no lemma).
-  4. **(optional) Japanese WordNet (wnjpn)** for richer EN→JA coverage (~20–40 MB, free, fits).
+  4. ~~**(optional) Japanese WordNet (wnjpn)** for richer EN→JA coverage~~ — done
+     2026-06-26 (code; migration `20260703_wordnet.sql` + `ingest:wordnet`). WordNet
+     synsets now LEAD EN→JA (sense-grouped), gloss search is the fallback. See Completed.
   5. **English embeddings / word-map** (#11) — the storage hog (~80 MB+) and the real Free→Pro
      trigger; until then "Explore related words" is hidden for non-JA learning langs (done).
 - **Account-linking edge cases (email ↔ Google, same person)** — `[#13 auth]` partially
@@ -305,6 +310,22 @@ Newest first. Dates from CLAUDE.md's verification log + git history. Items here 
 DONE (some have minor "remaining" notes tracked in the tiers above).
 
 ### 2026-06-26
+- **Japanese WordNet — semantic EN→JA (CODE done; needs live ingest + verify)** — the
+  EN→JA direction was a pure reverse-gloss search (no sense disambiguation; "spring" →
+  one noisy list). Added the **bond-lab Japanese WordNet** as the leading EN→JA source:
+  English lemma → WordNet **synsets** → the Japanese lemmas in each, **resolved through
+  JMdict** for reading/frequency/POS (lemmas JMdict lacks are dropped). Gloss search is
+  now the fallback; MT last. Pieces: migration `20260703_wordnet.sql` (server-only
+  `wordnet_*` tables + `wordnet_en_ja_lookup()` returning the `jmdict_lookup` shape + a
+  factored `jmdict_entry_headword()` helper); `scripts/ingest-wordnet.ts`
+  (`npm run ingest:wordnet -- ./wnjpn.db ./wnjpn-ok.tab`, reads SQLite via `node:sqlite`);
+  edge `lookupWordNet`/`resolveDictionary` + pure `mergeProviderResults` (`_lib.ts`,
+  WordNet-first, dedup by entry); `projection_version` 3→4. WordNet rows reuse
+  `dictionary_ref` `<input>:<entry>`, so the `words` cache is unchanged. Tests:
+  `mergeProviderResults` unit + `wordnet_en_ja_lookup`/lockdown integration (self-skip if
+  not ingested). Attribution (BSD-like + Princeton WordNet) in `ATTRIBUTION.md` + footer.
+  **Remaining:** apply the migration, run the two ingests on a live DB, and verify the
+  synset grouping end-to-end (spring → 春/泉/ばね sense-distinct).
 - **Prod auth config (Supabase dashboard)** — on the live project: **URL Configuration**
   (Site URL + Redirect URLs for reset/confirm links), **email confirmation** enabled,
   **Google OAuth provider** enabled (creds from `.env.deploy`) + manual linking, and the

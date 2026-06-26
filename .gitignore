@@ -34,6 +34,11 @@ jmdict-*.json
 jmdict-*.json.tgz
 jmdict-*.json.zip
 
+# Japanese WordNet release files (downloaded for ingest:wordnet; never committed)
+wnjpn.db
+wnjpn*.tab
+wnjpn*.gz
+
 # Generated seed dump (JMdict + embeddings), ~120MB — regenerate with
 # `npm run db:dump-seed` after an ingest/embed; auto-loaded on `db reset`.
 supabase/seeds/
