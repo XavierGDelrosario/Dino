@@ -48,6 +48,17 @@ describe("analyze — Japanese (kuromoji)", () => {
     },
     KUROMOJI_TIMEOUT
   );
+
+  it(
+    'drops punctuation tokens — even ASCII quotes kuromoji mis-tags as 名詞 (no " word)',
+    async () => {
+      const texts = (await analyze('彼は"猫"と言った', "JA")).map((t) => t.text);
+      expect(texts).toContain("猫"); // the real word survives
+      expect(texts).not.toContain('"'); // the ASCII quote is not a token
+      expect(texts.every((t) => /[\p{L}\p{N}]/u.test(t))).toBe(true); // no punctuation-only tokens
+    },
+    KUROMOJI_TIMEOUT
+  );
 });
 
 describe("analyze — specific short words (今 / これ / 単語)", () => {
