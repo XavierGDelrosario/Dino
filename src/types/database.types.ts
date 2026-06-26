@@ -469,6 +469,7 @@ export type Database = {
         Row: {
           date_created: string
           email: string
+          is_admin: boolean
           learning_language: string | null
           level: number | null
           native_language: string | null
@@ -479,6 +480,7 @@ export type Database = {
         Insert: {
           date_created?: string
           email: string
+          is_admin?: boolean
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
@@ -489,6 +491,7 @@ export type Database = {
         Update: {
           date_created?: string
           email?: string
+          is_admin?: boolean
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
@@ -581,7 +584,85 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_usage_overview: {
+        Args: { p_month?: string }
+        Returns: {
+          bucket: string
+          chars_used: number
+          period_month: string
+          scope: string
+        }[]
+      }
+      admin_provider_health: {
+        Args: never
+        Returns: {
+          provider: string
+          credential_expires_at: string | null
+          days_to_expiry: number | null
+          quota_note: string | null
+          mt_chars_used: number | null
+          updated_at: string
+        }[]
+      }
+      admin_set_provider: {
+        Args: { p_provider: string; p_expires_at?: string; p_quota_note?: string }
+        Returns: {
+          provider: string
+          credential_expires_at: string | null
+          quota_note: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+      }
+      admin_grant_feature: {
+        Args: { p_email: string; p_feature: string; p_value?: number; p_expires_at?: string; p_note?: string }
+        Returns: {
+          id: number
+          user_id: string
+          feature: string
+          value: number | null
+          granted_at: string
+          expires_at: string | null
+          granted_by: string | null
+          note: string | null
+        }
+      }
+      admin_list_grants: {
+        Args: { p_email?: string }
+        Returns: {
+          id: number
+          email: string
+          feature: string
+          value: number | null
+          granted_at: string
+          expires_at: string | null
+          active: boolean
+          note: string | null
+        }[]
+      }
+      admin_error_log: {
+        Args: { p_since?: string; p_code?: string; p_user?: string; p_limit?: number }
+        Returns: {
+          id: number
+          occurred_at: string
+          error_code: string
+          source: string | null
+          user_id: string | null
+          input: string | null
+          detail: string | null
+        }[]
+      }
+      admin_table_sizes: {
+        Args: never
+        Returns: {
+          table_name: string
+          total_bytes: number
+          table_bytes: number
+          row_estimate: number
+        }[]
+      }
       confidence_from_stability: { Args: { s: number }; Returns: number }
+      is_admin: { Args: never; Returns: boolean }
       consume_global_quota: {
         Args: { p_chars: number; p_quota: number }
         Returns: {

@@ -595,6 +595,27 @@ async function resolveBatch(
   });
 }
 
+// Best-effort append to the admin error_log (service role bypasses RLS — see
+// migration 20260706). NEVER throws: a logging failure must not change the request
+// outcome. The audit panel (admin_error_log RPC) reads these rows. Input is
+// truncated so the log can't be bloated by a huge paragraph.
+async function recordError(
+  supabase: Supa,
+  params: { code: string; source: string; userId?: string | null; input?: string | null; detail?: string | null },
+): Promise<void> {
+  try {
+    await supabase.from("error_log").insert({
+      error_code: params.code,
+      source: params.source,
+      user_id: params.userId ?? null,
+      input: params.input ? params.input.slice(0, 500) : null,
+      detail: params.detail ? params.detail.slice(0, 1000) : null,
+    });
+  } catch (_e) {
+    // swallow — never break the response over a logging failure
+  }
+}
+
 // HTTP handler — the request entry point.
 // OUTPUT (JSON): { translated, translation, word, words } on success;
 //   word = primary sense (back-compat), words = all senses. { error } + 4xx/5xx otherwise.
@@ -644,6 +665,13 @@ async function handleRequest(req: Request): Promise<Response> {
       return reply({ results });
     } catch (e) {
       console.error("batch resolve failed:", e); // detail server-side only
+      await recordError(supabase, {
+        code: "translate_batch_failed",
+        source: "translate.batch",
+        userId: userIdFromAuth(req.headers.get("Authorization")),
+        input: Array.isArray(body.inputs) ? body.inputs.slice(0, 10).join(", ") : null,
+        detail: e instanceof Error ? e.message : String(e),
+      });
       return reply({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
     }
   }
@@ -771,6 +799,13 @@ async function handleRequest(req: Request): Promise<Response> {
     .select("*");
   if (insertError) {
     console.error("words upsert failed:", insertError.message); // detail server-side only
+    await recordError(supabase, {
+      code: insertError.code ?? "words_upsert_failed",
+      source: "translate.single",
+      userId,
+      input,
+      detail: insertError.message,
+    });
     return reply({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
   }
 
@@ -794,6 +829,20 @@ Deno.serve(async (req) => {
     res = await handleRequest(req);
   } catch (e) {
     console.error("translate handler crashed:", e);
+    // Best-effort audit on an unhandled crash (own client — handleRequest's is
+    // out of scope here). Never rethrows.
+    try {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      await recordError(supabase, {
+        code: "translate_handler_crashed",
+        source: "translate.handler",
+        userId: userIdFromAuth(req.headers.get("Authorization")),
+        detail: e instanceof Error ? `${e.message}\n${e.stack ?? ""}` : String(e),
+      });
+    } catch (_e) { /* swallow */ }
     res = json({ error: "Internal error" }, 500);
   }
   const line = JSON.stringify({
