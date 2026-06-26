@@ -320,6 +320,7 @@ export function useTranslate(userId: string) {
         input: learningText,
         sourceLang: learning,
         targetLang: native,
+        tokens, // reuse submit's analysis — skip a duplicate kuromoji tokenize
         onGloss: typedLearning
           ? (g) => { setOutput(g.translated ? g.translation : ""); revealReader(); }
           : undefined,

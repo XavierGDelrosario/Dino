@@ -4,7 +4,7 @@
 // homograph (辛い → からい / つらい) lets you add the exact meaning you want, not
 // just the primary. Already-saved senses show their confidence + a "don't know"
 // (a review lapse). All state lives in the parent (useTranslate).
-import { useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { isContentPos, type AnalyzedToken } from "../../services/language";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
@@ -12,7 +12,7 @@ import { AddToListButton } from "./AddToListButton";
 import "./translate.css";
 import "../common/SenseText.css"; // shared .sense* row/action styles
 
-export function ParagraphReader({
+function ParagraphReaderImpl({
   text,
   tokens,
   meaningsByWord,
@@ -34,44 +34,50 @@ export function ParagraphReader({
 }) {
   const [hover, setHover] = useState<{ word: string; rect: DOMRect } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const show = (word: string, el: HTMLElement) => {
+  // Stable handlers so memoizing the token spans below isn't invalidated by hover.
+  const show = useCallback((word: string, el: HTMLElement) => {
     clearTimeout(hideTimer.current);
     setHover({ word, rect: el.getBoundingClientRect() });
-  };
-  const scheduleHide = () => {
+  }, []);
+  const scheduleHide = useCallback(() => {
     hideTimer.current = setTimeout(() => setHover(null), 120);
-  };
-  const cancelHide = () => clearTimeout(hideTimer.current);
+  }, []);
+  const cancelHide = useCallback(() => clearTimeout(hideTimer.current), []);
 
-  // Knowledge class for a token: grey (grammatical / no entry) · blue (addable) ·
-  // red→green by the confidence of its best-known sense.
-  const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
-    const senses = isContentPos(token.pos) ? meaningsByWord.get(token.text) ?? [] : [];
-    if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
-    const savedSenses = senses.filter((s) => saved.has(s.wordId));
-    if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
-    const best = Math.max(...savedSenses.map((s) => confidence.get(s.wordId) ?? 0));
-    return { cls: `tok tok--known tok--c${best}`, interactive: true };
-  };
-
-  const parts: JSX.Element[] = [];
-  let cursor = 0;
-  tokens.forEach((t, i) => {
-    if (t.start > cursor) parts.push(<span key={`gap-${i}`}>{text.slice(cursor, t.start)}</span>);
-    const { cls, interactive } = classFor(t);
-    parts.push(
-      <span
-        key={`tok-${i}`}
-        className={cls}
-        onMouseEnter={interactive ? (e) => show(t.text, e.currentTarget) : undefined}
-        onMouseLeave={interactive ? scheduleHide : undefined}
-      >
-        {t.text}
-      </span>
-    );
-    cursor = Math.max(cursor, t.end);
-  });
-  if (cursor < text.length) parts.push(<span key="gap-end">{text.slice(cursor)}</span>);
+  // The colored token spans. Memoized on the data that affects them (text/tokens +
+  // knowledge state), so HOVERING — which only changes `hover` — no longer rebuilds
+  // every span. A long paragraph is hundreds of tokens; this is the reader's main
+  // source of jank. Knowledge class: grey (grammatical / no entry) · blue (addable) ·
+  // red→green by the confidence of the best-known sense.
+  const parts = useMemo(() => {
+    const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
+      const senses = isContentPos(token.pos) ? meaningsByWord.get(token.text) ?? [] : [];
+      if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
+      const savedSenses = senses.filter((s) => saved.has(s.wordId));
+      if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
+      const best = Math.max(...savedSenses.map((s) => confidence.get(s.wordId) ?? 0));
+      return { cls: `tok tok--known tok--c${best}`, interactive: true };
+    };
+    const out: JSX.Element[] = [];
+    let cursor = 0;
+    tokens.forEach((t, i) => {
+      if (t.start > cursor) out.push(<span key={`gap-${i}`}>{text.slice(cursor, t.start)}</span>);
+      const { cls, interactive } = classFor(t);
+      out.push(
+        <span
+          key={`tok-${i}`}
+          className={cls}
+          onMouseEnter={interactive ? (e) => show(t.text, e.currentTarget) : undefined}
+          onMouseLeave={interactive ? scheduleHide : undefined}
+        >
+          {t.text}
+        </span>
+      );
+      cursor = Math.max(cursor, t.end);
+    });
+    if (cursor < text.length) out.push(<span key="gap-end">{text.slice(cursor)}</span>);
+    return out;
+  }, [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide]);
 
   const hoveredSenses = hover ? meaningsByWord.get(hover.word) ?? [] : [];
 
@@ -141,3 +147,8 @@ export function ParagraphReader({
     </>
   );
 }
+
+// memo: the parent (TranslateView) re-renders on every keystroke in the input, but
+// the reader's props (the LAST translated result) are unchanged while typing a new
+// paragraph — so this skips re-rendering entirely until a new translation lands.
+export const ParagraphReader = memo(ParagraphReaderImpl);
