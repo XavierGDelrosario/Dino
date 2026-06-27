@@ -164,6 +164,21 @@ describe("translateParagraph", () => {
     expect(res.tokens.find((t) => t.text === "辛い")?.reading).toBe("からい"); // kuromoji's context guess kept
   });
 
+  it("does NOT override a CONJUGATED surface — keeps kuromoji's reading (行った → いった, not lemma いく)", async () => {
+    mockTranslate.mockResolvedValue({ translated: true, translation: "went", word: null });
+    // Looked up by LEMMA 行く (stored reading いく), but the surface 行った reads いった.
+    // The override applies only when the surface IS the dictionary form (text === lemma),
+    // so the lemma's いく must NOT overwrite the conjugated surface's いった.
+    mockFindBatch.mockResolvedValue(
+      new Map([["行く", [makeWord({ input: "行く", translation: "to go", inputReading: "いく" })]]])
+    );
+    mockAnalyze.mockResolvedValue([{ text: "行った", start: 0, end: 3, reading: "いった", lemma: "行く", pos: null }]);
+
+    const res = await translateParagraph({ input: "行った", targetLang: "EN" });
+    expect(res.tokens.find((t) => t.text === "行った")?.reading).toBe("いった"); // surface reading kept
+    expect(res.meanings.get("行った")?.[0].translation).toBe("to go"); // meanings re-keyed under surface
+  });
+
   it("keeps the kuromoji reading when the word has no dictionary entry", async () => {
     mockTranslate.mockResolvedValue({ translated: true, translation: "cat", word: null });
     mockFindBatch.mockResolvedValue(new Map()); // not in words

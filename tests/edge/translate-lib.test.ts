@@ -11,6 +11,7 @@ import {
   parseAllowedOrigins,
   projectMany,
   projectRows,
+  resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
   type ProviderResult,
@@ -274,5 +275,23 @@ describe("groupByInput", () => {
       { input: "x", input_reading: null, jmdict_sense_pos: 0 },
     ];
     expect(groupByInput(mixed, ["x"]).get("x")?.map((r) => r.jmdict_sense_pos)).toEqual([0, null]);
+  });
+});
+
+describe("resolveServiceKey", () => {
+  it("prefers the explicit secret over the legacy key", () => {
+    expect(resolveServiceKey({ SERVICE_ROLE_SECRET: "sb_secret_x", SUPABASE_SERVICE_ROLE_KEY: "legacy" }))
+      .toBe("sb_secret_x");
+  });
+  it("falls back to the legacy key when the secret is unset", () => {
+    expect(resolveServiceKey({ SUPABASE_SERVICE_ROLE_KEY: "legacy" })).toBe("legacy");
+  });
+  it("falls back when the secret is empty/whitespace (NOT used as a blank credential)", () => {
+    expect(resolveServiceKey({ SERVICE_ROLE_SECRET: "", SUPABASE_SERVICE_ROLE_KEY: "legacy" })).toBe("legacy");
+    expect(resolveServiceKey({ SERVICE_ROLE_SECRET: "   ", SUPABASE_SERVICE_ROLE_KEY: "legacy" })).toBe("legacy");
+  });
+  it("returns undefined when neither is set (real misconfiguration)", () => {
+    expect(resolveServiceKey({})).toBeUndefined();
+    expect(resolveServiceKey({ SERVICE_ROLE_SECRET: "", SUPABASE_SERVICE_ROLE_KEY: "" })).toBeUndefined();
   });
 });

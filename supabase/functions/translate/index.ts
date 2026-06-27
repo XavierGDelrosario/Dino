@@ -45,6 +45,7 @@ import {
   parseAllowedOrigins,
   projectMany,
   projectRows,
+  resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
   type ProviderResult,
@@ -67,9 +68,12 @@ const CURRENT_PROJECTION_VERSION = 4;
 // function keeps full RLS-bypass access after the legacy API keys are disabled
 // (key-rotation remediation). Falls back to the legacy key when the secret is unset.
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
-// `||` (not `??`) so an empty-string SERVICE_ROLE_SECRET (an easy misconfig) falls
-// back to the legacy key instead of being used as a blank, broken credential.
-const SERVICE_KEY = (Deno.env.get("SERVICE_ROLE_SECRET")?.trim() || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
+// resolveServiceKey (in _lib.ts, unit-tested) handles the secret→legacy precedence
+// and the empty-string fallback.
+const SERVICE_KEY = resolveServiceKey({
+  SERVICE_ROLE_SECRET: Deno.env.get("SERVICE_ROLE_SECRET"),
+  SUPABASE_SERVICE_ROLE_KEY: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+})!;
 // One service-role client for the whole isolate (supabase-js is fetch-based and
 // stateless here) — no need to reconstruct it per request on the hot path.
 const supabase = createClient(SB_URL, SERVICE_KEY);
