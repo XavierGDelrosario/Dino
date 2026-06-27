@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { useSession } from "./hooks/useSession";
 import { needsTermsAcceptance } from "./services/session";
 import { warmJapaneseAnalyzer } from "./services/language";
-import { AttributionFooter } from "./components/common/AttributionFooter";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
@@ -105,8 +104,6 @@ export function App() {
         : path === "/admin" ? <AdminPage />
         : <HomeView userId={userId} />
       )}
-
-      <AttributionFooter />
     </main>
   );
 }

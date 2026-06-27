@@ -26,8 +26,9 @@ import {
   isSingleWord,
   isContentPos,
   resolveSourceLanguage,
-  AUTO_DETECT,
   SUPPORTED_LANGUAGES,
+  DEFAULT_NATIVE_LANGUAGE,
+  DEFAULT_LEARNING_LANGUAGE,
   type LangCode,
   type SourceSelection,
 } from "../services/language";
@@ -38,8 +39,8 @@ export type TranslateMode = "word" | "paragraph";
 export type TranslateStatus = "idle" | "loading" | "done" | "error";
 
 export function useTranslate(userId: string) {
-  const [source, setSource] = useState<SourceSelection>(AUTO_DETECT);
-  const [target, setTarget] = useState<LangCode>("JA");
+  const [source, setSource] = useState<SourceSelection>(DEFAULT_NATIVE_LANGUAGE);
+  const [target, setTarget] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
@@ -50,7 +51,7 @@ export function useTranslate(userId: string) {
   // else the OUTPUT (so typing English while learning JA studies the Japanese
   // translation's words, not the English input). Independent of the translate
   // direction; swapping languages doesn't change what you're learning.
-  const [learning, setLearning] = useState<LangCode>("JA");
+  const [learning, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
   // The plain translation shown in the output box (the other language's rendering
   // of what you typed). Set by submit; distinct from the study data.
   const [output, setOutput] = useState("");
@@ -97,14 +98,20 @@ export function useTranslate(userId: string) {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
-  // Default the directions from the user's profile prefs (Profile page): native →
-  // translation OUTPUT (target), learning → "I'm learning"/input. Only applied when
-  // set (a fresh guest keeps the JA defaults). Runs once per user.
+  // Default the directions from the user's profile prefs (Profile page). SOURCE =
+  // the user's NATIVE language (you type in your language), TARGET/LEARNING = what
+  // they're learning → you get the translation to study. A user who never set these
+  // has NULL profile values, so fall back to the SAME defaults the Profile page
+  // shows (DEFAULT_NATIVE/LEARNING_LANGUAGE) — otherwise the input would sit on
+  // "Detect language" while the Profile claims a native language, which is the bug
+  // this guards against. Both directions are still freely changeable in the LangBar.
   useEffect(() => {
     getUserProfile(userId).then((p) => {
-      if (!p) return;
-      if (p.nativeLanguage) setTarget(p.nativeLanguage as LangCode);
-      if (p.learningLanguage) setLearning(p.learningLanguage as LangCode);
+      const native = (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode;
+      const learn = (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode;
+      setSource(native);
+      setTarget(learn);
+      setLearning(learn);
     }).catch((e) => console.warn("useTranslate: failed to load language prefs", e));
   }, [userId]);
 

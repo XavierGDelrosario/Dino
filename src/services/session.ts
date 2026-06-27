@@ -7,9 +7,11 @@
 // the public.users row and everything keyed on userId stay the same.
 // =========================================================
 
+import { Browser } from "@capacitor/browser";
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
 import { CURRENT_TERMS_VERSION } from "../lib/terms";
+import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 
 export interface UserProfile {
@@ -97,19 +99,46 @@ export async function signIn(params: { email: string; password: string }): Promi
  * Google OAuth. `linkGoogle` UPGRADES the current guest by linking a Google identity
  * to the SAME uid (data preserved) — use it from the create-account page. `signInWithGoogle`
  * signs into the Google account as its own user (switches uid) — use it from sign-in.
- * Both redirect to Google and return to the app origin, where onAuthStateChange picks
- * up the session. Requires the Google provider enabled with OAuth creds in the
- * Supabase project (see config.toml [auth.external.google]); unconfigured → errors.
+ *
+ * WEB: a full-page redirect to Google → back to the app origin, where the client
+ * picks up the session (onAuthStateChange). NATIVE (Capacitor/iOS): a redirect would
+ * escape the WebView to Safari and never return, so we instead get the provider URL
+ * (skipBrowserRedirect), open it in an in-app browser, and complete the login when
+ * Google redirects back to our custom URL scheme — see services/nativeAuth.ts.
+ *
+ * Requires the Google provider enabled with OAuth creds in the Supabase project
+ * (config.toml [auth.external.google]); unconfigured → errors. On native, also
+ * requires NATIVE_OAUTH_REDIRECT in the redirect allow-list + Info.plist scheme.
  */
+async function startGoogleOAuth(
+  start: (opts: {
+    redirectTo: string;
+    skipBrowserRedirect: boolean;
+  }) => Promise<{ data: { url?: string | null }; error: unknown }>,
+  failMessage: string,
+): Promise<void> {
+  const native = isNative();
+  const redirectTo = native
+    ? NATIVE_OAUTH_REDIRECT
+    : (typeof window !== "undefined" ? window.location.origin : "");
+  const { data, error } = await start({ redirectTo, skipBrowserRedirect: native });
+  if (error) throw toServiceError(error, failMessage);
+  // Native: open the provider URL in an in-app browser; the appUrlOpen listener
+  // (nativeAuth) finishes the login. Web: the call already redirected the page.
+  if (native && data?.url) await Browser.open({ url: data.url });
+}
+
 export async function linkGoogle(): Promise<void> {
-  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-  const { error } = await supabase.auth.linkIdentity({ provider: "google", options: { redirectTo } });
-  if (error) throw toServiceError(error, "Could not link Google");
+  await startGoogleOAuth(
+    (options) => supabase.auth.linkIdentity({ provider: "google", options }),
+    "Could not link Google",
+  );
 }
 export async function signInWithGoogle(): Promise<void> {
-  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-  const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
-  if (error) throw toServiceError(error, "Google sign-in failed");
+  await startGoogleOAuth(
+    (options) => supabase.auth.signInWithOAuth({ provider: "google", options }),
+    "Google sign-in failed",
+  );
 }
 
 /**

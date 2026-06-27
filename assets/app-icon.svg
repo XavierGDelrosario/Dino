@@ -1,0 +1,9 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <text x="512" y="512"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="300" font-weight="800"
+        letter-spacing="6"
+        fill="#7C3AED"
+        text-anchor="middle" dominant-baseline="central">DINO</text>
+</svg>

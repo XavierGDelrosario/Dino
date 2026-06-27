@@ -3,6 +3,7 @@
 // upgrades / signs in / signs out (see services/session).
 import { useEffect, useState } from "react";
 import { ensureSession, getAuthStatus, type AuthStatus } from "../services/session";
+import { registerNativeAuthListener } from "../services/nativeAuth";
 import { supabase } from "../config/supabaseClient";
 
 export interface SessionState {
@@ -41,6 +42,14 @@ export function useSession(): SessionState {
   useEffect(() => {
     let active = true;
 
+    // 0. Native (iOS): listen for the OAuth deep-link callback so Google sign-in can
+    //    complete in the app. No-op in the browser. Cleaned up on unmount.
+    let removeNativeAuth = () => {};
+    registerNativeAuthListener().then((remove) => {
+      if (active) removeNativeAuth = remove;
+      else remove();
+    });
+
     // 1. Bootstrap: sign in anonymously if needed + ensure the public.users row.
     ensureSession()
       .then(() => getAuthStatus())
@@ -71,6 +80,7 @@ export function useSession(): SessionState {
     return () => {
       active = false;
       sub.subscription.unsubscribe();
+      removeNativeAuth();
     };
   }, []);
 
