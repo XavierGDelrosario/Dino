@@ -32,12 +32,15 @@ function ParagraphReaderImpl({
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
 }) {
-  const [hover, setHover] = useState<{ word: string; rect: DOMRect } | null>(null);
+  const [hover, setHover] = useState<{ word: string; reading: string | null; rect: DOMRect } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Stable handlers so memoizing the token spans below isn't invalidated by hover.
-  const show = useCallback((word: string, el: HTMLElement) => {
+  // `reading` is the TOKEN's reading (kuromoji's context-disambiguated guess, or the
+  // dictionary reading when unambiguous) — the right furigana for THIS occurrence of
+  // a homograph (君 → きみ here), not an arbitrary sense's reading.
+  const show = useCallback((word: string, reading: string | null, el: HTMLElement) => {
     clearTimeout(hideTimer.current);
-    setHover({ word, rect: el.getBoundingClientRect() });
+    setHover({ word, reading, rect: el.getBoundingClientRect() });
   }, []);
   const scheduleHide = useCallback(() => {
     hideTimer.current = setTimeout(() => setHover(null), 120);
@@ -67,7 +70,7 @@ function ParagraphReaderImpl({
         <span
           key={`tok-${i}`}
           className={cls}
-          onMouseEnter={interactive ? (e) => show(t.text, e.currentTarget) : undefined}
+          onMouseEnter={interactive ? (e) => show(t.text, t.reading, e.currentTarget) : undefined}
           onMouseLeave={interactive ? scheduleHide : undefined}
         >
           {t.text}
@@ -115,14 +118,19 @@ function ParagraphReaderImpl({
         >
           <div className="hovercard__word">
             {hover.word}
-            {hoveredSenses[0]?.inputReading && (
-              <em className="result__reading">{hoveredSenses[0].inputReading}</em>
+            {/* Reading for THIS occurrence: the token's context reading (a homograph
+                like 君 reads きみ here), falling back to the first sense's reading. */}
+            {(hover.reading ?? hoveredSenses[0]?.inputReading) && (
+              <em className="result__reading">{hover.reading ?? hoveredSenses[0]?.inputReading}</em>
             )}
           </div>
           <ul className="hovercard__senses">
             {hoveredSenses.map((s) => (
               <li key={s.wordId} className="sense">
                 <span className="sense__text">
+                  {/* Per-sense reading so a homograph's senses are distinguishable
+                      (きみ "you" vs くん "Mr" vs きんじ …) when picking which to add. */}
+                  {s.inputReading && <em className="sense__reading">{s.inputReading} </em>}
                   {s.translation}
                   {saved.has(s.wordId) && (
                     <em className="sense__conf"> ✓ {confidence.get(s.wordId) ?? 0}/5</em>
