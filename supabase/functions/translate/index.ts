@@ -222,6 +222,90 @@ async function resolveDictionary(
   return lookupJMdict(supabase, input, sourceLang, targetLang);
 }
 
+// One DB row from a (single or _many) lookup function → a ProviderResult. Shared by
+// the single + batch lookups (identical projection).
+type LookupRow = {
+  translation: string;
+  input_reading: string | null;
+  translation_reading: string | null;
+  writing: string | null;
+  sense_position: number | null;
+  jmdict_entry_id: string | null;
+  frequency: number | null;
+  part_of_speech: string[] | null;
+};
+function rowToProvider(row: LookupRow): ProviderResult {
+  return {
+    translation: row.translation,
+    inputReading: row.input_reading ?? null,
+    translationReading: row.translation_reading ?? null,
+    headword: row.writing ?? null,
+    entryId: row.jmdict_entry_id ?? null,
+    sensePos: row.sense_position ?? null,
+    frequency: row.frequency ?? null,
+    partOfSpeech: row.part_of_speech ?? null,
+  };
+}
+
+// BATCH variants of lookupJMdict / lookupWordNet: resolve MANY inputs in ONE RPC
+// (cold-paragraph N+1 fix, migration 20260710). Each returns the rows tagged with
+// the search `input` so resolveDictionaryMany can regroup per term.
+async function lookupJMdictMany(
+  supabase: Supa, inputs: string[], sourceLang: string, targetLang: string,
+): Promise<{ input: string; r: ProviderResult }[]> {
+  const { data, error } = await supabase.rpc("jmdict_lookup_many", {
+    p_inputs: inputs, p_source: sourceLang, p_target: targetLang,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row: LookupRow & { input: string }) => ({ input: row.input, r: rowToProvider(row) }));
+}
+async function lookupWordNetMany(
+  supabase: Supa, inputs: string[],
+): Promise<{ input: string; r: ProviderResult }[]> {
+  const { data, error } = await supabase.rpc("wordnet_en_ja_lookup_many", { p_inputs: inputs });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row: LookupRow & { input: string }) => ({ input: row.input, r: rowToProvider(row) }));
+}
+
+function groupProviderByInput(rows: { input: string; r: ProviderResult }[]): Map<string, ProviderResult[]> {
+  const out = new Map<string, ProviderResult[]>();
+  for (const { input, r } of rows) {
+    const list = out.get(input);
+    if (list) list.push(r);
+    else out.set(input, [r]);
+  }
+  return out;
+}
+
+// Batch counterpart of resolveDictionary: resolve every input's dictionary senses
+// in one (JA→EN / other) or two (EN→JA: WordNet + gloss, merged per input) RPCs.
+// Inputs with no match are simply absent from the returned map.
+async function resolveDictionaryMany(
+  supabase: Supa, inputs: string[], sourceLang: string, targetLang: string,
+): Promise<Map<string, ProviderResult[]>> {
+  if (inputs.length === 0) return new Map();
+  const out = new Map<string, ProviderResult[]>();
+  if (sourceLang === "EN" && targetLang === "JA") {
+    const [wnRows, glossRows] = await Promise.all([
+      lookupWordNetMany(supabase, inputs),
+      lookupJMdictMany(supabase, inputs, sourceLang, targetLang),
+    ]);
+    const wnBy = groupProviderByInput(wnRows);
+    const glossBy = groupProviderByInput(glossRows);
+    for (const input of inputs) {
+      const merged = mergeProviderResults(wnBy.get(input) ?? [], glossBy.get(input) ?? [], DICTIONARY_RESULT_LIMIT);
+      if (merged.length > 0) out.set(input, merged);
+    }
+  } else {
+    const by = groupProviderByInput(await lookupJMdictMany(supabase, inputs, sourceLang, targetLang));
+    for (const input of inputs) {
+      const r = by.get(input) ?? [];
+      if (r.length > 0) out.set(input, r);
+    }
+  }
+  return out;
+}
+
 // Google Cloud Translation API v2 endpoint (REST, API-key auth). Overridable via
 // TRANSLATION_API_URL (e.g. to point at a proxy or a mock in tests).
 const DEFAULT_TRANSLATION_API_URL =
@@ -559,42 +643,49 @@ async function resolveBatch(
   const cachedByInput = groupByInput(cachedRows, inputs);
   const missing = inputs.filter((i) => (cachedByInput.get(i) ?? []).length === 0);
 
-  // 2. Resolve each miss server-side (cheap same-region DB calls, not client
-  //    round-trips): JMdict first, then the metered Google MT fallback. Sequential
-  //    so the per-word quota reservation can't race itself.
-  let limits: ResolvedLimits | null = null;
+  // 2. Resolve all misses' DICTIONARY senses in ONE batched RPC (two for EN→JA:
+  //    WordNet + gloss, merged per input) — the cold-paragraph N+1 fix. Was a
+  //    per-word round-trip; now one (or two) calls regardless of miss count.
   const userId = userIdFromAuth(authHeader);
   const perInput: { input: string; results: ProviderResult[] }[] = [];
-  const gQuota = globalCharQuota();
-  // Paid MT runs only when configured AND attributable to a user (see the single
-  // path) — an anon-key/no-session batch is JMdict-only, never spends.
-  const canMT = mtConfigured() && !!userId;
+  const dictByInput = await resolveDictionaryMany(supabase, missing, sourceLang, targetLang);
   for (const input of missing) {
-    let results = await resolveDictionary(supabase, input, sourceLang, targetLang);
-    // Per-word over-quota (per-user OR the global cap) is just skipped (empty
-    // result), never a whole-batch failure.
-    if (results.length === 0 && canMT) {
-      if (!limits) limits = await resolveLimits(supabase, userId!);
-      // (#2) over-cap entries are NEVER sent to paid MT — the per-request paragraph
-      // limit holds on the batch path too, even if the client bypasses the single
-      // path's 413. Over-cap words just stay uncolored (no meanings), never spend.
-      if (input.length <= limits.paragraphCharLimit) {
-        const reserve = await reserveQuota(supabase, userId!, input.length, limits.monthlyCharQuota);
-        const globalOk = reserve.allowed && (await reserveGlobalQuota(supabase, input.length, gQuota));
-        // (#3) refund the per-user reservation ONLY if it actually committed.
-        if (reserve.committed && !globalOk) await refundQuota(supabase, userId!, input.length);
-        if (reserve.allowed && globalOk) {
-          const mt = await callTranslationProvider(input, sourceLang, targetLang);
-          if (mt) {
-            results = [mt];
-          } else {
-            if (reserve.committed) await refundQuota(supabase, userId!, input.length);
-            await refundGlobalQuota(supabase, input.length);
-          }
+    const r = dictByInput.get(input);
+    if (r && r.length > 0) perInput.push({ input, results: r });
+  }
+
+  // 3. MT fallback for the words the dictionary still missed — paid, so metered.
+  //    Reserve the WHOLE batch's chars ONCE (per-user + global) rather than per
+  //    word, so the app-wide global-quota lock + hot row is touched once per request
+  //    instead of once per MT word (the global-quota serialization fix). Then call
+  //    MT per word and refund the reserved-but-unspent remainder.
+  const canMT = mtConfigured() && !!userId;
+  const stillMissing = missing.filter((i) => !dictByInput.has(i));
+  if (canMT && stillMissing.length > 0) {
+    const limits = await resolveLimits(supabase, userId!);
+    // (#2) over-cap entries are never sent to paid MT (the per-request paragraph cap
+    // holds on the batch path too).
+    const mtWords = stillMissing.filter((i) => i.length <= limits.paragraphCharLimit);
+    const totalChars = mtWords.reduce((n, w) => n + w.length, 0);
+    if (totalChars > 0) {
+      const reserve = await reserveQuota(supabase, userId!, totalChars, limits.monthlyCharQuota);
+      const globalOk = reserve.allowed && (await reserveGlobalQuota(supabase, totalChars, globalCharQuota()));
+      if (reserve.committed && !globalOk) await refundQuota(supabase, userId!, totalChars); // global denied → undo per-user
+      if (reserve.allowed && globalOk) {
+        let spent = 0;
+        for (const w of mtWords) {
+          const mt = await callTranslationProvider(w, sourceLang, targetLang);
+          if (mt) { perInput.push({ input: w, results: [mt] }); spent += w.length; }
+        }
+        // Refund what we reserved but didn't spend (words MT couldn't translate);
+        // per-user only if the reserve committed.
+        const unspent = totalChars - spent;
+        if (unspent > 0) {
+          if (reserve.committed) await refundQuota(supabase, userId!, unspent);
+          await refundGlobalQuota(supabase, unspent);
         }
       }
     }
-    if (results.length > 0) perInput.push({ input, results });
   }
 
   // 3. One upsert for every freshly-projected sense (deduped by dictionary_ref).
