@@ -99,8 +99,8 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     });
     expect(error).toBeNull();
     const row = data as { stability: number; confidence_rating: number; last_reviewed_date: string };
-    expect(row.stability).toBeCloseTo(7.0, 5); // grade 5 seed
-    expect(row.confidence_rating).toBe(3); // 7.0 → bucket <16
+    expect(row.stability).toBeCloseTo(40.0, 5); // grade 5 seed
+    expect(row.confidence_rating).toBe(5); // 40.0 → bucket >=35: first-review confidence == grade
     expect(row.last_reviewed_date).not.toBeNull();
 
     const { data: log } = await u.client
@@ -114,11 +114,11 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
   it("a lapse (grade 1) after a strong review shrinks stability", async () => {
     const u = await makeUser();
     const w = await makeStandaloneWord(u, { input: "覚える", meaning: "to memorize" });
-    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 }); // stability 7.0
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 }); // stability 40.0
     const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
     const row = data as { stability: number; confidence_rating: number };
-    expect(row.stability).toBeCloseTo(2.1, 1); // 7.0 * 0.3 lapse factor
-    expect(row.confidence_rating).toBe(1); // 2.1 → bucket <3
+    expect(row.stability).toBeCloseTo(12.0, 1); // 40.0 * 0.3 lapse factor
+    expect(row.confidence_rating).toBe(3); // 12.0 → bucket [7,16)
     const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
     expect(log ?? []).toHaveLength(2); // append-only: two rows
   });
