@@ -84,6 +84,77 @@ A hard gate as we approach v1: do this before going public, not after. **All ite
 DONE (2026-06-24) — see Completed.** Standing reminder: **re-run the multi-agent
 pre-publish review after any major change.**
 
+## 🐞 Tier — Bugs & findings from the 2026-06-27 audit
+A 4-agent audit (bugs · scalability · reader perf · test coverage). The
+HIGH-confidence, low-risk fixes ALREADY SHIPPED on `perf/audit-fixes` (PR #9): reader
+render memoization + concurrent gloss + dedupe analysis; punctuation tokens dropped
+(kuromoji mis-tags ASCII `"` as 名詞); the batch path now resolves WRITING VARIANTS
+(速い→早い — it regrouped by headword/reading, so variants showed "not found", esp.
+visible via EN→JA MT output); edge batch char-cap + quota over-refund + sensePos
+determinism + empty-secret (`||`) fallback + service-role client singleton; a DB
+index for ALL-vocab pagination; admin-layer integration tests. The agents also
+**CLEARED** the admin privilege model (no escalation path), the quota happy-paths,
+NFC handling, and `useTextQuiz`'s snapshot — verified correct, not bugs.
+
+Remaining, prioritized — each has a concrete fix:
+
+### Scalability (bites at many concurrent users)
+- **Batch N+1** — a cold paragraph resolves each cache-miss word with its OWN
+  sequential RPC (two for EN→JA: WordNet then gloss); 50 new words = 50–100 serial
+  round-trips inside one edge call. Add set-returning `jmdict_lookup_many(text[],…)` /
+  `wordnet_en_ja_lookup_many(text[])` (unnest + LATERAL the existing body, return an
+  `input` column to regroup). (`index.ts` resolveBatch loop.)
+- **Global-quota serialization** — every paid MT word takes one app-wide advisory
+  lock + upserts the single `global_translation_usage` month row, PER WORD in a
+  batch. Reserve once per batch (summed chars); consider sharding the counter or an
+  atomic `UPDATE … RETURNING` guarded by the CHECK instead of the explicit lock.
+  (`20260627_global_quota.sql`; `index.ts` single + batch reserve sites.)
+- **`review_queue` restrict pulls ≤100k rows** to `.filter()` in JS when Lists passes
+  `userWordIds`. Add a `p_user_word_ids UUID[]` param + `= ANY(…)` server-side with
+  the real LIMIT. (`services/review.ts:106`; init `review_queue`.)
+- **`idempotency_keys` grows unbounded** — no TTL. Add `created_at` + a pg_cron
+  `DELETE … < now() - 7 days`. (`index.ts` storeIdempotent.)
+- **EN→JA reverse-gloss heavy query** — regex-over-trigram candidate scan + ~5
+  correlated subqueries per candidate; cache-absorbed but CPU-heavy on the full prod
+  JMdict. Materialize a flat `gloss_terms(term, entry_id, rank)` (btree on `term`) +
+  denormalize each entry's headword/reading/freq. (`20260618_jmdict.sql` EN→JA branch.)
+
+### Bugs (deferred — low/medium severity)
+- **[MED] Calibration seed has no effect on review-queue ORDERING** — `retrievability()`
+  (and the mirrored `review_queue` SQL) returns 0 whenever `last_reviewed_date IS
+  NULL`, regardless of a seeded `stability`, so a #10-calibrated word still sorts to
+  the very front like a cold-start unknown. The seed only changes the confidence
+  badge, not the scheduling `calibration.ts` promises. Fix: when last_reviewed is NULL
+  but stability is set, decay from `originally_translated_date` instead of returning
+  0, in BOTH places. (`services/review.ts:49`; init `review_queue`.)
+- **[LOW] persist=true MT double-spend on upsert failure** — if the `words` upsert
+  throws after a paid MT call, the 500 returns via `reply` (not `finish`), so the
+  idempotency key isn't stored AND the cache stays empty → a client retry re-reserves
+  + re-calls Google. Store the response (or mark the key) before the 500.
+  (`index.ts` single persist=true path.)
+- **[LOW] client RPCs rely on PUBLIC default EXECUTE** — `save_dictionary_word(s)` /
+  `review_queue` (SECURITY INVOKER, run as `anon`) call `confidence_from_stability`
+  with no explicit GRANT; would break under `REVOKE EXECUTE … FROM PUBLIC`
+  hardening. Add `GRANT EXECUTE … TO anon, authenticated`. (init migration.)
+
+### Test coverage (remaining gaps)
+- **Admin unit test** — `services/admin.ts` mapping (snake→camel, ServiceError on
+  error) is untested in the DEFAULT gate (the RPCs are now covered by the gated
+  `admin.integration.test.ts`).
+- **Edge error-log + service-key fallback** — `recordError` insert + the
+  `SERVICE_ROLE_SECRET || legacy` precedence are untested (Deno shell). Extract the
+  key resolution to a `_lib.ts` helper to unit-test precedence; integration-assert an
+  `error_log` row lands on a failing path.
+- **Hooks** — `useTranslate.applyReview`, `useTextQuiz` (save→record sequencing),
+  `useReview`, `useLists` have no specs (needs RTL `renderHook` in devDeps).
+- **Reader override edge cases** — assert `translateParagraph` keeps a conjugated
+  surface's kuromoji reading (行った→いった) and defers on ambiguous homographs
+  (辛い→からい/つらい); `ParagraphReader` has no component test.
+
+### Reader perf (minor, deferred)
+- **Two O(n) token passes** — `addablePrimaries` + `reviewablePrimaries` each scan all
+  tokens and re-run on every save; combine into one memo. (`useTranslate.ts:494`.)
+
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in
   `src/i18n/messages.ts`, compile-checked.)*

@@ -138,7 +138,11 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
   const tokenizer = await getJaTokenizer();
   const out: AnalyzedToken[] = [];
   for (const t of tokenizer.tokenize(text)) {
-    if (t.pos === "記号" || t.surface_form.trim() === "") continue; // punctuation/space
+    // Drop punctuation, symbols, and whitespace — anything with NO letter/digit.
+    // Stricter than the POS check alone: kuromoji tags ASCII quotes/punctuation it
+    // doesn't recognize as 名詞 (unknown noun), which would otherwise render as a
+    // highlightable, addable "word" (e.g. a lone " shown blue in the reader).
+    if (t.pos === "記号" || !/[\p{L}\p{N}]/u.test(t.surface_form)) continue;
     const start = t.word_position - 1;
     const reading =
       t.reading && t.reading !== UNKNOWN ? katakanaToHiragana(t.reading) : null;

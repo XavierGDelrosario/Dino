@@ -157,6 +157,10 @@ export async function translateParagraph(params: {
   input: string;
   targetLang: LangCode;
   sourceLang?: SourceSelection;
+  /** Pre-computed analysis of `input`. When the caller already analyzed the text
+   *  (e.g. submit's word-vs-sentence routing), pass it to skip a duplicate kuromoji
+   *  tokenize of the same string. */
+  tokens?: AnalyzedToken[];
   /** Fired the moment the whole-sentence gloss is ready — BEFORE the slower
    *  morphological analysis + per-word lookups — so the UI can show the
    *  translation immediately and stream the word-by-word reader in after. */
@@ -166,18 +170,23 @@ export async function translateParagraph(params: {
   const input = params.input.normalize("NFC");
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
-  // 1. Whole-paragraph contextual translation — display only, persist = false.
-  const para = await translate({
-    input,
-    sourceLang: resolvedSource,
-    targetLang,
-    persist: false,
-  });
-  params.onGloss?.({ translation: para.translation ?? "", translated: para.translated });
+  // 1. Kick off the whole-paragraph gloss (display only, persist = false) WITHOUT
+  //    awaiting: the colored reader below doesn't depend on it, so the gloss network
+  //    call (the slowest piece — Google MT) runs CONCURRENTLY with analysis + the
+  //    per-word lookups instead of in front of them. onGloss streams the translation
+  //    the moment it lands; a gloss failure is non-fatal (reader still renders).
+  const glossPromise = translate({ input, sourceLang: resolvedSource, targetLang, persist: false })
+    .then((g) => {
+      params.onGloss?.({ translation: g.translation ?? "", translated: g.translated });
+      return g;
+    })
+    .catch(() => ({ translation: null as string | null, translated: false }));
 
-  // 2. Morphologically analyze into tokens. Offsets stay pointed at the original
-  //    paragraph (for display); for JA this also yields per-token reading + lemma.
-  const tokens = await analyze(input, resolvedSource);
+  // 2. Tokens: reuse the caller's analysis when provided (submit already analyzed
+  //    the text to route word-vs-sentence), else analyze here — avoids a duplicate
+  //    kuromoji tokenize of the same string. Offsets stay pointed at the original
+  //    paragraph; for JA this also yields per-token reading + lemma.
+  const tokens = params.tokens ?? (await analyze(input, resolvedSource));
 
   // 3. Look each word up by its LEMMA when known (so a conjugated form like
   //    行った resolves via its dictionary entry 行く), falling back to the
@@ -243,6 +252,9 @@ export async function translateParagraph(params: {
     }
   }
 
+  // Fold in the gloss — awaited here, but by this point it has usually resolved in
+  // parallel with the analysis + lookups above (no longer in front of them).
+  const para = await glossPromise;
   return {
     translation: para.translated ? para.translation ?? input : input,
     translated: para.translated,

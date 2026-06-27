@@ -67,7 +67,12 @@ const CURRENT_PROJECTION_VERSION = 4;
 // function keeps full RLS-bypass access after the legacy API keys are disabled
 // (key-rotation remediation). Falls back to the legacy key when the secret is unset.
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY = Deno.env.get("SERVICE_ROLE_SECRET") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// `||` (not `??`) so an empty-string SERVICE_ROLE_SECRET (an easy misconfig) falls
+// back to the legacy key instead of being used as a blank, broken credential.
+const SERVICE_KEY = (Deno.env.get("SERVICE_ROLE_SECRET")?.trim() || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
+// One service-role client for the whole isolate (supabase-js is fetch-based and
+// stateless here) — no need to reconstruct it per request on the hot path.
+const supabase = createClient(SB_URL, SERVICE_KEY);
 
 // corsHeaders(origin, allowedOrigins) is in _lib.ts (ALLOWED_ORIGINS env → echo a
 // listed Origin, else "*" in dev). NOTE: the local `supabase start` Kong gateway
@@ -207,7 +212,10 @@ async function resolveDictionary(
 ): Promise<ProviderResult[]> {
   if (sourceLang === "EN" && targetLang === "JA") {
     const wn = await lookupWordNet(supabase, input);
-    if (wn.length >= DICTIONARY_RESULT_LIMIT) return wn;
+    // Still skip the gloss query when WordNet fills the cap, but route through the
+    // merge so sensePos is RENUMBERED sequentially — raw per-synset ranks can tie,
+    // making the cache-read ORDER BY jmdict_sense_pos non-deterministic otherwise.
+    if (wn.length >= DICTIONARY_RESULT_LIMIT) return mergeProviderResults(wn, [], DICTIONARY_RESULT_LIMIT);
     const gloss = await lookupJMdict(supabase, input, sourceLang, targetLang);
     return mergeProviderResults(wn, gloss, DICTIONARY_RESULT_LIMIT);
   }
@@ -323,7 +331,7 @@ async function reserveQuota(
   userId: string,
   chars: number,
   quota: number,
-): Promise<{ allowed: boolean; used: number }> {
+): Promise<{ allowed: boolean; used: number; committed: boolean }> {
   const { data, error } = await supabase.rpc("consume_translation_quota", {
     p_user_id: userId,
     p_chars: chars,
@@ -331,10 +339,13 @@ async function reserveQuota(
   });
   if (error) {
     console.error("quota reservation failed:", error.message);
-    return { allowed: true, used: 0 }; // fail open
+    return { allowed: true, used: 0, committed: false }; // fail open — nothing reserved
   }
   const row = Array.isArray(data) ? data[0] : data;
-  return { allowed: row?.allowed !== false, used: row?.used ?? 0 };
+  const allowed = row?.allowed !== false;
+  // `committed` = chars were actually added (only when allowed AND no error), so a
+  // later refund doesn't decrement legitimate usage after a fail-open / a denial.
+  return { allowed, used: row?.used ?? 0, committed: allowed };
 }
 
 // ── Global cost controls (#1) ───────────────────────────────────────────────
@@ -564,16 +575,22 @@ async function resolveBatch(
     // result), never a whole-batch failure.
     if (results.length === 0 && canMT) {
       if (!limits) limits = await resolveLimits(supabase, userId!);
-      const userOk = (await reserveQuota(supabase, userId!, input.length, limits.monthlyCharQuota)).allowed;
-      const globalOk = userOk && (await reserveGlobalQuota(supabase, input.length, gQuota));
-      if (userOk && !globalOk) await refundQuota(supabase, userId!, input.length); // global denied → undo per-user
-      if (userOk && globalOk) {
-        const mt = await callTranslationProvider(input, sourceLang, targetLang);
-        if (mt) {
-          results = [mt];
-        } else {
-          await refundQuota(supabase, userId!, input.length);
-          await refundGlobalQuota(supabase, input.length);
+      // (#2) over-cap entries are NEVER sent to paid MT — the per-request paragraph
+      // limit holds on the batch path too, even if the client bypasses the single
+      // path's 413. Over-cap words just stay uncolored (no meanings), never spend.
+      if (input.length <= limits.paragraphCharLimit) {
+        const reserve = await reserveQuota(supabase, userId!, input.length, limits.monthlyCharQuota);
+        const globalOk = reserve.allowed && (await reserveGlobalQuota(supabase, input.length, gQuota));
+        // (#3) refund the per-user reservation ONLY if it actually committed.
+        if (reserve.committed && !globalOk) await refundQuota(supabase, userId!, input.length);
+        if (reserve.allowed && globalOk) {
+          const mt = await callTranslationProvider(input, sourceLang, targetLang);
+          if (mt) {
+            results = [mt];
+          } else {
+            if (reserve.committed) await refundQuota(supabase, userId!, input.length);
+            await refundGlobalQuota(supabase, input.length);
+          }
         }
       }
     }
@@ -592,10 +609,41 @@ async function resolveBatch(
     savedRows = (data ?? []) as WordRow[];
   }
 
-  // 4. Group cache hits + freshly-saved rows back to each search term.
-  const byInput = groupByInput([...cachedRows, ...savedRows], inputs);
+  // 4. Map rows back to each SEARCH term.
+  //    - Cache hits matched by headword/reading (groupByInput), same as the
+  //      single-path cache read.
+  //    - Freshly-resolved rows are mapped by dictionary_ref to the term that
+  //      produced them. This is the fix for WRITING VARIANTS: 速い is a non-primary
+  //      writing of はやい, stored under headword 早い, so neither its headword (早い)
+  //      nor its reading (はやい) equals the search term 速い — groupByInput alone
+  //      drops it (the single path doesn't, hence the single/batch discrepancy).
+  const cachedByTerm = groupByInput(cachedRows, inputs);
+  const refToTerms = new Map<string, string[]>();
+  for (const { input, results } of perInput) {
+    for (const r of projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION)) {
+      const terms = refToTerms.get(r.dictionary_ref);
+      if (terms) { if (!terms.includes(input)) terms.push(input); }
+      else refToTerms.set(r.dictionary_ref, [input]);
+    }
+  }
+  const savedByTerm = new Map<string, WordRow[]>();
+  for (const row of savedRows) {
+    for (const term of refToTerms.get(row.dictionary_ref) ?? []) {
+      const list = savedByTerm.get(term);
+      if (list) list.push(row);
+      else savedByTerm.set(term, [row]);
+    }
+  }
+  const bySensePos = (a: WordRow, b: WordRow) => {
+    const ap = a.jmdict_sense_pos, bp = b.jmdict_sense_pos;
+    if (ap == null) return bp == null ? 0 : 1; // nulls last
+    if (bp == null) return -1;
+    return ap - bp;
+  };
   return inputs.map((input) => {
-    const ws = byInput.get(input) ?? [];
+    // An input is either a cache hit OR a miss (never both — see `missing`), so
+    // these two sources don't overlap; combine + order primary-first.
+    const ws = [...(cachedByTerm.get(input) ?? []), ...(savedByTerm.get(input) ?? [])].sort(bySensePos);
     return ws.length > 0
       ? { input, translated: true, translation: ws[0].translation, word: toWord(ws[0]), words: ws.map(toWord) }
       : { input, translated: false, translation: null, word: null, words: [] };
@@ -657,8 +705,6 @@ async function handleRequest(req: Request): Promise<Response> {
   if (sourceLang === targetLang) {
     return reply({ error: "Source and target language are the same" }, 400);
   }
-
-  const supabase = createClient(SB_URL, SERVICE_KEY);
 
   // BATCH mode: { inputs: string[] } resolves many cacheable words in ONE request.
   if (Array.isArray(body.inputs)) {
@@ -739,7 +785,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // (b) cumulative MONTHLY quota → 429 (the hard free-tier ceiling). Reserve
     //     the chars ATOMICALLY before the paid call (no check-then-meter race);
     //     a denied reservation costs nothing.
-    const { allowed, used } = await reserveQuota(
+    const { allowed, used, committed } = await reserveQuota(
       supabase, userId, input.length, monthlyCharQuota,
     );
     if (!allowed) {
@@ -754,8 +800,9 @@ async function handleRequest(req: Request): Promise<Response> {
     const gQuota = globalCharQuota();
     const ok = await reserveGlobalQuota(supabase, input.length, gQuota);
     if (!ok) {
-      // refund the per-user reservation we just took — this request won't spend
-      await refundQuota(supabase, userId, input.length);
+      // refund the per-user reservation — only if it actually committed (a fail-open
+      // reserve added nothing, so refunding would erase legitimate prior usage).
+      if (committed) await refundQuota(supabase, userId, input.length);
       console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
       return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
     }
@@ -767,8 +814,9 @@ async function handleRequest(req: Request): Promise<Response> {
     if (mt) {
       results = [mt];
     } else {
-      // Google spent nothing (non-2xx / network / empty) — refund both reservations.
-      await refundQuota(supabase, userId, input.length);
+      // Google spent nothing (non-2xx / network / empty) — refund both reservations
+      // (per-user only if it committed).
+      if (committed) await refundQuota(supabase, userId, input.length);
       await refundGlobalQuota(supabase, input.length);
     }
   }
@@ -833,10 +881,8 @@ Deno.serve(async (req) => {
     res = await handleRequest(req);
   } catch (e) {
     console.error("translate handler crashed:", e);
-    // Best-effort audit on an unhandled crash (own client — handleRequest's is
-    // out of scope here). Never rethrows.
+    // Best-effort audit on an unhandled crash. Never rethrows.
     try {
-      const supabase = createClient(SB_URL, SERVICE_KEY);
       await recordError(supabase, {
         code: "translate_handler_crashed",
         source: "translate.handler",
