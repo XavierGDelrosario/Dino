@@ -68,3 +68,22 @@ export async function registerNativeAuthListener(): Promise<() => void> {
     handle.remove().catch(() => {});
   };
 }
+
+/**
+ * Runs `onDismiss` ONCE when the in-app OAuth browser closes — whether by our
+ * redirect handler (a completed login) or by the user CANCELLING the sheet. The
+ * cancel case is the important one: no deep link fires, so a caller that disabled
+ * its UI before opening the browser (AuthPage's `busy`) would stay stuck. The
+ * listener auto-removes after firing; the returned function removes it early (for
+ * the caller's error path, before any browser opened). No-op on web.
+ */
+export async function onOAuthBrowserDismissed(onDismiss: () => void): Promise<() => void> {
+  if (!isNative()) return () => {};
+  const handle = await Browser.addListener("browserFinished", () => {
+    handle.remove().catch(() => {});
+    onDismiss();
+  });
+  return () => {
+    handle.remove().catch(() => {});
+  };
+}

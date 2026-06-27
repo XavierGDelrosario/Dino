@@ -34,9 +34,27 @@ function describeError(e: unknown): Error {
   return new Error(String(e));
 }
 
+/** True when the page was opened from a password-RESET link (implicit flow puts
+ *  `type=recovery` in the URL hash). Supabase emits its PASSWORD_RECOVERY event from
+ *  a setTimeout INSIDE client init, which can fire BEFORE this hook's
+ *  onAuthStateChange listener attaches — so the event is missed and the user just
+ *  ends up logged in with no reset prompt. Reading the URL synchronously in the
+ *  state initializer (below) catches it: the hash is still present during the first
+ *  React render, before supabase strips it via replaceState. */
+function isRecoveryUrl(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.location.hash.includes("type=recovery") ||
+    window.location.search.includes("type=recovery")
+  );
+}
+
 export function useSession(): SessionState {
   const [status, setStatus] = useState<AuthStatus | null>(null);
-  const [recovering, setRecovering] = useState(false);
+  // Seed from the URL so a reset link reliably opens the set-new-password takeover
+  // even if the PASSWORD_RECOVERY event is missed; the listener below still sets it
+  // too (belt-and-suspenders, and covers the PKCE/native path).
+  const [recovering, setRecovering] = useState(isRecoveryUrl);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {

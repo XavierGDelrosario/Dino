@@ -3,6 +3,7 @@
 // guest in place (keeps their words); "Sign in" switches to an existing account.
 import { useState } from "react";
 import { upgradeToAccount, signIn, requestPasswordReset, linkGoogle, signInWithGoogle, recordTermsAgreement } from "../services/session";
+import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { errorMessage } from "../lib/errorMessage";
 import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
@@ -53,16 +54,22 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     }
   };
 
-  // Google redirects away on success (onAuthStateChange resumes on return).
+  // Google redirects away on success (onAuthStateChange resumes on return). On
+  // native it opens an in-app OAuth sheet and returns immediately; the login
+  // finishes asynchronously via the deep-link handler. If the user instead CANCELS
+  // that sheet, no callback fires — so watch for the sheet closing and re-enable the
+  // form (otherwise `busy` stays stuck and every button is disabled). No-op on web.
   const google = async () => {
     if (needsAgreement) return;
     setBusy(true);
     setErr(null);
+    const stopWatch = await onOAuthBrowserDismissed(() => setBusy(false));
     try {
       // Signup links Google to the SAME uid; stamp the agreement before redirecting.
       if (mode === "signup") await recordTermsAgreement();
       await (mode === "signup" ? linkGoogle() : signInWithGoogle());
     } catch (e) {
+      stopWatch();
       setErr(errorMessage(e));
       setBusy(false);
     }
