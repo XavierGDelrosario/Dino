@@ -26,9 +26,18 @@ wired in once the project builds on a device).
 4. A **real iPhone** + USB cable (speech + camera need real hardware; the Simulator
    can't. Handwriting works in the Simulator via trackpad).
 
-## Generate + run the iOS project (after the prereqs)
+## Package manager: CocoaPods (NOT the Cap 8 SPM default)
+Capacitor 8 defaults to Swift Package Manager, but `@capacitor-community/speech-recognition`
+(latest 7.0.1, a Cap-7 release) ships **no `Package.swift`**, so it's not SPM-compatible.
+We therefore generate the iOS project with **CocoaPods** so speech + camera both work:
 ```bash
-npx cap add ios          # generates ios/ + runs pod install (needs Xcode + CocoaPods)
+npx cap add ios --packagemanager CocoaPods    # if regenerating ios/, KEEP this flag
+```
+The `ios/` project is committed (Pods / web-copy / build are gitignored). If a Cap-8
+speech plugin with SPM support appears later, we can switch back to SPM.
+
+## Run the iOS project (after the prereqs)
+```bash
 npm run ios:build        # builds vs PROD Supabase + syncs dist/ into ios/
 npm run ios:open         # opens ios/App/App.xcworkspace in Xcode
 ```
