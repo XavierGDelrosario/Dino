@@ -10,7 +10,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // VITE_SUPABASE_URL + publishable key (see scripts/build-ios.sh / the iOS guide),
 // or set `server.url` to your Mac's LAN dev-server for live reload.
 const config: CapacitorConfig = {
-  appId: "com.dino.app",
+  appId: "com.xaviergdelrosario.dino",
   appName: "DINO",
   webDir: "dist",
 };
