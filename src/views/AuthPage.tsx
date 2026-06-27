@@ -14,6 +14,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const { navigate } = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [forgot, setForgot] = useState(false);
@@ -29,6 +30,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     if (mode === "signup") {
       const issue = checkPassword(password);
       if (issue) { setErr(t(issue === "short" ? "auth.pwShort" : "auth.pwWeak")); return; }
+      if (password !== confirm) { setErr(t("auth.pwMismatch")); return; }
     }
     setBusy(true);
     setErr(null);
@@ -126,6 +128,12 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         onChange={(e) => setPassword(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()} />
       {mode === "signup" && (
+        <input className="input" type="password" value={confirm} placeholder={t("auth.confirmPasswordPlaceholder")}
+          aria-label={t("auth.confirmPasswordPlaceholder")} autoComplete="new-password"
+          onChange={(e) => setConfirm(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()} />
+      )}
+      {mode === "signup" && (
         <label className="authpage__agree">
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
           <span>
@@ -138,7 +146,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         </label>
       )}
       {err && <pre className="review__error">{err}</pre>}
-      <button className="btn" disabled={busy || !email.trim() || password === "" || needsAgreement} onClick={submit}>
+      <button className="btn"
+        disabled={busy || !email.trim() || password === "" || needsAgreement || (mode === "signup" && confirm === "")}
+        onClick={submit}>
         {mode === "signup" ? t("auth.createAccount") : t("auth.signIn")}
       </button>
 

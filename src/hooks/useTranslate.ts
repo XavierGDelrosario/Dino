@@ -97,13 +97,15 @@ export function useTranslate(userId: string) {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
-  // Default the directions from the user's profile prefs (Profile page): native →
-  // translation OUTPUT (target), learning → "I'm learning"/input. Only applied when
-  // set (a fresh guest keeps the JA defaults). Runs once per user.
+  // Default the directions from the user's profile prefs (Profile page). SOURCE
+  // defaults to the user's NATIVE language (not auto-detect) and TARGET to what
+  // they're learning → you type in your language and get the translation to study.
+  // Only applied when set; a fresh guest keeps the auto-detect / JA defaults.
   useEffect(() => {
     getUserProfile(userId).then((p) => {
       if (!p) return;
-      if (p.nativeLanguage) setTarget(p.nativeLanguage as LangCode);
+      if (p.nativeLanguage) setSource(p.nativeLanguage as LangCode);
+      if (p.learningLanguage) setTarget(p.learningLanguage as LangCode);
       if (p.learningLanguage) setLearning(p.learningLanguage as LangCode);
     }).catch((e) => console.warn("useTranslate: failed to load language prefs", e));
   }, [userId]);
