@@ -99,16 +99,15 @@ NFC handling, and `useTextQuiz`'s snapshot — verified correct, not bugs.
 Remaining, prioritized — each has a concrete fix:
 
 ### Scalability (bites at many concurrent users)
-- **Batch N+1** — a cold paragraph resolves each cache-miss word with its OWN
-  sequential RPC (two for EN→JA: WordNet then gloss); 50 new words = 50–100 serial
-  round-trips inside one edge call. Add set-returning `jmdict_lookup_many(text[],…)` /
-  `wordnet_en_ja_lookup_many(text[])` (unnest + LATERAL the existing body, return an
-  `input` column to regroup). (`index.ts` resolveBatch loop.)
-- **Global-quota serialization** — every paid MT word takes one app-wide advisory
-  lock + upserts the single `global_translation_usage` month row, PER WORD in a
-  batch. Reserve once per batch (summed chars); consider sharding the counter or an
-  atomic `UPDATE … RETURNING` guarded by the CHECK instead of the explicit lock.
-  (`20260627_global_quota.sql`; `index.ts` single + batch reserve sites.)
+- ~~**Batch N+1**~~ **DONE** (`perf/batch-lookups`) — set-returning
+  `jmdict_lookup_many` / `wordnet_en_ja_lookup_many` (migration `20260710`, LATERAL
+  over unnest) + `resolveDictionaryMany` in the edge: a cold paragraph's misses now
+  resolve in ONE batched RPC (two for EN→JA), not N sequential round-trips.
+- ~~**Global-quota serialization**~~ **DONE** (`perf/batch-lookups`) — the batch MT
+  path reserves the whole batch's chars ONCE (per-user + global) and refunds the
+  unspent remainder, so the app-wide global-quota lock + hot row is touched once per
+  request, not per MT word. (Counter sharding / lock-free atomic UPDATE remains a
+  future option if even once-per-request contention bites.)
 - **`review_queue` restrict pulls ≤100k rows** to `.filter()` in JS when Lists passes
   `userWordIds`. Add a `p_user_word_ids UUID[]` param + `= ANY(…)` server-side with
   the real LIMIT. (`services/review.ts:106`; init `review_queue`.)

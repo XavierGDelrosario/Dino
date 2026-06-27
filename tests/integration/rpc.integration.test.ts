@@ -546,6 +546,38 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: wordnet_en_ja_lookup", () => {
   });
 });
 
+// ── jmdict_lookup_many (batch wrapper, service-role only) ──────────────────
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup_many", () => {
+  it("is NOT callable by a client (no EXECUTE grant)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("jmdict_lookup_many", {
+      p_inputs: ["猫"], p_source: "JA", p_target: "EN",
+    });
+    expect(error).not.toBeNull(); // permission denied — server-only, like jmdict_lookup
+  });
+
+  it("resolves MANY inputs in one call, tagged by input, matching the single lookup", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // Pick two real loaded headwords so the test doesn't depend on specific words.
+    const { data: kanji } = await svc.from("jmdict_kanji").select("text").limit(2);
+    if (!kanji || kanji.length < 2) return; // JMdict not ingested → skip
+    const terms = (kanji as Array<{ text: string }>).map((k) => k.text);
+
+    const { data, error } = await svc.rpc("jmdict_lookup_many", {
+      p_inputs: terms, p_source: "JA", p_target: "EN",
+    });
+    expect(error).toBeNull();
+    const rows = (data ?? []) as Array<{ input: string; translation: string }>;
+    // Every requested term that the single lookup resolves is present, tagged.
+    for (const term of terms) {
+      const single = ((await svc.rpc("jmdict_lookup", { p_input: term, p_source: "JA", p_target: "EN" })).data ?? []) as unknown[];
+      const batched = rows.filter((r) => r.input === term);
+      expect(batched.length).toBe(single.length); // batch == single, per input
+    }
+  });
+});
+
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_translation_quota", () => {
   it("is NOT callable by a client (no EXECUTE grant)", async () => {
     const u = await makeUser();
