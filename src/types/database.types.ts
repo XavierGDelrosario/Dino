@@ -758,7 +758,7 @@ export type Database = {
         }[]
       }
       review_queue: {
-        Args: { p_limit: number; p_list_id?: string; p_user_id: string }
+        Args: { p_limit: number; p_list_id?: string; p_user_id: string; p_user_word_ids?: string[] }
         Returns: {
           confidence_rating: number
           custom_translation: string

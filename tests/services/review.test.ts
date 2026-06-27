@@ -41,20 +41,28 @@ const qrow = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("retrievability", () => {
-  it("is 0 for a never-reviewed word (no stability) — most urgent", () => {
-    expect(retrievability(null, null, NOW)).toBe(0);
-    expect(retrievability(null, daysAgo(1), NOW)).toBe(0);
-    expect(retrievability(5, null, NOW)).toBe(0);
+  it("is 0 for a cold word (no stability) — most urgent", () => {
+    expect(retrievability(null, null, null, NOW)).toBe(0);
+    expect(retrievability(null, daysAgo(1), null, NOW)).toBe(0);
+    expect(retrievability(0, null, daysAgo(5), NOW)).toBe(0); // stability 0 = cold
   });
 
   it("is ~1 immediately after review and decays toward 0 over time", () => {
-    expect(retrievability(5, daysAgo(0), NOW)).toBeCloseTo(1, 5);
+    expect(retrievability(5, daysAgo(0), null, NOW)).toBeCloseTo(1, 5);
     // at Δ = stability, R = e^-1 ≈ 0.368
-    expect(retrievability(5, daysAgo(5), NOW)).toBeCloseTo(Math.exp(-1), 5);
+    expect(retrievability(5, daysAgo(5), null, NOW)).toBeCloseTo(Math.exp(-1), 5);
     // a stronger word decays slower: same elapsed time → higher R
-    expect(retrievability(20, daysAgo(5), NOW)).toBeGreaterThan(
-      retrievability(5, daysAgo(5), NOW)
+    expect(retrievability(20, daysAgo(5), null, NOW)).toBeGreaterThan(
+      retrievability(5, daysAgo(5), null, NOW)
     );
+  });
+
+  it("a SEEDED but never-reviewed word decays from its translate date (#10 affects ranking)", () => {
+    // stability set + never reviewed → NOT a cold 0; decays from originally-translated.
+    expect(retrievability(5, null, daysAgo(5), NOW)).toBeCloseTo(Math.exp(-1), 5);
+    expect(retrievability(5, null, daysAgo(0), NOW)).toBeCloseTo(1, 5); // fresh seed
+    // last-reviewed takes precedence over the translate date when both present.
+    expect(retrievability(5, daysAgo(0), daysAgo(100), NOW)).toBeCloseTo(1, 5);
   });
 });
 
@@ -92,25 +100,28 @@ describe("getReviewQueue", () => {
     expect(queue).toEqual([]);
   });
 
-  it("restricts to userWordIds (the filtered subset), preserving rank order + slicing to limit", async () => {
+  it("passes userWordIds to the RPC for SERVER-side restriction with the real limit", async () => {
+    // The RPC now filters + ranks + limits; the service just maps what comes back.
     stub.rpc.mockResolvedValue({
       data: [
         qrow({ user_word_id: "a", retrievability: 0 }),
-        qrow({ user_word_id: "b", retrievability: 0.1 }),
         qrow({ user_word_id: "c", retrievability: 0.2 }),
       ],
       error: null,
     });
     const queue = await getReviewQueue({ userId: "u", listId: "L1", limit: 2, userWordIds: ["c", "a"] });
-    // pulls the WHOLE ranked list so the subset is fully covered, then filters
-    expect(stub.rpc).toHaveBeenCalledWith("review_queue", { p_user_id: "u", p_limit: 100000, p_list_id: "L1" });
-    // only the requested ids, in the ranked order the RPC returned (a before c)
+    expect(stub.rpc).toHaveBeenCalledWith("review_queue", {
+      p_user_id: "u", p_limit: 2, p_list_id: "L1", p_user_word_ids: ["c", "a"],
+    });
     expect(queue.map((w) => w.userWordId)).toEqual(["a", "c"]);
   });
 
-  it("returns an empty queue when userWordIds is [] (filters matched nothing)", async () => {
-    stub.rpc.mockResolvedValue({ data: [qrow({ user_word_id: "a" })], error: null });
+  it("passes [] through so the RPC filters to nothing (empty queue)", async () => {
+    stub.rpc.mockResolvedValue({ data: [], error: null });
     const queue = await getReviewQueue({ userId: "u", limit: 5, userWordIds: [] });
+    expect(stub.rpc).toHaveBeenCalledWith("review_queue", {
+      p_user_id: "u", p_limit: 5, p_list_id: undefined, p_user_word_ids: [],
+    });
     expect(queue).toEqual([]);
   });
 

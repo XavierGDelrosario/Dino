@@ -949,7 +949,10 @@ async function handleRequest(req: Request): Promise<Response> {
       input,
       detail: insertError.message,
     });
-    return reply({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
+    // finish() (not reply): if MT already spent on this request, STORE the response
+    // under the idempotency key so a client retry replays this 500 instead of
+    // re-reserving quota + re-calling Google (#4 — double-spend on upsert failure).
+    return finish({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
   }
 
   const ordered = sortBySensePos((saved ?? []) as WordRow[]);
