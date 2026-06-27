@@ -2,6 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  /* Give the input/output boxes ~2x the 540px app shell. Centered breakout via
+     symmetric negative inline margins — NOT `transform`, which would reparent the
+     reader's position:fixed hovercard and break its placement. Capped at 94vw so it
+     never causes horizontal scroll; collapses to the shell width on small screens. */
+  width: min(1080px, 94vw);
+  margin-inline: calc((100% - min(1080px, 94vw)) / 2);
 }
 
 .wordpanel,
@@ -235,6 +241,10 @@
   flex: 1 1 0;
   min-width: 0;
   min-height: 8rem;
+  /* Cap the height so a long input/translation scrolls inside the box instead of
+     growing the page. Applies to both the textarea and the output panel. */
+  max-height: min(24rem, 55vh);
+  overflow-y: auto;
 }
 
 /* Output box: read-only display of the plain translation. */
@@ -426,6 +436,13 @@
   font-size: 0.8rem;
   font-style: normal;
   white-space: nowrap;
+}
+
+/* Per-sense reading prefix in the reader hovercard (disambiguates homographs). */
+.sense__reading {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: normal;
 }
 
 /* AddToListButton: + → ✓ → + → list menu. */
