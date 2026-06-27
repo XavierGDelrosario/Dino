@@ -110,6 +110,20 @@ export function parseAllowedOrigins(raw: string | undefined | null): string[] {
 }
 
 /**
+ * Resolve the service-role key the edge client authenticates with. Prefers an
+ * explicit SERVICE_ROLE_SECRET (a new `sb_secret_…` key, set when legacy API keys
+ * are disabled) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY. Uses
+ * truthiness (not `??`) so an EMPTY-STRING secret (an easy misconfig) falls back to
+ * the legacy key instead of being used as a blank, broken credential. Returns
+ * undefined only when neither is set (a real misconfiguration).
+ */
+export function resolveServiceKey(
+  env: { SERVICE_ROLE_SECRET?: string | null; SUPABASE_SERVICE_ROLE_KEY?: string | null },
+): string | undefined {
+  return env.SERVICE_ROLE_SECRET?.trim() || env.SUPABASE_SERVICE_ROLE_KEY?.trim() || undefined;
+}
+
+/**
  * Project provider results into verified `words` rows. Stores the canonical
  * headword (kanji writing for JA->EN) as `input` so a kana search keeps the kanji.
  * DEDUPEs by (headword, translation): JMdict can yield several senses aggregating

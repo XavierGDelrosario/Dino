@@ -134,22 +134,24 @@ Remaining, prioritized — each has a concrete fix:
   `GRANT EXECUTE ON confidence_from_stability(REAL) TO anon, authenticated`.
 
 ### Test coverage (remaining gaps)
-- **Admin unit test** — `services/admin.ts` mapping (snake→camel, ServiceError on
-  error) is untested in the DEFAULT gate (the RPCs are now covered by the gated
-  `admin.integration.test.ts`).
-- **Edge error-log + service-key fallback** — `recordError` insert + the
-  `SERVICE_ROLE_SECRET || legacy` precedence are untested (Deno shell). Extract the
-  key resolution to a `_lib.ts` helper to unit-test precedence; integration-assert an
-  `error_log` row lands on a failing path.
+- ~~**Admin unit test**~~ **DONE** (`test/audit-coverage`) — `tests/services/admin.test.ts`
+  covers the snake→camel mapping, arg passing, and ServiceError propagation for every
+  admin service fn (RPC behavior stays covered by `admin.integration.test.ts`).
+- **Edge error-log + service-key fallback** — ~~service-key precedence~~ **DONE**
+  (extracted `resolveServiceKey` to `_lib.ts` + unit-tested precedence/empty-string
+  fallback). Still open: an integration assert that a `recordError` row actually lands
+  in `error_log` on a failing edge path.
 - **Hooks** — `useTranslate.applyReview`, `useTextQuiz` (save→record sequencing),
-  `useReview`, `useLists` have no specs (needs RTL `renderHook` in devDeps).
-- **Reader override edge cases** — assert `translateParagraph` keeps a conjugated
-  surface's kuromoji reading (行った→いった) and defers on ambiguous homographs
-  (辛い→からい/つらい); `ParagraphReader` has no component test.
+  `useReview`, `useLists` have no specs (needs RTL `renderHook` in devDeps — a
+  dependency decision).
+- ~~**Reader override edge cases**~~ **DONE** (`test/audit-coverage`) — added the
+  conjugated-surface case (行った keeps いった, not lemma いく); the unambiguous-override
+  and ambiguous-defer (辛い) cases were already covered. (`ParagraphReader` component
+  test still deferred — DOM-bound, RN-portability flagged.)
 
 ### Reader perf (minor, deferred)
-- **Two O(n) token passes** — `addablePrimaries` + `reviewablePrimaries` each scan all
-  tokens and re-run on every save; combine into one memo. (`useTranslate.ts:494`.)
+- ~~**Two O(n) token passes**~~ **DONE** (`test/audit-coverage`) — `addablePrimaries` +
+  `reviewablePrimaries` now computed in one pass over the tokens. (`useTranslate.ts`.)
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in

@@ -490,36 +490,24 @@ export function useTranslate(userId: string) {
     [],
   );
 
-  // Distinct CONTENT words whose PRIMARY sense isn't saved yet (the "Add all"
-  // targets, and the text-quiz set). Particles/auxiliaries are excluded via POS.
-  const addablePrimaries: Word[] = useMemo(() => {
-    const result: Word[] = [];
+  // Distinct CONTENT words' PRIMARY senses, partitioned in ONE pass by whether
+  // they're saved: addable (not yet saved — "Add all" + text-quiz targets) vs
+  // reviewable (already saved — re-quiz a studied paragraph via SRS).
+  // Particles/auxiliaries are excluded via POS.
+  const { addablePrimaries, reviewablePrimaries } = useMemo(() => {
+    const addable: Word[] = [];
+    const reviewable: Word[] = [];
     if (para) {
       const seen = new Set<string>();
       for (const tok of para.tokens) {
         if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
         seen.add(tok.text);
         const primary = para.meanings.get(tok.text)?.[0];
-        if (primary && !saved.has(primary.wordId)) result.push(primary);
+        if (!primary) continue;
+        (saved.has(primary.wordId) ? reviewable : addable).push(primary);
       }
     }
-    return result;
-  }, [para, saved]);
-
-  // The inverse of addablePrimaries: distinct content words whose PRIMARY sense IS
-  // already saved — the "Review" set (re-quiz a paragraph you've studied, via SRS).
-  const reviewablePrimaries: Word[] = useMemo(() => {
-    const result: Word[] = [];
-    if (para) {
-      const seen = new Set<string>();
-      for (const tok of para.tokens) {
-        if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
-        seen.add(tok.text);
-        const primary = para.meanings.get(tok.text)?.[0];
-        if (primary && saved.has(primary.wordId)) result.push(primary);
-      }
-    }
-    return result;
+    return { addablePrimaries: addable, reviewablePrimaries: reviewable };
   }, [para, saved]);
 
   return {
