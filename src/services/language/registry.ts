@@ -58,6 +58,17 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
 export const DEFAULT_LANGUAGE: LangCode = "EN";
 
 /**
+ * Default translate directions for a user who hasn't set them on the Profile page
+ * (a fresh guest, whose `users.native_language` / `learning_language` are NULL).
+ * NATIVE = the language you type in (translate SOURCE); LEARNING = the language you
+ * study (TARGET). These are the SINGLE source of truth shared by the Profile page's
+ * dropdowns and the translate hook, so the input language always matches what the
+ * Profile shows — even before the user ever touches the setting.
+ */
+export const DEFAULT_NATIVE_LANGUAGE: LangCode = "EN";
+export const DEFAULT_LEARNING_LANGUAGE: LangCode = "JA";
+
+/**
  * True if `code` is a supported language.
  * OUTPUT: boolean.
  * CONSTRAINTS: case-sensitive exact match against the registry (e.g. "EN").

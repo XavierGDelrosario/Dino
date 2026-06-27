@@ -10,6 +10,7 @@
 // =========================================================
 
 import { createClient } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
 import type { Database } from "../types/database.types";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -29,4 +30,15 @@ if (!url || !anonKey) {
 // unset. This is intentional (a misconfigured app should not boot). It does NOT
 // hurt tests: the unit suite replaces this whole module via `vi.mock`, so the
 // check never runs there.
-export const supabase = createClient<Database>(url, anonKey);
+// On native (Capacitor/iOS), Google OAuth returns via a custom URL scheme that the
+// app intercepts manually (services/nativeAuth) and finishes with
+// exchangeCodeForSession — which needs the PKCE flow. detectSessionInUrl is off
+// there because the WebView loads the bundled app, not a redirect URL, so there's no
+// session in the page URL to auto-parse. The browser build keeps the library
+// defaults (its redirect lands on a real origin the client reads automatically).
+const native = Capacitor.isNativePlatform();
+export const supabase = createClient<Database>(
+  url,
+  anonKey,
+  native ? { auth: { flowType: "pkce", detectSessionInUrl: false } } : undefined,
+);
