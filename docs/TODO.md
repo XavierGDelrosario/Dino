@@ -73,11 +73,38 @@ alerting — none blocking launch.
       future expiry; lapse is by expiry, not deletion) rather than a mutable flag an admin
       can flip off. Server-enforced (service role writes grants; RLS read-own); the active
       entitlement = the union of non-expired grants.
-    - **Error-code log (append-only, viewable from the admin page)** — persist every error
-      with its **date/time, the error code, and the input** that triggered it, queryable +
-      viewable in the admin UI (filter by user / code / date). Append-only audit record so
-      failures (esp. on paid features) are traceable after the fact.
-    Server-enforced admin role (RLS / a `is_admin` claim); never a client-only gate.
+    - **Error log (append-only, viewable + filterable from the admin page)** — persist every
+      error with its **timestamp, error code, the error MESSAGE, the INPUT that triggered it,
+      the user id, and the surface/endpoint** (which feature / edge path / RPC). Queryable in
+      the admin UI (filter by user / code / date / feature). Append-only audit record so
+      failures — especially on paid features — are traceable after the fact.
+    - **Translation / MT call log** — per request: input length, the resolved path
+      (JMdict · WordNet · MT-fallback), cache hit/miss, estimated MT cost, latency, and the
+      (anonymized) user. Persist what the edge already streams as `mt_spend` / request logs so
+      spend + provider mix are QUERYABLE, not just tailed live.
+    - **Quota / limit-hit events** — log every **413** (paragraph over `paragraphCharLimit`)
+      and **429** (per-user `monthlyCharQuota`, the `GLOBAL_MONTHLY_CHAR_QUOTA` aggregate, or
+      `MT_DISABLED`), with WHICH cap and the user — to see who's hitting limits, tune the
+      free-tier caps, and spot abuse before it costs money.
+    - **Auth / account audit** — append-only record of sign-up, guest→account upgrade,
+      sign-in, sign-out, password reset, and account deletion (who + when; never passwords).
+      A security trail for support + abuse investigation.
+    - **Admin-action audit** — every privileged action taken FROM the admin page (grant a
+      feature, edit / re-project the cache, prune, etc.) logged with the acting admin, the
+      target user, the action, and time. The admin surface must audit ITSELF — critical given
+      the grant-only / never-revoke legal rule: you need provable history of what was granted
+      when.
+    - **Content-safety blocks** — when `isExplicitSuggestion` filters a result, log the input
+      + where it fired, so you can monitor false positives/negatives and abuse patterns.
+    - **Edge health / latency** — surface the already-emitted health / request logs (p50/p95
+      latency, status-code mix, 5xx rate) in the admin UI — the in-app half of Tier-2 #7.
+    - **Log retention + PRIVACY discipline** — logs that store raw user INPUT are PII: set a
+      retention window (prune on a schedule, like `idempotency_keys`), gate read access to the
+      admin role (RLS), and prefer anonymized / bucketed user ids in aggregate views (matches
+      the usage-dashboard stance above). Decide per-log how long raw input is kept vs. reduced
+      to a hash/length.
+    Server-enforced admin role (RLS / a `is_admin` claim); never a client-only gate. The
+    logging tables are **service-role-write, admin-read** (clients never write audit rows).
 
 ## 🧪 Pre-publish QA gate — STRICT audit before the first published build
 A hard gate as we approach v1: do this before going public, not after. **All items
@@ -193,21 +220,11 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
 > This is a delivery-scope decision only, NOT architectural: `analyze()` and the
 > services stay platform-neutral, so Android is purely additive later (re-skin the
 > views + the per-platform `analyze()` swap noted in CLAUDE.md `#18`).
-- **Speech-to-text input** — cheapest win. **Web:** Web Speech API (`SpeechRecognition`,
-  `ja-JP`) — free, Chrome-only, no infra, no quota; output feeds the existing
-  `analyze()` → JMdict pipeline. **Native:** free + on-device + offline on BOTH iOS
-  (`Speech`/`SpeechAnalyzer`) and Android (`SpeechRecognizer`, on-device API 33+).
-  On-device isn't billed by duration, so silence-trimming/VAD only matters for the
-  paid Cloud Speech fallback — skip it unless Web Speech proves insufficient.
-- **Camera / OCR (photo → text)** — **Web:** Google **Cloud Vision** `TEXT_DETECTION`
-  / `DOCUMENT_TEXT_DETECTION` — $1.50/1k images, first 1k/mo free (verified 2026-06-25);
-  cost = per-image (cropping cuts bandwidth/latency, NOT the bill — only fewer images
-  does), so gate with a button-triggered capture + a per-user monthly image quota
-  (new nullable `user_limits` column, enforced edge-side like `monthlyCharQuota`). OCR
-  text then flows into the JMdict-first pipeline (mostly free). Tesseract.js is the
-  free-but-rough client-side fallback. **Native:** FREE + on-device — **ML Kit Text
-  Recognition v2** (JA model, works on iOS AND Android = one library) + iOS Vision /
-  Live Text. No Cloud Vision bill on native.
+**Build order (decided 2026-06-27): handwriting → speech-to-text → camera/OCR → AI
+agents → media ingestion.** (Earlier analysis ranked handwriting last; the product
+call is to lead with it as the most distinctive, tactile modality. Order is by
+product priority, not cost — all three input modalities are free on-device native.)
+
 - **Handwriting input ("draw the character")** `[iOS-only first — see scope flag]` —
   finger/stylus stroke-based recognition (Google Translate's "draw" mode), so a learner
   can look up a kanji they can SEE but can't type. Output is plain text → feeds the same
@@ -219,9 +236,25 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
   unofficial `inputtools.google.com` endpoint (free but undocumented/ToS-gray, can
   break) or rasterize the canvas → **Cloud Vision** OCR (reuses the camera/OCR seam +
   quota, but lower quality for a single drawn char). Canvas stroke capture is trivial;
-  *recognition* is the whole problem. **Lowest-priority modality** — typing + IME
-  already works, and the camera/OCR path overlaps (photograph the kanji instead of
-  drawing it). Analyzed 2026-06-26.
+  *recognition* is the whole problem. **Now FIRST in the build order (product decision
+  2026-06-27)** — the earlier read had it lowest-priority (typing + IME already works,
+  and the camera/OCR path overlaps by photographing the kanji), but it leads as the most
+  differentiated modality. Analyzed 2026-06-26.
+- **Speech-to-text input** — cheapest win technically. **Web:** Web Speech API
+  (`SpeechRecognition`, `ja-JP`) — free, Chrome-only, no infra, no quota; output feeds
+  the existing `analyze()` → JMdict pipeline. **Native:** free + on-device + offline on
+  BOTH iOS (`Speech`/`SpeechAnalyzer`) and Android (`SpeechRecognizer`, on-device API
+  33+). On-device isn't billed by duration, so silence-trimming/VAD only matters for the
+  paid Cloud Speech fallback — skip it unless Web Speech proves insufficient.
+- **Camera / OCR (photo → text)** — **Web:** Google **Cloud Vision** `TEXT_DETECTION`
+  / `DOCUMENT_TEXT_DETECTION` — $1.50/1k images, first 1k/mo free (verified 2026-06-25);
+  cost = per-image (cropping cuts bandwidth/latency, NOT the bill — only fewer images
+  does), so gate with a button-triggered capture + a per-user monthly image quota
+  (new nullable `user_limits` column, enforced edge-side like `monthlyCharQuota`). OCR
+  text then flows into the JMdict-first pipeline (mostly free). Tesseract.js is the
+  free-but-rough client-side fallback. **Native:** FREE + on-device — **ML Kit Text
+  Recognition v2** (JA model, works on iOS AND Android = one library) + iOS Vision /
+  Live Text. No Cloud Vision bill on native.
 - **AI agents — generative study aids** `[extends #12 thread E]` — needs an LLM (Claude),
   a NEW cost center: add `ANTHROPIC_API_KEY` as an edge secret + a generations/month
   quota column; same reserve-before-call seam. Cost is tiny (sample sentence ~50–150
@@ -295,6 +328,24 @@ versions. Cross-platform native detail recorded in CLAUDE.md `#18`.
     OpenSubtitles/anime-repos, then Netflix/TikTok/IG.
 
 ## ➕ Open follow-ups (slot into tiers as you go)
+- **Separate test/staging DB for iOS dev-device builds** — `[concern · dev-env]` the iOS
+  build (`scripts/build-ios.sh` / `npm run ios:build`) is hardcoded to **PROD Supabase**
+  because a physical phone can't reach the Mac's local `127.0.0.1` (web dev `npm run dev`
+  is fine — it uses local). So every on-device test sign-up / saved word / review / guest
+  row + any paid-MT translation lands in **prod**. Low-stakes today (pre-launch, trivial
+  data, RLS + `MT_DISABLED`/`GLOBAL_MONTHLY_CHAR_QUOTA` guardrails; only the public
+  publishable key is baked — no secret leaks), but it becomes a real hazard once there are
+  real users (data pollution, paid spend, destructive flows on live accounts). Note this is
+  the app-data half of the same root issue as Tier-2 #5 (forward-only migrations). **Fix:
+  a dedicated staging Supabase project** (free tier) that the dev-device build points at —
+  full isolation, works on a real device, and you can `db reset`/migrate freely. One-time
+  setup: push migrations, run the `ingest:jmdict` + `ingest:wordnet` + frequency ETL, set
+  the edge secrets (`TRANSLATION_API_KEY`, cost caps), a staging Google OAuth client +
+  redirect URLs, then parameterize `build-ios.sh` to take the project ref (prod vs staging).
+  *(Cheaper interim if you don't want a 2nd project yet: the iOS **Simulator** reaches the
+  Mac's `127.0.0.1`, so a local-Supabase build runs isolated there — but the Simulator
+  can't exercise the on-device speech/camera/handwriting features, which is the whole point
+  of the native build, so it's only a stopgap.)*
 - **Legal — Privacy/ToS counsel review** — `[§10]` in-app `/privacy` + `/terms` are
   DRAFTED + footer-linked (real data flows: Supabase storage; Google receives translated
   text; account deletion). Remaining: **counsel review before going truly public**. NOT
