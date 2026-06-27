@@ -44,10 +44,17 @@ const MS_PER_DAY = 86_400_000;
 export function retrievability(
   stability: number | null,
   lastReviewedDate: string | null,
+  originallyTranslatedDate: string | null,
   now: number = Date.now()
 ): number {
-  if (stability == null || stability <= 0 || lastReviewedDate == null) return 0;
-  const elapsedDays = Math.max(0, (now - Date.parse(lastReviewedDate)) / MS_PER_DAY);
+  // A truly cold word (no stability) is most urgent → 0. A SEEDED word (#10
+  // calibration sets stability before any review) decays from its last review, or —
+  // if never reviewed — from when it was first translated, so the seed actually
+  // affects ranking instead of cold-starting at the front. Mirrors review_queue SQL.
+  if (stability == null || stability <= 0) return 0;
+  const anchor = lastReviewedDate ?? originallyTranslatedDate;
+  if (anchor == null) return 1; // seeded but undated → treat as fresh/known
+  const elapsedDays = Math.max(0, (now - Date.parse(anchor)) / MS_PER_DAY);
   return Math.exp(-elapsedDays / stability);
 }
 
@@ -98,20 +105,18 @@ export async function getReviewQueue(params: {
    *  omitted, the whole list/vocabulary is queued as before. */
   userWordIds?: string[];
 }): Promise<ReviewQueueItem[]> {
-  const restrict = params.userWordIds !== undefined ? new Set(params.userWordIds) : null;
   const { data, error } = await supabase.rpc("review_queue", {
     p_user_id: params.userId,
-    // When restricting, pull the whole ranked list so the subset is fully covered,
-    // then filter + slice below (retrievability ranking preserved within the subset).
-    p_limit: restrict ? 100000 : Math.max(0, params.limit),
+    p_limit: Math.max(0, params.limit),
     p_list_id: params.listId ?? undefined,
+    // Restrict to the Lists subset SERVER-side with the real LIMIT — no longer pull
+    // the whole ranked vocabulary (was capped at 100k) to filter + slice in JS.
+    // `undefined` → omitted → no restriction; `[]` → matches nothing → empty queue.
+    p_user_word_ids: params.userWordIds ?? undefined,
   });
   if (error) throw toServiceError(error);
 
-  let rows = (data ?? []) as ReviewQueueRow[];
-  if (restrict) {
-    rows = rows.filter((r) => restrict.has(r.user_word_id)).slice(0, Math.max(0, params.limit));
-  }
+  const rows = (data ?? []) as ReviewQueueRow[];
   return rows.map((r) => ({
     userWordId: r.user_word_id,
     userId: r.user_id,

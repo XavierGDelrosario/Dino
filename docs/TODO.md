@@ -108,33 +108,30 @@ Remaining, prioritized — each has a concrete fix:
   unspent remainder, so the app-wide global-quota lock + hot row is touched once per
   request, not per MT word. (Counter sharding / lock-free atomic UPDATE remains a
   future option if even once-per-request contention bites.)
-- **`review_queue` restrict pulls ≤100k rows** to `.filter()` in JS when Lists passes
-  `userWordIds`. Add a `p_user_word_ids UUID[]` param + `= ANY(…)` server-side with
-  the real LIMIT. (`services/review.ts:106`; init `review_queue`.)
-- **`idempotency_keys` grows unbounded** — no TTL. Add `created_at` + a pg_cron
-  `DELETE … < now() - 7 days`. (`index.ts` storeIdempotent.)
+- ~~**`review_queue` restrict pulls ≤100k rows**~~ **DONE** (`fix/audit-backlog-review-quota`,
+  migration `20260711`) — `review_queue` gained a `p_user_word_ids UUID[]` filter; the
+  Lists subset is filtered + limited SERVER-side (no more 100k pull + JS slice).
+- ~~**`idempotency_keys` grows unbounded**~~ **DONE** (`fix/audit-backlog-review-quota`,
+  migration `20260712`) — index on `created_at` + `prune_idempotency_keys()` (deletes
+  >7d) + a daily pg_cron schedule (non-fatal where cron is unavailable).
 - **EN→JA reverse-gloss heavy query** — regex-over-trigram candidate scan + ~5
   correlated subqueries per candidate; cache-absorbed but CPU-heavy on the full prod
   JMdict. Materialize a flat `gloss_terms(term, entry_id, rank)` (btree on `term`) +
   denormalize each entry's headword/reading/freq. (`20260618_jmdict.sql` EN→JA branch.)
 
 ### Bugs (deferred — low/medium severity)
-- **[MED] Calibration seed has no effect on review-queue ORDERING** — `retrievability()`
-  (and the mirrored `review_queue` SQL) returns 0 whenever `last_reviewed_date IS
-  NULL`, regardless of a seeded `stability`, so a #10-calibrated word still sorts to
-  the very front like a cold-start unknown. The seed only changes the confidence
-  badge, not the scheduling `calibration.ts` promises. Fix: when last_reviewed is NULL
-  but stability is set, decay from `originally_translated_date` instead of returning
-  0, in BOTH places. (`services/review.ts:49`; init `review_queue`.)
-- **[LOW] persist=true MT double-spend on upsert failure** — if the `words` upsert
-  throws after a paid MT call, the 500 returns via `reply` (not `finish`), so the
-  idempotency key isn't stored AND the cache stays empty → a client retry re-reserves
-  + re-calls Google. Store the response (or mark the key) before the 500.
-  (`index.ts` single persist=true path.)
-- **[LOW] client RPCs rely on PUBLIC default EXECUTE** — `save_dictionary_word(s)` /
-  `review_queue` (SECURITY INVOKER, run as `anon`) call `confidence_from_stability`
-  with no explicit GRANT; would break under `REVOKE EXECUTE … FROM PUBLIC`
-  hardening. Add `GRANT EXECUTE … TO anon, authenticated`. (init migration.)
+- ~~**[MED] Calibration seed has no effect on review-queue ORDERING**~~ **DONE**
+  (`fix/audit-backlog-review-quota`, migration `20260711`) — `retrievability()` + the
+  `review_queue` SQL now decay a seeded-but-never-reviewed word from its
+  `originally_translated_date` (only a truly cold word — no stability — scores 0 and
+  leads the queue). Verified: stability 7, translated 3d ago → r=0.651, not 0.
+- ~~**[LOW] persist=true MT double-spend on upsert failure**~~ **DONE**
+  (`fix/audit-backlog-review-quota`) — the post-MT upsert-failure 500 now returns via
+  `finish()`, storing the response under the idempotency key so a retry replays it
+  instead of re-spending.
+- ~~**[LOW] client RPCs rely on PUBLIC default EXECUTE**~~ **DONE**
+  (`fix/audit-backlog-review-quota`, migration `20260711`) — explicit
+  `GRANT EXECUTE ON confidence_from_stability(REAL) TO anon, authenticated`.
 
 ### Test coverage (remaining gaps)
 - **Admin unit test** — `services/admin.ts` mapping (snake→camel, ServiceError on
