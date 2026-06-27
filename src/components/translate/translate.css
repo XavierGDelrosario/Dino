@@ -2,9 +2,11 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  /* The view itself stays at the app shell width — the reader/study section below
-     keeps the skinnier layout. Only the input/output boxes break out wider (see
-     .translate__io). */
+  /* Whole view breaks out to min(810px, 94vw) (~75% of the old 1080) so the reader
+     matches the input/output boxes. Centered via symmetric negative inline margins
+     — NOT transform, which would break the reader hovercard's position:fixed. */
+  width: min(810px, 94vw);
+  margin-inline: calc((100% - min(810px, 94vw)) / 2);
 }
 
 .wordpanel,
@@ -234,12 +236,7 @@
   display: flex;
   gap: 1rem;
   align-items: stretch;
-  /* Only the input/output boxes break out wider than the shell — the reader stays
-     skinnier (its own width, in .translate at shell width). 810px ≈ 75% of the old
-     1080 breakout. Centered via symmetric negative inline margins (NOT transform —
-     keeps the reader hovercard's position:fixed correct). 94vw cap avoids h-scroll. */
-  width: min(810px, 94vw);
-  margin-inline: calc((100% - min(810px, 94vw)) / 2);
+  /* Fills the .translate breakout width (so the boxes and the reader match). */
 }
 
 /* The two side-by-side boxes: input (textarea) and output. */
