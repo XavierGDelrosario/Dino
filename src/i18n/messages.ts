@@ -43,6 +43,8 @@ export const en = {
   "translate.noDomain":
     "No related words at your level — try a longer or more common passage.",
 
+  "translate.clearInput": "Clear input",
+
   // handwriting input (native, on-device)
   "handwriting.draw": "✍️ Draw",
   "handwriting.hide": "✕ Close drawing",
@@ -261,6 +263,8 @@ export const ja: Record<MessageKey, string> = {
   "translate.exploreLoading": "関連語を検索中…",
   "translate.noDomain":
     "あなたのレベルに合う関連語が見つかりません。より長い、または一般的な文章をお試しください。",
+
+  "translate.clearInput": "入力を消去",
 
   // handwriting input (native, on-device)
   "handwriting.draw": "✍️ 手書き",

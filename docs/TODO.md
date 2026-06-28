@@ -260,9 +260,22 @@ local JMdict and split into fixed vs. data-limited:
   shared by 全/善/前). Surface frequency genuinely can't prefer the learner-default
   reading here. Fix needs per-(kanji,reading) frequency (not available from wordfreq)
   OR a small curated default-reading/word override table (こと→事 already wins via uk).
-  → decide: accept as POC limitation, or build the curated override.
-- **Both edge fixes need `supabase functions deploy translate`** to reach prod (carries
-  the verify_jwt pin + MAX_INPUT_CHARS too). No re-projection needed.
+  → **TODO: build the curated default-reading/word override** (decision: do it, not just accept).
+- **Both edge fixes DEPLOYED to prod 2026-06-28** (`functions deploy translate`; carried the
+  verify_jwt pin + MAX_INPUT_CHARS too). Verified live: 顔→かお, こと→事. No re-projection needed.
+
+**Troublemaker list (researched 2026-06-28 against full local JMdict — same root cause).**
+Candidates for the curated override; **severe** = an obscure reading/word beats an everyday one:
+- **SEVERE (obscure wins):** ところ → 野老 (rare yam!) instead of 所 "place"; はし → 階/きざはし
+  (archaic "stairs") instead of 橋/箸/端; かみ → 上 "upper reaches" instead of 紙/神/髪.
+- **Wrong reading (kanji search):** 前 → ぜん (want まえ); 形 → なり (want かたち); 市 → いち (want
+  し "city"); 主 → おも (want ぬし/しゅ); 重 → 主[おも] (want 重い "heavy"); 角 → かく (want かど "corner").
+- **Wrong word (kana search):** もの → 者 "person" (want 物 "thing"); かえる → 変える (want 帰る
+  "return" surfaced too).
+- **Borderline / watch (acceptable today):** 後→あと, 方→かた, 生→なま, あつい→熱い (vs 暑い), 月→つき.
+- Pattern confirmed: surface frequency is polluted by the kanji's OTHER reading (者←しゃ, 市←し,
+  ぜん←全/善) OR the common word has missing/odd freq letting an obscure homophone win
+  (ところ→野老). The override table should cover at least the SEVERE + wrong-reading rows.
 
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in

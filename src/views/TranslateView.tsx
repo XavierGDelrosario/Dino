@@ -15,7 +15,7 @@ import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
-import { PencilIcon, MicIcon, StopIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon } from "../components/common/icons";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
 import { targetOptions, AUTO_DETECT } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
@@ -134,8 +134,18 @@ export function TranslateView({ userId }: { userId: string }) {
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(speechAvailable || hwAvailable) && (
+          {(t.input.trim() !== "" || speechAvailable || hwAvailable) && (
             <div className="io__tools">
+              {t.input.trim() !== "" && (
+                <button
+                  className="io__tool"
+                  onClick={() => t.setInput("")}
+                  aria-label={tr("translate.clearInput")}
+                  title={tr("translate.clearInput")}
+                >
+                  <XIcon />
+                </button>
+              )}
               {hwAvailable && (
                 <button
                   className="io__tool"
