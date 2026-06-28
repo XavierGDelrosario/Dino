@@ -517,17 +517,32 @@ async function fetchVerified(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.eq.${q},input_reading.eq.${q}`)
-    // Primary sense first, deterministically: jmdict_sense_pos is 0 for the
-    // primary JA→EN sense / best-ranked EN→JA entry (nulls last for MT rows).
+    // Order to MATCH jmdict_lookup's ranking (frequency DESC, then entry, then
+    // sense), so the cached primary equals the lookup's primary even for a word
+    // with several ENTRIES (顔 → かお-entry before かんばせ-entry). Ordering by
+    // sense_pos ALONE scrambled entries that tie at sense 0 (the 顔/かんばせ bug).
+    .order("frequency", { ascending: false, nullsFirst: false })
+    .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as WordRow[];
 }
 
-/** Primary sense first: jmdict_sense_pos asc, NULLs (MT rows) last. Mirrors
- *  fetchVerified's ORDER BY, for rows returned inline by upsert().select(). */
+/** Ranking order, mirroring fetchVerified's ORDER BY (frequency DESC NULLS LAST,
+ *  then jmdict_entry_id ASC, then jmdict_sense_pos ASC NULLS LAST), for rows
+ *  returned inline by upsert().select(). Keeps the primary consistent across
+ *  multi-entry words (顔 → かお before かんばせ) instead of scrambling by sense alone. */
 function sortBySensePos(rows: WordRow[]): WordRow[] {
   return [...rows].sort((a, b) => {
+    // frequency DESC, NULLs last
+    if (a.frequency == null !== (b.frequency == null)) return a.frequency == null ? 1 : -1;
+    if (a.frequency != null && b.frequency != null && a.frequency !== b.frequency) {
+      return b.frequency - a.frequency;
+    }
+    // jmdict_entry_id ASC (text; ent_seq are fixed-width numeric strings)
+    const ea = a.jmdict_entry_id ?? "", eb = b.jmdict_entry_id ?? "";
+    if (ea !== eb) return ea < eb ? -1 : 1;
+    // jmdict_sense_pos ASC, NULLs (MT rows) last
     if (a.jmdict_sense_pos == null) return b.jmdict_sense_pos == null ? 0 : 1;
     if (b.jmdict_sense_pos == null) return -1;
     return a.jmdict_sense_pos - b.jmdict_sense_pos;
@@ -554,6 +569,10 @@ async function fetchVerifiedMany(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.in.(${list}),input_reading.in.(${list})`)
+    // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
+    // words keep the lookup's primary on the cache read.
+    .order("frequency", { ascending: false, nullsFirst: false })
+    .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as WordRow[];
@@ -860,9 +879,14 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // 1. Verified-cache check (all senses) -> no JMdict re-query. Words only;
   //    display-only paragraph translations skip the cache entirely.
+  //    Only an EXACT-HEADWORD match is an authoritative, complete hit. A
+  //    reading-only match (e.g. こと matching the cached 琴 via input_reading) may
+  //    be PARTIAL — other homophones (事) might never have been cached — so fall
+  //    through to the full lookup, which projects the complete set (after which the
+  //    exact-headword row exists and future lookups hit the cache).
   if (persist) {
     const cached = await fetchVerified(supabase, input, sourceLang, targetLang);
-    if (cached.length > 0) return reply(respondWords(cached));
+    if (cached.some((r) => r.input === input)) return reply(respondWords(cached));
   }
 
   // 2. Resolve senses: JMdict first, then the Google MT fallback.
