@@ -16,8 +16,12 @@ fi
 set -a; source .env.deploy; set +a
 export SUPABASE_ACCESS_TOKEN
 
+# raw_decode parses just the leading JSON value — tolerant of a trailing line the
+# CLI appends to stdout (a PostHog shutdown error, or an update notice). The `|| true`
+# stops `set -e`/pipefail aborting the script when the CLI exits non-zero despite
+# having printed the key; the empty-check below is the real guard.
 PUB=$(./node_modules/.bin/supabase projects api-keys --project-ref "$SUPABASE_PROJECT_REF" 2>/dev/null \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(next(k['api_key'] for k in d['keys'] if k.get('type')=='publishable'))")
+  | python3 -c "import sys,json; d=json.JSONDecoder().raw_decode(sys.stdin.read().lstrip())[0]; print(next(k['api_key'] for k in d['keys'] if k.get('type')=='publishable'))" 2>/dev/null || true)
 if [[ -z "${PUB:-}" ]]; then echo "✗ could not resolve the prod publishable key" >&2; exit 1; fi
 
 echo "→ building web app against prod (https://${SUPABASE_PROJECT_REF}.supabase.co)…"
