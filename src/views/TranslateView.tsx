@@ -15,7 +15,8 @@ import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
-import { PencilIcon, MicIcon, StopIcon, XIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { isOcrAvailable, captureText } from "../services/ocr";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
 import { targetOptions, AUTO_DETECT } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
@@ -67,6 +68,32 @@ export function TranslateView({ userId }: { userId: string }) {
       );
     } finally {
       setListening(false);
+    }
+  };
+
+  // Camera OCR (Mode A): photo → recognized text in reading order → translate it
+  // (straight into the paragraph reader). Native-only; hidden where unavailable.
+  const [ocrAvailable, setOcrAvailable] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  useEffect(() => {
+    void isOcrAvailable(recognitionLang).then(setOcrAvailable);
+  }, [recognitionLang]);
+  const onCamera = async () => {
+    setOcrError(null);
+    setOcrBusy(true);
+    try {
+      const text = await captureText({ lang: recognitionLang });
+      if (text.trim()) {
+        t.setInput(text);
+        await t.submit({ text });
+      } else {
+        setOcrError(tr("ocr.noText"));
+      }
+    } catch {
+      setOcrError(tr("ocr.error"));
+    } finally {
+      setOcrBusy(false);
     }
   };
 
@@ -134,7 +161,7 @@ export function TranslateView({ userId }: { userId: string }) {
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(t.input.trim() !== "" || speechAvailable || hwAvailable) && (
+          {(t.input.trim() !== "" || speechAvailable || hwAvailable || ocrAvailable) && (
             <div className="io__tools">
               {t.input.trim() !== "" && (
                 <button
@@ -166,6 +193,17 @@ export function TranslateView({ userId }: { userId: string }) {
                   title={tr(listening ? "speech.stop" : "speech.start")}
                 >
                   {listening ? <StopIcon /> : <MicIcon />}
+                </button>
+              )}
+              {ocrAvailable && (
+                <button
+                  className="io__tool"
+                  onClick={onCamera}
+                  disabled={ocrBusy}
+                  aria-label={tr("ocr.capture")}
+                  title={tr("ocr.capture")}
+                >
+                  {ocrBusy ? "…" : <CameraIcon />}
                 </button>
               )}
             </div>
@@ -222,6 +260,7 @@ export function TranslateView({ userId }: { userId: string }) {
 
       {t.error && <pre className="review__error">{t.error}</pre>}
       {speechError && <pre className="review__error">{speechError}</pre>}
+      {ocrError && <pre className="review__error">{ocrError}</pre>}
 
       {/* The translation shows above as soon as it's ready; the word-by-word reader
           (kuromoji + lookups) streams in after — spinner while it loads. */}

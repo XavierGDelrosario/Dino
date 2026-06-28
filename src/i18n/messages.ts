@@ -64,6 +64,11 @@ export const en = {
   "speech.denied": "Microphone access denied. Enable it in Settings.",
   "speech.error": "Couldn’t capture speech. Try again.",
 
+  // camera OCR (native, on-device)
+  "ocr.capture": "Scan text from a photo",
+  "ocr.noText": "No text found in the photo.",
+  "ocr.error": "Couldn’t read the photo. Try again.",
+
   // generic actions
   "common.add": "Add",
   "common.cancel": "Cancel",
@@ -284,6 +289,11 @@ export const ja: Record<MessageKey, string> = {
   "speech.stop": "録音を停止",
   "speech.denied": "マイクへのアクセスが拒否されました。設定で有効にしてください。",
   "speech.error": "音声を認識できませんでした。もう一度お試しください。",
+
+  // camera OCR (native, on-device)
+  "ocr.capture": "写真から文字を読み取る",
+  "ocr.noText": "写真から文字が見つかりませんでした。",
+  "ocr.error": "写真を読み取れませんでした。もう一度お試しください。",
 
   "common.add": "追加",
   "common.cancel": "キャンセル",

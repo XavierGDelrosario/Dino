@@ -16,5 +16,6 @@ import Capacitor
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(DigitalInkPlugin())
+        bridge?.registerPluginInstance(TextOcrPlugin())
     }
 }
