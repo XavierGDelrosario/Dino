@@ -99,11 +99,14 @@ try {
   await page.waitForSelector("textarea", { timeout: 30000 });
   await page.waitForTimeout(4000);
 
-  // 1. Drive the paragraph reader through REAL kuromoji, using the DEFAULT direction
-  // (source=Detect, target=JA, learning=JA) — i.e. a fresh guest studying Japanese.
-  // This guards TWO regressions at once: the kuromoji loader hang AND the
-  // input==output short-circuit wrongly echoing the default study flow (source JA ==
-  // target JA), which must still render the reader because it's the learning language.
+  // 1. Drive the paragraph reader through REAL kuromoji. A fresh guest's OUTPUT
+  // defaults to the learning language (JA), so typing Japanese is input==output and
+  // intentionally ECHOES with no reader. To exercise the kuromoji reader we study
+  // Japanese with the explanation in English: set the target/output (the 2nd langbar
+  // select) to English, then type Japanese → input JA ≠ output EN, so the reader
+  // studies the typed Japanese. This guards the kuromoji loader hang (the regression
+  // that shipped: a bad bundle makes analyze() hang and the reader never renders).
+  await page.locator(".langbar select").nth(1).selectOption("EN");
   const ta = page.locator("textarea").first();
   await ta.click();
   await ta.pressSequentially("これは本です", { delay: 15 });
