@@ -23,6 +23,7 @@
     "db:restore-test": "bash scripts/restore-test.sh",
     "gen:types": "supabase gen types typescript --local > src/types/database.types.ts",
     "test:e2e": "bash scripts/e2e.sh",
+    "smoke:prod": "node scripts/preflight-smoke.mjs",
     "ios:build": "bash scripts/build-ios.sh",
     "ios:sync": "cap sync ios",
     "ios:open": "cap open ios"
