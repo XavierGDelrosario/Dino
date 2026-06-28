@@ -379,6 +379,10 @@ async function callTranslationProvider(
 // defaults in sync with DEFAULT_LIMITS in services/entitlements.ts.
 const DEFAULT_PARAGRAPH_CHAR_LIMIT = 2000;
 const DEFAULT_MONTHLY_CHAR_QUOTA = 450_000;
+// Hard ceiling enforced BEFORE any dictionary lookup (the per-user paragraph limit
+// only gates the paid MT path), so a pathological input can't hit the unmetered
+// JMdict/WordNet scan. Generous — well above any per-user paragraph limit.
+const MAX_INPUT_CHARS = 20_000;
 
 // userIdFromAuth(authHeader) is in _lib.ts (JWT `sub`, or null).
 
@@ -638,7 +642,8 @@ async function resolveBatch(
   const seen = new Set<string>();
   for (const raw of rawInputs) {
     const v = String(raw ?? "").trim().normalize("NFC");
-    if (v && !seen.has(v)) { seen.add(v); inputs.push(v); }
+    // Same hard cap as the single path — skip pathological items before any lookup.
+    if (v && v.length <= MAX_INPUT_CHARS && !seen.has(v)) { seen.add(v); inputs.push(v); }
   }
   if (inputs.length === 0) return [];
 
@@ -830,6 +835,13 @@ async function handleRequest(req: Request): Promise<Response> {
     typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : null;
   if (!input) {
     return reply({ error: "input, sourceLang and targetLang are required" }, 400);
+  }
+  // Hard cap BEFORE the cache/dictionary lookup — bounds the unmetered scan path.
+  if (input.length > MAX_INPUT_CHARS) {
+    return reply(
+      { error: `Input exceeds the ${MAX_INPUT_CHARS}-character limit`, limit: MAX_INPUT_CHARS, length: input.length },
+      413,
+    );
   }
 
   // 0. Idempotency replay: a retried PAID request already has its response stored

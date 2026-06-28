@@ -390,6 +390,16 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+[functions.translate]
+# Gateway verifies the JWT before the function runs. Pinned true (the function only
+# DECODES the sub for attribution; it does not verify the signature itself), so a
+# forged token can't attribute paid MT spend to a victim. Guests are real
+# anonymous-auth users with valid tokens, so this does NOT block guest use.
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
