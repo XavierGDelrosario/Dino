@@ -317,6 +317,11 @@
   .translate__io {
     flex-direction: column;
   }
+  /* Taller input/output boxes on mobile (1.5× the 8rem default) — more room to
+     read/edit on a narrow screen. */
+  .translate__box {
+    min-height: 12rem;
+  }
 }
 
 /* auto-ish textarea for the unified word/sentence input */
