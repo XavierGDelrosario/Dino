@@ -14,6 +14,10 @@ import { errorMessage as message } from "../lib/errorMessage";
 export type ReviewStatus = "loading" | "reviewing" | "empty" | "done" | "error";
 
 const DEFAULT_LIMIT = 20;
+/** Ceiling for the filtered-subset path so a huge sub-list can't spawn an
+ *  unbounded flashcard session (the general queue is already capped at
+ *  DEFAULT_LIMIT). */
+const MAX_SUBSET_LIMIT = 100;
 
 /** Fisher–Yates shuffle (copy) — quiz order is randomized so the same weakest
  *  words don't always appear in the same sequence. getReviewQueue still SELECTS
@@ -30,8 +34,10 @@ function shuffle<T>(arr: T[]): T[] {
 export function useReview(
   userId: string,
   listId: string | null = null,
-  limit: number = DEFAULT_LIMIT,
-  /** When set, quiz EXACTLY these words (the Lists view's filtered subset). */
+  limit?: number,
+  /** When set, quiz EXACTLY these words — all of them up to MAX_SUBSET_LIMIT (the
+   *  Lists view's filtered subset, which may exceed DEFAULT_LIMIT), not just the
+   *  weakest N. */
   userWordIds?: string[]
 ) {
   const [queue, setQueue] = useState<ReviewQueueItem[]>([]);
@@ -45,7 +51,12 @@ export function useReview(
   const load = useCallback(() => {
     setStatus("loading");
     setError(null);
-    getReviewQueue({ userId, listId, limit, userWordIds })
+    // A filtered subset = quiz all of it, capped at MAX_SUBSET_LIMIT (the weakest
+    // that many, since the queue is ranked least-confident first); the general
+    // queue (no subset) = the weakest DEFAULT_LIMIT. An explicit `limit` overrides.
+    const effectiveLimit =
+      limit ?? Math.min(userWordIds?.length ?? DEFAULT_LIMIT, MAX_SUBSET_LIMIT);
+    getReviewQueue({ userId, listId, limit: effectiveLimit, userWordIds })
       .then((q) => {
         setQueue(shuffle(q));
         setIndex(0);
