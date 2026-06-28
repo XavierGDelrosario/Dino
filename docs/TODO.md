@@ -352,6 +352,23 @@ product priority, not cost — all three input modalities are free on-device nat
   free-but-rough client-side fallback. **Native:** FREE + on-device — **ML Kit Text
   Recognition v2** (JA model, works on iOS AND Android = one library) + iOS Vision /
   Live Text. No Cloud Vision bill on native.
+  - **Mode A (photo → reading-order text → reader) — DONE (iOS, 2026-06-28)** via
+    Apple Vision (`TextOcrPlugin.swift`, built-in/free/no pod) behind the `services/ocr`
+    seam; camera button fills the input + submits into the existing paragraph reader.
+    Per-line geometry (boxes) is captured already (for Mode B). Needs device verify.
+    Follow-ups:
+    - **Vertical reading order (縦書き) — phase 2.** Mode A's row-bucket sort is
+      HORIZONTAL only; vertical (manga/novels: columns top→bottom, RIGHT→left) would
+      scramble order. Detect orientation by block geometry (lines taller-than-wide,
+      stacked horizontally) → sort columns by x DESC, within column y ASC. Words still
+      recognize meanwhile; only the paragraph order is off. (`services/ocr/readingOrder.ts`.)
+    - **Mode B — image overlay (AR-style).** Keep the captured photo and overlay
+      translations/word-info on each recognized block (we already return boxes +
+      image size). Tier 1: tappable highlight/translation chips positioned at each
+      box (scale image→display coords; handle EXIF rotation) → tap opens the word in
+      the reader. Tier 2: "replace in place" (sample bg colour, draw fitted
+      translation) like Google Translate — bigger, polish-only. New view consuming
+      `captureResult()`'s `OcrResult`; no re-plumbing needed (geometry already flows).
 - **AI agents — generative study aids** `[extends #12 thread E]` — needs an LLM (Claude),
   a NEW cost center: add `ANTHROPIC_API_KEY` as an edge secret + a generations/month
   quota column; same reserve-before-call seam. Cost is tiny (sample sentence ~50–150
