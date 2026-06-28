@@ -31,7 +31,11 @@ body {
 .app {
   max-width: 540px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 5rem; /* generous bottom padding so content clears the edge */
+  /* Respect iOS safe areas so the header clears the status bar / Dynamic Island
+     (env() is 0 on web / non-notched devices, so no visual change there). */
+  padding:
+    calc(1.5rem + env(safe-area-inset-top)) 1rem
+    calc(5rem + env(safe-area-inset-bottom));
 }
 
 .app__header {

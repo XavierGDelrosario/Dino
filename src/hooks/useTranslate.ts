@@ -28,6 +28,7 @@ import {
   resolveSourceLanguage,
   AUTO_DETECT,
   SUPPORTED_LANGUAGES,
+  DEFAULT_LEARNING_LANGUAGE,
   type LangCode,
   type SourceSelection,
 } from "../services/language";
@@ -38,8 +39,13 @@ export type TranslateMode = "word" | "paragraph";
 export type TranslateStatus = "idle" | "loading" | "done" | "error";
 
 export function useTranslate(userId: string) {
+  // SOURCE defaults to auto-detect for a GUEST; the profile effect below pins it to
+  // the user's NATIVE language once their prefs load (a logged-in user types in their
+  // own language). TARGET = the language you translate INTO (= what you're learning),
+  // so typing your native language yields the learning-language reader; meanings are
+  // explained in the native language. Both stay freely changeable in the LangBar.
   const [source, setSource] = useState<SourceSelection>(AUTO_DETECT);
-  const [target, setTarget] = useState<LangCode>("JA");
+  const [target, setTarget] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
@@ -50,7 +56,7 @@ export function useTranslate(userId: string) {
   // else the OUTPUT (so typing English while learning JA studies the Japanese
   // translation's words, not the English input). Independent of the translate
   // direction; swapping languages doesn't change what you're learning.
-  const [learning, setLearning] = useState<LangCode>("JA");
+  const [learning, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
   // The plain translation shown in the output box (the other language's rendering
   // of what you typed). Set by submit; distinct from the study data.
   const [output, setOutput] = useState("");
@@ -97,14 +103,17 @@ export function useTranslate(userId: string) {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
-  // Default the directions from the user's profile prefs (Profile page): native →
-  // translation OUTPUT (target), learning → "I'm learning"/input. Only applied when
-  // set (a fresh guest keeps the JA defaults). Runs once per user.
+  // Default the directions from the user's profile prefs (Profile page). SOURCE pins
+  // to the user's NATIVE language ONLY when they've set one — a logged-in user types
+  // in their own language; a GUEST has no native pref, so source stays on auto-detect
+  // and follows whatever they type. TARGET/LEARNING follow the learning language so
+  // typing the native language yields the learning-language reader.
   useEffect(() => {
     getUserProfile(userId).then((p) => {
-      if (!p) return;
-      if (p.nativeLanguage) setTarget(p.nativeLanguage as LangCode);
-      if (p.learningLanguage) setLearning(p.learningLanguage as LangCode);
+      const learn = (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode;
+      if (p?.nativeLanguage) setSource(p.nativeLanguage as LangCode);
+      setTarget(learn);
+      setLearning(learn);
     }).catch((e) => console.warn("useTranslate: failed to load language prefs", e));
   }, [userId]);
 
@@ -142,11 +151,10 @@ export function useTranslate(userId: string) {
       const resolvedSource = resolveSourceLanguage(text, src);
 
       // Input language == output language → nothing to TRANSLATE: echo the input,
-      // no API calls, no reader. BUT never short-circuit the learning language —
-      // studying it (the reader) is the point even when source==target==learning
-      // (the default JA→JA case), and the type-native-to-study-its-translation flow
-      // also lands here. Only echo when neither side is the learning language.
-      if (resolvedSource === tgt && resolvedSource !== learning) {
+      // make no API calls and render no reader. (You study by typing the LEARNING
+      // language while the output sits on your native/explanation language, so the
+      // input and output sides differ; when they're the same there's nothing to do.)
+      if (resolvedSource === tgt) {
         setOutput(text);
         setMeanings([]);
         setPara(null);

@@ -126,6 +126,10 @@ lockdown() {
   echo "==> Locking CORS to $url"
   sb secrets set "ALLOWED_ORIGINS=$url"
   echo "    Done. Also set this URL as Site URL in dashboard → Authentication → URL Configuration."
+  echo
+  echo "    Verify CORS + the live invoke path (preflight + authed POST), e.g.:"
+  echo "      VITE_SUPABASE_URL=https://\$SUPABASE_PROJECT_REF.supabase.co \\"
+  echo "      VITE_SUPABASE_ANON_KEY=<anon> npm run smoke:prod -- $url"
 }
 
 case "${1:-}" in

@@ -4,10 +4,11 @@
 // account); app language is the client-side i18n locale.
 import { useEffect, useState } from "react";
 import { getUserProfile, updateUserLanguages } from "../services/session";
-import { targetOptions } from "../services/language";
+import { targetOptions, DEFAULT_NATIVE_LANGUAGE, DEFAULT_LEARNING_LANGUAGE } from "../services/language";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, LOCALES, type Locale } from "../i18n";
 import { Link } from "../router";
+import { AttributionFooter } from "../components/common/AttributionFooter";
 import "../components/common/common.css";
 
 export function ProfilePage({
@@ -21,8 +22,8 @@ export function ProfilePage({
 }) {
   const { t, locale, setLocale } = useI18n();
   const [created, setCreated] = useState<string | null>(null);
-  const [native, setNative] = useState<string>("EN");
-  const [learning, setLearning] = useState<string>("JA");
+  const [native, setNative] = useState<string>(DEFAULT_NATIVE_LANGUAGE);
+  const [learning, setLearning] = useState<string>(DEFAULT_LEARNING_LANGUAGE);
   const [err, setErr] = useState<string | null>(null);
   const langs = targetOptions();
 
@@ -99,6 +100,7 @@ export function ProfilePage({
           </Link>
         )}
       </div>
+      <AttributionFooter />
     </section>
   );
 }

@@ -234,6 +234,151 @@ export function mergeProviderResults(
   return merged.map((r, i) => ({ ...r, sensePos: i }));
 }
 
+// ── Per-language lookup seams ──────────────────────────────────────────────
+// Each language brings its OWN input/output concerns (EN: plural/tense lemmatization;
+// JA: kana/kanji output; ZH: Han; KO: Hangul). These two registries keep that knowledge
+// PLUGGABLE — adding a language is a new map/switch entry, NOT a new hard-coded branch
+// in resolveDictionary. Mirrors the client-side language/registry.ts + senses/difficulty
+// seams (the edge runs in Deno and can't import those, so it keeps its own copy here).
+
+// OUTPUT guard, keyed on TARGET language → the script a result's `translation` MUST
+// contain to be a real word in that language. A reverse-gloss lookup can drag in
+// off-script noise (romaji ＰＥＮ/ＢＩＳ for a JA target); drop it. A target with no
+// entry (e.g. EN) imposes no constraint → identity pass.
+const TARGET_SCRIPT: Record<string, RegExp> = {
+  JA: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+  // ZH: /\p{Script=Han}/u,
+  // KO: /[\p{Script=Hangul}\p{Script=Han}]/u,
+};
+
+/**
+ * Drop results whose `translation` isn't in the TARGET language's script. Real
+ * loanwords are stored in-script (JA katakana ペン → kept); romaji/initialism noise
+ * (ＰＥＮ, ＢＩＳ that a gloss merely MENTIONS) is removed. No-op for targets without a
+ * TARGET_SCRIPT entry. Mirrors the reader's no-Japanese-script rule for QR/URL.
+ */
+export function dropOffScriptTranslations(
+  results: ProviderResult[],
+  targetLang: string,
+): ProviderResult[] {
+  const script = TARGET_SCRIPT[targetLang.toUpperCase()];
+  return script ? results.filter((r) => script.test(r.translation)) : results;
+}
+
+// Irregular English inflections the regular detachment rules below can't derive —
+// strong-verb past/participles + irregular plurals. Common forms only; the long tail
+// lives in Princeton WordNet's verb.exc/noun.exc (the eventual ingest upgrade). A key
+// that is ALSO a valid lemma (saw, rose, left, felt) is harmless: resolveDictionary
+// tries the SURFACE form first, so the direct sense wins before this map is consulted.
+const EN_IRREGULARS: Record<string, string> = {
+  // be / have / do
+  was: "be", were: "be", been: "be", am: "be", are: "be", is: "be",
+  had: "have", has: "have", did: "do", does: "do", done: "do",
+  // high-frequency strong verbs (past, past participle → base)
+  went: "go", gone: "go", got: "get", gotten: "get", made: "make", knew: "know",
+  known: "know", thought: "think", took: "take", taken: "take", saw: "see",
+  seen: "see", came: "come", gave: "give", given: "give", found: "find",
+  told: "tell", became: "become", left: "leave", felt: "feel", brought: "bring",
+  began: "begin", begun: "begin", kept: "keep", held: "hold", wrote: "write",
+  written: "write", stood: "stand", heard: "hear", meant: "mean", met: "meet",
+  ran: "run", paid: "pay", sat: "sit", spoke: "speak", spoken: "speak", led: "lead",
+  grew: "grow", grown: "grow", lost: "lose", fell: "fall", fallen: "fall",
+  sent: "send", built: "build", understood: "understand", drew: "draw",
+  drawn: "draw", broke: "break", broken: "break", spent: "spend", rose: "rise",
+  risen: "rise", drove: "drive", driven: "drive", bought: "buy", wore: "wear",
+  worn: "wear", chose: "choose", chosen: "choose", sought: "seek", threw: "throw",
+  thrown: "throw", caught: "catch", dealt: "deal", won: "win", forgot: "forget",
+  forgotten: "forget", ate: "eat", eaten: "eat", taught: "teach", sold: "sell",
+  flew: "fly", flown: "fly", fought: "fight", hid: "hide", hidden: "hide",
+  // irregular plurals (plural → singular)
+  men: "man", women: "woman", children: "child", people: "person", feet: "foot",
+  teeth: "tooth", geese: "goose", mice: "mouse", oxen: "ox",
+};
+
+// morphy-style regular detachment rules: each yields candidate base forms by suffix.
+// Over-generates on purpose — the WordNet lookup VERIFIES each candidate, so a bogus
+// one (e.g. "buses"→"buse") simply returns no rows and is skipped.
+function regularLemmaCandidates(w: string): string[] {
+  const out: string[] = [];
+  const add = (s: string) => { if (s.length >= 2 && s !== w) out.push(s); };
+  if (w.endsWith("ies") && w.length > 4) add(w.slice(0, -3) + "y"); // studies→study
+  if (w.endsWith("ied") && w.length > 4) add(w.slice(0, -3) + "y"); // studied→study
+  if (w.endsWith("ves") && w.length > 3) { add(w.slice(0, -3) + "f"); add(w.slice(0, -3) + "fe"); } // leaves→leaf, knives→knife
+  if (w.endsWith("es") && w.length > 3) add(w.slice(0, -2)); // boxes→box, goes→go
+  if (w.endsWith("s") && !w.endsWith("ss") && w.length > 2) add(w.slice(0, -1)); // cats→cat
+  if (w.endsWith("ing") && w.length > 4) { add(w.slice(0, -3)); add(w.slice(0, -3) + "e"); } // walking→walk, making→make
+  if (w.endsWith("ed") && w.length > 3) { add(w.slice(0, -2)); add(w.slice(0, -1)); } // walked→walk, liked→like
+  if (w.endsWith("er") && w.length > 3) { add(w.slice(0, -2)); add(w.slice(0, -1)); } // smaller→small, larger→large
+  if (w.endsWith("est") && w.length > 4) { add(w.slice(0, -3)); add(w.slice(0, -3) + "e"); } // smallest→small, largest→large
+  // Collapse a doubled final consonant before -ing/-ed/-er/-est (running→run, stopped→stop).
+  for (const suf of ["ing", "ed", "er", "est"]) {
+    if (w.endsWith(suf) && w.length > suf.length + 2) {
+      const stem = w.slice(0, -suf.length);
+      if (/([bcdfghjklmnpqrstvwxz])\1$/.test(stem)) add(stem.slice(0, -1));
+    }
+  }
+  return out;
+}
+
+/**
+ * Lemma candidates for a query, keyed on SOURCE language — the per-language input seam.
+ * Returns the SURFACE form first (morphy tries it before lemmatizing), then ordered
+ * base-form candidates. The caller looks each up IN ORDER and keeps the first that
+ * resolves, so the dictionary itself verifies the lemma (no separate lemma index).
+ *   EN — WordNet-morphy: irregular map + regular detachment rules. Covers cats→cat,
+ *        ran→run, studies→study, running→run, mice→mouse. Long-tail irregulars are the
+ *        Princeton verb.exc/noun.exc upgrade (see docs/TODO.md).
+ *   other — identity ([input]); JA arrives pre-lemmatized from kuromoji.
+ */
+export function lemmaCandidates(input: string, sourceLang: string): string[] {
+  if (sourceLang.toUpperCase() !== "EN") return [input];
+  const w = input.toLowerCase();
+  const cands = [input];
+  const seen = new Set([w]);
+  const push = (c: string) => {
+    const k = c.toLowerCase();
+    if (!seen.has(k)) { seen.add(k); cands.push(c); }
+  };
+  if (EN_IRREGULARS[w]) push(EN_IRREGULARS[w]);
+  for (const c of regularLemmaCandidates(w)) push(c);
+  return cands;
+}
+
+/**
+ * BATCH lemmatization resolver — the paragraph/word-by-word counterpart of the
+ * single-word candidate loop. Both WordNet and the gloss fallback are queried ONCE over
+ * the UNION of every token's lemma candidates (`*ByCand` are keyed by candidate); this
+ * picks each token's senses WITHOUT another round-trip:
+ *   - winning lemma = the first of the token's candidates that WordNet resolves (after
+ *     the off-script filter), else the surface form;
+ *   - the gloss fallback uses THAT lemma;
+ *   - results are re-keyed to the ORIGINAL token (the reader looks them up by surface).
+ * Tokens with no senses are omitted. Mirrors single-word resolveDictionary exactly.
+ */
+export function resolvePerInputWithCandidates(
+  inputs: string[],
+  candsByInput: Map<string, string[]>,
+  wnByCand: Map<string, ProviderResult[]>,
+  glossByCand: Map<string, ProviderResult[]>,
+  targetLang: string,
+  limit: number,
+): Map<string, ProviderResult[]> {
+  const out = new Map<string, ProviderResult[]>();
+  for (const input of inputs) {
+    const cands = candsByInput.get(input) ?? [input];
+    let wn: ProviderResult[] = [];
+    let lemma = input;
+    for (const c of cands) {
+      const hit = dropOffScriptTranslations(wnByCand.get(c) ?? [], targetLang);
+      if (hit.length > 0) { wn = hit; lemma = c; break; }
+    }
+    const gloss = dropOffScriptTranslations(glossByCand.get(lemma) ?? [], targetLang);
+    const merged = mergeProviderResults(wn, gloss, limit);
+    if (merged.length > 0) out.set(input, merged);
+  }
+  return out;
+}
+
 /**
  * Assign verified rows back to the SEARCH terms that asked for them, the same way
  * the single-word cache read matches: a row belongs to a term when the term equals

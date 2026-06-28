@@ -14,8 +14,13 @@ import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
+import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { isOcrAvailable, captureText } from "../services/ocr";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
-import { targetOptions } from "../services/language";
+import { targetOptions, AUTO_DETECT } from "../services/language";
+import { isHandwritingAvailable } from "../services/handwriting";
+import { isSpeechAvailable, startSpeech, stopSpeech, SpeechPermissionError } from "../services/speech";
 import { useI18n } from "../i18n";
 import type { Word } from "../services/words/repository";
 import "../components/translate/translate.css";
@@ -26,6 +31,74 @@ export function TranslateView({ userId }: { userId: string }) {
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ words: Word[]; mode: QuizMode } | null>(null);
   const [domainNote, setDomainNote] = useState<string | null>(null);
+
+  // Handwriting input (native on-device recognizer): show the draw affordance only
+  // where a backend is usable (iOS ML Kit today; hidden on web/desktop). Recognize
+  // in the SOURCE language — the drawing becomes input text — falling back to the
+  // language being learned when source is auto-detect (nothing to detect yet).
+  const recognitionLang = t.source === AUTO_DETECT ? t.learning : t.source;
+  const [hwAvailable, setHwAvailable] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  useEffect(() => {
+    void isHandwritingAvailable(recognitionLang).then(setHwAvailable);
+  }, [recognitionLang]);
+
+  // Voice input (native on-device speech): record → wait for finish → append the
+  // transcript to the input. The mic button toggles start/stop; a tap while
+  // listening calls stopSpeech(), which makes the pending startSpeech resolve.
+  const [speechAvailable, setSpeechAvailable] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  useEffect(() => {
+    void isSpeechAvailable(recognitionLang).then(setSpeechAvailable);
+  }, [recognitionLang]);
+  const onMic = async () => {
+    if (listening) {
+      await stopSpeech();
+      return;
+    }
+    setSpeechError(null);
+    setListening(true);
+    try {
+      const [transcript] = await startSpeech({ lang: recognitionLang });
+      if (transcript) t.setInput((prev) => (prev ? `${prev}${transcript}` : transcript));
+    } catch (e) {
+      setSpeechError(
+        e instanceof SpeechPermissionError ? tr("speech.denied") : tr("speech.error"),
+      );
+    } finally {
+      setListening(false);
+    }
+  };
+
+  // Camera OCR (Mode A): photo → recognized text in reading order → translate it
+  // (straight into the paragraph reader). Native-only; hidden where unavailable.
+  const [ocrAvailable, setOcrAvailable] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  useEffect(() => {
+    void isOcrAvailable(recognitionLang).then(setOcrAvailable);
+  }, [recognitionLang]);
+  const onCamera = async () => {
+    setOcrError(null);
+    setOcrBusy(true);
+    try {
+      const text = await captureText({ lang: recognitionLang });
+      if (text.trim()) {
+        t.setInput(text);
+        await t.submit({ text });
+      } else {
+        setOcrError(tr("ocr.noText"));
+      }
+    } catch (err) {
+      // Surface the real reason (denied permission, no camera on a simulator, …)
+      // so a failure to even open the camera isn't mistaken for "no text found".
+      const detail = err instanceof Error ? err.message : "";
+      setOcrError(detail ? `${tr("ocr.error")} (${detail})` : tr("ocr.error"));
+    } finally {
+      setOcrBusy(false);
+    }
+  };
 
   // #12 — expand the paragraph into related domain words at the user's level, then
   // quiz them (a learn session, so they're added + feed SRS + refine the level).
@@ -78,16 +151,67 @@ export function TranslateView({ userId }: { userId: string }) {
         onSwap={t.swap}
       />
 
-      {/* Two boxes: input (left) | output (right) */}
+      {/* Two boxes: input (left) | output (right). The input carries a top-right
+          tool bar (handwriting now; speech/camera will join it). Drawing opens as
+          an OVERLAY over both boxes, so the page never grows or scrolls. */}
       <div className="translate__io">
-        <textarea
-          className="textarea translate__box"
-          value={t.input}
-          onChange={(e) => t.setInput(e.target.value)}
-          placeholder={tr("translate.inputPlaceholder")}
-          rows={4}
-          aria-label={tr("translate.inputAria")}
-        />
+        <div className="translate__inputwrap">
+          <textarea
+            className="textarea translate__box"
+            value={t.input}
+            onChange={(e) => t.setInput(e.target.value)}
+            placeholder={tr("translate.inputPlaceholder")}
+            rows={4}
+            aria-label={tr("translate.inputAria")}
+          />
+          {(t.input.trim() !== "" || speechAvailable || hwAvailable || ocrAvailable) && (
+            <div className="io__tools">
+              {t.input.trim() !== "" && (
+                <button
+                  className="io__tool"
+                  onClick={() => t.setInput("")}
+                  aria-label={tr("translate.clearInput")}
+                  title={tr("translate.clearInput")}
+                >
+                  <XIcon />
+                </button>
+              )}
+              {hwAvailable && (
+                <button
+                  className="io__tool"
+                  onClick={() => setDrawing((v) => !v)}
+                  aria-pressed={drawing}
+                  aria-label={tr("handwriting.draw")}
+                  title={tr("handwriting.draw")}
+                >
+                  <PencilIcon />
+                </button>
+              )}
+              {speechAvailable && (
+                <button
+                  className={`io__tool${listening ? " io__tool--rec" : ""}`}
+                  onClick={onMic}
+                  aria-pressed={listening}
+                  aria-label={tr(listening ? "speech.stop" : "speech.start")}
+                  title={tr(listening ? "speech.stop" : "speech.start")}
+                >
+                  {listening ? <StopIcon /> : <MicIcon />}
+                </button>
+              )}
+              {ocrAvailable && (
+                <button
+                  className="io__tool"
+                  onClick={onCamera}
+                  disabled={ocrBusy}
+                  aria-label={tr("ocr.capture")}
+                  title={tr("ocr.capture")}
+                >
+                  {ocrBusy ? "…" : <CameraIcon />}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="translate__box translate__out" aria-label={tr("translate.outputAria")}>
           {t.status === "loading" ? (
             <span className="translate__placeholder">{tr("translate.translating")}</span>
@@ -97,6 +221,16 @@ export function TranslateView({ userId }: { userId: string }) {
             <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
           )}
         </div>
+
+        {drawing && (
+          <div className="translate__overlay">
+            <HandwritingCanvas
+              lang={recognitionLang}
+              onPick={(text) => t.setInput(t.input + text)}
+              onClose={() => setDrawing(false)}
+            />
+          </div>
+        )}
       </div>
 
       <div className="translate__submit">
@@ -128,6 +262,8 @@ export function TranslateView({ userId }: { userId: string }) {
       </label>
 
       {t.error && <pre className="review__error">{t.error}</pre>}
+      {speechError && <pre className="review__error">{speechError}</pre>}
+      {ocrError && <pre className="review__error">{ocrError}</pre>}
 
       {/* The translation shows above as soon as it's ready; the word-by-word reader
           (kuromoji + lookups) streams in after — spinner while it loads. */}

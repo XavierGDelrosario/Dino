@@ -43,6 +43,32 @@ export const en = {
   "translate.noDomain":
     "No related words at your level — try a longer or more common passage.",
 
+  "translate.clearInput": "Clear input",
+
+  // handwriting input (native, on-device)
+  "handwriting.draw": "✍️ Draw",
+  "handwriting.hide": "✕ Close drawing",
+  "handwriting.hint": "Draw a character",
+  "handwriting.padAria": "Handwriting input area",
+  "handwriting.candidatesAria": "Recognized characters",
+  "handwriting.undo": "Undo",
+  "handwriting.clear": "Clear",
+  "handwriting.recognize": "Recognize",
+  "handwriting.close": "Close handwriting",
+  "handwriting.noMatch": "No match — try drawing more clearly.",
+  "handwriting.error": "Couldn’t recognize. Try again.",
+
+  // voice input (native, on-device speech)
+  "speech.start": "Voice input",
+  "speech.stop": "Stop recording",
+  "speech.denied": "Microphone access denied. Enable it in Settings.",
+  "speech.error": "Couldn’t capture speech. Try again.",
+
+  // camera OCR (native, on-device)
+  "ocr.capture": "Scan text from a photo",
+  "ocr.noText": "No text found in the photo.",
+  "ocr.error": "Couldn’t read the photo. Try again.",
+
   // generic actions
   "common.add": "Add",
   "common.cancel": "Cancel",
@@ -150,6 +176,8 @@ export const en = {
 
   // word results
   "results.noTranslation": "No translation found.",
+  "results.showMore": "Show {n} more",
+  "results.showLess": "Show fewer",
   "translate.addBtn": "+ Add",
 
   // translation-language bar (source/target selectors + swap)
@@ -176,6 +204,8 @@ export const en = {
   "auth.resetDone": "Password updated — you're signed in.",
   "auth.pwShort": "Password must be at least 8 characters.",
   "auth.pwWeak": "Password must include both letters and numbers.",
+  "auth.confirmPasswordPlaceholder": "Confirm password",
+  "auth.pwMismatch": "Passwords don't match.",
   "auth.signInTitle": "Sign in",
   "auth.signUpTitle": "Create account",
   "auth.toSignIn": "Already have an account? Sign in",
@@ -240,6 +270,32 @@ export const ja: Record<MessageKey, string> = {
   "translate.exploreLoading": "関連語を検索中…",
   "translate.noDomain":
     "あなたのレベルに合う関連語が見つかりません。より長い、または一般的な文章をお試しください。",
+
+  "translate.clearInput": "入力を消去",
+
+  // handwriting input (native, on-device)
+  "handwriting.draw": "✍️ 手書き",
+  "handwriting.hide": "✕ 手書きを閉じる",
+  "handwriting.hint": "文字を書いてください",
+  "handwriting.padAria": "手書き入力エリア",
+  "handwriting.candidatesAria": "認識された文字",
+  "handwriting.undo": "元に戻す",
+  "handwriting.clear": "消去",
+  "handwriting.recognize": "認識",
+  "handwriting.close": "手書きを閉じる",
+  "handwriting.noMatch": "一致なし — もっとはっきり書いてください。",
+  "handwriting.error": "認識できませんでした。もう一度お試しください。",
+
+  // voice input (native, on-device speech)
+  "speech.start": "音声入力",
+  "speech.stop": "録音を停止",
+  "speech.denied": "マイクへのアクセスが拒否されました。設定で有効にしてください。",
+  "speech.error": "音声を認識できませんでした。もう一度お試しください。",
+
+  // camera OCR (native, on-device)
+  "ocr.capture": "写真から文字を読み取る",
+  "ocr.noText": "写真から文字が見つかりませんでした。",
+  "ocr.error": "写真を読み取れませんでした。もう一度お試しください。",
 
   "common.add": "追加",
   "common.cancel": "キャンセル",
@@ -339,6 +395,8 @@ export const ja: Record<MessageKey, string> = {
   "dest.all": "すべて（全体）",
 
   "results.noTranslation": "翻訳が見つかりません。",
+  "results.showMore": "他に{n}件を表示",
+  "results.showLess": "表示を減らす",
   "translate.addBtn": "＋ 追加",
 
   "langbar.sourceAria": "翻訳元の言語",
@@ -363,6 +421,8 @@ export const ja: Record<MessageKey, string> = {
   "auth.resetDone": "パスワードを更新しました — ログインしました。",
   "auth.pwShort": "パスワードは8文字以上にしてください。",
   "auth.pwWeak": "パスワードには英字と数字の両方を含めてください。",
+  "auth.confirmPasswordPlaceholder": "パスワードを再入力",
+  "auth.pwMismatch": "パスワードが一致しません。",
   "auth.signInTitle": "ログイン",
   "auth.signUpTitle": "アカウント作成",
   "auth.toSignIn": "すでにアカウントをお持ちですか？ログイン",

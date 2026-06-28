@@ -1,0 +1,5 @@
+/* Localized iOS permission prompts (English). Mirrors the Info.plist defaults so
+   the development language is explicit alongside ja.lproj. Keep keys in sync. */
+"NSMicrophoneUsageDescription" = "DINO uses the microphone to capture your speech for voice input.";
+"NSSpeechRecognitionUsageDescription" = "DINO turns your speech into text on your device so you can translate and save words.";
+"NSCameraUsageDescription" = "DINO scans text from your photos so you can look it up.";

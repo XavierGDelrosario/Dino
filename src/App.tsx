@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { useSession } from "./hooks/useSession";
 import { needsTermsAcceptance } from "./services/session";
 import { warmJapaneseAnalyzer } from "./services/language";
-import { AttributionFooter } from "./components/common/AttributionFooter";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
@@ -24,7 +23,18 @@ import "./components/common/common.css";
 export function App() {
   const { userId, email, isAnonymous, recovering, clearRecovery, loading, error } = useSession();
   const { t } = useI18n();
-  const { path } = useRouter();
+  const { path, navigate } = useRouter();
+
+  // Land on home once a sign-in completes while on the sign-in/up pages. The email
+  // flows navigate() themselves in AuthPage; this is what carries the NATIVE Google
+  // flow home — it finishes asynchronously in the deep-link handler (nativeAuth),
+  // which has no router access, so without this the user stays on /signin after a
+  // successful Google login. A guest (isAnonymous) on these pages is left alone.
+  useEffect(() => {
+    if (!recovering && !isAnonymous && (path === "/signin" || path === "/signup")) {
+      navigate("/");
+    }
+  }, [recovering, isAnonymous, path, navigate]);
 
   // Terms gate: a permanent account that hasn't accepted the current Terms version
   // (Google signup that skipped the checkbox, or anyone after a Terms update) must
@@ -105,8 +115,6 @@ export function App() {
         : path === "/admin" ? <AdminPage />
         : <HomeView userId={userId} />
       )}
-
-      <AttributionFooter />
     </main>
   );
 }
