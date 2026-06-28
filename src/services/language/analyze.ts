@@ -26,6 +26,7 @@
 import type { IpadicFeatures, Tokenizer } from "kuromoji";
 import type { LangCode } from "./registry";
 import { tokenizeWords, type WordToken } from "./tokenize";
+import { getCounterResolver, parseJapaneseNumber } from "./counters";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
 export interface AnalyzedToken extends WordToken {
@@ -35,6 +36,9 @@ export interface AnalyzedToken extends WordToken {
   lemma: string | null;
   /** Coarse part-of-speech (kuromoji's, e.g. 名詞/動詞/助詞), or null. */
   pos: string | null;
+  /** True for a number+counter token merged into one (三本 → さんぼん, lemma 本). The
+   *  `reading` is whole-span group ruby and `lemma` points at the counter for lookup. */
+  composite?: boolean;
 }
 
 // kuromoji POS tags for INDEPENDENT content words (vs particles 助詞, auxiliaries
@@ -64,7 +68,10 @@ export function isSingleWord(tokens: AnalyzedToken[], lang: LangCode): boolean {
   if (lang.toUpperCase() === "JA") {
     const content = tokens.filter((t) => t.pos !== null && CONTENT_POS.has(t.pos));
     const hasParticle = tokens.some((t) => t.pos === "助詞");
-    return content.length <= 1 && !hasParticle;
+    // A lone number+counter (三本) is a composite, not a single dictionary word — route
+    // it to the reader so it shows as さんぼん pointing at the counter, not a failed lookup.
+    const hasComposite = tokens.some((t) => t.composite);
+    return content.length <= 1 && !hasParticle && !hasComposite;
   }
   return tokens.length === 1;
 }
@@ -87,6 +94,15 @@ function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
 // --- Japanese: kuromoji (lazily loaded) ------------------------------------
 
 const UNKNOWN = "*"; // kuromoji's placeholder for "no value" on a feature
+
+// A SYNTHETIC pos (not a kuromoji tag) for embedded non-Japanese tokens — Latin
+// acronyms (QR, URL), bare Arabic numerals (3) — that kuromoji tags as 名詞-固有名詞 /
+// 名詞-数. They aren't Japanese vocabulary, so we mark them non-content (isContentPos
+// → false) to render as plain, non-lookup text — but KEEP them visible (unlike
+// dropped punctuation). Katakana loanwords (コード) contain Japanese script and are
+// unaffected; this only catches tokens with NO kana/kanji.
+const FOREIGN_POS = "外国語";
+const HAS_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
 
 function jaDicPath(): string {
   // Browser: served static assets under /dict/. Node (tests/SSR): the package.
@@ -137,6 +153,9 @@ export function warmJapaneseAnalyzer(): void {
 async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
   const tokenizer = await getJaTokenizer();
   const out: AnalyzedToken[] = [];
+  // Kept raw tokens, PARALLEL to `out` (both push only for non-dropped tokens), so the
+  // counter post-pass can read kuromoji's pos_detail (not carried on AnalyzedToken).
+  const kept: IpadicFeatures[] = [];
   for (const t of tokenizer.tokenize(text)) {
     // Drop punctuation, symbols, and whitespace — anything with NO letter/digit.
     // Stricter than the POS check alone: kuromoji tags ASCII quotes/punctuation it
@@ -157,6 +176,10 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     if (pos === "動詞" && (t.pos_detail_1 === "非自立" || t.pos_detail_1 === "接尾")) {
       pos = "助動詞";
     }
+    // Embedded non-Japanese tokens (QR, URL, bare digits) → plain text, not vocabulary.
+    if (pos !== null && !HAS_JAPANESE.test(t.surface_form)) {
+      pos = FOREIGN_POS;
+    }
     out.push({
       text: t.surface_form,
       start,
@@ -165,8 +188,99 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
       lemma,
       pos,
     });
+    kept.push(t);
   }
-  return out;
+  applyCounterReadings(out, kept);
+  return mergeCounterTokens(out, kept);
+}
+
+// Merge a kanji number run + its counter into ONE composite token (三本 → text 三本,
+// reading さんぼん as whole-span group ruby, lemma 本 so the lookup resolves to the
+// counter's sense). Runs AFTER applyCounterReadings, so it just concatenates the already-
+// corrected per-token readings — which is what finally places multi-token jukujikun ruby
+// correctly (二十歳 → はたち over 二十歳, not scattered). Only ALL-KANJI runs merge: a bare
+// digit (3本) has no number reading, so it stays separate with the counter's fixed reading.
+function mergeCounterTokens(out: AnalyzedToken[], kept: IpadicFeatures[]): AnalyzedToken[] {
+  const numbersByCounter = new Map<number, number[]>(); // counter index → number-token indices
+  for (let i = 0; i < kept.length; i++) {
+    const c = kept[i];
+    if (!(c.pos === "名詞" && c.pos_detail_1 === "接尾" && c.pos_detail_2 === "助数詞")) continue;
+    const numIdx: number[] = [];
+    for (let j = i - 1; j >= 0 && kept[j].pos === "名詞" && kept[j].pos_detail_1 === "数"; j--) {
+      numIdx.unshift(j);
+    }
+    if (numIdx.length > 0 && numIdx.every((k) => HAS_JAPANESE.test(kept[k].surface_form))) {
+      numbersByCounter.set(i, numIdx);
+    }
+  }
+  if (numbersByCounter.size === 0) return out;
+
+  const absorbed = new Set<number>();
+  for (const nums of numbersByCounter.values()) for (const k of nums) absorbed.add(k);
+  const result: AnalyzedToken[] = [];
+  for (let i = 0; i < out.length; i++) {
+    if (absorbed.has(i)) continue; // folded into the counter token below
+    const nums = numbersByCounter.get(i);
+    if (!nums) {
+      result.push(out[i]);
+      continue;
+    }
+    const span = [...nums, i];
+    result.push({
+      text: span.map((k) => out[k].text).join(""),
+      start: out[nums[0]].start,
+      end: out[i].end,
+      reading: span.map((k) => out[k].reading ?? "").join("") || null,
+      lemma: kept[i].surface_form, // the counter — meaning lookup resolves to it
+      pos: out[i].pos,
+      composite: true,
+    });
+  }
+  return result;
+}
+
+// Fix 助数詞 (counter) furigana: kuromoji gives a counter its CITATION reading (三本 →
+// ホン), never the euphonic form (さんぼん). Detect a run of number tokens (名詞-数)
+// immediately followed by a counter (名詞-接尾-助数詞) and rewrite both readings via the
+// per-language counter resolver. The standalone noun 本 (名詞-一般) is NOT a counter, so
+// it's untouched. A pure overwrite on `out`: an unknown counter / unparseable number /
+// no resolver leaves the engine's reading as-is (graceful degradation).
+function applyCounterReadings(out: AnalyzedToken[], kept: IpadicFeatures[]): void {
+  const resolver = getCounterResolver("JA");
+  if (!resolver) return;
+  for (let i = 0; i < kept.length; i++) {
+    const c = kept[i];
+    if (!(c.pos === "名詞" && c.pos_detail_1 === "接尾" && c.pos_detail_2 === "助数詞")) {
+      continue;
+    }
+    const numIdx: number[] = [];
+    for (let j = i - 1; j >= 0 && kept[j].pos === "名詞" && kept[j].pos_detail_1 === "数"; j--) {
+      numIdx.unshift(j);
+    }
+    if (numIdx.length === 0) continue;
+    const value = parseJapaneseNumber(numIdx.map((k) => kept[k].surface_form));
+    if (value === null) continue;
+    const r = resolver.resolve(value, c.surface_form);
+    if (!r) continue;
+    out[i].reading = r.counterReading;
+    // Number readings only annotate KANJI tokens — a bare digit (3本) needs no furigana;
+    // the counter reading (ぼん) is corrected regardless.
+    if (r.numberReading !== null) {
+      if (r.replacesRun) {
+        // Jukujikun spanning the whole number (二十歳 → はたち): full reading on the
+        // FIRST kanji token, blank the rest, so the joined reading is correct.
+        let placed = false;
+        for (const k of numIdx) {
+          if (!HAS_JAPANESE.test(kept[k].surface_form)) continue;
+          out[k].reading = placed ? "" : r.numberReading;
+          placed = true;
+        }
+      } else {
+        const last = numIdx[numIdx.length - 1];
+        if (HAS_JAPANESE.test(kept[last].surface_form)) out[last].reading = r.numberReading;
+      }
+    }
+  }
 }
 
 // --- Public seam ------------------------------------------------------------

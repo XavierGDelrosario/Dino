@@ -14,6 +14,7 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		8D66C8632FF11AF300748F27 /* TextOcrPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D66C8622FF11AF300748F27 /* TextOcrPlugin.swift */; };
 		8D70DFBE2FF087F100CC285D /* DigitalInkPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D70DFBD2FF087F100CC285D /* DigitalInkPlugin.swift */; };
 		8D70DFC02FF08CEC00CC285D /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D70DFBF2FF08CEC00CC285D /* MainViewController.swift */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
@@ -29,6 +30,7 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		8D66C8622FF11AF300748F27 /* TextOcrPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOcrPlugin.swift; sourceTree = "<group>"; };
 		8D70DFBD2FF087F100CC285D /* DigitalInkPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalInkPlugin.swift; sourceTree = "<group>"; };
 		8D70DFBF2FF08CEC00CC285D /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -77,6 +79,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				8D66C8622FF11AF300748F27 /* TextOcrPlugin.swift */,
 				8D70DFBF2FF08CEC00CC285D /* MainViewController.swift */,
 				8D70DFBD2FF087F100CC285D /* DigitalInkPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -232,6 +235,7 @@
 			files = (
 				8D70DFC02FF08CEC00CC285D /* MainViewController.swift in Sources */,
 				8D70DFBE2FF087F100CC285D /* DigitalInkPlugin.swift in Sources */,
+				8D66C8632FF11AF300748F27 /* TextOcrPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

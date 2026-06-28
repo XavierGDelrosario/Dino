@@ -6,9 +6,12 @@
 import { describe, it, expect } from "vitest";
 import {
   corsHeaders,
+  dropOffScriptTranslations,
   groupByInput,
+  lemmaCandidates,
   mergeProviderResults,
   parseAllowedOrigins,
+  resolvePerInputWithCandidates,
   projectMany,
   projectRows,
   resolveServiceKey,
@@ -293,5 +296,151 @@ describe("resolveServiceKey", () => {
   it("returns undefined when neither is set (real misconfiguration)", () => {
     expect(resolveServiceKey({})).toBeUndefined();
     expect(resolveServiceKey({ SERVICE_ROLE_SECRET: "", SUPABASE_SERVICE_ROLE_KEY: "" })).toBeUndefined();
+  });
+});
+
+describe("dropOffScriptTranslations (target-language script guard)", () => {
+  const r = (translation: string, entryId: string): ProviderResult => ({ translation, entryId });
+
+  it("JA target: drops results with no kana/kanji (ＰＥＮ, ＢＩＳ, ASCII)", () => {
+    const kept = dropOffScriptTranslations([
+      r("国際的", "1"), // kanji — kept
+      r("ＰＥＮ", "2"), // full-width Latin initialism — dropped
+      r("ＢＩＳ", "3"), // full-width Latin initialism — dropped
+      r("NPO", "4"), // ASCII initialism — dropped
+    ], "JA");
+    expect(kept.map((x) => x.translation)).toEqual(["国際的"]);
+  });
+
+  it("JA target: keeps katakana loanwords + mixed Latin+JA (ペン, 春, Ｔシャツ)", () => {
+    const input = [r("ペン", "1"), r("春", "2"), r("Ｔシャツ", "3")];
+    expect(dropOffScriptTranslations(input, "ja")).toEqual(input); // case-insensitive, all kept
+  });
+
+  it("target with no script entry (EN) imposes no constraint — identity pass", () => {
+    const input = [r("run", "1"), r("PEN", "2")]; // JA->EN translations are legitimately Latin
+    expect(dropOffScriptTranslations(input, "EN")).toEqual(input);
+  });
+});
+
+describe("lemmaCandidates (EN morphy lemmatization seam)", () => {
+  // The candidate list always LEADS with the surface form (morphy tries it first),
+  // then offers base-form candidates the caller verifies against the dictionary.
+  const has = (input: string, lemma: string) => lemmaCandidates(input, "EN").includes(lemma);
+
+  it("leads with the surface form for every word", () => {
+    expect(lemmaCandidates("cats", "EN")[0]).toBe("cats");
+    expect(lemmaCandidates("run", "EN")[0]).toBe("run");
+  });
+
+  it("offers the base for regular plurals & 3rd-person -s (cats→cat, boxes→box, studies→study)", () => {
+    expect(has("cats", "cat")).toBe(true);
+    expect(has("boxes", "box")).toBe(true);
+    expect(has("studies", "study")).toBe(true);
+    expect(has("flies", "fly")).toBe(true);
+  });
+
+  it("offers the base for regular past/gerund (walked→walk, liked→like, making→make)", () => {
+    expect(has("walked", "walk")).toBe(true);
+    expect(has("liked", "like")).toBe(true);
+    expect(has("making", "make")).toBe(true);
+    expect(has("studied", "study")).toBe(true);
+  });
+
+  it("collapses doubled consonants (running→run, stopped→stop, bigger→big)", () => {
+    expect(has("running", "run")).toBe(true);
+    expect(has("stopped", "stop")).toBe(true);
+    expect(has("bigger", "big")).toBe(true);
+  });
+
+  it("maps irregular verbs (ran→run, ate→eat, went→go, brought→bring)", () => {
+    expect(has("ran", "run")).toBe(true);
+    expect(has("ate", "eat")).toBe(true);
+    expect(has("went", "go")).toBe(true);
+    expect(has("brought", "bring")).toBe(true);
+    expect(has("was", "be")).toBe(true);
+  });
+
+  it("maps irregular plurals (mice→mouse, feet→foot, children→child, leaves→leaf)", () => {
+    expect(has("mice", "mouse")).toBe(true);
+    expect(has("feet", "foot")).toBe(true);
+    expect(has("children", "child")).toBe(true);
+    expect(has("leaves", "leaf")).toBe(true); // via the -ves rule
+  });
+
+  it("is identity (surface only) for non-EN sources — JA arrives pre-lemmatized", () => {
+    expect(lemmaCandidates("猫", "JA")).toEqual(["猫"]);
+    expect(lemmaCandidates("perro", "ES")).toEqual(["perro"]);
+  });
+
+  it("does not over-strip short words or -ss (is→be via map, not 'i'; class stays)", () => {
+    expect(lemmaCandidates("class", "EN")).not.toContain("clas"); // -ss guarded
+    expect(lemmaCandidates("is", "EN")).toContain("be"); // irregular, not a strip
+  });
+});
+
+describe("resolvePerInputWithCandidates (batch/paragraph lemmatization)", () => {
+  const r = (translation: string, entryId: string): ProviderResult => ({ translation, entryId });
+  const cands = (m: Record<string, string[]>) => new Map(Object.entries(m));
+  const byCand = (m: Record<string, ProviderResult[]>) => new Map(Object.entries(m));
+
+  it("re-keys a lemma's senses back to the inflected surface token (cats→cat)", () => {
+    const out = resolvePerInputWithCandidates(
+      ["cats"],
+      cands({ cats: ["cats", "cat"] }),
+      byCand({ cat: [r("猫", "e1")] }), // WordNet only resolves the lemma
+      byCand({}),
+      "JA",
+      8,
+    );
+    expect(out.get("cats")?.map((x) => x.translation)).toEqual(["猫"]); // surface-keyed
+  });
+
+  it("prefers the SURFACE form when it resolves (spring stays spring, not a stripped lemma)", () => {
+    const out = resolvePerInputWithCandidates(
+      ["spring"],
+      cands({ spring: ["spring", "spr"] }),
+      byCand({ spring: [r("春", "e1")], spr: [r("WRONG", "e9")] }),
+      byCand({}),
+      "JA",
+      8,
+    );
+    expect(out.get("spring")?.map((x) => x.translation)).toEqual(["春"]);
+  });
+
+  it("uses the WINNING lemma for the gloss fallback too", () => {
+    const out = resolvePerInputWithCandidates(
+      ["ran"],
+      cands({ ran: ["ran", "run"] }),
+      byCand({ run: [r("走る", "e1")] }), // WordNet hit on the lemma
+      byCand({ run: [r("経営する", "e2")] }), // gloss keyed by the same lemma
+      "JA",
+      8,
+    );
+    expect(out.get("ran")?.map((x) => x.translation)).toEqual(["走る", "経営する"]);
+  });
+
+  it("off-script WordNet rows don't count as a hit (falls through to the next candidate)", () => {
+    const out = resolvePerInputWithCandidates(
+      ["pens"],
+      cands({ pens: ["pens", "pen"] }),
+      byCand({ pens: [r("ＰＥＮ", "e9")], pen: [r("ペン", "e1")] }),
+      byCand({}),
+      "JA",
+      8,
+    );
+    expect(out.get("pens")?.map((x) => x.translation)).toEqual(["ペン"]); // skipped ＰＥＮ
+  });
+
+  it("omits a token with no senses at all", () => {
+    const out = resolvePerInputWithCandidates(
+      ["xyzzy"],
+      cands({ xyzzy: ["xyzzy"] }),
+      byCand({}),
+      byCand({}),
+      "JA",
+      8,
+    );
+    expect(out.has("xyzzy")).toBe(false);
   });
 });

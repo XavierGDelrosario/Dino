@@ -82,7 +82,9 @@ function ParagraphReaderImpl({
     return out;
   }, [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide]);
 
-  const hoveredSenses = hover ? meaningsByWord.get(hover.word) ?? [] : [];
+  // Cap the hovercard at 12 senses (matches WordResults' MAX_SHOWN). The hovercard
+  // is transient, so there's no "show more" — just trim the noisy tail.
+  const hoveredSenses = (hover ? meaningsByWord.get(hover.word) ?? [] : []).slice(0, 12);
 
   // Place the card below the word, but flip above when there's more room there —
   // and cap its height to the available space so a long sense list stays on-screen

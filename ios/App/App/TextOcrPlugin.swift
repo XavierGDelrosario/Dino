@@ -60,7 +60,22 @@ public class TextOcrPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        request.recognitionLanguages = [lang, "en-US"]
+
+        // Vision wants its OWN supported BCP-47 tags (e.g. "ja-JP", not "ja") — a bare
+        // "ja"/"ko" silently recognizes nothing. Match the requested code against the
+        // device's supported list by prefix, always keeping English so embedded Latin
+        // still reads; if there's no match at all, let Vision auto-detect (iOS 16+).
+        let supported = (try? request.supportedRecognitionLanguages()) ?? []
+        let base = lang.lowercased()
+        let english = supported.first(where: { $0.lowercased().hasPrefix("en") }) ?? "en-US"
+        let matched = supported.first(where: { $0.lowercased() == base })
+            ?? supported.first(where: { $0.lowercased().hasPrefix(base + "-") })
+        if let matched = matched {
+            request.recognitionLanguages = [matched, english]
+        } else {
+            request.recognitionLanguages = supported.isEmpty ? [lang, english] : supported
+            if #available(iOS 16.0, *) { request.automaticallyDetectsLanguage = true }
+        }
 
         // .up: the camera plugin's correctOrientation bakes rotation into the pixels.
         let handler = VNImageRequestHandler(cgImage: cg, orientation: .up, options: [:])

@@ -176,6 +176,8 @@ export const en = {
 
   // word results
   "results.noTranslation": "No translation found.",
+  "results.showMore": "Show {n} more",
+  "results.showLess": "Show fewer",
   "translate.addBtn": "+ Add",
 
   // translation-language bar (source/target selectors + swap)
@@ -393,6 +395,8 @@ export const ja: Record<MessageKey, string> = {
   "dest.all": "すべて（全体）",
 
   "results.noTranslation": "翻訳が見つかりません。",
+  "results.showMore": "他に{n}件を表示",
+  "results.showLess": "表示を減らす",
   "translate.addBtn": "＋ 追加",
 
   "langbar.sourceAria": "翻訳元の言語",

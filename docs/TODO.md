@@ -277,6 +277,73 @@ Candidates for the curated override; **severe** = an obscure reading/word beats 
   ぜん←全/善) OR the common word has missing/odd freq letting an obscure homophone win
   (ところ→野老). The override table should cover at least the SEVERE + wrong-reading rows.
 
+**Counter (助数詞) readings — DONE 2026-06-28 (client-side rules module).** kuromoji splits a
+number+counter into two tokens and gives each its CITATION reading, never the euphonic form
+(三本→さんほん, want さんぼん). **Decision reversed:** these do NOT belong in the server override
+schema — counter readings are generated CLIENT-side (kuromoji, in the reader) and are RULE-governed
+(generative), so they ship as a pure client module with zero DB/cache/deploy coupling, unlike the
+server-side default-sense overrides (前→まえ, which stay a `jmdict_lookup` concern). Built:
+`src/services/language/counters/` — a per-language `CounterResolver` seam (`getCounterResolver`,
+JA today; ZH measure words = a new entry) over a data-driven JA resolver. `analyze()` detects a
+名詞-数 run + 名詞-接尾-助数詞 and rewrites both readings; the standalone noun 本 (名詞-一般) is untouched.
+THOROUGH tier (closed-class, ~45 counters): euphonic classes h/k/s + gemination/rendaku, **pOn3**
+flag (分→さんぷん, 歩→さんぽ, 泊), **s-rendaku3** (足→さんぞく), a **wago** class (native numerals:
+一晩ひとばん, 二間ふたま), per-counter **numberByDigit** (四時よじ/七時しちじ/九時くじ), and a suppletive
+**IRREGULARS** table — the full 日 series (一日ついたち…十日とおか, 十四日, 二十日はつか, 二十四日), 一人/二人,
+二十歳はたち. The `replacesRun` flag handles multi-token jukujikun (二十歳→はたち across 二十歳, blanking
+二/十 — fixed a latent にはたち bug). The native generic つ series (一つひとつ) needs nothing — kuromoji
+already returns it as one token. Verified: 24 pure resolver specs + analyze-integration (incl. 本 as
+counter-vs-noun in ONE sentence 六本…ぽん/本…ほん, and 三分/一晩/四時/一日/二十歳). Tests:
+`counters.test.ts` + the un-skipped `analyze.test.ts` block.
+**Number+counter token MERGE — DONE 2026-06-28.** `analyze()` now folds an all-kanji number run +
+its counter into ONE composite `AnalyzedToken` (`mergeCounterTokens`): text 三本, whole-span group-ruby
+reading さんぼん, `lemma` = the counter (本) so the reader's per-token lookup resolves to the counter's
+sense (`keyOf = lemma ?? text`), and the reading-override is skipped (text ≠ lemma) so さんぼん survives.
+This is also what finally places multi-token jukujikun ruby correctly (二十歳 → はたち over 二十歳). A
+bare digit (3本) stays separate (no number reading to merge). `composite` flag + an `isSingleWord`
+guard route a lone 三本 to the reader (not a failed single-word lookup). Visible NOW in the hovercard
+(hover 三本 → reading さんぼん + 本's senses/add-button); INLINE ruby over the word is still the separate
+deferred furigana-rendering task (the reading data is ready for it).
+Smaller deferrals: inline furigana ruby rendering (above); the rare specialist-counter long tail; and
+genuinely context-variant number readings (4=よん/し/よ) beyond the common defaults.
+The server-side default-sense overrides (前→まえ, もの→物) remain a SEPARATE, still-deferred item.
+
+**EN→JA lookup quality (found 2026-06-28; disabled specs in `rpc.integration.test.ts`).**
+**Per-language lookup seams (edge fn `_lib.ts`, added 2026-06-28).** Each language has its OWN
+input/output concerns, so the edge keeps them PLUGGABLE (mirrors the client `language/registry.ts`
++ `senses/`/`difficulty/` seams; the Deno edge can't import those, so it has its own copy):
+- **`dropOffScriptTranslations(results, targetLang)`** — OUTPUT guard keyed on TARGET language
+  (`TARGET_SCRIPT` map). Drops results not in the target's script. Add a language = one map entry
+  (`ZH: Han`, `KO: Hangul`).
+- **`normalizeForLookup(input, sourceLang)`** — INPUT normalization keyed on SOURCE language; the
+  home for lemmatization. Identity today (a `switch` with no active cases yet).
+
+Remaining gaps that hang off those seams:
+- **EN inflection (plurals + past tense) — FIRST CUT DONE 2026-06-28 (edge lemmatization).**
+  `resolveDictionary` (EN→JA single-word) now tries **`lemmaCandidates(input, "EN")`** in `_lib.ts`
+  (WordNet-morphy: a common-irregular map + regular detachment rules + doubled-consonant collapse)
+  and keeps the first candidate WordNet resolves — the lookup itself verifies the lemma. Covers
+  cats→cat, studies→study, walked→walk, running→run, ran→run, ate→eat, went→go, mice→mouse. Active
+  unit tests in `tests/edge/translate-lib.test.ts`. BOTH the single-word path AND the
+  **batch/paragraph reader** run through one shared helper (`resolvePerInputWithCandidates`):
+  expand each token to candidates, query WordNet+gloss over the UNION in one round-trip (parallel),
+  pick each token's winning lemma, re-key senses to the surface token. So reading inflected English
+  (the JA-native-studying-EN segment) lemmatizes too — and single-word costs the SAME 2 parallel
+  round-trips as before (no per-candidate sequential queries; the worst-case spike is gone).
+  **Needs an edge deploy.** Remaining upgrades: (a) **long-tail irregulars** — ingest Princeton's full
+  `verb.exc`/`noun.exc` (the bundled map is common forms only); (b) optionally push lemmatization into
+  SQL so the raw `wordnet_en_ja_lookup` lemmatizes too (then un-skip the SQL-level spec). The surface
+  form is tried first, so a query that is itself a valid lemma (saw, rose) keeps its direct sense —
+  matching morphy.
+- **Acronym/initialism noise — FIXED 2026-06-28** via `dropOffScriptTranslations` (the JA `TARGET_SCRIPT`
+  entry): "international" no longer returns romaji/initialism headwords ＰＥＮ/ＢＩＳ whose gloss merely
+  MENTIONED it (real loanwords are katakana → kept), mirroring the reader's QR/URL rule. Active unit
+  test in `tests/edge/translate-lib.test.ts`. The SQL `jmdict_lookup` still returns the rows (filtered
+  downstream), so the SQL-level spec stays skipped as documentation. **Needs an edge deploy.**
+- **DONE 2026-06-28: result caps** — client shows **8 by default, "show more" to 12, hard cap 12**
+  (`WordResults`, reader hovercard capped at 12); EN→JA edge cap tightened to **8**
+  (`EN_JA_RESULT_LIMIT`, perf — EN→JA is the slow/noisy direction). Edge bits need the deploy above.
+
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in
   `src/i18n/messages.ts`, compile-checked.)*

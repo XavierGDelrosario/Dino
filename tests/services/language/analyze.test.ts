@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyze } from "@/services/language/analyze";
+import { analyze, isContentPos, isSingleWord } from "@/services/language/analyze";
 
 // These exercise the REAL kuromoji engine (no mock): building the tokenizer
 // loads the IPADIC dictionary on first use, hence the generous timeout. This is
@@ -59,6 +59,22 @@ describe("analyze — Japanese (kuromoji)", () => {
     },
     KUROMOJI_TIMEOUT
   );
+  it(
+    "embedded Latin acronyms (QR / URL) are kept but marked non-content (plain text)",
+    async () => {
+      const toks = await analyze("QRコードとURLを確認", "JA");
+      const byText = (s: string) => toks.find((t) => t.text === s);
+      // The acronyms survive as tokens (visible in the reader)…
+      expect(byText("QR")).toBeDefined();
+      expect(byText("URL")).toBeDefined();
+      // …but are NOT content words, so the reader renders them plain & non-addable.
+      expect(isContentPos(byText("QR")!.pos)).toBe(false);
+      expect(isContentPos(byText("URL")!.pos)).toBe(false);
+      // A katakana loanword in the same sentence stays real vocabulary.
+      expect(isContentPos(byText("コード")!.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
 });
 
 describe("analyze — specific short words (今 / これ / 単語)", () => {
@@ -93,6 +109,61 @@ describe("analyze — specific short words (今 / これ / 単語)", () => {
       expect(toks.map((t) => t.text)).toEqual(["今"]);
       expect(toks[0].reading).toBeTruthy();
       expect(toks[0].reading).not.toMatch(KATAKANA);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+});
+
+// Japanese counter (助数詞) readings — kuromoji splits a number+counter into two tokens
+// and gives each its CITATION reading; the counters/ resolver rewrites them in analyze's
+// post-pass (euphonic 本→ぼん/ぽん, irregular 一人→ひとり). See src/services/language/counters/.
+describe("analyze — Japanese counter readings (助数詞)", () => {
+  const reading = async (src: string) => (await analyze(src, "JA")).map((t) => t.reading).join("");
+  it("applies euphonic counter changes (三本 → さんぼん, 三杯 → さんばい, 十個 → じゅっこ)", async () => {
+    expect(await reading("三本")).toBe("さんぼん");
+    expect(await reading("三杯")).toBe("さんばい");
+    expect(await reading("十個")).toBe("じゅっこ");
+  }, KUROMOJI_TIMEOUT);
+  it("handles irregular people-counter readings (一人 → ひとり, 二人 → ふたり)", async () => {
+    expect(await reading("一人")).toBe("ひとり");
+    expect(await reading("二人")).toBe("ふたり");
+  }, KUROMOJI_TIMEOUT);
+
+  it("thorough tier: pOn3 / wago / 時 / 日 / multi-token jukujikun", async () => {
+    expect(await reading("三分")).toBe("さんぷん"); // pOn3 (p, not ぶ)
+    expect(await reading("一晩")).toBe("ひとばん"); // wago native numeral
+    expect(await reading("四時")).toBe("よじ"); //     per-digit number reading
+    expect(await reading("一日")).toBe("ついたち"); // suppletive 日 series
+    // 二十歳 → はたち across THREE tokens (二十歳): the replacesRun path must blank 二/十
+    // correctly (regression guard — naive last-token rewrite would give にはたち).
+    expect(await reading("二十歳")).toBe("はたち");
+  }, KUROMOJI_TIMEOUT);
+
+  it(
+    "distinguishes 本 as counter vs noun in ONE sentence (六本 merged → ろっぽん, 本 noun → ほん)",
+    async () => {
+      // 六本(rokuPPON, counter) 鉛筆 と 一冊(issatsu) 本(hon, noun "book") 買った。
+      const toks = await analyze("六本鉛筆と一冊本買った。", "JA");
+      const find = (s: string) => toks.find((t) => t.text === s);
+      // The counter 六本 is now ONE composite token, group-ruby ろっぽん, pointing at 本.
+      expect(find("六本")).toMatchObject({ reading: "ろっぽん", lemma: "本", composite: true });
+      expect(find("一冊")).toMatchObject({ reading: "いっさつ", lemma: "冊", composite: true });
+      // The standalone noun 本 stays its own (non-composite) token, read ほん.
+      expect(find("本")).toMatchObject({ reading: "ほん" });
+      expect(find("本")?.composite).toBeFalsy();
+      // The number is absorbed — no bare 六/一 tokens remain.
+      expect(find("六")).toBeUndefined();
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "a lone number+counter routes to the reader, not single-word lookup (isSingleWord=false)",
+    async () => {
+      const toks = await analyze("三本", "JA");
+      expect(toks).toHaveLength(1);
+      expect(toks[0]).toMatchObject({ text: "三本", reading: "さんぼん", lemma: "本", composite: true });
+      expect(isSingleWord(toks, "JA")).toBe(false); // composite → sentence path
     },
     KUROMOJI_TIMEOUT,
   );

@@ -59,11 +59,21 @@ export const nativeRecognizer: OcrRecognizer = {
         quality: 85,
       });
       base64 = photo.base64String;
-    } catch {
-      // User cancelled the camera (or denied permission) → no capture.
-      return null;
+    } catch (err) {
+      // Backing out of the camera is a no-op → null. But a denied permission or
+      // a device with no camera (e.g. the iOS simulator) is a REAL failure: don't
+      // swallow it, or the UI misreports it as "no text found in the photo".
+      if (isUserCancellation(err)) return null;
+      throw err;
     }
     if (!base64) return null;
     return TextOcr.recognize({ image: base64, lang: tag });
   },
 };
+
+/** Capacitor signals a user-initiated cancel with a "cancel"/"cancelled" message;
+ *  anything else (denied access, no camera available) is an error worth surfacing. */
+function isUserCancellation(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return msg.includes("cancel");
+}

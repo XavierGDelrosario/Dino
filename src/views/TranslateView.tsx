@@ -90,8 +90,11 @@ export function TranslateView({ userId }: { userId: string }) {
       } else {
         setOcrError(tr("ocr.noText"));
       }
-    } catch {
-      setOcrError(tr("ocr.error"));
+    } catch (err) {
+      // Surface the real reason (denied permission, no camera on a simulator, …)
+      // so a failure to even open the camera isn't mistaken for "no text found".
+      const detail = err instanceof Error ? err.message : "";
+      setOcrError(detail ? `${tr("ocr.error")} (${detail})` : tr("ocr.error"));
     } finally {
       setOcrBusy(false);
     }

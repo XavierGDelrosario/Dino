@@ -546,6 +546,61 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: wordnet_en_ja_lookup", () => {
   });
 });
 
+// ── KNOWN GAPS (EN->JA quality, found 2026-06-28) — TODO, see docs/TODO.md ──
+// These document shortcomings whose fixes are NOT built yet, so they currently
+// FAIL. They are HARD-SKIPPED (describe.skip, not RUN_INTEGRATION-gated) so they
+// never break CI — un-skip them when implementing the fix. Kept as executable
+// specs of the intended behaviour rather than prose.
+
+// NOTE: EN inflection is now handled in the EDGE function — resolveDictionary tries
+// `lemmaCandidates(input, "EN")` (morphy: irregular map + regular detachment rules) and
+// keeps the first that WordNet resolves. Covered by ACTIVE unit tests in
+// tests/edge/translate-lib.test.ts. The raw SQL `wordnet_en_ja_lookup` still matches an
+// EXACT lemma (the lemmatization is in the edge candidate loop, not the SQL), so these
+// SQL-level specs stay SKIPPED as documentation of the raw function. Un-skip only if/when
+// lemmatization is pushed DOWN into SQL (e.g. via an ingested verb.exc/noun.exc table).
+describe.skip("KNOWN GAP (SQL-level): wordnet_en_ja_lookup matches exact lemma only", () => {
+  // The raw SQL still won't lemmatize: "cats"↛"cat", "ran"↛"run", "ate"↛"eat". The edge
+  // candidate loop is what fixes the user-facing result; this documents the SQL itself.
+  const ids = (rows: unknown) =>
+    new Set(((rows ?? []) as Array<{ jmdict_entry_id: string | null }>).map((r) => r.jmdict_entry_id));
+  const senses = async (svc: NonNullable<ReturnType<typeof serviceClient>>, word: string) =>
+    ids((await svc.rpc("wordnet_en_ja_lookup", { p_input: word })).data);
+
+  it("a plural ('cats') resolves to the same JA senses as its singular ('cat')", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const plur = await senses(svc, "cats");
+    expect(plur.size).toBeGreaterThan(0); // currently 0 — the gap
+    expect(plur).toEqual(await senses(svc, "cat"));
+  });
+
+  it("a past-tense verb ('ran', 'ate') resolves like its base ('run', 'eat')", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    expect(await senses(svc, "ran")).toEqual(await senses(svc, "run")); // currently empty ≠ run
+    expect(await senses(svc, "ate")).toEqual(await senses(svc, "eat"));
+  });
+});
+
+// NOTE: the acronym/romaji noise (ＰＥＮ / ＢＩＳ for "international") is now FILTERED in
+// the edge function (`dropOffScriptTranslations` in _lib.ts — covered by an ACTIVE
+// unit test in tests/edge/translate-lib.test.ts). The SQL `jmdict_lookup` STILL returns
+// those rows (we fixed it downstream, not in SQL), so this spec — which calls the raw
+// SQL — stays SKIPPED as documentation of the SQL-level behaviour.
+describe.skip("KNOWN GAP (SQL-level): jmdict_lookup gloss search returns acronym noise", () => {
+  it("'international' does not return initialism/acronym headwords (PEN, BIS)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    type Row = { writing: string };
+    const rows = ((await svc.rpc("jmdict_lookup", { p_input: "international", p_source: "EN", p_target: "JA" })).data ?? []) as Row[];
+    // Normalize full-width Latin to ASCII, then flag dotted/spaced all-caps initialisms.
+    const toAscii = (s: string) => s.replace(/[Ａ-Ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+    const isAcronym = (s: string) => /^[A-Z](\.?[A-Z]){1,}\.?$/.test(toAscii(s).replace(/\s/g, ""));
+    expect(rows.some((r) => isAcronym(r.writing))).toBe(false);
+  });
+});
+
 // ── jmdict_lookup_many (batch wrapper, service-role only) ──────────────────
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup_many", () => {
   it("is NOT callable by a client (no EXECUTE grant)", async () => {

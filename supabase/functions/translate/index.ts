@@ -41,10 +41,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   corsHeaders,
   groupByInput,
-  mergeProviderResults,
+  lemmaCandidates,
   parseAllowedOrigins,
   projectMany,
   projectRows,
+  resolvePerInputWithCandidates,
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
@@ -170,37 +171,12 @@ async function lookupJMdict(
   }));
 }
 
-// SEMANTIC EN->JA provider: Japanese WordNet (see migration 20260703_wordnet.sql).
-// An English lemma -> its synsets (concept clusters) -> the Japanese lemmas in
-// each, resolved through JMdict for reading/frequency/POS. Returns sense-grouped
-// ProviderResults (same shape as lookupJMdict) ordered by WordNet sense rank. []
-// for words WordNet doesn't cover. EN->JA only.
-async function lookupWordNet(supabase: Supa, input: string): Promise<ProviderResult[]> {
-  const { data, error } = await supabase.rpc("wordnet_en_ja_lookup", { p_input: input });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row: {
-    translation: string;
-    input_reading: string | null;
-    translation_reading: string | null;
-    writing: string | null;
-    sense_position: number | null;
-    jmdict_entry_id: string | null;
-    frequency: number | null;
-    part_of_speech: string[] | null;
-  }) => ({
-    translation: row.translation,
-    inputReading: row.input_reading ?? null,
-    translationReading: row.translation_reading ?? null,
-    headword: row.writing ?? null, // null for EN->JA
-    entryId: row.jmdict_entry_id ?? null,
-    sensePos: row.sense_position ?? null,
-    frequency: row.frequency ?? null,
-    partOfSpeech: row.part_of_speech ?? null,
-  }));
-}
-
-// jmdict_lookup's EN->JA branch caps at 12; mirror that as the merged ceiling.
-const DICTIONARY_RESULT_LIMIT = 12;
+// EN->JA is the slow direction (WordNet + reverse-gloss + projecting/upserting each
+// row), and its long tail is the noisiest (acronym/mid-gloss matches). Cap it tighter
+// than the SQL ceiling for performance — the client only shows 8 before "show more"
+// anyway, and EN->JA rarely has 8+ good senses. (JA->EN is capped by jmdict_lookup's
+// own LIMIT 12.) Bumping this needs no client change. See docs/TODO.md.
+const EN_JA_RESULT_LIMIT = 8;
 
 // Resolve a lookup to its dictionary senses. EN->JA leads with the SEMANTIC
 // WordNet results and falls back to the reverse-gloss jmdict_lookup only to fill
@@ -215,13 +191,27 @@ async function resolveDictionary(
   targetLang: string,
 ): Promise<ProviderResult[]> {
   if (sourceLang === "EN" && targetLang === "JA") {
-    const wn = await lookupWordNet(supabase, input);
-    // Still skip the gloss query when WordNet fills the cap, but route through the
-    // merge so sensePos is RENUMBERED sequentially — raw per-synset ranks can tie,
-    // making the cache-read ORDER BY jmdict_sense_pos non-deterministic otherwise.
-    if (wn.length >= DICTIONARY_RESULT_LIMIT) return mergeProviderResults(wn, [], DICTIONARY_RESULT_LIMIT);
-    const gloss = await lookupJMdict(supabase, input, sourceLang, targetLang);
-    return mergeProviderResults(wn, gloss, DICTIONARY_RESULT_LIMIT);
+    // Lemmatize via WordNet-morphy candidates (cats→cat, ran→run), resolved in just TWO
+    // parallel round-trips — same union-query + first-hit machinery as the batch path
+    // (no sequential per-candidate queries). The helper tries the SURFACE form first,
+    // reuses the winning lemma for the gloss fallback, and drops off-script romaji noise
+    // (ＰＥＮ/ＢＩＳ). sensePos is renumbered in the merge so the cache-read ORDER BY stays
+    // deterministic. (Gloss runs even when WordNet fills the cap — it's parallel, so no
+    // added latency, and the merge ignores the surplus.)
+    const candidates = lemmaCandidates(input, sourceLang);
+    const [wnRows, glossRows] = await Promise.all([
+      lookupWordNetMany(supabase, candidates),
+      lookupJMdictMany(supabase, candidates, sourceLang, targetLang),
+    ]);
+    const resolved = resolvePerInputWithCandidates(
+      [input],
+      new Map([[input, candidates]]),
+      groupProviderByInput(wnRows),
+      groupProviderByInput(glossRows),
+      targetLang,
+      EN_JA_RESULT_LIMIT,
+    );
+    return resolved.get(input) ?? [];
   }
   return lookupJMdict(supabase, input, sourceLang, targetLang);
 }
@@ -251,9 +241,12 @@ function rowToProvider(row: LookupRow): ProviderResult {
   };
 }
 
-// BATCH variants of lookupJMdict / lookupWordNet: resolve MANY inputs in ONE RPC
-// (cold-paragraph N+1 fix, migration 20260710). Each returns the rows tagged with
-// the search `input` so resolveDictionaryMany can regroup per term.
+// BATCH dictionary lookups: resolve MANY inputs in ONE RPC (cold-paragraph N+1 fix,
+// migration 20260710). Each returns rows tagged with the search `input` so callers can
+// regroup per term. These are the ONLY lookup entry points (single-word resolves a
+// 1-element batch too). WordNet = the SEMANTIC EN->JA provider (English lemma -> synsets
+// -> the Japanese lemmas in each, resolved through JMdict for reading/frequency/POS,
+// ordered by WordNet sense rank; EN->JA only). JMdict = the reverse-gloss/direct lookup.
 async function lookupJMdictMany(
   supabase: Supa, inputs: string[], sourceLang: string, targetLang: string,
 ): Promise<{ input: string; r: ProviderResult }[]> {
@@ -290,15 +283,22 @@ async function resolveDictionaryMany(
   if (inputs.length === 0) return new Map();
   const out = new Map<string, ProviderResult[]>();
   if (sourceLang === "EN" && targetLang === "JA") {
+    // Lemmatize like the single-word path, but in ONE round-trip: expand every token to
+    // its lemma candidates and query WordNet + the gloss fallback over the UNION, then
+    // pick each token's winning lemma and re-key the senses to the surface token. So a
+    // paragraph of inflected English (cats, ran, studies) reads as well as single words.
+    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    const allCands = [...new Set([...candsByInput.values()].flat())];
     const [wnRows, glossRows] = await Promise.all([
-      lookupWordNetMany(supabase, inputs),
-      lookupJMdictMany(supabase, inputs, sourceLang, targetLang),
+      lookupWordNetMany(supabase, allCands),
+      lookupJMdictMany(supabase, allCands, sourceLang, targetLang),
     ]);
-    const wnBy = groupProviderByInput(wnRows);
-    const glossBy = groupProviderByInput(glossRows);
-    for (const input of inputs) {
-      const merged = mergeProviderResults(wnBy.get(input) ?? [], glossBy.get(input) ?? [], DICTIONARY_RESULT_LIMIT);
-      if (merged.length > 0) out.set(input, merged);
+    const wnByCand = groupProviderByInput(wnRows);
+    const glossByCand = groupProviderByInput(glossRows);
+    for (const [input, results] of resolvePerInputWithCandidates(
+      inputs, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
+    )) {
+      out.set(input, results);
     }
   } else {
     const by = groupProviderByInput(await lookupJMdictMany(supabase, inputs, sourceLang, targetLang));
@@ -846,6 +846,8 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   // SINGLE mode: { input, persist?, idempotencyKey? }. NFC-normalize to match cache.
+  // (EN inflection is lemmatized inside resolveDictionary, not here, so the cache key
+  // stays the user's surface form.)
   const input = String(body.input ?? "").trim().normalize("NFC");
   // persist=false → translate for display only (a whole paragraph in context)
   // without reading/writing the cache; we don't store unique paragraphs.

@@ -35,6 +35,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>DINO scans text from your photos so you can look it up.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DINO can save photos you take when scanning text.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DINO scans text from photos you choose so you can look it up.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DINO uses the microphone to capture your speech for voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
