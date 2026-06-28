@@ -180,6 +180,50 @@ Remaining, prioritized — each has a concrete fix:
 - ~~**Two O(n) token passes**~~ **DONE** (`test/audit-coverage`) — `addablePrimaries` +
   `reviewablePrimaries` now computed in one pass over the tokens. (`useTranslate.ts`.)
 
+### Security & architecture audit (2026-06-28)
+A 4-agent audit (auth/RLS/endpoints · error-exposure/injection · scale/load ·
+input-abstraction/web-app split) of the native input-modality work + overall posture.
+**No CRITICAL/HIGH code flaws.** CLEARED: RLS on all 24 tables, SECURITY DEFINER
+ownership guards, no client-trusted `user_id`, no SQL/regex injection (bound params +
+literal-escaped patterns), no raw-error/stacktrace leakage (generic client messages +
+server-only `error_log`), **no LLM in the request path so prompt-injection is N/A today**
+(add guardrails when the #12 LLM features ship), and the handwriting/speech seams are
+genuinely swappable with a clean web/native split.
+
+FIXED this pass:
+- ~~`verify_jwt` only in the deploy script~~ now ALSO pinned in `config.toml`
+  (`[functions.translate]` / `[functions.delete-account]`) so the repo is the source of truth.
+- ~~No length cap before the dictionary lookup~~ `MAX_INPUT_CHARS = 20_000` hard cap before
+  any cache/JMdict/WordNet scan (single + batch paths, `translate/index.ts`).
+- ~~Modality buttons ignored language~~ added `supports(lang)` to both recognizers (draw/mic
+  hide for an unsupported source language) + unified the two seams' `available()` signature.
+
+Remaining, prioritized:
+- **[ops] Rotate the Google Translation key** in working-tree `supabase/functions/.env`
+  (surfaced during the audit). Impact is BOUNDED — already API-restricted to Cloud
+  Translation (Tier 2 #2) + capped by `GLOBAL_MONTHLY_CHAR_QUOTA` — so it's hygiene, not an
+  emergency; rotate and keep it only in `supabase secrets` / local dev.
+- **[MED] CAPTCHA for anon + email signup** — the IP rate-limit is already on (Tier 2 #4),
+  but a rotating-IP sybil can still bloat `auth.users`/`public.users` (paid MT stays capped).
+  Add Turnstile/hCaptcha + a periodic sweep of empty guests (0 `user_words`).
+- **[MED · scale-only] Global-quota single advisory lock** — already reserved once per batch;
+  the remaining once-per-request contention only bites at huge MT throughput → shard the
+  counter by hash bucket / lock-free UPDATE if it ever does.
+- **[LOW] `public.users.email` is client-writable + unverified** — enables email squatting
+  and it's the lookup key in `admin_grant_feature`. Fix = a BEFORE INSERT/UPDATE trigger
+  requiring `email` to equal the verified `auth.users.email` OR the `<uid>@guest.dino`
+  placeholder. DEFERRED deliberately: it sits on the session-create write path, so it needs
+  an integration-test pass (squat rejected; guest placeholder + upgrade still pass) before
+  prod — do NOT ship it blind.
+- **[LOW] UI may render raw DB messages** — `toServiceError` preserves the provider message;
+  render user-facing copy from the error `kind`, keep `.message` for console/telemetry only.
+- **[LOW] CORS defaults to `*`** when `ALLOWED_ORIGINS` is unset — prod sets it, so this is
+  default-to-deny hygiene (`translate/_lib.ts` + `delete-account`).
+- **[LOW] Confirm the `idempotency_keys` prune cron** actually registered on prod (the
+  `20260712` migration no-ops where pg_cron is unavailable).
+- **[LOW] Memoize recognizer availability** — handwriting/speech re-resolve the registry (and
+  re-hit the native bridge) on every check; cache once per session like `analyze.ts`'s engine.
+
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in
   `src/i18n/messages.ts`, compile-checked.)*
