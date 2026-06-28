@@ -11,7 +11,62 @@ PODS:
   - CapacitorCommunitySpeechRecognition (7.0.1):
     - Capacitor
   - CapacitorCordova (8.4.1)
+  - GoogleDataTransport (9.4.1):
+    - GoogleUtilities/Environment (~> 7.7)
+    - nanopb (< 2.30911.0, >= 2.30908.0)
+    - PromisesObjC (< 3.0, >= 1.2)
+  - GoogleMLKit/DigitalInkRecognition (5.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitDigitalInkRecognition (~> 4.0.0)
+  - GoogleMLKit/MLKitCore (5.0.0):
+    - MLKitCommon (~> 10.0.0)
+  - GoogleToolboxForMac/DebugUtils (2.3.2):
+    - GoogleToolboxForMac/Defines (= 2.3.2)
+  - GoogleToolboxForMac/Defines (2.3.2)
+  - GoogleToolboxForMac/Logger (2.3.2):
+    - GoogleToolboxForMac/Defines (= 2.3.2)
+  - "GoogleToolboxForMac/NSData+zlib (2.3.2)":
+    - GoogleToolboxForMac/Defines (= 2.3.2)
+  - "GoogleToolboxForMac/NSDictionary+URLArguments (2.3.2)":
+    - GoogleToolboxForMac/DebugUtils (= 2.3.2)
+    - GoogleToolboxForMac/Defines (= 2.3.2)
+    - "GoogleToolboxForMac/NSString+URLArguments (= 2.3.2)"
+  - "GoogleToolboxForMac/NSString+URLArguments (2.3.2)"
+  - GoogleUtilities/Environment (7.13.3):
+    - GoogleUtilities/Privacy
+    - PromisesObjC (< 3.0, >= 1.2)
+  - GoogleUtilities/Logger (7.13.3):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Privacy (7.13.3)
+  - GoogleUtilities/UserDefaults (7.13.3):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GoogleUtilitiesComponents (1.1.0):
+    - GoogleUtilities/Logger
+  - GTMSessionFetcher/Core (3.5.0)
   - IONCameraLib (1.0.4)
+  - MLKitCommon (10.0.0):
+    - GoogleDataTransport (~> 9.0)
+    - GoogleToolboxForMac/Logger (~> 2.1)
+    - "GoogleToolboxForMac/NSData+zlib (~> 2.1)"
+    - "GoogleToolboxForMac/NSDictionary+URLArguments (~> 2.1)"
+    - GoogleUtilities/UserDefaults (~> 7.0)
+    - GoogleUtilitiesComponents (~> 1.0)
+    - GTMSessionFetcher/Core (< 4.0, >= 1.1)
+  - MLKitDigitalInkRecognition (4.0.0):
+    - MLKitCommon (~> 10.0)
+    - MLKitMDD (~> 6.0)
+    - SSZipArchive (< 3.0, >= 2.2.3)
+  - MLKitMDD (6.0.0):
+    - MLKitCommon (~> 10.0)
+  - nanopb (2.30910.0):
+    - nanopb/decode (= 2.30910.0)
+    - nanopb/encode (= 2.30910.0)
+  - nanopb/decode (2.30910.0)
+  - nanopb/encode (2.30910.0)
+  - PromisesObjC (2.4.1)
+  - SSZipArchive (2.4.3)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -20,10 +75,23 @@ DEPENDENCIES:
   - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCommunitySpeechRecognition (from `../../node_modules/@capacitor-community/speech-recognition`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - GoogleMLKit/DigitalInkRecognition
 
 SPEC REPOS:
   trunk:
+    - GoogleDataTransport
+    - GoogleMLKit
+    - GoogleToolboxForMac
+    - GoogleUtilities
+    - GoogleUtilitiesComponents
+    - GTMSessionFetcher
     - IONCameraLib
+    - MLKitCommon
+    - MLKitDigitalInkRecognition
+    - MLKitMDD
+    - nanopb
+    - PromisesObjC
+    - SSZipArchive
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -46,8 +114,20 @@ SPEC CHECKSUMS:
   CapacitorCamera: 8f6acf83664118321111e76acef86390211ccb08
   CapacitorCommunitySpeechRecognition: 3e03566c44c2bb3b52391a33d4518b1adbdeb38f
   CapacitorCordova: eebe6bcf807b1b06f3f48237650f96bbcd0eef09
+  GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
+  GoogleMLKit: 90ba06e028795a50261f29500d238d6061538711
+  GoogleToolboxForMac: 8bef7c7c5cf7291c687cf5354f39f9db6399ad34
+  GoogleUtilities: ea963c370a38a8069cc5f7ba4ca849a60b6d7d15
+  GoogleUtilitiesComponents: 679b2c881db3b615a2777504623df6122dd20afe
+  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
   IONCameraLib: f2349804460bd9e3f892e42109b8d996ab3fa19d
+  MLKitCommon: afcd11b6c0735066a0dde8b4bf2331f6197cbca2
+  MLKitDigitalInkRecognition: 51411badefc7f60c5fc2f8606a4a4d9819752ffc
+  MLKitMDD: ad94b775d9497b32af2dba0e104dc5695b310921
+  nanopb: 438bc412db1928dac798aa6fd75726007be04262
+  PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
+  SSZipArchive: fe6a26b2a54d5a0890f2567b5cc6de5caa600aef
 
-PODFILE CHECKSUM: e9e911213503f1ad47ef5b3712b1f24bc4990cb2
+PODFILE CHECKSUM: d9973bc2ead90169fe8ae1feee0933bf371c4ba4
 
 COCOAPODS: 1.16.2

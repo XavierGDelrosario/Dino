@@ -1,0 +1,5 @@
+/* Localized iOS permission prompts (Japanese). Shown when the device language is
+   Japanese. Keep keys in sync with Info.plist. */
+"NSMicrophoneUsageDescription" = "音声入力のために、DINOがマイクを使用します。";
+"NSSpeechRecognitionUsageDescription" = "DINOは端末上で音声を文字に変換し、翻訳や単語の保存に使用します。";
+"NSCameraUsageDescription" = "DINOは写真から文字を読み取って検索します。";

@@ -20,6 +20,9 @@ end
 target 'App' do
   capacitor_pods
   # Add your Pods here
+  # On-device handwriting recognition for the local DigitalInk plugin
+  # (DigitalInkPlugin.swift). Free, offline; per-language models download at runtime.
+  pod 'GoogleMLKit/DigitalInkRecognition'
 end
 
 post_install do |installer|

@@ -236,7 +236,18 @@
   display: flex;
   gap: 1rem;
   align-items: stretch;
+  /* Anchor for the handwriting overlay (.translate__overlay covers both boxes). */
+  position: relative;
   /* Fills the .translate breakout width (so the boxes and the reader match). */
+}
+
+/* Wraps the input textarea so the modality tools (.io__tools) can pin to its
+   corner. Behaves as the left flex box; the textarea fills it. */
+.translate__inputwrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
 }
 
 /* The two side-by-side boxes: input (textarea) and output. */
@@ -530,4 +541,144 @@
   color: var(--muted);
   font-size: 0.9rem;
   font-style: italic;
+}
+
+/* Handwriting input (Tier-4, native ML Kit Digital Ink). A square "paper" pad
+   whose recognized candidates fill the translate input. */
+
+/* Input modality tools, pinned to the input box's top-right corner (pencil now;
+   speech + camera will sit alongside). */
+.io__tools {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.io__tool {
+  appearance: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.io__tool:hover,
+.io__tool[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+
+/* Mic actively listening: red, pulsing, until the user taps to stop. */
+.io__tool--rec {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+  animation: io-rec-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes io-rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Drawing pad opens as an overlay covering both boxes — no page growth/scroll. */
+.translate__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg, #16181d) 78%, transparent);
+}
+
+/* Compact button variant used inside the pad (no global .btn--sm yet). */
+.btn--sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+}
+
+.hw {
+  margin-top: 0.6rem;
+  max-width: 308px;
+  padding: 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.hw__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.hw__hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.hw__pad {
+  display: block;
+  width: 280px;
+  height: 280px;
+  background: #fafafa;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.hw__controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.hw__error {
+  margin: 0.4rem 0 0;
+  color: #ffb4ad;
+  font-size: 0.85rem;
+}
+
+.hw__candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.hw__cand {
+  appearance: none;
+  padding: 0.3rem 0.7rem;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hw__cand:hover {
+  border-color: var(--accent);
 }

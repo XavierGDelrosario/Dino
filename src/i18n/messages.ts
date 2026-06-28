@@ -43,6 +43,25 @@ export const en = {
   "translate.noDomain":
     "No related words at your level — try a longer or more common passage.",
 
+  // handwriting input (native, on-device)
+  "handwriting.draw": "✍️ Draw",
+  "handwriting.hide": "✕ Close drawing",
+  "handwriting.hint": "Draw a character",
+  "handwriting.padAria": "Handwriting input area",
+  "handwriting.candidatesAria": "Recognized characters",
+  "handwriting.undo": "Undo",
+  "handwriting.clear": "Clear",
+  "handwriting.recognize": "Recognize",
+  "handwriting.close": "Close handwriting",
+  "handwriting.noMatch": "No match — try drawing more clearly.",
+  "handwriting.error": "Couldn’t recognize. Try again.",
+
+  // voice input (native, on-device speech)
+  "speech.start": "Voice input",
+  "speech.stop": "Stop recording",
+  "speech.denied": "Microphone access denied. Enable it in Settings.",
+  "speech.error": "Couldn’t capture speech. Try again.",
+
   // generic actions
   "common.add": "Add",
   "common.cancel": "Cancel",
@@ -242,6 +261,25 @@ export const ja: Record<MessageKey, string> = {
   "translate.exploreLoading": "関連語を検索中…",
   "translate.noDomain":
     "あなたのレベルに合う関連語が見つかりません。より長い、または一般的な文章をお試しください。",
+
+  // handwriting input (native, on-device)
+  "handwriting.draw": "✍️ 手書き",
+  "handwriting.hide": "✕ 手書きを閉じる",
+  "handwriting.hint": "文字を書いてください",
+  "handwriting.padAria": "手書き入力エリア",
+  "handwriting.candidatesAria": "認識された文字",
+  "handwriting.undo": "元に戻す",
+  "handwriting.clear": "消去",
+  "handwriting.recognize": "認識",
+  "handwriting.close": "手書きを閉じる",
+  "handwriting.noMatch": "一致なし — もっとはっきり書いてください。",
+  "handwriting.error": "認識できませんでした。もう一度お試しください。",
+
+  // voice input (native, on-device speech)
+  "speech.start": "音声入力",
+  "speech.stop": "録音を停止",
+  "speech.denied": "マイクへのアクセスが拒否されました。設定で有効にしてください。",
+  "speech.error": "音声を認識できませんでした。もう一度お試しください。",
 
   "common.add": "追加",
   "common.cancel": "キャンセル",

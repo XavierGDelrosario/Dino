@@ -49,13 +49,37 @@ the developer cert in **Settings → General → VPN & Device Management**.
 - `NSMicrophoneUsageDescription` — "Used for speech-to-text vocabulary capture."
 - `NSSpeechRecognitionUsageDescription` — "Used to transcribe spoken Japanese."
 - `NSCameraUsageDescription` — "Used to scan text from photos."
+- Handwriting needs NO permission (on-device, no camera/mic).
 
 ## Feature wiring status (the next phase — done WITH device testing)
 | Feature | Plugin | Status |
 |---|---|---|
+| Handwriting (draw a kanji) | ML Kit Digital Ink (local `DigitalInk` plugin) | ✅ web seam + UI + Swift plugin scaffolded; ⚠️ needs device verify (below) |
 | Speech-to-text (JA) | `@capacitor-community/speech-recognition` | installed; wire to an input mic button → feeds `analyze()` |
 | Camera → OCR (JA) | `@capacitor/camera` + ML Kit text recognition | camera installed; OCR plugin TBD during wiring |
-| Handwriting (draw a kanji) | ML Kit Digital Ink | ⚠️ no mature Capacitor plugin — needs a small custom Swift plugin; lowest priority |
+
+### Handwriting — what's built & how to verify on device
+The feature is **strokes → on-device recognition → candidate fills the translate
+input** (then the normal `analyze()`/JMdict path). Built so far:
+- **Web seam (platform-neutral, green):** `src/services/handwriting/` (types +
+  registry + facade — swappable backend, like `senses/`/`difficulty/`), the
+  `HandwritingCanvas` stroke-capture component, and a "✍️ Draw" toggle in
+  `TranslateView` that only shows when a backend is available (so it's invisible on
+  web today). Unit-tested (`tests/services/handwriting/facade.test.ts`).
+- **Native backend:** `ios/App/App/DigitalInkPlugin.swift` (local Capacitor plugin
+  `DigitalInk`, wraps ML Kit Digital Ink — on-device, free, offline) + the
+  `GoogleMLKit/DigitalInkRecognition` pod in the Podfile.
+
+To verify on a device (the part NOT yet exercised — no Xcode build in this env):
+```bash
+npm run build && npx cap sync ios
+cd ios/App && pod install && cd -
+npm run ios:open      # then ▶ in Xcode on a real device/simulator
+```
+First draw triggers a one-time ~20MB model download (wifi-only by design). Expect
+the "✍️ Draw" toggle to appear in Translate; draw a kanji → tap Recognize → tap a
+candidate → it fills the input. If the toggle is missing, the plugin didn't
+register (re-run `cap sync`); if recognition rejects, check the model downloaded.
 
 All three output plain text → the existing `analyze()` → JMdict pipeline, so nothing
 downstream changes.
