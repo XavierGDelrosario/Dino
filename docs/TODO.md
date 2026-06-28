@@ -224,6 +224,25 @@ Remaining, prioritized:
 - **[LOW] Memoize recognizer availability** — handwriting/speech re-resolve the registry (and
   re-hit the native bridge) on every check; cache once per session like `analyze.ts`'s engine.
 
+**Test-coverage gap revealed (2026-06-28) — native runtime + live backend is UNtested.**
+A CapacitorHttp regression made `supabase.functions.invoke` HANG on iOS (the edge call never
+resolved → output stuck on "Translating…"). No test caught it because the bug lives at the
+intersection of three layers each tested with the others stubbed: `client.test.ts` MOCKS
+`functions.invoke`; `translate-edge.integration.test.ts` hits the edge via raw `fetch` (not
+`invoke`) with local Kong rewriting CORS to `*`; `e2e-smoke.mjs` MOCKS Supabase and runs in
+desktop Chromium, not the iOS WebView. So `functions.invoke` is never run for real, nothing
+runs in the Capacitor WebView, and prod CORS is only real in prod. Every native bug this
+session (local-127.0.0.1 backend, plugin registration, StrokePoint API, CORS, CapacitorHttp
+hang) lived here. Fixes, cheapest-first:
+- **[MED] Automated prod preflight/health smoke** — post-deploy script: OPTIONS-preflight the
+  live `translate` fn for each expected origin (`pages.dev` + `capacitor://localhost`) + assert
+  an authed POST → 200. Would have caught both the CORS failure AND the invoke hang. ~30 lines.
+- **[MED] Integration test via the REAL `functions.invoke`** (not raw fetch) vs local Supabase —
+  closes the "invoke never executed for real" hole.
+- **[LOW→big] Native simulator smoke** (XCUITest/Appium): launch → type a word → assert a
+  translation renders. The ONLY layer exercising CapacitorHttp + invoke + real CORS together;
+  until justified, keep a manual device smoke checklist.
+
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in
   `src/i18n/messages.ts`, compile-checked.)*

@@ -13,15 +13,10 @@ const config: CapacitorConfig = {
   appId: "com.xaviergdelrosario.dino",
   appName: "DINO",
   webDir: "dist",
-  plugins: {
-    // Route the app's HTTPS calls (Supabase auth + the translate edge function)
-    // through NATIVE HTTP, so they aren't browser fetches and CORS never applies —
-    // the native shell needs no entry in the edge function's ALLOWED_ORIGINS, and
-    // prod CORS stays web-only (just the Pages domain). Only http(s) URLs are
-    // intercepted; relative / capacitor:// asset loads (e.g. the kuromoji /dict
-    // payload) pass through untouched.
-    CapacitorHttp: { enabled: true },
-  },
+  // NOTE: do NOT enable CapacitorHttp — it globally patches fetch and breaks
+  // supabase-js `functions.invoke` (the edge call hangs on the native Response).
+  // Native edge access is granted by adding `capacitor://localhost` to the edge
+  // function's ALLOWED_ORIGINS secret instead (CORS, not a fetch patch).
 };
 
 export default config;
