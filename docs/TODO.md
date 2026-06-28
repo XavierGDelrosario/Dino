@@ -243,6 +243,27 @@ hang) lived here. Fixes, cheapest-first:
   translation renders. The ONLY layer exercising CapacitorHttp + invoke + real CORS together;
   until justified, keep a manual device smoke checklist.
 
+### Dictionary ranking / cache (2026-06-28)
+Reported wrong primaries on JA→EN single-word lookups; reproduced against the FULL
+local JMdict and split into fixed vs. data-limited:
+- ~~**顔 → かんばせ before かお**~~ **FIXED** (`fix/...`, edge) — `fetchVerified`/
+  `fetchVerifiedMany`/`sortBySensePos` ordered the cache read by `jmdict_sense_pos`
+  alone, scrambling multi-entry words that tie at sense 0. Now order by frequency
+  DESC, entry_id, sense_pos (mirrors `jmdict_lookup`). Deploy-only; fixes existing cache.
+- ~~**こと → 琴 only (事 missing)**~~ **FIXED** (edge) — a reading-only cache match
+  (こと ↔ cached 琴 via `input_reading`) was treated as a complete hit, so 事 was
+  never fetched. Now only an exact-headword match is authoritative; reading-only
+  matches fall through to the full lookup (self-heals, caches all). Deploy-only.
+- **前 → ぜん before まえ, もの → 者 before 物 — DATA LIMITATION, not yet fixed.** The
+  ranking frequency is per-SURFACE, so a reading is polluted by the kanji's OTHER
+  reading: 者's kanji-freq 620 (from しゃ) > 物 545; まえ kana-freq 169 < ぜん 375 (ぜん
+  shared by 全/善/前). Surface frequency genuinely can't prefer the learner-default
+  reading here. Fix needs per-(kanji,reading) frequency (not available from wordfreq)
+  OR a small curated default-reading/word override table (こと→事 already wins via uk).
+  → decide: accept as POC limitation, or build the curated override.
+- **Both edge fixes need `supabase functions deploy translate`** to reach prod (carries
+  the verify_jwt pin + MAX_INPUT_CHARS too). No re-projection needed.
+
 ## 🟢 Tier 3 — Post-launch OK (features / polish)
 - native app (#18). *(i18n #17 done — EN/JA; add a locale = one entry in
   `src/i18n/messages.ts`, compile-checked.)*
