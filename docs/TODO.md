@@ -36,6 +36,27 @@ numbers preserved; cross-referenced elsewhere):
   flat `gloss_terms(term, entry_id, rank)` (btree on `term`) + denormalize
   headword/reading/freq. (`20260618_jmdict.sql`.)
 
+### Cache invalidation — `projection_version` read-side is UNWIRED (verified 2026-07-03)
+The `words` re-projection flag is only HALF-built, so "flag a word outdated → it requeries on
+next lookup" does **not** actually happen yet:
+- **Write side DONE** — the edge STAMPS `projection_version = CURRENT_PROJECTION_VERSION` (=4) on
+  every projected row (`_lib.ts projectRows`; `index.ts`).
+- **Read side MISSING** — NOTHING compares it. `fetchVerified` / `fetchVerifiedMany` (edge) and
+  `repository.ts` (client) select cached rows by `input`/`is_verified`/lang with **no
+  `projection_version` filter**. So a stale/flagged row is returned as a normal cache hit forever;
+  the `index.ts:55` comment ("rows it must rebuild… < this") describes intent that was never wired.
+  (This is CLAUDE.md #3 "active re-projection sweep — DEFERRED"; only the stamp shipped.)
+- Session fixes still work because they self-heal by a DIFFERENT route (傷む misses on the writing
+  mismatch → requeries; reading-override + compounds are client-side), not via the flag.
+- **Proposed build (safe, targeted):** use `projection_version = 0` as a "flagged stale" SENTINEL
+  (live rows are ≥1, so nothing existing is touched). Read paths skip v0 (edge fetchVerified/
+  fetchVerifiedMany + client repository) → cache miss → the edge re-queries JMdict and re-projects
+  IN PLACE (upsert on `dictionary_ref` keeps `word_id`/user refs) → re-stamped to 4. Flag a word =
+  `UPDATE words SET projection_version = 0 WHERE input = …`. Chosen over the documented
+  `< CURRENT` sweep because that would mass-invalidate prod's v1–v3 backlog on next lookup —
+  including MT-cached rows, which re-query through **Google = real cost**. Sentinel keeps it
+  targeted + MT-safe (only flag JMdict words). Spans edge + client read paths + tests + a deploy.
+
 ### Test coverage
 - **Hooks — DONE 2026-07-03.** `useLists`, `useReview`, `useTextQuiz`, and `useTranslate`
   (applyReview + the input=learning/output=native default) now have RTL `renderHook` specs
