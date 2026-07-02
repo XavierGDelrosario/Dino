@@ -81,6 +81,12 @@ const MAX_SPAN = JA_COMPOUNDS.reduce(
   (max, c) => Math.max(max, [...c].length),
   0,
 );
+// First code unit of every compound. The scan only does work at a position whose
+// token could START a listed compound — so cost is O(tokens), INDEPENDENT of list
+// size (a bigger list just adds O(1) Set entries, not per-token work), and the
+// common case (text containing no compound-initial char) is a no-op. This is what
+// keeps the "the list might bloat" worry from ever becoming a perf worry.
+const FIRST_CHARS = new Set(JA_COMPOUNDS.map((c) => c[0]));
 
 /**
  * Merge consecutive tokens whose concatenated surfaces form a listed compound
@@ -93,37 +99,48 @@ const MAX_SPAN = JA_COMPOUNDS.reduce(
  */
 export function mergeJapaneseCompounds(tokens: AnalyzedToken[]): AnalyzedToken[] {
   if (tokens.length < 2 || MAX_SPAN < 2) return tokens;
+  // Fast path: if NO token starts a listed compound, there's nothing to merge —
+  // return the input untouched with zero allocation (the common case for text
+  // without any of these compounds). Tokens are already NFC (input is normalized
+  // at the boundary; JA_COMPOUNDS is NFC too), so no per-candidate normalize.
+  let couldMatch = false;
+  for (let i = 0; i < tokens.length; i++) {
+    if (FIRST_CHARS.has(tokens[i].text[0])) { couldMatch = true; break; }
+  }
+  if (!couldMatch) return tokens;
+
   const out: AnalyzedToken[] = [];
   let i = 0;
   while (i < tokens.length) {
-    let merged = false;
-    // Try the LONGEST span first so a listed super-compound wins over a listed
-    // sub-compound (e.g. prefer 大規模 over a hypothetical 規模-only entry).
-    const maxEnd = Math.min(tokens.length, i + MAX_SPAN);
-    for (let end = maxEnd; end >= i + 2; end--) {
-      const span = tokens.slice(i, end);
-      const surface = span.map((t) => t.text).join("");
-      if (COMPOUND_SET.has(surface.normalize("NFC"))) {
-        out.push({
-          text: surface,
-          start: span[0].start,
-          end: span[span.length - 1].end,
-          // Fragment readings are already hiragana; concatenation is the compound
-          // reading — but ONLY when every fragment had one (だい+きぼ=だいきぼ). A
-          // missing fragment reading (common for the rarer compounds kuromoji
-          // splits, e.g. 隕 in 隕石) would make a WRONG partial, so fall back to null
-          // and let the dictionary reading fill it in (the reader overrides an
-          // unambiguous dictionary reading onto the token anyway).
-          reading: span.every((t) => t.reading) ? span.map((t) => t.reading).join("") : null,
-          lemma: surface, // the compound IS its own dictionary form
-          pos: "名詞", // a content POS → rendered as lookup-able vocabulary
-        });
-        i = end;
-        merged = true;
-        break;
+    let bestEnd = -1; // exclusive end of the LONGEST listed compound starting at i
+    if (FIRST_CHARS.has(tokens[i].text[0])) {
+      const maxEnd = Math.min(tokens.length, i + MAX_SPAN);
+      // Extend the surface one token at a time (no slice/map/join), recording the
+      // longest span that IS a listed compound — longest-match wins.
+      let surface = tokens[i].text;
+      for (let end = i + 1; end < maxEnd; end++) {
+        surface += tokens[end].text;
+        if (COMPOUND_SET.has(surface)) bestEnd = end + 1;
       }
     }
-    if (!merged) {
+    if (bestEnd >= i + 2) {
+      const span = tokens.slice(i, bestEnd);
+      out.push({
+        text: span.map((t) => t.text).join(""),
+        start: span[0].start,
+        end: span[span.length - 1].end,
+        // Fragment readings are already hiragana; concatenation is the compound
+        // reading — but ONLY when every fragment had one (だい+きぼ=だいきぼ). A
+        // missing fragment reading (common for the rarer compounds kuromoji
+        // splits, e.g. 隕 in 隕石) would make a WRONG partial, so fall back to null
+        // and let the dictionary reading fill it in (the reader overrides an
+        // unambiguous dictionary reading onto the token anyway).
+        reading: span.every((t) => t.reading) ? span.map((t) => t.reading).join("") : null,
+        lemma: span.map((t) => t.text).join(""), // the compound IS its own dictionary form
+        pos: "名詞", // a content POS → rendered as lookup-able vocabulary
+      });
+      i = bestEnd;
+    } else {
       out.push(tokens[i]);
       i += 1;
     }

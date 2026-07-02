@@ -22,6 +22,7 @@ import {
   type Word,
 } from "./words/repository";
 import { setCachedSenses } from "./words/cache";
+import { applyReadingOverride } from "./language/readingOverrides";
 import { translate, translateBatch } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
@@ -71,7 +72,15 @@ export async function lookupWord(params: {
     setCachedSenses(input, resolvedSource, targetLang, meanings);
   }
 
-  return { input, sourceLang: resolvedSource, targetLang, meanings };
+  // TEMPORARY hand-verified fix for the no-context default reading of a handful
+  // of common standalone words that lose jmdict_lookup's frequency tiebreak
+  // (前 → さき instead of まえ). Reorders the PRIMARY sense only; no-op otherwise.
+  return {
+    input,
+    sourceLang: resolvedSource,
+    targetLang,
+    meanings: applyReadingOverride(input, meanings),
+  };
 }
 
 /**
