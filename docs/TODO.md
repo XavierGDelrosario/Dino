@@ -144,6 +144,23 @@ for the compound, so each fragment is looked up alone and the meaning is lost):
   SECONDARY-WRITING projection bug worth its own check. (3) 次→つぎ is a *consequence* of segmentation
   + the single-reading override, so guard the override against orphaned single-kanji fragments.
 
+**FIXES SHIPPED 2026-07-03 (verified live):**
+- **SEGMENTATION → DONE (compound-merge pass).** kuromoji.js has no user-dictionary API, so
+  `services/language/compounds.ts` re-merges over-segmented whole words AFTER tokenizing (a curated
+  `JA_COMPOUNDS` list + longest-match merge; reading = concatenated fragment readings). Wired into
+  `analyzeJapanese`. Verified via real kuromoji: 大規模→だいきぼ, 婚活→こんかつ, 主に→おもに as ONE token
+  (`tests/services/language/compounds.test.ts`, 9 tests). Extend by adding surfaces to the list.
+  婚活 is still absent from the common JMdict subset (resolves via full dict / MT), but is now ONE
+  token so MT gets 婚活, not 婚+活.
+- **傷む SECONDARY-WRITING → DONE (migration 20260715).** Root cause (verified live): `jmdict_lookup`
+  returned the PREFERRED kanji 痛む for a 傷む search, and the edge's `groupByInput` (input===term OR
+  input_reading===term) then couldn't attribute the row to 傷む → the token got zero senses → grey.
+  Fix: when the input IS one of the entry's kanji writings, headline THAT writing (+ its own
+  frequency); a kana search still surfaces the preferred kanji (ねこ→猫). `jmdict_lookup_many`
+  delegates, so the reader's batch path inherits it. Covered by `rpc.integration.test.ts`.
+- **STILL OPEN:** the 次→つぎ single-reading override guard (takeaway 3) and the curated default-reading
+  override (前→まえ / もの→物, the item above) — not addressed here.
+
 **Remaining dictionary/reading work:**
 - **EN long-tail irregulars** — ingest Princeton `verb.exc`/`noun.exc` (the bundled
   `lemmaCandidates` map is common forms only); optionally push EN lemmatization into SQL
