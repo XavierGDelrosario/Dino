@@ -103,15 +103,36 @@ DATA LIMITATION:
   so a reading is polluted by the kanji's OTHER reading (者's kanji-freq 620 from しゃ > 物
   545; まえ 169 < ぜん 375, ぜん shared by 全/善/前). Surface freq can't prefer the
   learner-default. Fix needs per-(kanji,reading) frequency (wordfreq lacks it) OR a curated
-  default-reading/word override (こと→事 already wins via uk). → **TODO: build the curated
-  override** (decision: do it).
+  default-reading/word override (こと→事 already wins via uk). → **A CAPPED hand-verified
+  override SHIPPED 2026-07-03 (see below); a blanket curated list was RULED OUT by research.**
 
 **Troublemaker list (researched 2026-06-28, full JMdict; severe = obscure beats everyday):**
 - **SEVERE:** ところ→野老 (rare yam) vs 所; はし→階/きざはし (archaic) vs 橋/箸/端; かみ→上 vs 紙/神/髪.
 - **Wrong reading (kanji):** 前→ぜん (まえ); 形→なり (かたち); 市→いち (し); 主→おも (ぬし/しゅ); 重→主[おも] (重い); 角→かく (かど).
 - **Wrong word (kana):** もの→者 (物); かえる→変える (帰る also wanted).
 - **Borderline (OK today):** 後→あと, 方→かた, 生→なま, あつい→熱い (vs 暑い), 月→つき.
-- The override should cover ≥ the SEVERE + wrong-reading rows.
+
+**Single-word reading override — RESEARCHED + SHIPPED (2026-07-03).** The plan was a
+curated default-reading list; research (kuromoji over a Japanese-Wikipedia corpus × full-JMdict ×
+live `jmdict_lookup`) RULED OUT a blanket list and every cheap variant, and shipped a small
+hand-verified stopgap instead:
+- **A blanket curated list is INSUFFICIENT.** The ambiguous-reading universe is **~4,169 frequent
+  words** (≥2 readings, Zipf≥2.5) — measured, vs the ~15-20 hand list. Coverage is unbounded,
+  subjective, AND many are context-dependent (日=ひ/にち) with no single correct default.
+- **Data-driven per-reading frequency (v1) has the right signal but leaks noise** — a lone-kanji
+  token's corpus reading reflects kuromoji's own prior + non-word usages (間 showed ま at 96%
+  though あいだ is the everyday word), plus name/register readings (明→あきら, 日本→にっぽん).
+- **A `common`-flag guard (v2) FAILED — measured anticorrelated:** it suppressed the genuine fixes
+  (前/市/彼 — both readings are flagged common) while letting name/register readings through.
+- **What SHIPPED:** `src/services/language/readingOverrides.ts` — a CAPPED, hand-verified set (10
+  entries: 前→まえ, 人→ひと, 本→ほん, 彼→かれ, 娘→むすめ, 形→かたち, 頭→あたま, 秋→あき, 裏→うら, 字→じ) of
+  common STANDALONE words with a SINGLE everyday reading the system gets wrong. Applied in
+  `lookupWord` (`applyReadingOverride`, reorders the PRIMARY sense only; no migration/schema).
+  Deliberately EXCLUDES compound-only (数→すう vs the standalone かず), genuinely-ambiguous
+  (間 あいだ/ま), already-fine (日本→にほん), and names. Extend by hand only.
+- **STILL open (the general no-context case):** genuinely ambiguous single-kanji lookups have no
+  clean default — the right long-term UX is a **multi-reading display** (show the top 2-3), not one
+  guessed default; the context-aware reader (kuromoji) already handles words in a sentence.
 
 **Reported gaps (2026-07-03, VERIFIED) — from the run `主に大規模次男女婚活傷む`:**
 Verified against raw kuromoji (IPADIC in `node_modules/kuromoji/dict`) + the committed common
