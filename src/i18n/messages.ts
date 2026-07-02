@@ -168,6 +168,11 @@ export const en = {
   "quiz.again": "Quiz again",
   "quiz.scopeReview": "Reviewing words from this text",
   "quiz.scopeLearn": "Quizzing new words from this text",
+  "quiz.addToList": "Add this meaning to your list",
+  "quiz.added": "Added to your list",
+  "quiz.prevMeaning": "Previous meaning",
+  "quiz.nextMeaning": "Next meaning",
+  "quiz.meaningPos": "meaning {i}/{n}",
 
   // add-to-list button / destination picker
   "add.addedAria": "Added",
@@ -392,6 +397,11 @@ export const ja: Record<MessageKey, string> = {
   "quiz.again": "もう一度クイズ",
   "quiz.scopeReview": "このテキストの単語を復習中",
   "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
+  "quiz.addToList": "この意味をリストに追加",
+  "quiz.added": "リストに追加済み",
+  "quiz.prevMeaning": "前の意味",
+  "quiz.nextMeaning": "次の意味",
+  "quiz.meaningPos": "意味 {i}/{n}",
 
   "add.addedAria": "追加しました",
   "add.menuTitle": "リストに追加",

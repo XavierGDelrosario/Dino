@@ -503,20 +503,26 @@ export function useTranslate(userId: string) {
   // they're saved: addable (not yet saved — "Add all" + text-quiz targets) vs
   // reviewable (already saved — re-quiz a studied paragraph via SRS).
   // Particles/auxiliaries are excluded via POS.
-  const { addablePrimaries, reviewablePrimaries } = useMemo(() => {
+  // addableCards carries ALL senses of each NEW word (primary first) so the quiz
+  // can cycle meanings + add a chosen one; addablePrimaries is the primary-only
+  // view kept for the count and the "Add all" path.
+  const { addablePrimaries, reviewablePrimaries, addableCards } = useMemo(() => {
     const addable: Word[] = [];
     const reviewable: Word[] = [];
+    const cards: Word[][] = [];
     if (para) {
       const seen = new Set<string>();
       for (const tok of para.tokens) {
         if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
         seen.add(tok.text);
-        const primary = para.meanings.get(tok.text)?.[0];
+        const senses = para.meanings.get(tok.text) ?? [];
+        const primary = senses[0];
         if (!primary) continue;
-        (saved.has(primary.wordId) ? reviewable : addable).push(primary);
+        if (saved.has(primary.wordId)) reviewable.push(primary);
+        else { addable.push(primary); cards.push(senses); }
       }
     }
-    return { addablePrimaries: addable, reviewablePrimaries: reviewable };
+    return { addablePrimaries: addable, reviewablePrimaries: reviewable, addableCards: cards };
   }, [para, saved]);
 
   return {
@@ -534,7 +540,7 @@ export function useTranslate(userId: string) {
     para, analyzedInput, readerLoading,
     // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
     // the state-sync callback the quiz uses after each grade.
-    addablePrimaries, reviewablePrimaries,
+    addablePrimaries, reviewablePrimaries, addableCards,
     addableCount: addablePrimaries.length,
     reviewableCount: reviewablePrimaries.length, applyReview,
     // #12 domain expansion: study related domain words at your level.

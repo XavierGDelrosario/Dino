@@ -29,7 +29,7 @@ export function TranslateView({ userId }: { userId: string }) {
   const t = useTranslate(userId);
   const { t: tr } = useI18n();
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
-  const [quiz, setQuiz] = useState<{ words: Word[]; mode: QuizMode } | null>(null);
+  const [quiz, setQuiz] = useState<{ cards: Word[][]; mode: QuizMode } | null>(null);
   const [domainNote, setDomainNote] = useState<string | null>(null);
 
   // Handwriting input (native on-device recognizer): show the draw affordance only
@@ -105,7 +105,8 @@ export function TranslateView({ userId }: { userId: string }) {
   const onExplore = async () => {
     setDomainNote(null);
     const words = await t.exploreDomain();
-    if (words.length > 0) setQuiz({ words, mode: "learn" });
+    // Domain words are one chosen sense each → singleton cards (no cycling).
+    if (words.length > 0) setQuiz({ cards: words.map((w) => [w]), mode: "learn" });
     else setDomainNote(tr("translate.noDomain"));
   };
 
@@ -127,7 +128,7 @@ export function TranslateView({ userId }: { userId: string }) {
       <section className="translate">
         <TextQuizView
           userId={userId}
-          words={quiz.words}
+          cards={quiz.cards}
           mode={quiz.mode}
           onGraded={t.applyReview}
           onClose={() => setQuiz(null)}
@@ -303,7 +304,7 @@ export function TranslateView({ userId }: { userId: string }) {
                   {t.addableCount > 0 && (
                     <button
                       className="btn"
-                      onClick={() => setQuiz({ words: t.addablePrimaries, mode: "learn" })}
+                      onClick={() => setQuiz({ cards: t.addableCards, mode: "learn" })}
                     >
                       {tr("translate.quizNew", { n: t.addableCount, noun: noun(t.addableCount) })}
                     </button>
@@ -311,7 +312,7 @@ export function TranslateView({ userId }: { userId: string }) {
                   {t.reviewableCount > 0 && (
                     <button
                       className="btn"
-                      onClick={() => setQuiz({ words: t.reviewablePrimaries, mode: "review" })}
+                      onClick={() => setQuiz({ cards: t.reviewablePrimaries.map((w) => [w]), mode: "review" })}
                     >
                       {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
                     </button>
