@@ -16,13 +16,14 @@ export type QuizMode = "learn" | "review";
 
 export function TextQuizView({
   userId,
-  words,
+  cards,
   mode = "learn",
   onGraded,
   onClose,
 }: {
   userId: string;
-  words: Word[];
+  /** One entry per word — its full sense list (primary first) so meanings cycle. */
+  cards: Word[][];
   mode?: QuizMode;
   /** Sync the reader's saved/confidence state as each word is learned/reviewed. */
   onGraded?: OnGraded;
@@ -31,7 +32,7 @@ export function TextQuizView({
 }) {
   // mode "learn" = NEW words (first-encounter recall), the right signal to
   // calibrate the user's level on — done silently in the hook (no UI here).
-  const q = useTextQuiz(userId, words, { onGraded, calibrate: mode === "learn" });
+  const q = useTextQuiz(userId, cards, { onGraded, calibrate: mode === "learn" });
   const { t } = useI18n();
   const noun = (n: number) => t(n === 1 ? "common.word" : "common.words");
 
@@ -76,7 +77,46 @@ export function TextQuizView({
       </p>
       <ProgressBar position={q.position} total={q.total} />
 
-      <FlashcardCard word={card} flipped={q.flipped} onFlip={q.flip} />
+      {/* The card + a top-right ＋ add-to-list button (adds the SELECTED meaning,
+          which defaults to the first) and ←/→ meaning-cycle arrows when the word
+          has more than one sense. */}
+      <div className="quizcard">
+        <button
+          className={`quizcard__add${q.isCurrentSaved ? " is-saved" : ""}`}
+          onClick={q.addCurrent}
+          disabled={q.submitting || q.isCurrentSaved}
+          title={q.isCurrentSaved ? t("quiz.added") : t("quiz.addToList")}
+          aria-label={q.isCurrentSaved ? t("quiz.added") : t("quiz.addToList")}
+        >
+          {q.isCurrentSaved ? "✓" : "＋"}
+        </button>
+
+        <FlashcardCard word={card} flipped={q.flipped} onFlip={q.flip} />
+
+        {/* Meaning-cycle arrows appear only once the meaning is REVEALED — before
+            that the card is a recall test, so cycling senses would spoil it. */}
+        {q.hasMultipleMeanings && q.flipped && (
+          <div className="quizcard__meaningnav">
+            <button
+              className="quizcard__arrow"
+              onClick={q.prevMeaning}
+              aria-label={t("quiz.prevMeaning")}
+            >
+              ‹
+            </button>
+            <span className="quizcard__meaningpos">
+              {t("quiz.meaningPos", { i: q.meaningIndex + 1, n: q.senses.length })}
+            </span>
+            <button
+              className="quizcard__arrow"
+              onClick={q.nextMeaning}
+              aria-label={t("quiz.nextMeaning")}
+            >
+              ›
+            </button>
+          </div>
+        )}
+      </div>
 
       {q.error && <pre className="review__error">{q.error}</pre>}
 
