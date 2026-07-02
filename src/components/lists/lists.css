@@ -299,6 +299,13 @@
   margin-top: 1rem;
 }
 
+.listrows__count {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .listrows {
   list-style: none;
   margin: 0;

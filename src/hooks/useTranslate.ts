@@ -26,9 +26,9 @@ import {
   isSingleWord,
   isContentPos,
   resolveSourceLanguage,
-  AUTO_DETECT,
   SUPPORTED_LANGUAGES,
   DEFAULT_LEARNING_LANGUAGE,
+  DEFAULT_NATIVE_LANGUAGE,
   type LangCode,
   type SourceSelection,
 } from "../services/language";
@@ -39,13 +39,13 @@ export type TranslateMode = "word" | "paragraph";
 export type TranslateStatus = "idle" | "loading" | "done" | "error";
 
 export function useTranslate(userId: string) {
-  // SOURCE defaults to auto-detect for a GUEST; the profile effect below pins it to
-  // the user's NATIVE language once their prefs load (a logged-in user types in their
-  // own language). TARGET = the language you translate INTO (= what you're learning),
-  // so typing your native language yields the learning-language reader; meanings are
-  // explained in the native language. Both stay freely changeable in the LangBar.
-  const [source, setSource] = useState<SourceSelection>(AUTO_DETECT);
-  const [target, setTarget] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
+  // SOURCE (input) defaults to the LEARNING language and TARGET (output) to the
+  // NATIVE language: you type the language you're studying and read its meaning in
+  // your own language (type Japanese → English gloss + word-by-word reader). The
+  // profile effect below pins both to the user's saved prefs once loaded. Both stay
+  // freely changeable in the LangBar (incl. switching source to Detect).
+  const [source, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
+  const [target, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
@@ -103,16 +103,17 @@ export function useTranslate(userId: string) {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
-  // Default the directions from the user's profile prefs (Profile page). SOURCE pins
-  // to the user's NATIVE language ONLY when they've set one — a logged-in user types
-  // in their own language; a GUEST has no native pref, so source stays on auto-detect
-  // and follows whatever they type. TARGET/LEARNING follow the learning language so
-  // typing the native language yields the learning-language reader.
+  // Default the directions from the user's profile prefs (Profile page). SOURCE
+  // (input) = the LEARNING language, TARGET (output) = the NATIVE language, so the
+  // user types what they study and reads the meaning in their own language. Falls
+  // back to the registry defaults for a fresh guest (no saved prefs). Both stay
+  // changeable in the LangBar.
   useEffect(() => {
     getUserProfile(userId).then((p) => {
       const learn = (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode;
-      if (p?.nativeLanguage) setSource(p.nativeLanguage as LangCode);
-      setTarget(learn);
+      const native = (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode;
+      setSource(learn);
+      setTarget(native);
       setLearning(learn);
     }).catch((e) => console.warn("useTranslate: failed to load language prefs", e));
   }, [userId]);
