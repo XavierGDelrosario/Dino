@@ -5,7 +5,7 @@
 //
 // "ALL" is the virtual whole-vocabulary view (not a stored list). Adding a word
 // while a sub-list is selected also tags it into that sub-list.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLists } from "../hooks/useLists";
 import { ListRow } from "../components/lists/ListRow";
 import { ListChips } from "../components/lists/ListChips";
@@ -18,6 +18,11 @@ import type { UserWord } from "../services/words/userWords";
 import "../components/lists/lists.css";
 
 type SortBy = "newest" | "oldest" | "conf-asc" | "conf-desc";
+
+// How many rows to draw per "Load more" press. The whole list is cached (so
+// filters/counts are exact), but rendering is paged so the user isn't handed a
+// wall of hundreds of rows at once.
+const RENDER_PAGE = 100;
 
 const langName = (code: string) =>
   targetOptions().find((o) => o.code === code)?.name ?? code;
@@ -81,6 +86,18 @@ export function ListView({
     return sorted;
   }, [L.words, langFilter, sort, addedFilter, reviewedFilter, confMin, confMax]);
 
+  // Draw only the first `renderLimit` matches; "Load more" reveals the next batch
+  // (pure client-side slicing — the whole list is already cached). Reset to the
+  // first page whenever the list or a filter/sort changes so we don't stay scrolled
+  // deep into a now-different set. NOT reset while background batches stream in, so
+  // the position holds as the cache fills.
+  const [renderLimit, setRenderLimit] = useState(RENDER_PAGE);
+  useEffect(() => {
+    setRenderLimit(RENDER_PAGE);
+  }, [L.selectedListId, sort, langFilter, addedFilter, reviewedFilter, confMin, confMax]);
+
+  const shown = visible.slice(0, renderLimit);
+
   return (
     <section className="lists">
       <ListChips
@@ -93,7 +110,7 @@ export function ListView({
       <div className="lists__bar">
         <h2 className="lists__title">
           {selectedList ? selectedList.listName : t("lists.allWords")}
-          <span className="lists__count">{visible.length}</span>
+          <span className="lists__count">{L.words.length}</span>
         </h2>
         {L.words.length > 0 && (
           <button
@@ -225,9 +242,9 @@ export function ListView({
         <p className="review__msg">{t("lists.noMatch")}</p>
       )}
 
-      {L.status === "ready" && visible.length > 0 && (
+      {L.status === "ready" && shown.length > 0 && (
         <ul className="listrows">
-          {visible.map((w) => (
+          {shown.map((w) => (
             <ListRow
               key={w.userWordId}
               word={w}
@@ -243,14 +260,28 @@ export function ListView({
         </ul>
       )}
 
-      {/* Load-more: the reads are paged, so a long vocabulary isn't pulled at once.
-          Shown whenever more rows exist (filters apply client-side to loaded ones). */}
-      {L.status === "ready" && L.hasMore && (
+      {/* Load-more: reveals the next batch of already-cached rows (no fetch). Shown
+          while more matches exist than are currently drawn. */}
+      {L.status === "ready" && shown.length < visible.length && (
         <div className="listrows__more">
-          <button className="btn" onClick={L.loadMore} disabled={L.loadingMore}>
-            {L.loadingMore ? t("common.loading") : t("common.loadMore")}
+          <button className="btn" onClick={() => setRenderLimit((n) => n + RENDER_PAGE)}>
+            {t("common.loadMore")}
           </button>
         </div>
+      )}
+
+      {/* Results footer: the whole list is cached (streamed in batches), so filters
+          apply across every word. Reports how many are drawn / match / total, and
+          flags while later batches are still arriving (counts are exact once done). */}
+      {L.status === "ready" && L.words.length > 0 && (
+        <p className="listrows__count">
+          {shown.length < visible.length
+            ? t("lists.showingFiltered", { shown: shown.length, total: visible.length })
+            : filtersActive
+              ? t("lists.showingFiltered", { shown: visible.length, total: L.words.length })
+              : t("lists.showingTotal", { total: L.words.length })}
+          {!L.fullyLoaded && ` · ${t("lists.loadingAll")}`}
+        </p>
       )}
     </section>
   );

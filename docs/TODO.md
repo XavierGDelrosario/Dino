@@ -37,11 +37,20 @@ numbers preserved; cross-referenced elsewhere):
   headword/reading/freq. (`20260618_jmdict.sql`.)
 
 ### Test coverage
-- **Edge error-log integration** — service-key precedence is covered (`resolveServiceKey` in
-  `_lib.ts`, unit-tested); open: assert a `recordError` row lands in `error_log` on a failing
-  edge path.
-- **Hooks** — `useTranslate.applyReview`, `useTextQuiz`, `useReview`, `useLists` have no
-  specs (needs RTL `renderHook` — a devDep decision).
+- **Hooks — DONE 2026-07-03.** `useLists`, `useReview`, `useTextQuiz`, and `useTranslate`
+  (applyReview + the input=learning/output=native default) now have RTL `renderHook` specs
+  (`tests/hooks/`, jsdom via a per-file `@vitest-environment` docblock; +24 tests in the default
+  green gate). Added devDeps `@testing-library/react` + `@testing-library/dom` + `jsdom`. Service
+  boundary mocked; `useLists` mocks `USER_WORDS_PAGE_SIZE` small to exercise batch streaming + the
+  suppressedIds stream/mutation race guard.
+- **Edge error-log — sink contract DONE 2026-07-03; end-to-end trigger still open.**
+  `tests/integration/error-log.integration.test.ts` (gated, VERIFIED live 5/5) asserts the
+  `error_log` audit contract `recordError` writes to: service-role insert + read-back, row
+  immutability (service role can't UPDATE/DELETE), anon SELECT/INSERT lockout, and
+  `admin_error_log` denying a non-admin (42501). **Not covered:** driving an ACTUAL failing edge
+  path (translate_batch_failed / words_upsert_failed / translate_handler_crashed) to observe the
+  row land — those internal failures aren't deterministically forceable over HTTP; fold into the
+  native/edge `functions.invoke` integration item if a forcing seam is added.
 
 ### Security & architecture hardening (2026-06-28 audit)
 Remaining, prioritized:
@@ -103,6 +112,37 @@ DATA LIMITATION:
 - **Wrong word (kana):** もの→者 (物); かえる→変える (帰る also wanted).
 - **Borderline (OK today):** 後→あと, 方→かた, 生→なま, あつい→熱い (vs 暑い), 月→つき.
 - The override should cover ≥ the SEVERE + wrong-reading rows.
+
+**Reported gaps (2026-07-03, VERIFIED) — from the run `主に大規模次男女婚活傷む`:**
+Verified against raw kuromoji (IPADIC in `node_modules/kuromoji/dict`) + the committed common
+JMdict subset (`jmdict-eng-common-3.6.2.json`, 22.6k entries). Findings by ROOT CAUSE — most are
+SEGMENTATION, not the reading-override work (same class as 唐揚げ: IPADIC has no whole-word token
+for the compound, so each fragment is looked up alone and the meaning is lost):
+- **大規模 (SEGMENTATION only):** kuromoji splits 大(ダイ)＋規模. JMdict *has* 大規模 (だいきぼ,
+  "large-scale") — so fixing segmentation resolves it fully. Dictionary is fine.
+- **主に (SEGMENTATION only):** kuromoji peels the adverbializing 助詞 に off → 主(オモ)＋に, so the
+  reader looks up bare 主 (ぬし/しゅ/おも), not the adverb. JMdict *has* 主に (おもに, "mainly").
+  (The bare-主 reading オモ itself is fine here; the miss is the split adverb.)
+- **次男 (SEGMENTATION → cascaded WRONG READING):** standalone 次男 tokenizes correctly (one token,
+  ジナン, and JMdict has it). But IN THE RUN kuromoji splits 次(ジ)＋男女(ダンジョ). The exposed bare
+  次 then hits the reader's dictionary-reading override (`translateParagraph`: surface==lemma AND
+  senses agree on ONE reading) which swaps kuromoji's contextual ジ for standalone 次's dictionary
+  reading つぎ — the wrong つぎ the user saw. NOT per-surface-frequency pollution; the trigger is
+  the segmentation split, the つぎ is the override firing on a fragment that shouldn't exist.
+- **婚活 (SEGMENTATION *and* genuinely MISSING):** kuromoji splits 婚＋活, AND 婚活 is absent from the
+  common JMdict subset (0 entries — neologism). Even with segmentation fixed it needs the FULL dict
+  or MT. The only double-gap in the run.
+- **傷む (NOT missing — secondary-writing lookup issue):** kuromoji is clean (one verb, いたむ) and
+  JMdict *has* it — but as the SECONDARY writing of entry 1432710 whose PRIMARY kanji is 痛む
+  (kana いたむ; glosses incl. "to be spoiled/damaged"). So "didn't show up" is NOT a missing entry;
+  it's how `jmdict_lookup`/the projection handles a query that matches a non-primary writing (likely
+  returns/caches under the headword 痛む, so the 傷む surface doesn't render). Verify against live
+  `jmdict_lookup('傷む', …)` — Docker/Supabase was down at verify time, so only the JSON was checked.
+- **男女→だんじょ:** fine (kuromoji 男女/ダンジョ, JMdict has it). Not a gap.
+- **Takeaways:** (1) 大規模/主に/婚活/次男-in-run are all SEGMENTATION failures — a kuromoji
+  user-dictionary (or compound-aware pass) fixes them, NOT the curated reading override. (2) 傷む is a
+  SECONDARY-WRITING projection bug worth its own check. (3) 次→つぎ is a *consequence* of segmentation
+  + the single-reading override, so guard the override against orphaned single-kanji fragments.
 
 **Remaining dictionary/reading work:**
 - **EN long-tail irregulars** — ingest Princeton `verb.exc`/`noun.exc` (the bundled

@@ -25,6 +25,7 @@
     "test:e2e": "bash scripts/e2e.sh",
     "smoke:prod": "node scripts/preflight-smoke.mjs",
     "ios:build": "bash scripts/build-ios.sh",
+    "ios:build:staging": "DINO_ENV=staging bash scripts/build-ios.sh",
     "ios:sync": "cap sync ios",
     "ios:open": "cap open ios"
   },
@@ -44,6 +45,8 @@
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
     "@eslint/js": "^9.39.4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/kuromoji": "^0.1.3",
     "@types/pg": "^8.20.0",
     "@types/react": "^18.3.3",
@@ -53,6 +56,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^15.15.0",
+    "jsdom": "^25.0.1",
     "pg": "^8.21.0",
     "playwright": "^1.61.0",
     "supabase": "^2.107.0",
