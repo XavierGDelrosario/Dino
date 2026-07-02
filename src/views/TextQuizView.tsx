@@ -91,7 +91,15 @@ export function TextQuizView({
           {q.isCurrentSaved ? "✓" : "＋"}
         </button>
 
-        <FlashcardCard word={card} flipped={q.flipped} onFlip={q.flip} />
+        <FlashcardCard
+          word={card}
+          flipped={q.flipped}
+          onFlip={q.flip}
+          // Swipe to cycle meanings — same gate as the arrows (revealed + >1 sense).
+          // Left = next, right = previous.
+          onSwipeLeft={q.hasMultipleMeanings && q.flipped ? q.nextMeaning : undefined}
+          onSwipeRight={q.hasMultipleMeanings && q.flipped ? q.prevMeaning : undefined}
+        />
 
         {/* Meaning-cycle arrows appear only once the meaning is REVEALED — before
             that the card is a recall test, so cycling senses would spoil it. */}
