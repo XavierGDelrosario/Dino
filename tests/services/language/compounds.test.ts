@@ -52,6 +52,15 @@ describe("mergeJapaneseCompounds — pure merge", () => {
     const out = mergeJapaneseCompounds(frags(["犬", "いぬ"], ["猫", "ねこ"]));
     expect(out.map((t) => t.text).join("")).toBe("犬猫");
   });
+
+  it("yields a null reading (not a wrong partial) when a fragment lacks one", () => {
+    // 隕石: kuromoji gives 隕 no reading, 石 → せき; concatenating would be the WRONG
+    // せき, so the merged reading must be null (the dictionary reading fills it in).
+    const out = mergeJapaneseCompounds(frags(["隕", null], ["石", "せき"]));
+    expect(out).toHaveLength(1);
+    expect(out[0].text).toBe("隕石");
+    expect(out[0].reading).toBeNull();
+  });
 });
 
 describe("mergeJapaneseCompounds — via real kuromoji (analyze)", () => {
@@ -73,6 +82,11 @@ describe("mergeJapaneseCompounds — via real kuromoji (analyze)", () => {
     const toks = await analyze("主に", "JA");
     expect(toks.map((t) => t.text)).toEqual(["主に"]);
     expect(toks[0].reading).toBe("おもに");
+  }, T);
+
+  it("merges a seeded general compound (隕石) into one token", async () => {
+    const toks = await analyze("隕石", "JA");
+    expect(toks.map((t) => t.text)).toEqual(["隕石"]);
   }, T);
 
   it("keeps 大規模 and 婚活 whole inside a longer run", async () => {
