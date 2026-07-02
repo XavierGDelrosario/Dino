@@ -94,6 +94,61 @@ describe("lookupWord", () => {
   });
 });
 
+// The single-word reading override (readingOverrides.ts) reprioritizes the PRIMARY
+// sense for a handful of common standalone words whose everyday reading loses
+// jmdict_lookup's frequency tiebreak. These lock the WIRING (that lookupWord
+// applies it), complementing the pure-function tests in readingOverrides.test.ts.
+describe("lookupWord — single-word reading override", () => {
+  it("reprioritizes the verified reading (前 → まえ, not the jmdict さき tiebreak)", async () => {
+    // jmdict can headline the さき entry first; the override must surface まえ.
+    mockFind.mockResolvedValue([
+      makeWord({ wordId: "saki", input: "前", translation: "previous", inputReading: "さき" }),
+      makeWord({ wordId: "mae", input: "前", translation: "front; before", inputReading: "まえ" }),
+    ]);
+
+    const res = await lookupWord({ input: "前", targetLang: "EN" });
+
+    expect(res.meanings[0].inputReading).toBe("まえ"); // primary is now まえ
+    expect(res.meanings.map((m) => m.inputReading)).toEqual(["まえ", "さき"]);
+  });
+
+  it("applies the override on the cache-MISS (provider) path too", async () => {
+    mockFind.mockResolvedValue([]); // miss → provider
+    mockResolveProvider.mockReturnValue(
+      createMockSenseProvider([
+        makeWord({ wordId: "saki", input: "前", translation: "previous", inputReading: "さき" }),
+        makeWord({ wordId: "mae", input: "前", translation: "front", inputReading: "まえ" }),
+      ]),
+    );
+
+    const res = await lookupWord({ input: "前", targetLang: "EN" });
+
+    expect(res.meanings[0].inputReading).toBe("まえ");
+  });
+
+  it("leaves a non-override word's sense order untouched (猫)", async () => {
+    mockFind.mockResolvedValue([
+      makeWord({ wordId: "a", input: "猫", translation: "cat", inputReading: "ねこ" }),
+      makeWord({ wordId: "b", input: "猫", translation: "shamisen", inputReading: "ねこ" }),
+    ]);
+
+    const res = await lookupWord({ input: "猫", targetLang: "EN" });
+
+    expect(res.meanings.map((m) => m.wordId)).toEqual(["a", "b"]);
+  });
+
+  it("is a no-op when the preferred reading isn't present (never invents まえ)", async () => {
+    mockFind.mockResolvedValue([
+      makeWord({ wordId: "zen", input: "前", translation: "before (pref.)", inputReading: "ぜん" }),
+      makeWord({ wordId: "saki", input: "前", translation: "previous", inputReading: "さき" }),
+    ]);
+
+    const res = await lookupWord({ input: "前", targetLang: "EN" });
+
+    expect(res.meanings.map((m) => m.wordId)).toEqual(["zen", "saki"]); // unchanged
+  });
+});
+
 describe("translateParagraph", () => {
   it("translates the whole paragraph display-only (persist:false) and maps each word to its meanings", async () => {
     // The paragraph itself isn't a seeded single word, so give the display-only

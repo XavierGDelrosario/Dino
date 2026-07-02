@@ -279,6 +279,23 @@ describe("groupByInput", () => {
     ];
     expect(groupByInput(mixed, ["x"]).get("x")?.map((r) => r.jmdict_sense_pos)).toEqual([0, null]);
   });
+
+  // Secondary-writing attribution (the 傷む bug, fixed in migration 20260715). A
+  // search for a NON-preferred kanji writing only resolves if jmdict_lookup
+  // headlines THAT writing, so the projected row has input === the search term.
+  it("attributes a searched secondary writing when the row is headlined by it (傷む)", () => {
+    // Post-fix: jmdict_lookup returns writing=傷む → row input=傷む → attributed.
+    const rows = [{ input: "傷む", input_reading: "いたむ", jmdict_sense_pos: 0 }];
+    expect(groupByInput(rows, ["傷む"]).get("傷む")?.map((r) => r.input)).toEqual(["傷む"]);
+  });
+
+  it("does NOT attribute a secondary-writing search to a PRIMARY-headlined row (the pre-fix drop)", () => {
+    // Pre-fix regression: jmdict_lookup returned the preferred writing 痛む, so the
+    // row was input=痛む / input_reading=いたむ — neither equals 傷む → zero senses →
+    // the token rendered as unknown. This asserts the failure the fix prevents.
+    const rows = [{ input: "痛む", input_reading: "いたむ", jmdict_sense_pos: 0 }];
+    expect(groupByInput(rows, ["傷む"]).get("傷む")).toEqual([]);
+  });
 });
 
 describe("resolveServiceKey", () => {
