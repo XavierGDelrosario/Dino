@@ -27,6 +27,7 @@ import type { IpadicFeatures, Tokenizer } from "kuromoji";
 import type { LangCode } from "./registry";
 import { tokenizeWords, type WordToken } from "./tokenize";
 import { getCounterResolver, parseJapaneseNumber } from "./counters";
+import { mergeJapaneseCompounds } from "./compounds";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
 export interface AnalyzedToken extends WordToken {
@@ -191,7 +192,9 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     kept.push(t);
   }
   applyCounterReadings(out, kept);
-  return mergeCounterTokens(out, kept);
+  // Re-merge whole words IPADIC over-segmented (大規模 → 大＋規模) BEFORE the reader
+  // looks tokens up — a curated compound-aware pass (kuromoji.js has no user dict).
+  return mergeJapaneseCompounds(mergeCounterTokens(out, kept));
 }
 
 // Merge a kanji number run + its counter into ONE composite token (三本 → text 三本,

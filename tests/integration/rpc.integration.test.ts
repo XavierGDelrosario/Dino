@@ -490,6 +490,42 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     if (rows.length === 0) return; // いく not in the loaded subset
     expect(rows[0].writing).toBe("行く");
   });
+
+  // Secondary-writing headword (20260715 fix): searching a NON-preferred kanji form
+  // must headline THAT form, not the entry's preferred kanji — else the edge's
+  // groupByInput (input===term OR input_reading===term) can't attribute the result
+  // and the token renders as unknown. Verified case: 傷む (secondary of 痛む/傷む).
+  it("headlines the SEARCHED secondary kanji writing, not the preferred one", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // Find any entry with ≥2 kanji writings so a secondary form exists; use the
+    // non-preferred (later-position, non-uk) writing as the search term.
+    const { data: k } = await svc
+      .from("jmdict_kanji")
+      .select("entry_id, text, position")
+      .gt("position", 0) // a secondary writing (position 0 is preferred)
+      .limit(200);
+    const rowsK = (k ?? []) as Array<{ entry_id: string; text: string; position: number }>;
+    let searched: { entry: string; text: string } | null = null;
+    for (const r of rowsK) {
+      // Skip uk entries (they headline as kana regardless — separate behavior).
+      const { data: uk } = await svc
+        .from("jmdict_senses").select("usually_kana").eq("entry_id", r.entry_id).eq("position", 0).limit(1);
+      if ((uk?.[0] as { usually_kana: boolean } | undefined)?.usually_kana) continue;
+      searched = { entry: r.entry_id, text: r.text };
+      break;
+    }
+    if (!searched) return; // no multi-kanji entry in the loaded subset
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: searched.text, p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    const mine = rows.filter((r) => r.jmdict_entry_id === searched!.entry);
+    expect(mine.length).toBeGreaterThan(0);
+    // Every returned row for that entry headlines the SEARCHED writing, not the
+    // preferred kanji — so the edge can attribute it back to the search term.
+    for (const r of mine) expect(r.writing).toBe(searched.text);
+  });
 });
 
 // ── consume_translation_quota (service-role only) ──────────────────────────
