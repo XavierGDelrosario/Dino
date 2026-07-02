@@ -172,7 +172,7 @@ export const en = {
   "quiz.added": "Added to your list",
   "quiz.prevMeaning": "Previous meaning",
   "quiz.nextMeaning": "Next meaning",
-  "quiz.meaningPos": "meaning {i}/{n}",
+  "quiz.meaningPos": "{i} / {n}",
 
   // add-to-list button / destination picker
   "add.addedAria": "Added",
@@ -401,7 +401,7 @@ export const ja: Record<MessageKey, string> = {
   "quiz.added": "リストに追加済み",
   "quiz.prevMeaning": "前の意味",
   "quiz.nextMeaning": "次の意味",
-  "quiz.meaningPos": "意味 {i}/{n}",
+  "quiz.meaningPos": "{i} / {n}",
 
   "add.addedAria": "追加しました",
   "add.menuTitle": "リストに追加",
