@@ -91,7 +91,20 @@ session lived here. Fixes, cheapest-first:
   anonymous-sign-in → authed POST→200 with a translation (the live `invoke` path nothing else
   covers). `deploy-prod.sh lockdown` prints the invocation. The CORS asserts are meaningful only
   against PROD (local Kong rewrites to `*`).
-- **[MED] Integration test via REAL `functions.invoke`** (not raw fetch) vs local Supabase.
+- **[DONE 2026-07-05] Integration test via REAL `functions.invoke`** (not raw fetch) vs
+  local Supabase. `tests/integration/translate-invoke.integration.test.ts` (gated) drives the
+  actual `supabase.functions.invoke` — both the raw SDK seam (auth-token attachment,
+  body (de)serialization, non-2xx→`error` mapping) AND the real `client.ts` wrapper
+  (`translate`/`translateBatch` → `invokeTranslate` → invoke → result mapping) — against a
+  running local edge. Closes the "`invoke` never runs for real" gap (client.test.ts MOCKS
+  invoke, translate-edge uses raw fetch, e2e-smoke mocks Supabase). Does NOT cover the
+  CapacitorHttp layer itself (still the native-simulator smoke below). **Side-fix:**
+  `vitest.config.ts` `test.env` hardcoded `VITE_SUPABASE_ANON_KEY=test-anon-key`, which
+  OVERRODE the launcher's real key — so the whole integration suite was silently running with
+  an invalid anon key under `npm run test:integration`. Now falls back to the placeholder only
+  when real creds aren't supplied (unit gate unchanged). *Live network assertions verified via
+  collection/typecheck only in-session — run with `supabase start` + `functions serve` to
+  exercise them.*
 - **[LOW→big] Native simulator smoke** (XCUITest/Appium): launch → type → assert a
   translation renders — the only layer exercising CapacitorHttp + invoke + real CORS
   together. Until justified, keep a manual device checklist.
