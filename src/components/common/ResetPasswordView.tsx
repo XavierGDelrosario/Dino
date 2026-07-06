@@ -6,6 +6,7 @@ import { setNewPassword } from "../../services/session";
 import { errorMessage as message } from "../../lib/errorMessage";
 import { checkPassword } from "../../lib/password";
 import { useI18n } from "../../i18n";
+import { ErrorText } from "./ErrorText";
 import "./common.css";
 
 export function ResetPasswordView({ onDone }: { onDone: () => void }) {
@@ -54,7 +55,7 @@ export function ResetPasswordView({ onDone }: { onDone: () => void }) {
         aria-label={t("auth.confirmPasswordPlaceholder")}
         autoComplete="new-password"
       />
-      {err && <pre className="review__error">{err}</pre>}
+      <ErrorText message={err} />
       <button className="btn" disabled={busy || password === "" || confirm === ""} onClick={submit}>
         {t("auth.updatePassword")}
       </button>

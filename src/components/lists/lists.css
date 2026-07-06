@@ -203,7 +203,7 @@
   cursor: pointer;
 }
 
-/* "?" date badge on a row */
+/* "?" date badge on a row — a real button that toggles the info panel below. */
 .listrow__info {
   flex-shrink: 0;
   width: 1.2rem;
@@ -213,14 +213,51 @@
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--border);
+  background: none;
+  padding: 0;
   color: var(--muted);
+  font: inherit;
   font-size: 0.75rem;
-  cursor: help;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.listrow__info:hover {
+.listrow__info:hover,
+.listrow__info[aria-expanded="true"] {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Tap-revealed date panel (added / last-reviewed), full row width. */
+/* Anchor for the floating info overlay. */
+.listrow__info-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Floating date overlay above the row content — does NOT reflow the row. Hidden by
+   default; shown on hover (desktop) or when the "?" is toggled open (touch/iOS). */
+.listrow__infopanel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  flex-direction: column;
+  gap: 0.15rem;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.listrow__info-wrap:hover .listrow__infopanel,
+.listrow__info[aria-expanded="true"] ~ .listrow__infopanel {
+  display: flex;
 }
 
 /* add-custom-word form */
@@ -317,25 +354,29 @@
 
 .listrow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.6rem 0.8rem;
 }
 
-.listrow__main {
+/* Top row: the word (+reading) on the left, all the metadata/actions on the
+   right. The meaning below then gets the full width. */
+.listrow__header {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   min-width: 0;
 }
 
 .listrow__head {
   font-size: 1.15rem;
   font-weight: 600;
+  min-width: 0;
 }
 
 .listrow__reading {
@@ -345,7 +386,11 @@
   margin-left: 0.4rem;
 }
 
+/* Meanings stack one per line (split on ';') across the full row width. */
 .listrow__meaning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
   font-size: 0.95rem;
   color: var(--muted);
 }
@@ -359,6 +404,8 @@
 .listrow__meta {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.35rem;
   flex-shrink: 0;
 }

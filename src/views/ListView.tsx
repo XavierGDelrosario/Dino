@@ -14,6 +14,7 @@ import { AddCustomWord } from "../components/lists/AddCustomWord";
 import { PeriodSelect, periodCutoff, type DatePeriod } from "../components/lists/PeriodSelect";
 import { targetOptions, type LangCode } from "../services/language";
 import { useI18n } from "../i18n";
+import { ErrorText } from "../components/common/ErrorText";
 import type { UserWord } from "../services/words/userWords";
 import "../components/lists/lists.css";
 
@@ -228,7 +229,7 @@ export function ListView({
         )}
       </div>
 
-      {L.error && <pre className="review__error">{L.error}</pre>}
+      <ErrorText message={L.error} />
 
       {L.status === "loading" && <p className="review__msg">{t("common.loading")}</p>}
 
@@ -250,10 +251,29 @@ export function ListView({
               word={w}
               lists={L.lists}
               onEdit={(translation) => L.editWord(w.userWordId, translation)}
-              onDelete={() => L.deleteWord(w.userWordId)}
+              onDelete={() => {
+                // Only reachable from ALL — a sub-list shows "remove from list"
+                // (onRemoveFromList) instead of delete-from-vocabulary.
+                if (confirm(t("lists.deleteWordConfirm", { word: w.input })))
+                  L.deleteWord(w.userWordId);
+              }}
               onTag={(listId) => L.tagWord(w.userWordId, listId)}
+              onCreateList={(name) => L.createListForWord(w.userWordId, name)}
               onRemoveFromList={
-                L.selectedListId ? () => L.untagWord(w.userWordId) : undefined
+                selectedList
+                  ? () => {
+                      // Un-tag only: the word stays in the vocabulary.
+                      if (
+                        confirm(
+                          t("lists.removeFromListConfirm", {
+                            word: w.input,
+                            list: selectedList.listName,
+                          }),
+                        )
+                      )
+                        L.untagWord(w.userWordId);
+                    }
+                  : undefined
               }
             />
           ))}

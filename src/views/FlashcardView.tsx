@@ -4,8 +4,9 @@
 import { useReview } from "../hooks/useReview";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
-import { useI18n } from "../i18n";
-import { GRADES, GRADE_KEY } from "../components/flashcards/grades";
+import { GradeBar } from "../components/flashcards/GradeBar";
+import { useI18n, plural } from "../i18n";
+import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
 
 export function FlashcardView({
@@ -23,7 +24,7 @@ export function FlashcardView({
   const r = useReview(userId, listId, undefined, userWordIds);
   const { t } = useI18n();
   const scopeName = listName || t("lists.allWords");
-  const noun = (n: number) => t(n === 1 ? "common.word" : "common.words");
+  const noun = (n: number) => plural(t, n, "common.word", "common.words");
 
   const scope = <p className="review__scope">{t("review.scope", { name: scopeName })}</p>;
 
@@ -35,7 +36,7 @@ export function FlashcardView({
     return (
       <div className="review__msg">
         <p>{t("review.errorTitle")}</p>
-        {r.error && <pre className="review__error">{r.error}</pre>}
+        <ErrorText message={r.error} />
         <button className="btn" onClick={r.restart}>
           {t("common.retry")}
         </button>
@@ -71,31 +72,9 @@ export function FlashcardView({
 
       <FlashcardCard word={card} flipped={r.flipped} onFlip={r.flip} />
 
-      {r.error && <pre className="review__error">{r.error}</pre>}
+      <ErrorText message={r.error} />
 
-      {r.flipped ? (
-        <div className="grades" aria-label={t("review.recallAria")}>
-          {GRADES.map((grade) => {
-            const label = t(GRADE_KEY[grade]);
-            return (
-              <button
-                key={grade}
-                className={`grade grade--c${grade}`}
-                disabled={r.submitting}
-                onClick={() => r.grade(grade)}
-                title={`${grade} — ${label}`}
-              >
-                <span className="grade__num">{grade}</span>
-                <span className="grade__label">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <button className="btn review__reveal" onClick={r.flip}>
-          {t("review.reveal")}
-        </button>
-      )}
+      <GradeBar flipped={r.flipped} submitting={r.submitting} onReveal={r.flip} onGrade={r.grade} />
     </section>
   );
 }

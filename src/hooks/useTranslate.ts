@@ -8,6 +8,7 @@
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { translate } from "../services/translation";
 import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
@@ -219,7 +220,7 @@ export function useTranslate(userId: string) {
           const candidates: string[] = [];
           const seenC = new Set<string>();
           for (const m of enja.meanings) {
-            const jp = m.translation.trim().normalize("NFC");
+            const jp = nfcTrim(m.translation);
             if (jp && !seenC.has(jp)) { seenC.add(jp); candidates.push(jp); }
             if (candidates.length >= 8) break;
           }
@@ -278,7 +279,7 @@ export function useTranslate(userId: string) {
           setStatus("done");
           return;
         }
-        learningText = disp.translation.trim().normalize("NFC");
+        learningText = nfcTrim(disp.translation);
         outputText = learningText;
       }
 
@@ -311,7 +312,7 @@ export function useTranslate(userId: string) {
         setStatus("error");
         return;
       }
-      setAnalyzedInput(learningText.normalize("NFC"));
+      setAnalyzedInput(nfc(learningText));
       setMode("paragraph");
       setPara(null);
       setMeanings([]);

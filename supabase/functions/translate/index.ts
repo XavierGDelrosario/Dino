@@ -62,7 +62,8 @@ import {
 //   3 = #7: frequency + part_of_speech projected; frequency-ranked ordering
 //   4 = WordNet-first EN->JA: synset-grouped senses (re-ranked sensePos) replace
 //       the raw reverse-gloss order; JA->EN rows are unaffected but re-stamped.
-const CURRENT_PROJECTION_VERSION = 4;
+//   5 = proficiency_band projected (JLPT/CEFR curated band, services/proficiency)
+const CURRENT_PROJECTION_VERSION = 5;
 
 // Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
 // `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
@@ -105,6 +106,7 @@ interface WordRow {
   translation_reading: string | null;
   part_of_speech: string[] | null;
   frequency: number | null;
+  proficiency_band: number | null;
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
@@ -123,6 +125,7 @@ function toWord(r: WordRow) {
     translationReading: r.translation_reading ?? null,
     partOfSpeech: r.part_of_speech ?? null,
     frequency: r.frequency ?? null,
+    proficiencyBand: r.proficiency_band ?? null,
     difficultyOverride: r.difficulty_override ?? null,
     jmdictEntryId: r.jmdict_entry_id ?? null,
     jmdictSensePos: r.jmdict_sense_pos ?? null,
@@ -158,6 +161,7 @@ async function lookupJMdict(
     sense_position: number | null;
     jmdict_entry_id: string | null;
     frequency: number | null;
+    proficiency_band: number | null;
     part_of_speech: string[] | null;
   }) => ({
     translation: row.translation,
@@ -167,6 +171,7 @@ async function lookupJMdict(
     entryId: row.jmdict_entry_id ?? null,
     sensePos: row.sense_position ?? null,
     frequency: row.frequency ?? null,
+    proficiencyBand: row.proficiency_band ?? null,
     partOfSpeech: row.part_of_speech ?? null,
   }));
 }
@@ -226,6 +231,7 @@ type LookupRow = {
   sense_position: number | null;
   jmdict_entry_id: string | null;
   frequency: number | null;
+  proficiency_band: number | null;
   part_of_speech: string[] | null;
 };
 function rowToProvider(row: LookupRow): ProviderResult {
@@ -237,6 +243,7 @@ function rowToProvider(row: LookupRow): ProviderResult {
     entryId: row.jmdict_entry_id ?? null,
     sensePos: row.sense_position ?? null,
     frequency: row.frequency ?? null,
+    proficiencyBand: row.proficiency_band ?? null,
     partOfSpeech: row.part_of_speech ?? null,
   };
 }

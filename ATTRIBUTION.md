@@ -54,3 +54,20 @@ Japanese mappings come from the released `wnjpn.db` + `wnjpn-ok.tab` files.
 We ship only the derived `wordnet_*` numbers/mappings (synset ids, lemmas, sense
 ranks), not the original release files. The user-facing app footer notice
 (`AttributionFooter.tsx`) credits these sources alongside JMdict.
+
+## Proficiency band — JLPT (`data/proficiency/ja.tsv`)
+
+The Japanese proficiency-label signal (the JLPT band shown as extra info, and the
+level-quiz filter — the `proficiency_band` column, built by
+`scripts/build-proficiency.py`) is derived from the per-level vocabulary lists in
+**jamsinclair/open-anki-jlpt-decks** (https://github.com/jamsinclair/open-anki-jlpt-decks),
+which are in turn based on **Jonathan Waller's JLPT lists** (tanos.co.uk) via
+chyyran/jlpt-anki-decks.
+
+- The **open-anki-jlpt-decks** repository is licensed under the **MIT License**.
+- The JLPT itself publishes **no** official post-2010 vocabulary list; these
+  community lists are an approximation of each N-level's vocabulary.
+
+We ship only the derived `<surface>\t<band>` numbers (surface → 1..5, easiest→hardest),
+not the original CSVs. JLPT® is a registered trademark of the Japan Foundation and
+JEES; this project is not affiliated with or endorsed by them.

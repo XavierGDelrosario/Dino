@@ -4,6 +4,8 @@
 import { useState } from "react";
 import { targetOptions, type LangCode } from "../../services/language";
 import { useI18n } from "../../i18n";
+import { LangPair } from "./LangPair";
+import { InputField } from "../common/InputField";
 import "./lists.css";
 
 export function AddCustomWord({
@@ -41,46 +43,29 @@ export function AddCustomWord({
 
   return (
     <div className="addword">
-      <div className="addword__langs">
-        <select
-          className="select select--sm"
-          value={sourceLang}
-          onChange={(e) => setSourceLang(e.target.value as LangCode)}
-          aria-label={t("lists.wordLangAria")}
-        >
-          {targetOptions().map((o) => (
-            <option key={o.code} value={o.code}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-        <span className="langbar__arrow">→</span>
-        <select
-          className="select select--sm"
-          value={targetLang}
-          onChange={(e) => setTargetLang(e.target.value as LangCode)}
-          aria-label={t("lists.meaningLangAria")}
-        >
-          {targetOptions().map((o) => (
-            <option key={o.code} value={o.code}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <input
+      <LangPair
+        source={sourceLang}
+        onSource={(v) => setSourceLang(v as LangCode)}
+        target={targetLang}
+        onTarget={(v) => setTargetLang(v as LangCode)}
+        sourceOptions={targetOptions()}
+        targetOptions={targetOptions()}
+        sourceAria={t("lists.wordLangAria")}
+        targetAria={t("lists.meaningLangAria")}
+      />
+      <InputField
         className="input input--sm"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={setInput}
         placeholder={t("lists.wordPlaceholder")}
-        aria-label={t("lists.customWordAria")}
+        ariaLabel={t("lists.customWordAria")}
       />
-      <input
+      <InputField
         className="input input--sm"
         value={translation}
-        onChange={(e) => setTranslation(e.target.value)}
+        onChange={setTranslation}
         placeholder={t("lists.meaningPlaceholder")}
-        aria-label={t("lists.customMeaningAria")}
+        ariaLabel={t("lists.customMeaningAria")}
       />
       <button className="btn" onClick={submit} disabled={!input.trim() || !translation.trim()}>
         {t("common.add")}

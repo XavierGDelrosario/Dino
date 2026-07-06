@@ -24,6 +24,7 @@
 
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
+import { nfc } from "../../lib/text";
 
 /** Soft cap so a very long session can't grow the memo without bound. Oldest
  *  entries evict first (the Map preserves insertion order). */
@@ -37,7 +38,7 @@ const store = new Map<string, Word[]>();
 // GUARANTEES a consistent key (composed vs decomposed Japanese can't fork it),
 // regardless of whether a caller remembered to normalize. Idempotent + cheap.
 const keyFor = (input: string, source: LangCode, target: LangCode) =>
-  JSON.stringify([source, target, input.normalize("NFC")]);
+  JSON.stringify([source, target, nfc(input)]);
 
 /** Cached senses for a lookup, or undefined if not memoized yet (≠ "no senses"). */
 export function getCachedSenses(

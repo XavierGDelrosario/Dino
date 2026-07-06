@@ -2,10 +2,12 @@
 //   1. first click  → adds to ALL (the vocabulary), flashes ✓ for ~1s, reverts to +
 //   2. next click   → opens a menu of sub-lists + "New list…" to ALSO file it there
 // Adding to a list is the same idempotent save with a listId, so the word is in
-// ALL after step 1 and just gets tagged in step 2.
+// ALL after step 1 and just gets tagged in step 2. The sub-list menu (incl. the
+// create-a-list flow) is the shared ListMenu, so it matches the list view + quiz.
 import { useRef, useState } from "react";
 import type { List } from "../../services/lists";
 import type { Word } from "../../services/words/repository";
+import { ListMenu } from "../common/ListMenu";
 import { useI18n } from "../../i18n";
 import "./translate.css";
 
@@ -38,12 +40,11 @@ export function AddToListButton({
   onCreateList: (name: string) => Promise<string>;
 }) {
   const [phase, setPhase] = useState<Phase>(alreadyAdded ? "armed" : "idle");
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
   const { t } = useI18n();
   // The set we're operating on, frozen at the first add (the live `words` empties
   // once they're saved, but the menu still needs to tag the originals).
   const frozen = useRef<Word[]>(words);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   const flashCheck = () => {
     setPhase("check");
@@ -65,23 +66,17 @@ export function AddToListButton({
     setPhase("busy");
     try {
       await onAdd(frozen.current, listId);
-      setCreating(false);
-      setName("");
       flashCheck();
     } catch {
       setPhase("menu");
     }
   };
 
-  const createAndAdd = async () => {
-    const n = name.trim();
-    if (!n) return;
+  const createAndAdd = async (name: string) => {
     setPhase("busy");
     try {
-      const id = await onCreateList(n);
+      const id = await onCreateList(name);
       await onAdd(frozen.current, id);
-      setCreating(false);
-      setName("");
       flashCheck();
     } catch {
       setPhase("menu");
@@ -98,6 +93,7 @@ export function AddToListButton({
   return (
     <div className="addwrap">
       <button
+        ref={btnRef}
         className={`${className}${phase === "armed" ? " add--armed" : ""}`}
         disabled={disabled}
         onClick={() => (phase === "armed" ? setPhase("menu") : addToAll())}
@@ -106,45 +102,14 @@ export function AddToListButton({
       </button>
 
       {phase === "menu" && (
-        <div className="addmenu" role="menu">
-          <div className="addmenu__title">{t("add.menuTitle")}</div>
-          {lists.map((l) => (
-            <button key={l.listId} className="addmenu__item" onClick={() => addToList(l.listId)}>
-              {l.listName}
-            </button>
-          ))}
-          {creating ? (
-            <div className="addmenu__create">
-              <input
-                className="input input--sm"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("lists.newListPlaceholder")}
-                aria-label={t("lists.newListAria")}
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && createAndAdd()}
-              />
-              <button className="iconbtn" title={t("common.create")} onClick={createAndAdd}>✓</button>
-              <button
-                className="iconbtn"
-                title={t("common.cancel")}
-                onClick={() => {
-                  setCreating(false);
-                  setName("");
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button className="addmenu__item addmenu__new" onClick={() => setCreating(true)}>
-              {t("add.newListEllipsis")}
-            </button>
-          )}
-          <button className="addmenu__close" onClick={() => setPhase("armed")}>
-            {t("add.done")}
-          </button>
-        </div>
+        <ListMenu
+          anchorRef={btnRef}
+          lists={lists}
+          title={t("add.menuTitle")}
+          onPick={addToList}
+          onCreate={createAndAdd}
+          onClose={() => setPhase("armed")}
+        />
       )}
     </div>
   );

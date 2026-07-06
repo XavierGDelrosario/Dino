@@ -23,6 +23,7 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     partOfSpeech: null,
     frequency: null,
     difficultyOverride: null,
+    proficiencyBand: null,
     jmdictEntryId: null,
     jmdictSensePos: null,
     isVerified: true,

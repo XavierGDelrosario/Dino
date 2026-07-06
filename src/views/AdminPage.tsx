@@ -15,6 +15,7 @@ import { ProviderHealthPanel } from "../components/admin/ProviderHealthPanel";
 import { GrantsPanel } from "../components/admin/GrantsPanel";
 import { ErrorLogPanel } from "../components/admin/ErrorLogPanel";
 import { TableSizesPanel } from "../components/admin/TableSizesPanel";
+import { ErrorText } from "../components/common/ErrorText";
 import "./admin.css";
 
 type Gate = "checking" | "allowed" | "denied";
@@ -52,7 +53,7 @@ export function AdminPage() {
       <section className="admin">
         <h2 className="admin__title">Admin</h2>
         <p className="admin__muted">You don’t have access to this page.</p>
-        {err && <pre className="admin__error">{err}</pre>}
+        <ErrorText message={err} className="admin__error" />
       </section>
     );
   }

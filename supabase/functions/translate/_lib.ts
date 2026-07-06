@@ -23,6 +23,9 @@ export interface ProviderResult {
   sensePos?: number | null;
   // Difficulty axis: corpus-frequency rank (lower = more common; null for MT).
   frequency?: number | null;
+  // Proficiency-label axis: the headword's curated band (JLPT/CEFR; null for MT
+  // or words the wordlist lacks). Ascending = harder. See services/proficiency.
+  proficiencyBand?: number | null;
   // POS tags of the sense (null for MT).
   partOfSpeech?: string[] | null;
 }
@@ -37,8 +40,11 @@ export interface WordRowInsert {
   translation_reading: string | null;
   part_of_speech: string[] | null;
   frequency: number | null;
-  // Always null from projection — JMdict carries no JLPT; a later curated ingest
-  // populates it. Listed so the upsert row shape matches the table.
+  // Curated proficiency band (JLPT/CEFR) of the headword; null when the wordlist
+  // lacks it or for MT rows. Projected from jmdict_lookup, like frequency.
+  proficiency_band: number | null;
+  // Always null from projection — the NORMALIZED 1..5 difficulty override is a
+  // separate axis, unset today. Listed so the upsert row shape matches the table.
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
@@ -164,6 +170,7 @@ export function projectRows(
       translation_reading: r.translationReading ?? null,
       part_of_speech: r.partOfSpeech ?? null,
       frequency: r.frequency ?? null,
+      proficiency_band: r.proficiencyBand ?? null,
       difficulty_override: null,
       jmdict_entry_id: r.entryId ?? null,
       jmdict_sense_pos: r.sensePos ?? null,

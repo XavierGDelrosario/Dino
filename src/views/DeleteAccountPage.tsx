@@ -6,6 +6,7 @@ import { useState } from "react";
 import { deleteAccount } from "../services/session";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n } from "../i18n";
+import { ErrorText } from "../components/common/ErrorText";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
 
@@ -32,7 +33,7 @@ export function DeleteAccountPage() {
     <section className="authpage">
       <h2 className="authpage__title">{t("profile.deleteAccount")}</h2>
       <p className="profile__dangerwarn">{t("profile.deleteConfirm")}</p>
-      {err && <pre className="review__error">{err}</pre>}
+      <ErrorText message={err} />
       <button className="btn btn--danger" disabled={deleting} onClick={onDelete}>
         {deleting ? "…" : t("profile.deleteYes")}
       </button>

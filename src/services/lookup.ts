@@ -23,6 +23,7 @@ import {
 } from "./words/repository";
 import { setCachedSenses } from "./words/cache";
 import { applyReadingOverride } from "./language/readingOverrides";
+import { nfc, nfcTrim } from "../lib/text";
 import { translate, translateBatch } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
@@ -49,7 +50,7 @@ export async function lookupWord(params: {
   meanings: Word[];
 }> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
-  const input = params.input.trim().normalize("NFC");
+  const input = nfcTrim(params.input);
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
   let meanings = await findWordTranslations({
@@ -103,7 +104,7 @@ export async function lookupWordsBatch(params: {
 }): Promise<Map<string, Word[]>> {
   const { sourceLang, targetLang } = params;
   const inputs = [
-    ...new Set(params.inputs.map((i) => i.trim().normalize("NFC")).filter(Boolean)),
+    ...new Set(params.inputs.map(nfcTrim).filter(Boolean)),
   ];
   if (inputs.length === 0) return new Map();
 
@@ -176,7 +177,7 @@ export async function translateParagraph(params: {
   onGloss?: (gloss: { translation: string; translated: boolean }) => void;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
-  const input = params.input.normalize("NFC");
+  const input = nfc(params.input);
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
   // 1. Kick off the whole-paragraph gloss (display only, persist = false) WITHOUT
@@ -201,7 +202,7 @@ export async function translateParagraph(params: {
   //    行った resolves via its dictionary entry 行く), falling back to the
   //    surface text. The dictionary is keyed on dictionary forms, so this is the
   //    lookup key; results are re-exposed under the surface text below.
-  const keyOf = (t: AnalyzedToken) => (t.lemma ?? t.text).normalize("NFC");
+  const keyOf = (t: AnalyzedToken) => nfc(t.lemma ?? t.text);
   const uniqueKeys = [...new Set(tokens.map(keyOf))];
 
   // All meanings per key in ONE query (client cache + a single .in() read); any

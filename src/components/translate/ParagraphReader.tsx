@@ -4,7 +4,7 @@
 // homograph (辛い → からい / つらい) lets you add the exact meaning you want, not
 // just the primary. Already-saved senses show their confidence + a "don't know"
 // (a review lapse). All state lives in the parent (useTranslate).
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isContentPos, type AnalyzedToken } from "../../services/language";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
@@ -34,18 +34,43 @@ function ParagraphReaderImpl({
 }) {
   const [hover, setHover] = useState<{ word: string; reading: string | null; rect: DOMRect } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // The word element the card is anchored to — kept so we can re-measure it while
+  // the page scrolls/resizes (below), keeping the card glued to its word.
+  const anchorEl = useRef<HTMLElement | null>(null);
   // Stable handlers so memoizing the token spans below isn't invalidated by hover.
   // `reading` is the TOKEN's reading (kuromoji's context-disambiguated guess, or the
   // dictionary reading when unambiguous) — the right furigana for THIS occurrence of
   // a homograph (君 → きみ here), not an arbitrary sense's reading.
   const show = useCallback((word: string, reading: string | null, el: HTMLElement) => {
     clearTimeout(hideTimer.current);
+    anchorEl.current = el;
     setHover({ word, reading, rect: el.getBoundingClientRect() });
   }, []);
   const scheduleHide = useCallback(() => {
     hideTimer.current = setTimeout(() => setHover(null), 120);
   }, []);
   const cancelHide = useCallback(() => clearTimeout(hideTimer.current), []);
+
+  // The card is position:fixed (so it can escape the reader's overflow), which by
+  // itself leaves it floating in place on the screen while the page scrolls — the
+  // word slides out from under it. Re-measure the anchor word on scroll/resize so
+  // the card STAYS on its word (scrolls away with the text) instead of drifting.
+  // Keyed on open/closed only (not the rect) so it subscribes once per open, not
+  // once per reposition. `true` capture catches scrolling in any ancestor too.
+  const isOpen = hover !== null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const reposition = () => {
+      const el = anchorEl.current;
+      if (el) setHover((h) => (h ? { ...h, rect: el.getBoundingClientRect() } : h));
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [isOpen]);
 
   // The colored token spans. Memoized on the data that affects them (text/tokens +
   // knowledge state), so HOVERING — which only changes `hover` — no longer rebuilds
@@ -90,13 +115,18 @@ function ParagraphReaderImpl({
   // and cap its height to the available space so a long sense list stays on-screen
   // and scrolls internally (otherwise it ran off the bottom with no way to reach it).
   const GAP = 6;
+  // Compact cap: the card never grows past MAX_H (the senses list scrolls past
+  // that), and is further limited to the space available on the chosen side, with
+  // a small floor so it's never a sliver.
+  const MAX_H = 300;
   const placement = hover
     ? (() => {
         const below = window.innerHeight - hover.rect.bottom - GAP;
         const above = hover.rect.top - GAP;
         const flipUp = below < 220 && above > below;
+        const avail = flipUp ? above : below;
         return {
-          maxHeight: Math.round(Math.max(flipUp ? above : below, 140)),
+          maxHeight: Math.round(Math.min(Math.max(avail, 140), MAX_H)),
           ...(flipUp
             ? { bottom: Math.round(window.innerHeight - hover.rect.top + GAP) }
             : { top: Math.round(hover.rect.bottom + GAP) }),

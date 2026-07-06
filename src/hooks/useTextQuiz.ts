@@ -87,22 +87,18 @@ export function useTextQuiz(
     setSavedIds((s) => (s.has(wordId) ? s : new Set(s).add(wordId)));
   }, []);
 
-  /** ＋ button: add the currently-selected sense to the vocabulary (no review).
-   *  Idempotent; stays on the card so the user can still grade/cycle. */
-  const addCurrent = useCallback(async () => {
-    if (!sense || submitting || savedIds.has(sense.wordId)) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const uw = await saveDictionaryWord({ userId, word: sense });
-      markSaved(sense.wordId);
-      onGraded?.(sense.wordId, uw.userWordId, uw.confidenceRating);
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setSubmitting(false);
-    }
-  }, [sense, submitting, savedIds, userId, markSaved, onGraded]);
+  /** ＋ button: add a sense to the vocabulary (no review), optionally tagging it
+   *  into a sub-list. Idempotent; stays on the card so the user can still
+   *  grade/cycle. Takes the word explicitly so the add-to-list menu tags the sense
+   *  that was showing when it opened, even if the meaning is cycled meanwhile. */
+  const addWord = useCallback(
+    async (word: Word, listId?: string) => {
+      const uw = await saveDictionaryWord({ userId, word, listId });
+      markSaved(word.wordId);
+      onGraded?.(word.wordId, uw.userWordId, uw.confidenceRating);
+    },
+    [userId, markSaved, onGraded],
+  );
 
   const grade = useCallback(
     async (g: ReviewGrade) => {
@@ -160,7 +156,7 @@ export function useTextQuiz(
     nextMeaning,
     prevMeaning,
     // ＋ add-to-list
-    addCurrent,
+    addWord,
     isCurrentSaved: sense ? savedIds.has(sense.wordId) : false,
     // flashcard loop
     flipped,

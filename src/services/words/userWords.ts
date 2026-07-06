@@ -17,6 +17,7 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
 import { ServiceError, toServiceError } from "../errors";
 import type { Database } from "../../types/database.types";
@@ -214,8 +215,8 @@ export async function createCustomWord(params: {
   listId?: string;
 }): Promise<UserWord> {
   const { userId, sourceLang, targetLang, listId } = params;
-  const input = params.input.trim().normalize("NFC");
-  const translation = params.translation.trim().normalize("NFC");
+  const input = nfcTrim(params.input);
+  const translation = nfcTrim(params.translation);
   if (!input || !translation) {
     throw new ServiceError("Both the word and its meaning are required", "validation");
   }
@@ -253,7 +254,7 @@ export async function editUserWord(params: {
   userWordId: string;
   translation: string;
 }): Promise<UserWord> {
-  const translation = params.translation.trim().normalize("NFC");
+  const translation = nfcTrim(params.translation);
   if (!translation) throw new ServiceError("A meaning is required", "validation");
 
   const { data, error } = await supabase

@@ -536,6 +536,7 @@ export type Database = {
           jmdict_entry_id: string | null
           jmdict_sense_pos: number | null
           part_of_speech: string[] | null
+          proficiency_band: number | null
           projection_version: number
           source_lang: string
           target_lang: string
@@ -553,6 +554,7 @@ export type Database = {
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
           part_of_speech?: string[] | null
+          proficiency_band?: number | null
           projection_version?: number
           source_lang: string
           target_lang: string
@@ -570,6 +572,7 @@ export type Database = {
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
           part_of_speech?: string[] | null
+          proficiency_band?: number | null
           projection_version?: number
           source_lang?: string
           target_lang?: string
