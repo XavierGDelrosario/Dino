@@ -321,6 +321,16 @@ native; handwriting leads as the most distinctive modality.)
   (real flows: Supabase storage; Google gets translated text; deletion). Remaining: **counsel
   review before going truly public** (not urgent pre-public). Bump `CURRENT_TERMS_VERSION` in
   `src/lib/terms.ts` when reviewed copy lands (re-prompts the Terms gate).
+- **Proficiency label axis (JLPT/CEFR) — DATA PIPELINE DONE, features TODO** `[#8 sibling]` —
+  see **`docs/Proficiency.md`**. The curated per-word level badge ("N3"/"B2"), a SEPARATE axis
+  from frequency-difficulty. Built + verified on local: `words.proficiency_band` (+ jmdict source
+  cols, migration `20260716`), `data/proficiency/ja.tsv` (JLPT, MIT/Tanos, 7.8k surfaces, 99.3%
+  JMdict-matched), ingest join, `jmdict_lookup`/wordnet projection (proj v5),
+  `services/proficiency` registry+resolver, tests, re-dumped seed. **Remaining:** (1) UI badge
+  (render `getProficiency()` in `ListRow`/results/reader/flashcard), (2) level-based new-words quiz
+  (needs a "select unseen words at band X" source retrieval + reuse `useTextQuiz`; see
+  `docs/Design_Quiz.md`), (3) deploy (re-ingest or seed-load on prod/staging — bands NULL until
+  then), (4) `data/proficiency/en.tsv` for CEFR (registry maps EN→CEFR; no wordlist yet).
 - **English-as-a-learning-target — dictionary QUALITY epic** `[#11 / secondary market]` —
   English already works (selectable; EN→JA via reverse-JMdict, uk-correct: `this→これ/この`). Thin
   part is QUALITY = RANKING/content, NOT storage (fits Free; Pro only forced by English
