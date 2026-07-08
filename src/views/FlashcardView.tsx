@@ -57,9 +57,14 @@ export function FlashcardView({
     return (
       <div className="review__msg">
         <p>{t("review.done", { n: r.reviewedCount, noun: noun(r.reviewedCount) })}</p>
-        <button className="btn" onClick={r.restart}>
-          {t("review.again")}
-        </button>
+        <div className="review__actions">
+          <button className="btn" onClick={r.retry}>
+            {t("review.retrySame")}
+          </button>
+          <button className="btn btn--primary" onClick={r.newQuiz}>
+            {t("review.newQuiz")}
+          </button>
+        </div>
       </div>
     );
   }

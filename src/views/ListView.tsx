@@ -43,13 +43,21 @@ export function ListView({
   const [langFilter, setLangFilter] = useState<LangCode | "all">("all");
   const [addedFilter, setAddedFilter] = useState<DatePeriod>("all");
   const [reviewedFilter, setReviewedFilter] = useState<DatePeriod>("all");
+  // The two thumbs are stored raw and allowed to CROSS — we never clamp one
+  // against the other. Clamping is what made the range "stick" when both thumbs
+  // landed on the same value (e.g. 5–5): the top thumb's move got cancelled, so
+  // it couldn't be dragged either way. With crossing allowed, the effective
+  // bounds are simply min/max of the two, so from any equal position the thumb
+  // moves freely in both directions.
   const [confMin, setConfMin] = useState(0);
   const [confMax, setConfMax] = useState(5);
+  const confLo = Math.min(confMin, confMax);
+  const confHi = Math.max(confMin, confMax);
 
   // Any non-default filter narrowing WHICH words show (sort doesn't change the set).
   const filtersActive =
     langFilter !== "all" || addedFilter !== "all" || reviewedFilter !== "all" ||
-    confMin !== 0 || confMax !== 5;
+    confLo !== 0 || confHi !== 5;
 
   // input languages actually present in the current list (for the filter)
   const langsPresent = useMemo(
@@ -72,8 +80,8 @@ export function ListView({
         // a reviewed-date filter excludes never-reviewed words
         (reviewedFilter === "all" ||
           (w.lastReviewedDate != null && Date.parse(w.lastReviewedDate) >= reviewedCut)) &&
-        w.confidenceRating >= confMin &&
-        w.confidenceRating <= confMax
+        w.confidenceRating >= confLo &&
+        w.confidenceRating <= confHi
     );
 
     const sorted = [...ws];
@@ -85,7 +93,7 @@ export function ListView({
       case "conf-desc": sorted.sort((a, b) => byConf(b, a) || byDate(b, a)); break;
     }
     return sorted;
-  }, [L.words, langFilter, sort, addedFilter, reviewedFilter, confMin, confMax]);
+  }, [L.words, langFilter, sort, addedFilter, reviewedFilter, confLo, confHi]);
 
   // Draw only the first `renderLimit` matches; "Load more" reveals the next batch
   // (pure client-side slicing — the whole list is already cached). Reset to the
@@ -193,7 +201,7 @@ export function ListView({
 
             <div className="confrange" title={t("lists.confRangeTitle")}>
               <span className="confrange__label">
-                {t("lists.confidenceRange", { min: confMin, max: confMax })}
+                {t("lists.confidenceRange", { min: confLo, max: confHi })}
               </span>
               {/* dual-thumb range: two inputs overlaid on one track */}
               <div className="dualrange">
@@ -201,17 +209,19 @@ export function ListView({
                 <div
                   className="dualrange__fill"
                   style={{
-                    left: `${(confMin / 5) * 100}%`,
-                    right: `${((5 - confMax) / 5) * 100}%`,
+                    left: `${(confLo / 5) * 100}%`,
+                    right: `${((5 - confHi) / 5) * 100}%`,
                   }}
                 />
+                {/* No cross-clamping — the thumbs may cross; effective bounds are
+                    min/max of the two, so an equal 5–5 (or 0–0) is never stuck. */}
                 <input
                   type="range"
                   className="dualrange__input"
                   min={0}
                   max={5}
                   value={confMin}
-                  onChange={(e) => setConfMin(Math.min(Number(e.target.value), confMax))}
+                  onChange={(e) => setConfMin(Number(e.target.value))}
                   aria-label={t("lists.confMinAria")}
                 />
                 <input
@@ -220,7 +230,7 @@ export function ListView({
                   min={0}
                   max={5}
                   value={confMax}
-                  onChange={(e) => setConfMax(Math.max(Number(e.target.value), confMin))}
+                  onChange={(e) => setConfMax(Number(e.target.value))}
                   aria-label={t("lists.confMaxAria")}
                 />
               </div>

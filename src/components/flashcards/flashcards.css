@@ -19,6 +19,14 @@
   align-self: center;
 }
 
+/* The "done" screen's Retry quiz / New quiz buttons. */
+.review__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 /* Footer row (e.g. the text-quiz "back to reader" link). */
 .review__foot {
   display: flex;

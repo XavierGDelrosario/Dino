@@ -48,31 +48,50 @@ export function useReview(
   const [submitting, setSubmitting] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
 
-  const load = useCallback(() => {
-    setStatus("loading");
-    setError(null);
-    // A filtered subset = quiz all of it, capped at MAX_SUBSET_LIMIT (the weakest
-    // that many, since the queue is ranked least-confident first); the general
-    // queue (no subset) = the weakest DEFAULT_LIMIT. An explicit `limit` overrides.
-    const effectiveLimit =
-      limit ?? Math.min(userWordIds?.length ?? DEFAULT_LIMIT, MAX_SUBSET_LIMIT);
-    getReviewQueue({ userId, listId, limit: effectiveLimit, userWordIds })
-      .then((q) => {
-        setQueue(shuffle(q));
-        setIndex(0);
-        setFlipped(false);
-        setReviewedCount(0);
-        setStatus(q.length ? "reviewing" : "empty");
-      })
-      .catch((e) => {
-        setError(message(e));
-        setStatus("error");
-      });
-  }, [userId, listId, limit, userWordIds]);
+  // Loads a session over an explicit id set. `ids === undefined` means "no
+  // subset" — rank the whole list/vocabulary and take the weakest N (a fresh,
+  // re-ranked queue). Passing a concrete id array quizzes EXACTLY those words
+  // (used by "Retry quiz", which re-runs the set just reviewed regardless of
+  // their new confidence).
+  const runSession = useCallback(
+    (ids: string[] | undefined) => {
+      setStatus("loading");
+      setError(null);
+      // A filtered subset = quiz all of it, capped at MAX_SUBSET_LIMIT (the weakest
+      // that many, since the queue is ranked least-confident first); the general
+      // queue (no subset) = the weakest DEFAULT_LIMIT. An explicit `limit` overrides.
+      const effectiveLimit =
+        limit ?? Math.min(ids?.length ?? DEFAULT_LIMIT, MAX_SUBSET_LIMIT);
+      getReviewQueue({ userId, listId, limit: effectiveLimit, userWordIds: ids })
+        .then((q) => {
+          setQueue(shuffle(q));
+          setIndex(0);
+          setFlipped(false);
+          setReviewedCount(0);
+          setStatus(q.length ? "reviewing" : "empty");
+        })
+        .catch((e) => {
+          setError(message(e));
+          setStatus("error");
+        });
+    },
+    [userId, listId, limit]
+  );
+
+  // "New quiz" / initial load / error-retry: re-rank from scratch (the next
+  // most-needed words). Honors the caller's subset prop when present.
+  const newQuiz = useCallback(() => runSession(userWordIds), [runSession, userWordIds]);
+
+  // "Retry quiz": re-run the EXACT words from the session just finished — the
+  // completed `queue` still holds them at the "done"/end state.
+  const retry = useCallback(
+    () => runSession(queue.map((c) => c.userWordId)),
+    [runSession, queue]
+  );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    newQuiz();
+  }, [newQuiz]);
 
   const flip = useCallback(() => setFlipped(true), []);
 
@@ -114,6 +133,11 @@ export function useReview(
     position: index + 1,
     total: queue.length,
     reviewedCount,
-    restart: load,
+    /** Fresh, re-ranked session (next most-needed words). Also the error-retry. */
+    newQuiz,
+    /** Re-run the exact words from the session just finished. */
+    retry,
+    /** @deprecated alias of newQuiz, kept for the error state's retry button. */
+    restart: newQuiz,
   };
 }

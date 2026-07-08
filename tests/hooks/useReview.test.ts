@@ -112,4 +112,45 @@ describe("useReview", () => {
     await waitFor(() => expect(result.current.status).toBe("reviewing"));
     expect(mockQueue).toHaveBeenCalledTimes(2);
   });
+
+  it("newQuiz re-ranks from scratch (no subset restriction)", async () => {
+    mockQueue.mockResolvedValue([item("a"), item("b")]);
+    const { result } = renderHook(() => useReview("user-1"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    await act(async () => {
+      result.current.newQuiz();
+    });
+
+    await waitFor(() => expect(mockQueue).toHaveBeenCalledTimes(2));
+    // The fresh session queries with no explicit id subset.
+    expect(mockQueue).toHaveBeenLastCalledWith(
+      expect.objectContaining({ userWordIds: undefined })
+    );
+  });
+
+  it("retry re-runs the EXACT words from the finished session", async () => {
+    mockQueue.mockResolvedValue([item("a"), item("b")]);
+    const { result } = renderHook(() => useReview("user-1"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    // Finish the session so `done` holds the reviewed set.
+    await act(async () => {
+      await result.current.grade(3);
+    });
+    await act(async () => {
+      await result.current.grade(3);
+    });
+    expect(result.current.status).toBe("done");
+
+    await act(async () => {
+      result.current.retry();
+    });
+
+    await waitFor(() => expect(mockQueue).toHaveBeenCalledTimes(2));
+    // Retry passes exactly the just-reviewed ids as the subset.
+    const calls = mockQueue.mock.calls;
+    const lastCall = calls[calls.length - 1][0];
+    expect([...(lastCall.userWordIds ?? [])].sort()).toEqual(["a", "b"]);
+  });
 });
