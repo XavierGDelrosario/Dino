@@ -20,13 +20,32 @@ import "../components/lists/lists.css";
 
 type SortBy = "newest" | "oldest" | "conf-asc" | "conf-desc";
 
-// How many rows to draw per "Load more" press. The whole list is cached (so
-// filters/counts are exact), but rendering is paged so the user isn't handed a
-// wall of hundreds of rows at once.
-const RENDER_PAGE = 100;
+// Max rows drawn per page. The whole list is cached (so filters/counts are
+// exact); rendering is split into fixed pages so the user isn't handed a wall of
+// hundreds of rows. Changing the page only moves the window — it never touches
+// the filter/sort state.
+const PAGE_SIZE = 200;
 
 const langName = (code: string) =>
   targetOptions().find((o) => o.code === code)?.name ?? code;
+
+// The page numbers to render in the pager: always the first and last, plus a
+// window around the current page, with "…" gaps collapsed. All 0-indexed.
+function pageWindow(current: number, count: number): (number | "gap")[] {
+  const keep = new Set<number>([0, count - 1]);
+  for (let p = current - 1; p <= current + 1; p++) {
+    if (p >= 0 && p < count) keep.add(p);
+  }
+  const sorted = [...keep].sort((a, b) => a - b);
+  const out: (number | "gap")[] = [];
+  let prev = -1;
+  for (const p of sorted) {
+    if (prev >= 0 && p - prev > 1) out.push("gap");
+    out.push(p);
+    prev = p;
+  }
+  return out;
+}
 
 export function ListView({
   userId,
@@ -95,17 +114,23 @@ export function ListView({
     return sorted;
   }, [L.words, langFilter, sort, addedFilter, reviewedFilter, confLo, confHi]);
 
-  // Draw only the first `renderLimit` matches; "Load more" reveals the next batch
-  // (pure client-side slicing — the whole list is already cached). Reset to the
-  // first page whenever the list or a filter/sort changes so we don't stay scrolled
-  // deep into a now-different set. NOT reset while background batches stream in, so
-  // the position holds as the cache fills.
-  const [renderLimit, setRenderLimit] = useState(RENDER_PAGE);
+  // Paged rendering (pure client-side slicing — the whole list is already cached).
+  // `page` is 0-indexed. Jump back to the first page whenever the list or a
+  // filter/sort CHANGES (a different set) — but NOT when the page itself changes,
+  // so switching pages never resets the filters. Also NOT reset while background
+  // batches stream in, so the position holds as the cache fills.
+  const [page, setPage] = useState(0);
   useEffect(() => {
-    setRenderLimit(RENDER_PAGE);
+    setPage(0);
   }, [L.selectedListId, sort, langFilter, addedFilter, reviewedFilter, confMin, confMax]);
 
-  const shown = visible.slice(0, renderLimit);
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  // Clamp for display so a deletion/streaming change that shrinks the set can't
+  // strand us past the last page (the state is corrected by the effect on the next
+  // filter change; this keeps the current render valid meanwhile).
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageStart = currentPage * PAGE_SIZE;
+  const shown = visible.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <section className="lists">
@@ -290,23 +315,56 @@ export function ListView({
         </ul>
       )}
 
-      {/* Load-more: reveals the next batch of already-cached rows (no fetch). Shown
-          while more matches exist than are currently drawn. */}
-      {L.status === "ready" && shown.length < visible.length && (
-        <div className="listrows__more">
-          <button className="btn" onClick={() => setRenderLimit((n) => n + RENDER_PAGE)}>
-            {t("common.loadMore")}
+      {/* Pager: switches the 200-row window over the already-cached rows (no fetch).
+          Only shown when the matches span more than one page. Changing the page
+          leaves every filter/sort control untouched. */}
+      {L.status === "ready" && pageCount > 1 && (
+        <nav className="listrows__pager" aria-label={t("lists.pagerAria")}>
+          <button
+            className="btn btn--sm"
+            onClick={() => setPage((p) => Math.max(0, Math.min(p, pageCount - 1) - 1))}
+            disabled={currentPage === 0}
+          >
+            {t("lists.prevPage")}
           </button>
-        </div>
+          {pageWindow(currentPage, pageCount).map((p, i) =>
+            p === "gap" ? (
+              <span key={`gap-${i}`} className="listrows__pagegap">…</span>
+            ) : (
+              <button
+                key={p}
+                className={`btn btn--sm listrows__pagenum${
+                  p === currentPage ? " listrows__pagenum--active" : ""
+                }`}
+                onClick={() => setPage(p)}
+                aria-current={p === currentPage ? "page" : undefined}
+                aria-label={t("lists.gotoPage", { n: p + 1 })}
+              >
+                {p + 1}
+              </button>
+            )
+          )}
+          <button
+            className="btn btn--sm"
+            onClick={() => setPage((p) => Math.min(pageCount - 1, Math.min(p, pageCount - 1) + 1))}
+            disabled={currentPage === pageCount - 1}
+          >
+            {t("lists.nextPage")}
+          </button>
+        </nav>
       )}
 
       {/* Results footer: the whole list is cached (streamed in batches), so filters
-          apply across every word. Reports how many are drawn / match / total, and
+          apply across every word. Reports the visible range / match / total, and
           flags while later batches are still arriving (counts are exact once done). */}
       {L.status === "ready" && L.words.length > 0 && (
         <p className="listrows__count">
-          {shown.length < visible.length
-            ? t("lists.showingFiltered", { shown: shown.length, total: visible.length })
+          {pageCount > 1
+            ? t("lists.showingRange", {
+                from: pageStart + 1,
+                to: pageStart + shown.length,
+                total: visible.length,
+              })
             : filtersActive
               ? t("lists.showingFiltered", { shown: visible.length, total: L.words.length })
               : t("lists.showingTotal", { total: L.words.length })}

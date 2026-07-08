@@ -343,6 +343,39 @@
   color: var(--muted);
 }
 
+/* Numbered pager under the list. */
+.listrows__pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 1rem;
+}
+
+.listrows__pagenum {
+  min-width: 2.2rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  text-align: center;
+}
+
+.listrows__pagenum--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.listrows__pagenum--active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.listrows__pagegap {
+  color: var(--muted);
+  padding: 0 0.15rem;
+}
+
 .listrows {
   list-style: none;
   margin: 0;
