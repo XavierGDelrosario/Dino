@@ -12,7 +12,13 @@
 import type { LangCode } from "../language";
 import type { Word } from "../words/repository";
 import { proficiencyFrameworkFor } from "../proficiency";
-import { type Difficulty, fromFrequency, fromOverride, fromProficiencyBand } from "./level";
+import {
+  type Difficulty,
+  type LevelValue,
+  fromFrequency,
+  fromOverride,
+  fromProficiencyBand,
+} from "./level";
 
 export type DifficultyResolver = (word: Word) => Difficulty;
 
@@ -65,4 +71,20 @@ const RESOLVERS: ResolverEntry[] = [
  */
 export function resolveDifficultyResolver(sourceLang: LangCode): DifficultyResolver {
   return RESOLVERS.find((e) => e.supports(sourceLang))?.resolve ?? defaultResolver;
+}
+
+/**
+ * COMMONNESS band 1..5 from corpus frequency ALONE (1 = most common … 5 = rarest),
+ * ignoring the override/proficiency precedence that getDifficulty applies. This is
+ * the frequency axis presented on its OWN terms — "how common is this word" — so the
+ * UI can show it as a plain-language label distinct from the curated learner Level
+ * (which is proficiency). NULL when the word has no frequency (unranked / MT row).
+ *
+ * `sourceLang` is accepted for the same per-language bin seam as the resolvers
+ * (Zipf is cross-language-comparable today, so one bin set serves all). PURE.
+ */
+export function frequencyCommonness(
+  word: Pick<Word, "sourceLang" | "frequency">,
+): LevelValue | null {
+  return fromFrequency(word.frequency, ZIPF_BINS).level;
 }

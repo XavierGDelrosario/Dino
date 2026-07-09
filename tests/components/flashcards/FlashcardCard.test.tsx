@@ -6,7 +6,16 @@ import { render, fireEvent } from "@testing-library/react";
 import { LocaleProvider } from "@/i18n";
 import { FlashcardCard } from "@/components/flashcards/FlashcardCard";
 
-const face = { input: "辛い", translation: "spicy", inputReading: "からい", translationReading: null };
+const face = {
+  input: "辛い",
+  translation: "spicy",
+  inputReading: "からい",
+  translationReading: null,
+  sourceLang: "JA" as const,
+  proficiencyBand: null,
+  partOfSpeech: null,
+  frequency: null,
+};
 
 function renderCard(props: { onSwipeLeft?: () => void; onSwipeRight?: () => void }) {
   const { container } = render(

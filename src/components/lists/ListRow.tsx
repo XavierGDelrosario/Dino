@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
 import { ListMenu } from "../common/ListMenu";
+import { WordInfoButton } from "../common/WordInfo";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
 
@@ -54,11 +55,6 @@ export function ListRow({
   const [tagMenu, setTagMenu] = useState(false);
   const tagBtnRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState(word.translation);
-  // The date info is a TAP-to-toggle panel, not a native `title` tooltip: native
-  // tooltips don't fire on touch (this app targets iOS) and are delayed/unstyled
-  // on desktop, so the "?" appeared to do nothing. Toggling a visible panel works
-  // on every platform.
-  const [showInfo, setShowInfo] = useState(false);
   const { t, locale } = useI18n();
   const added = fmtDate(word.originallyTranslatedDate, locale, t("lists.never"));
   const reviewed = fmtDate(word.lastReviewedDate, locale, t("lists.never"));
@@ -81,29 +77,22 @@ export function ListRow({
         </span>
 
         <div className="listrow__meta">
-          {/* Date info as a floating OVERLAY (not inline text that reflows the row).
-              Hover reveals it on desktop (pure CSS); tap toggles it on touch (iOS)
-              via aria-expanded — kept separate so iOS's synthetic mouse events on a
-              tap don't fight the toggle. The panel is always rendered; CSS shows it. */}
-          <span className="listrow__info-wrap">
-            <button
-              type="button"
-              className="listrow__info"
-              aria-label={t("lists.infoAria", { added, reviewed })}
-              aria-expanded={showInfo}
-              onClick={() => setShowInfo((v) => !v)}
-            >
-              ?
-            </button>
-            <div className="listrow__infopanel" role="note">
-              <span>
-                {t("lists.added")}: {added}
-              </span>
-              <span>
-                {t("lists.reviewed")}: {reviewed}
-              </span>
-            </div>
-          </span>
+          {/* Word info as a floating OVERLAY (not inline text that reflows the row):
+              Level (JLPT/CEFR) + Part of Speech, then the added/reviewed dates. The
+              shared "?" affordance — same panel appears on the flashcard. */}
+          <WordInfoButton
+            word={word}
+            extra={
+              <>
+                <span>
+                  {t("lists.added")}: {added}
+                </span>
+                <span>
+                  {t("lists.reviewed")}: {reviewed}
+                </span>
+              </>
+            }
+          />
 
           <ConfidenceDots rating={word.confidenceRating} />
 

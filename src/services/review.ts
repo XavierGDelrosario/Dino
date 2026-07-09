@@ -77,6 +77,9 @@ interface ReviewQueueRow {
   translation: string;
   input_reading: string | null;
   translation_reading: string | null;
+  proficiency_band: number | null;
+  part_of_speech: string[] | null;
+  frequency: number | null;
   stability: number | null;
   confidence_rating: number;
   last_reviewed_date: string | null;
@@ -132,6 +135,9 @@ export async function getReviewQueue(params: {
     confidenceRating: r.confidence_rating,
     lastReviewedDate: r.last_reviewed_date,
     originallyTranslatedDate: r.originally_translated_date,
+    proficiencyBand: r.proficiency_band,
+    partOfSpeech: r.part_of_speech,
+    frequency: r.frequency,
     retrievability: r.retrievability,
   }));
 }

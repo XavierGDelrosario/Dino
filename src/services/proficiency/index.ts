@@ -14,7 +14,6 @@
 // =========================================================
 
 import type { LangCode } from "../language";
-import type { Word } from "../words/repository";
 import { labelForBand, type ProficiencyFramework } from "./framework";
 import { resolveFramework } from "./registry";
 
@@ -34,9 +33,15 @@ export interface Proficiency {
  * band is out of the framework's range. Routes to the per-language framework by
  * the word's source language (registry.ts).
  *
+ * Reads only `sourceLang` + `proficiencyBand`, so it accepts any word-like shape
+ * (a dictionary `Word` OR a saved `UserWord`) — not the full `Word`.
+ *
  * OUTPUT: a Proficiency, or null. PURE — safe to call during render.
  */
-export function getProficiency(word: Word): Proficiency | null {
+export function getProficiency(word: {
+  sourceLang: LangCode;
+  proficiencyBand: number | null;
+}): Proficiency | null {
   const fw = resolveFramework(word.sourceLang);
   if (!fw || word.proficiencyBand == null) return null;
   const label = labelForBand(fw, word.proficiencyBand);

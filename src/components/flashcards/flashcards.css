@@ -156,6 +156,7 @@
 }
 
 .flashcard {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -167,6 +168,13 @@
   justify-content: center;
   gap: 1rem;
   text-align: center;
+}
+
+/* The word-info "?" in the card's top-left corner (out of the term's flow). */
+.flashcard__info {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
 }
 
 .flashcard[role="button"] {

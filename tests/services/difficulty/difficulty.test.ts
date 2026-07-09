@@ -1,6 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { getDifficulty } from "@/services/difficulty";
+import { getDifficulty, frequencyCommonness } from "@/services/difficulty";
 import { makeWord } from "@test/fixtures";
+
+describe("frequencyCommonness (frequency axis alone, ignoring override/proficiency)", () => {
+  const at = (frequency: number | null) => frequencyCommonness({ sourceLang: "JA", frequency });
+
+  it("maps the Zipf ×100 score to a 1..5 commonness band (1 = most common)", () => {
+    expect(at(552)).toBe(1); // 行く — very common
+    expect(at(505)).toBe(1); // 猫
+    expect(at(470)).toBe(2);
+    expect(at(420)).toBe(3);
+    expect(at(350)).toBe(4);
+    expect(at(256)).toBe(5); // rare
+  });
+
+  it("is null when the word has no frequency", () => {
+    expect(at(null)).toBeNull();
+  });
+
+  it("ignores a curated proficiency band (commonness is the frequency axis only)", () => {
+    // A hard-but-common word (band set, high frequency) is still 'very common' here,
+    // even though getDifficulty would return the curated level.
+    expect(frequencyCommonness({ sourceLang: "JA", frequency: 552 })).toBe(1);
+  });
+});
 
 describe("getDifficulty", () => {
   it("bins the wordfreq Zipf score (×100) into 1..5 (higher score = easier)", () => {

@@ -2,19 +2,26 @@
 // reveals the reading (furigana) + the translation. Readings come straight off
 // the source row — authoritative for the no-context surface (see CLAUDE.md).
 import { useRef } from "react";
+import { WordInfoButton } from "../common/WordInfo";
 import { useI18n } from "../../i18n";
+import type { LangCode } from "../../services/language";
 import "./flashcards.css";
 
 // A horizontal drag past this many px counts as a swipe (below it = a tap/scroll).
 const SWIPE_THRESHOLD = 45;
 
 /** The minimal face a card renders — satisfied by both a ReviewQueueItem (a saved
- *  UserWord) and a dictionary Word (the text-quiz path), so the card is reused. */
+ *  UserWord) and a dictionary Word (the text-quiz path), so the card is reused.
+ *  The trailing four feed the shared "?" panel (Level + Commonness + POS). */
 export interface CardFace {
   input: string;
   translation: string;
   inputReading: string | null;
   translationReading: string | null;
+  sourceLang: LangCode;
+  proficiencyBand: number | null;
+  partOfSpeech: string[] | null;
+  frequency: number | null;
 }
 
 export function FlashcardCard({
@@ -43,6 +50,9 @@ export function FlashcardCard({
       role={flipped ? undefined : "button"}
       tabIndex={flipped ? undefined : 0}
       onKeyDown={(e) => {
+        // Only the card itself flips — ignore key events bubbling up from the
+        // focusable "?" button inside it (Enter there toggles the info panel).
+        if (e.target !== e.currentTarget) return;
         if (!flipped && (e.key === "Enter" || e.key === " ")) onFlip();
       }}
       onTouchStart={
@@ -64,6 +74,12 @@ export function FlashcardCard({
           : undefined
       }
     >
+      {/* Word-info "?" — same panel as a Lists row. Its click stops propagation so
+          it never flips the card. Aligned left so the panel opens inward. */}
+      <span className="flashcard__info" onClick={(e) => e.stopPropagation()}>
+        <WordInfoButton word={word} align="left" />
+      </span>
+
       <div className="flashcard__term">{word.input}</div>
 
       {flipped ? (

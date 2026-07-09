@@ -48,6 +48,9 @@ export function makeUserWord(overrides: Partial<UserWord> = {}): UserWord {
     confidenceRating: 0,
     lastReviewedDate: null,
     originallyTranslatedDate: "2026-06-17T00:00:00Z",
+    proficiencyBand: null,
+    partOfSpeech: null,
+    frequency: null,
     ...overrides,
   };
 }
