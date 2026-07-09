@@ -712,24 +712,32 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
     const band = (banded[0] as { proficiency_band: number }).proficiency_band;
 
     const u = await makeUser();
-    const call = () =>
-      svc.rpc("learn_words_at_band", {
-        p_source: "JA", p_target: "EN", p_band: band, p_user_id: u.userId, p_limit: 5,
-      });
+    const learn = async (limit: number, excludeSeen: boolean): Promise<string[]> =>
+      (((await svc.rpc("learn_words_at_band", {
+        p_source: "JA", p_target: "EN", p_band: band, p_user_id: u.userId,
+        p_limit: limit, p_exclude_seen: excludeSeen,
+      })).data ?? []) as { headword: string }[]).map((r) => r.headword);
 
-    const { data, error } = await call();
-    expect(error).toBeNull();
-    const headwords = ((data ?? []) as { headword: string }[]).map((r) => r.headword);
-    expect(headwords.length).toBeGreaterThan(0);
-    expect(new Set(headwords).size).toBe(headwords.length); // no duplicate cards
-    // Every headword is a real JMdict word (resolves via the same lookup the edge uses).
-    const first = headwords[0];
+    // A small unseen draw: unique, non-empty, no duplicate cards.
+    const small = await learn(5, true);
+    expect(small.length).toBeGreaterThan(0);
+    expect(new Set(small).size).toBe(small.length);
+
+    // Selection is RANDOM within the band's pool, so the assertions below must not
+    // hinge on a particular random draw. Take the WHOLE gated set (huge limit ==
+    // pool, so every eligible word returns — verified deterministic) and pick a
+    // word FROM it, so membership is guaranteed by construction, not by luck.
+    const all = await learn(100000, false);
+    expect(all.length).toBeGreaterThan(0);
+    const first = all[0];
+
+    // It's a real JMdict word (resolves via the same lookup the edge uses).
     const senses = ((await svc.rpc("jmdict_lookup", { p_input: first, p_source: "JA", p_target: "EN" })).data ??
       []) as { jmdict_entry_id: string; translation: string }[];
     expect(senses.length).toBeGreaterThan(0);
 
     // "Save" the word for every entry that produces this headword (homographs may
-    // split across entries), so it counts as SEEN, then re-fetch — it must be gone.
+    // split across entries), so it counts as SEEN.
     const entryIds = [...new Set(senses.map((s) => s.jmdict_entry_id))];
     for (const eid of entryIds) {
       const seeded = await svc.from("words").insert({
@@ -740,18 +748,12 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
       await u.client.rpc("save_dictionary_word", { p_user_id: u.userId, p_dictionary_word_id: wordId });
     }
 
-    const after = ((await call()).data ?? []) as { headword: string }[];
-    expect(after.map((r) => r.headword)).not.toContain(first);
-
-    // …but the CALIBRATION path (p_exclude_seen = false) samples the whole band,
-    // so the just-saved word can still appear. NB: selection is RANDOM within a
-    // frequent pool, so a small draw wouldn't deterministically contain `first`;
-    // use a huge limit so the pool == the whole gated set and every word returns.
-    const sampled = ((await svc.rpc("learn_words_at_band", {
-      p_source: "JA", p_target: "EN", p_band: band, p_user_id: u.userId,
-      p_limit: 100000, p_exclude_seen: false,
-    })).data ?? []) as { headword: string }[];
-    expect(sampled.map((r) => r.headword)).toContain(first);
+    // exclude_seen=true drops the saved word entirely (huge limit → the whole set,
+    // so its absence is deterministic, not a missed random draw).
+    expect(await learn(100000, true)).not.toContain(first);
+    // …but the CALIBRATION path (exclude_seen=false) samples the WHOLE band, so the
+    // just-saved word still appears — saving doesn't change the gated set.
+    expect(await learn(100000, false)).toContain(first);
   });
 
   it("varies across draws (random sample from a frequent pool → new words on retry)", async () => {
