@@ -25,6 +25,7 @@ export function TextQuizView({
   onGraded,
   onCreateList,
   onClose,
+  onNewQuiz,
 }: {
   userId: string;
   /** One entry per word — its full sense list (primary first) so meanings cycle. */
@@ -38,6 +39,10 @@ export function TextQuizView({
   onCreateList: (name: string) => Promise<string>;
   /** Return to the reader. */
   onClose: () => void;
+  /** Start a FRESH quiz (a new batch of words). When set, the done screen shows a
+      "New quiz" button — used by the level-based Learn flow to pull the next unseen
+      batch at the same band. Omitted by the reader (its words are a fixed text). */
+  onNewQuiz?: () => void;
 }) {
   // mode "learn" = NEW words (first-encounter recall), the right signal to
   // calibrate the user's level on — done silently in the hook (no UI here).
@@ -69,6 +74,11 @@ export function TextQuizView({
             : t("quiz.doneLearn", { n: q.reviewedCount, noun: noun(q.reviewedCount) })}
         </p>
         <div className="review__foot">
+          {onNewQuiz && (
+            <button className="btn btn--primary" onClick={onNewQuiz}>
+              {t("review.newQuiz")}
+            </button>
+          )}
           <button className="btn" onClick={q.restart}>
             {t("quiz.again")}
           </button>
