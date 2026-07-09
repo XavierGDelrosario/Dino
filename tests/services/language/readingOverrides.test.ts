@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
   applyReadingOverride,
+  applyWritingOverride,
   SINGLE_WORD_READING_OVERRIDES,
+  SINGLE_WORD_WRITING_OVERRIDES,
 } from "@/services/language/readingOverrides";
 
 // Minimal sense shape (only inputReading matters to the reorder).
 const sense = (inputReading: string | null, id: string) => ({ inputReading, id });
+// Writing-override sense shape (only the headword `input` matters).
+const wsense = (input: string, id: string) => ({ input, id });
 
 describe("applyReadingOverride", () => {
   it("moves the overridden reading's senses to the front (前 → まえ, not さき)", () => {
@@ -50,6 +54,37 @@ describe("applyReadingOverride", () => {
     for (const [surface, reading] of Object.entries(SINGLE_WORD_READING_OVERRIDES)) {
       expect(surface).toMatch(/^[一-鿿]$/);        // one kanji
       expect(reading).toMatch(/^[ぁ-ゖー]+$/);      // hiragana
+    }
+  });
+});
+
+describe("applyWritingOverride (wrong-word-from-kana)", () => {
+  it("moves the overridden writing to the front (もの → 物, not 者)", () => {
+    // jmdict ranks 者 (person) first by frequency; the override must prefer 物 (thing).
+    const senses = [wsense("者", "sha"), wsense("もの", "nom"), wsense("物", "mono")];
+    expect(applyWritingOverride("もの", senses).map((s) => s.id)).toEqual(["mono", "sha", "nom"]);
+  });
+
+  it("prefers 所 over the rare yam for ところ (所, not 野老/ところ)", () => {
+    // The yam is usually-kana (headword ところ) and borrows the common string's freq.
+    const senses = [wsense("ところ", "yam"), wsense("所", "place")];
+    expect(applyWritingOverride("ところ", senses).map((s) => s.id)).toEqual(["place", "yam"]);
+  });
+
+  it("is a no-op when the surface has no writing override", () => {
+    const senses = [wsense("猫", "a"), wsense("ねこ", "b")];
+    expect(applyWritingOverride("ねこ", senses)).toBe(senses);
+  });
+
+  it("never invents a writing (no-op when the preferred one is absent)", () => {
+    const senses = [wsense("者", "sha"), wsense("もの", "nom")]; // 物 absent
+    expect(applyWritingOverride("もの", senses)).toBe(senses);
+  });
+
+  it("reading and writing override lists don't overlap (a surface is in at most one)", () => {
+    const reading = new Set(Object.keys(SINGLE_WORD_READING_OVERRIDES));
+    for (const surface of Object.keys(SINGLE_WORD_WRITING_OVERRIDES)) {
+      expect(reading.has(surface)).toBe(false);
     }
   });
 });

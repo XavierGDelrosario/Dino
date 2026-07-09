@@ -34,6 +34,14 @@ describe("mergeJapaneseCompounds — pure merge", () => {
     expect(out[0].reading).toBe("おもに");
   });
 
+  it("merges every karaage form kuromoji over-segments (唐揚げ / から揚げ / からあげ)", () => {
+    // kuromoji splits 唐揚げ → 唐:とう ＋ 揚げ (the concatenated reading とうあげ is wrong,
+    // but the reader's single-reading dictionary override corrects it to からあげ).
+    expect(mergeJapaneseCompounds(frags(["唐", "とう"], ["揚げ", "あげ"])).map((t) => t.text)).toEqual(["唐揚げ"]);
+    expect(mergeJapaneseCompounds(frags(["から", "から"], ["揚げ", "あげ"])).map((t) => t.text)).toEqual(["から揚げ"]);
+    expect(mergeJapaneseCompounds(frags(["から", "から"], ["あげ", "あげ"])).map((t) => t.text)).toEqual(["からあげ"]);
+  });
+
   it("merges only the listed compound, leaving surrounding tokens untouched", () => {
     const out = mergeJapaneseCompounds(
       frags(["次", "じ"], ["大", "だい"], ["規模", "きぼ"], ["だ", "だ"]),

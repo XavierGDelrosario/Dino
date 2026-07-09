@@ -73,6 +73,14 @@ export const JA_COMPOUNDS: readonly string[] = [
   "棲家",   // dwelling / haunt
   "閉園",   // (park/zoo) closing
   "閉所",   // enclosed space (as in 閉所恐怖症)
+  // food — kuromoji splits EVERY karaage form (唐揚げ→唐:とう ＋ 揚げ) though all are one
+  // full-JMdict entry (1590640, "deep-fried food, esp. chicken"). The wrong kuromoji
+  // reading (とうあげ) is corrected by the reader's single-reading dictionary override
+  // (→ からあげ). Frequency is NULL (wordfreq can't rank multi-kanji compounds) — fine.
+  "唐揚げ",  // karaage (deep-fried chicken)
+  "から揚げ",
+  "唐揚",
+  "からあげ",
 ].map(nfc);
 
 const COMPOUND_SET = new Set(JA_COMPOUNDS);

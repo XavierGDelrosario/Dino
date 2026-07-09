@@ -22,7 +22,7 @@ import {
   type Word,
 } from "./words/repository";
 import { setCachedSenses } from "./words/cache";
-import { applyReadingOverride } from "./language/readingOverrides";
+import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
 import { nfc, nfcTrim } from "../lib/text";
 import { translate, translateBatch } from "./translation";
 import { resolveSenseProvider } from "./senses";
@@ -75,12 +75,15 @@ export async function lookupWord(params: {
 
   // TEMPORARY hand-verified fix for the no-context default reading of a handful
   // of common standalone words that lose jmdict_lookup's frequency tiebreak
-  // (前 → さき instead of まえ). Reorders the PRIMARY sense only; no-op otherwise.
+  // (前 → さき instead of まえ; もの → 者 instead of 物; ところ → 野老 yam instead of
+  // 所). The reading override fixes wrong-READING kanji; the writing override fixes
+  // wrong-WORD kana searches (whose candidates share a reading). Both reorder the
+  // PRIMARY sense only; no-op otherwise, and a surface is in at most one list.
   return {
     input,
     sourceLang: resolvedSource,
     targetLang,
-    meanings: applyReadingOverride(input, meanings),
+    meanings: applyWritingOverride(input, applyReadingOverride(input, meanings)),
   };
 }
 
