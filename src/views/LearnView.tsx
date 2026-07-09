@@ -121,6 +121,8 @@ export function LearnView({ userId }: { userId: string }) {
       <section className="review">
         <CalibrationView
           userId={userId}
+          lists={lists}
+          onCreateList={createNamedList}
           onClose={() => {
             setCalibrating(false);
             void loadLevel();

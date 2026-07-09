@@ -8,18 +8,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { makeWord } from "@test/fixtures";
 
-vi.mock("@/services/words/userWords", () => ({ saveDictionaryWord: vi.fn() }));
+vi.mock("@/services/words/userWords", () => ({
+  saveDictionaryWord: vi.fn(),
+  getUserWordStates: vi.fn(),
+}));
 vi.mock("@/services/review", () => ({ recordReview: vi.fn() }));
 vi.mock("@/services/calibration", () => ({ estimateLevel: vi.fn(), setUserLevel: vi.fn() }));
 vi.mock("@/services/difficulty", () => ({ getDifficulty: vi.fn() }));
 
 import { useTextQuiz } from "@/hooks/useTextQuiz";
-import { saveDictionaryWord } from "@/services/words/userWords";
+import { saveDictionaryWord, getUserWordStates } from "@/services/words/userWords";
 import { recordReview } from "@/services/review";
 import { estimateLevel, setUserLevel } from "@/services/calibration";
 import { getDifficulty } from "@/services/difficulty";
 
 const mockSave = vi.mocked(saveDictionaryWord);
+const mockStates = vi.mocked(getUserWordStates);
 const mockRecord = vi.mocked(recordReview);
 const mockEstimate = vi.mocked(estimateLevel);
 const mockSetLevel = vi.mocked(setUserLevel);
@@ -37,6 +41,18 @@ beforeEach(() => {
     Promise.resolve({ userWordId: `uw-${word.wordId}`, confidenceRating: 0 } as never),
   );
   mockRecord.mockResolvedValue({ userWordId: "x", confidenceRating: 4, stability: 1 } as never);
+  // Default: nothing pre-existing. Like the real API, return an entry for EVERY id
+  // (untracked → tracked:false), so a seed that ignores `tracked` would be caught.
+  mockStates.mockImplementation(({ dictionaryWordIds }) =>
+    Promise.resolve(
+      new Map(
+        dictionaryWordIds.map((id) => [
+          id,
+          { tracked: false, userWordId: null, confidenceRating: 0, lastReviewedDate: null },
+        ]),
+      ) as never,
+    ),
+  );
   mockDifficulty.mockReturnValue({ level: 3 } as never);
   mockEstimate.mockReturnValue(3 as never);
   mockSetLevel.mockResolvedValue(undefined as never);
@@ -70,6 +86,29 @@ describe("useTextQuiz", () => {
     expect(onGraded).toHaveBeenCalledWith("wa", "uw-wa", 4);
     expect(result.current.position).toBe(2);
     expect(result.current.reviewedCount).toBe(1);
+  });
+
+  it("addedCount counts only words NEW to the vocabulary, not pre-existing re-adds", async () => {
+    // wordA is already in the user's vocabulary (tracked); wordB is not.
+    mockStates.mockResolvedValue(
+      new Map([
+        ["wa", { tracked: true, userWordId: "uw-wa", confidenceRating: 3, lastReviewedDate: null }],
+        ["wb", { tracked: false, userWordId: null, confidenceRating: 0, lastReviewedDate: null }],
+      ]) as never,
+    );
+    const { result } = renderHook(() => useTextQuiz("user-1", [[wordA], [wordB]]));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    await act(async () => {
+      await result.current.grade(5); // wordA — already owned
+    });
+    await act(async () => {
+      await result.current.grade(5); // wordB — genuinely new
+    });
+
+    expect(result.current.status).toBe("done");
+    expect(result.current.reviewedCount).toBe(2); // both graded
+    expect(result.current.addedCount).toBe(1); // but only wordB was actually added
   });
 
   it("cycles meanings within a card (wraps both directions)", () => {

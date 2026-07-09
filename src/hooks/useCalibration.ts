@@ -23,7 +23,7 @@ import {
   type CalibrationSample,
 } from "../services/calibration";
 import { fetchLearnWords } from "../services/learn";
-import { saveDictionaryWords } from "../services/words/userWords";
+import { saveDictionaryWord, saveDictionaryWords } from "../services/words/userWords";
 import { getDifficulty } from "../services/difficulty";
 import { proficiencyFrameworkFor, labelForBand } from "../services/proficiency";
 import {
@@ -43,6 +43,17 @@ export type CalibrationStatus =
 
 /** Words per round. Small + fixed so a round is a quick glance-and-tap. */
 export const CALIBRATION_BATCH = 8;
+
+// Bound-morpheme JMdict POS codes — an entry whose PRIMARY sense is ONLY these is a
+// prefix/suffix/counter/auxiliary, not a standalone word a learner can self-rate
+// ("第", "化", "さん"). Mirrors learn_words_at_band's server-side c_affix_pos; kept as
+// a client backstop since that filter is inclusive (any non-affix sense passes) and
+// may not be deployed to every DB. n-suf/n-pref included (化/系/感 are noun-affixes).
+const AFFIX_POS = new Set([
+  "pref", "suf", "ctr", "aux", "aux-v", "aux-adj", "cop", "cop-da", "n-suf", "n-pref",
+]);
+const isAffixOnly = (w: Word): boolean =>
+  !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => AFFIX_POS.has(p));
 
 /** Initial memory strength (days) seeded for a word the user marks as KNOWN.
  *  confidence_from_stability(40) = 5 (its ≥ 35 bucket), so a known word lands in
@@ -78,6 +89,21 @@ export function useCalibration(userId: string) {
   // Running count of KNOWN words added to the vocabulary this session (shown on the
   // result screen). Bands don't overlap, so a word is offered in at most one round.
   const [addedCount, setAddedCount] = useState(0);
+  // The words the user marked "don't know", accumulated ACROSS rounds (each round's
+  // cards/unknown reset), to list on the result screen so they can study them.
+  const [missed, setMissed] = useState<Word[]>([]);
+  // Missed words the user chose to ADD from the result list (for the ✓ state).
+  const [savedMissedIds, setSavedMissedIds] = useState<Set<string>>(new Set());
+
+  // Add a missed word from the result list. COLD start (no seed) — the user said
+  // they DON'T know it, so it enters the SRS as new, unlike the known-word seed.
+  const addMissedWord = useCallback(
+    async (word: Word, listId?: string) => {
+      await saveDictionaryWord({ userId, word, listId });
+      setSavedMissedIds((s) => new Set(s).add(word.wordId));
+    },
+    [userId],
+  );
 
   const framework = proficiencyFrameworkFor(langs.current.learning);
 
@@ -97,7 +123,11 @@ export function useCalibration(userId: string) {
       excludeSeen: true,
     });
     // One word per card (the primary sense) — know/don't-know needs no meanings.
-    return cardLists.map((senses) => senses[0]).filter(Boolean);
+    // Drop bare affixes (prefixes/suffixes/counters): a learner can't rate "第" alone.
+    return cardLists
+      .map((senses) => senses[0])
+      .filter(Boolean)
+      .filter((w) => !isAffixOnly(w));
   }, []);
 
   // Converge: persist BOTH axes (each on its own column), then show the result.
@@ -203,6 +233,11 @@ export function useCalibration(userId: string) {
       }
     });
 
+    // Remember the words marked "don't know" (accumulated across rounds) to list on
+    // the result screen. Bands don't overlap, so no dedupe needed.
+    const missedThisRound = cards.filter((_, i) => unknown.has(i));
+    if (missedThisRound.length > 0) setMissed((m) => [...m, ...missedThisRound]);
+
     // Add every word NOT marked "don't know" to the vocabulary (ALL) at full
     // confidence — the user just told us they know it — in ONE transaction.
     // saveDictionaryWords returns the rows ACTUALLY written, so addedCount reflects
@@ -228,6 +263,8 @@ export function useCalibration(userId: string) {
     setUnknown(new Set());
     setBand(null);
     setAddedCount(0);
+    setMissed([]);
+    setSavedMissedIds(new Set());
     samples.current = [];
     begin();
   }, [begin]);
@@ -246,6 +283,12 @@ export function useCalibration(userId: string) {
     levelLabel: band != null && framework ? labelForBand(framework, band) : null,
     /** Known words added to the vocabulary (ALL) at full confidence this session. */
     addedCount,
+    /** Words the user marked "don't know" across all rounds (for the result list). */
+    missed,
+    /** Add a missed word to the vocabulary (cold start), optionally to a sub-list. */
+    addMissedWord,
+    /** Missed-word ids already added from the result list (for the ✓ state). */
+    savedMissedIds,
     /** Count marked "don't know" this round (for the submit affordance). */
     unknownCount: unknown.size,
     batchSize: cards.length,

@@ -68,6 +68,35 @@
   font-weight: 600;
 }
 
+/* Missed-word list on the result screen — rows styled like a single-word translate
+   result (headword · reading → meaning), one per line. */
+.calib__missed {
+  margin-top: 1.25rem;
+}
+.calib__missedtitle {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+.calib__missedlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.calib__missedrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+}
+
 @media (prefers-color-scheme: dark) {
   .calcard {
     background: var(--card-bg, #1e1e1e);

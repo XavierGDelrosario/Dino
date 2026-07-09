@@ -31,6 +31,15 @@
 .review__foot {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Compact done-screen action — ~0.8 the height of a standard .btn (0.7rem→0.45rem
+   vertical padding), for the Quiz-again / New-quiz buttons. */
+.quiz__donebtn {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
 }
 
 /* A low-emphasis button (text-only). */

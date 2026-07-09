@@ -71,17 +71,19 @@ export function TextQuizView({
         <p>
           {mode === "review"
             ? t("quiz.doneReview", { n: q.reviewedCount, noun: noun(q.reviewedCount) })
-            : t("quiz.doneLearn", { n: q.reviewedCount, noun: noun(q.reviewedCount) })}
+            : // "added" counts only words genuinely NEW to the vocabulary (not ones
+              // already saved before this session), not every card graded.
+              t("quiz.doneLearn", { n: q.addedCount, noun: noun(q.addedCount) })}
         </p>
         <div className="review__foot">
+          <button className="btn quiz__donebtn" onClick={q.restart}>
+            {t("quiz.again")}
+          </button>
           {onNewQuiz && (
-            <button className="btn btn--primary" onClick={onNewQuiz}>
+            <button className="btn btn--primary quiz__donebtn" onClick={onNewQuiz}>
               {t("review.newQuiz")}
             </button>
           )}
-          <button className="btn" onClick={q.restart}>
-            {t("quiz.again")}
-          </button>
           {close}
         </div>
       </div>
