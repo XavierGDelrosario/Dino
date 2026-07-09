@@ -41,6 +41,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   applyInputAttributeOverride,
   corsHeaders,
+  EN_JA_STOPWORDS,
   groupByInput,
   lemmaCandidates,
   orderSensesForInput,
@@ -212,9 +213,14 @@ async function resolveDictionary(
     // deterministic. (Gloss runs even when WordNet fills the cap — it's parallel, so no
     // added latency, and the merge ignores the surplus.)
     const candidates = lemmaCandidates(input, sourceLang);
+    // Skip the pathological (and meaningless) reverse-gloss scan for grammatical
+    // stopwords ("the", "to", …); WordNet still runs. See EN_JA_STOPWORDS.
+    const glossCands = candidates.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
     const [wnRows, glossRows] = await Promise.all([
       lookupWordNetMany(supabase, candidates),
-      lookupJMdictMany(supabase, candidates, sourceLang, targetLang),
+      glossCands.length
+        ? lookupJMdictMany(supabase, glossCands, sourceLang, targetLang)
+        : Promise.resolve([] as { input: string; r: ProviderResult }[]),
     ]);
     const resolved = resolvePerInputWithCandidates(
       [input],
@@ -304,9 +310,13 @@ async function resolveDictionaryMany(
     // paragraph of inflected English (cats, ran, studies) reads as well as single words.
     const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
     const allCands = [...new Set([...candsByInput.values()].flat())];
+    // Stopwords go to WordNet only, not the pathological gloss scan (see EN_JA_STOPWORDS).
+    const glossCands = allCands.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
     const [wnRows, glossRows] = await Promise.all([
       lookupWordNetMany(supabase, allCands),
-      lookupJMdictMany(supabase, allCands, sourceLang, targetLang),
+      glossCands.length
+        ? lookupJMdictMany(supabase, glossCands, sourceLang, targetLang)
+        : Promise.resolve([] as { input: string; r: ProviderResult }[]),
     ]);
     const wnByCand = groupProviderByInput(wnRows);
     const glossByCand = groupProviderByInput(glossRows);

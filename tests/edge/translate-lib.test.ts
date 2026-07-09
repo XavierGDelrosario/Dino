@@ -8,6 +8,7 @@ import {
   applyInputAttributeOverride,
   corsHeaders,
   dropOffScriptTranslations,
+  EN_JA_STOPWORDS,
   groupByInput,
   lemmaCandidates,
   mergeProviderResults,
@@ -587,5 +588,18 @@ describe("orderSensesForInput (single-word sense overrides, edge twin of the cli
   it("never invents a sense: no-op when the preferred form is absent", () => {
     const senses = [s("前", "ぜん", "previous"), s("前", "さき", "ahead")];
     expect(orderSensesForInput("前", senses)).toBe(senses); // no まえ present
+  });
+});
+
+describe("EN_JA_STOPWORDS (skip the reverse-gloss for grammatical function words)", () => {
+  it("contains pathological grammatical words", () => {
+    for (const w of ["the", "a", "to", "of", "and", "is", "for", "with"]) {
+      expect(EN_JA_STOPWORDS.has(w)).toBe(true);
+    }
+  });
+  it("does NOT contain real vocabulary (content words keep the gloss path)", () => {
+    for (const w of ["cat", "run", "water", "this", "up", "spring", "volleyball"]) {
+      expect(EN_JA_STOPWORDS.has(w)).toBe(false);
+    }
   });
 });
