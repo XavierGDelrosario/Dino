@@ -201,8 +201,8 @@ export const en = {
   "quiz.back": "← Back to reader",
   "quiz.emptyReview": "No saved words in this text to review yet.",
   "quiz.emptyLearn": "No new words in this text to quiz — you know them all. 🎉",
-  "quiz.doneReview": "Reviewed {n} {noun}. 🎉",
-  "quiz.doneLearn": "Added {n} new {noun} to your vocabulary. 🎉",
+  "quiz.doneReview": "Reviewed {n} {noun}.",
+  "quiz.doneLearn": "Added {n} new {noun} to your vocabulary.",
   "quiz.again": "Quiz again",
   "quiz.scopeReview": "Reviewing words from this text",
   "quiz.scopeLearn": "Quizzing new words from this text",
@@ -236,6 +236,7 @@ export const en = {
   "calib.resultBeginner": "You're just getting started — welcome!",
   "calib.resultSaved": "Added {n} words you know to your list at full confidence.",
   "calib.resultNote": "We'll use this to pace new words. You can retake it anytime.",
+  "calib.missed": "Words you didn't know",
   "calib.again": "Retake",
 
   // add-to-list button / destination picker
@@ -492,8 +493,8 @@ export const ja: Record<MessageKey, string> = {
   "quiz.back": "← リーダーに戻る",
   "quiz.emptyReview": "このテキストに復習する保存済みの単語がまだありません。",
   "quiz.emptyLearn": "このテキストにクイズする新しい単語はありません — すべて習得済みです。🎉",
-  "quiz.doneReview": "{n}{noun}を復習しました。🎉",
-  "quiz.doneLearn": "{n}個の新しい{noun}を語彙に追加しました。🎉",
+  "quiz.doneReview": "{n}{noun}を復習しました。",
+  "quiz.doneLearn": "{n}個の新しい{noun}を語彙に追加しました。",
   "quiz.again": "もう一度クイズ",
   "quiz.scopeReview": "このテキストの単語を復習中",
   "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
@@ -526,6 +527,7 @@ export const ja: Record<MessageKey, string> = {
   "calib.resultBeginner": "まだ始めたばかりですね — ようこそ！",
   "calib.resultSaved": "知っている単語{n}個を自信度満点でリストに追加しました。",
   "calib.resultNote": "この結果を新しい単語のペース配分に使います。いつでもやり直せます。",
+  "calib.missed": "知らなかった単語",
   "calib.again": "やり直す",
 
   "add.addedAria": "追加しました",
