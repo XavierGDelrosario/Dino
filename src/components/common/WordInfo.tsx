@@ -61,7 +61,7 @@ export function WordInfo({ word }: { word: WordInfoTarget }) {
         {t("wordinfo.level")}: {prof ? prof.label : t("wordinfo.unknown")}
       </span>
       <span>
-        {t("wordinfo.commonness")}:{" "}
+        {t("wordinfo.usage")}:{" "}
         {commonness ? t(COMMONNESS_LABEL_KEY[commonness]) : t("wordinfo.unknown")}
       </span>
       <span>

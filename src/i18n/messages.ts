@@ -173,7 +173,7 @@ export const en = {
   // word-info "?" panel (Level + Part of Speech), shared by Lists + flashcard
   "wordinfo.aria": "Word details",
   "wordinfo.level": "Level",
-  "wordinfo.commonness": "Commonness",
+  "wordinfo.usage": "Usage",
   "wordinfo.pos": "Part of Speech",
   "wordinfo.unknown": "—",
   "commonness.veryCommon": "Very common",
@@ -465,7 +465,7 @@ export const ja: Record<MessageKey, string> = {
 
   "wordinfo.aria": "単語の詳細",
   "wordinfo.level": "レベル",
-  "wordinfo.commonness": "使用頻度",
+  "wordinfo.usage": "使用頻度",
   "wordinfo.pos": "品詞",
   "wordinfo.unknown": "—",
   "commonness.veryCommon": "非常に高い",
