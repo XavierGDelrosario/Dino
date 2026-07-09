@@ -477,6 +477,22 @@ export function groupByInput<
 // CALIBRATION path builds cards in the edge, so it needs the same reorder here (so a
 // saved word gets the right meaning). Reorder only — never invents a sense.
 
+// English GRAMMATICAL function words to SKIP in the EN→JA reverse-gloss search.
+// Two reasons, both true of every word here: (1) it has no standalone Japanese
+// VOCABULARY equivalent (JA uses particles/inflection, not articles/copulas/bare
+// prepositions), so a reverse-gloss result is pure noise; (2) it appears in a huge
+// fraction of glosses ("to" heads every verb gloss "to run"/"to eat"), so the
+// trigram-then-regex scan is pathological (measured: "the" → 8.8 s over the full
+// dict). Skipping the GLOSS lookup for these makes them instant; WordNet still runs
+// (it returns nothing for them, which is the correct answer). Deliberately excludes
+// function-ish words that DO have JA vocabulary (this→これ, up→上) — those keep both
+// paths. Extend by hand; lowercase.
+export const EN_JA_STOPWORDS: ReadonlySet<string> = new Set([
+  "the", "a", "an", "and", "or", "but", "nor", "of", "to", "in", "on", "at",
+  "by", "for", "with", "from", "as", "is", "are", "was", "were", "be", "been",
+  "being", "am",
+]);
+
 /** surface (NFC kanji) → its correct everyday standalone reading (hiragana). */
 export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
   前: "まえ", 人: "ひと", 本: "ほん", 彼: "かれ", 娘: "むすめ",

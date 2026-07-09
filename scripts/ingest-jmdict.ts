@@ -258,6 +258,20 @@ async function main(): Promise<void> {
     await bulkInsert(client, "jmdict_glosses", ["sense_id", "lang", "text", "position"], glosses);
 
     await client.query("COMMIT");
+
+    // Rebuild the derived headword materialized view (migration 20260726) — a
+    // truncate-and-reload leaves its rows stale. Guarded so an ingest against a DB
+    // that hasn't applied 20260726 yet just warns instead of failing.
+    const mv = await client.query("SELECT to_regclass('public.jmdict_entry_headword_mv') AS r");
+    if (mv.rows[0].r) {
+      console.log("Refreshing jmdict_entry_headword_mv ...");
+      await client.query("REFRESH MATERIALIZED VIEW jmdict_entry_headword_mv");
+    } else {
+      console.warn(
+        "jmdict_entry_headword_mv not found — apply migration 20260726, then REFRESH MATERIALIZED VIEW jmdict_entry_headword_mv."
+      );
+    }
+
     console.log(
       `Done in ${((Date.now() - started) / 1000).toFixed(1)}s — ` +
         `${entries.length} entries, ${kanji.length} kanji, ${kana.length} kana, ` +
