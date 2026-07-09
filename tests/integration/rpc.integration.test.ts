@@ -718,20 +718,13 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
         p_limit: limit, p_exclude_seen: excludeSeen,
       })).data ?? []) as { headword: string }[]).map((r) => r.headword);
 
-    // A small unseen draw: unique, non-empty, no duplicate cards.
-    const small = await learn(5, true);
-    expect(small.length).toBeGreaterThan(0);
-    expect(new Set(small).size).toBe(small.length);
-
-    // Selection is RANDOM within the band's pool, so the assertions below must not
-    // hinge on a particular random draw. Take the WHOLE gated set (huge limit ==
-    // pool, so every eligible word returns — verified deterministic) and pick a
-    // word FROM it, so membership is guaranteed by construction, not by luck.
-    const all = await learn(100000, false);
-    expect(all.length).toBeGreaterThan(0);
-    const first = all[0];
+    // An unseen draw: unique, non-empty, no duplicate cards.
+    const draw = await learn(5, true);
+    expect(draw.length).toBeGreaterThan(0);
+    expect(new Set(draw).size).toBe(draw.length);
 
     // It's a real JMdict word (resolves via the same lookup the edge uses).
+    const first = draw[0];
     const senses = ((await svc.rpc("jmdict_lookup", { p_input: first, p_source: "JA", p_target: "EN" })).data ??
       []) as { jmdict_entry_id: string; translation: string }[];
     expect(senses.length).toBeGreaterThan(0);
@@ -748,12 +741,12 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
       await u.client.rpc("save_dictionary_word", { p_user_id: u.userId, p_dictionary_word_id: wordId });
     }
 
-    // exclude_seen=true drops the saved word entirely (huge limit → the whole set,
-    // so its absence is deterministic, not a missed random draw).
-    expect(await learn(100000, true)).not.toContain(first);
-    // …but the CALIBRATION path (exclude_seen=false) samples the WHOLE band, so the
-    // just-saved word still appears — saving doesn't change the gated set.
-    expect(await learn(100000, false)).toContain(first);
+    // Once saved, the exclude_seen path SQL-filters it out, so it can't appear in
+    // ANY draw — assert its ABSENCE. (We can't assert a specific word's PRESENCE:
+    // selection is random AND PostgREST caps the response at 1000 rows, so for a
+    // band with >1000 words a draw is a random subset — presence isn't guaranteed,
+    // absence-of-a-filtered-word is.)
+    expect(await learn(1000, true)).not.toContain(first);
   });
 
   it("varies across draws (random sample from a frequent pool → new words on retry)", async () => {
