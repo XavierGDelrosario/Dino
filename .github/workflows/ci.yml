@@ -89,12 +89,19 @@ jobs:
       - name: Serve the translate edge function (for the edge I/O-shell spec)
         run: |
           nohup supabase functions serve translate --no-verify-jwt > edge.log 2>&1 &
-          for i in $(seq 1 40); do
+          # Readiness probe: a bodyless GET never returns 200, so the old loop just
+          # timed out and HOPED the edge was warm — on a slow runner it wasn't yet
+          # registered with Kong, so the first real test hit a 502 (flaky). Send a
+          # VALID POST and wait for a real 200 (the function returns 200 even on a
+          # JMdict miss), so the suite only starts once the edge truly serves.
+          for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+              -X POST -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"input":"猫","sourceLang":"JA","targetLang":"EN"}' \
               "$VITE_SUPABASE_URL/functions/v1/translate" || true)
-            [ "$code" = "200" ] && { echo "edge up"; break; }
-            sleep 2
+            [ "$code" = "200" ] && { echo "edge up after ${i} tries"; break; }
+            echo "waiting for edge… (probe returned ${code})"; sleep 2
           done
 
       - name: Integration tests (real Postgres)
