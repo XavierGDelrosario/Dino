@@ -5,7 +5,7 @@
 //
 // A TAP-toggle panel, not a native `title` tooltip: tooltips don't fire on touch
 // (this app targets iOS) — same rationale as the original ListRow "?".
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getProficiency } from "../../services/proficiency";
 import { frequencyCommonness } from "../../services/difficulty";
 import { partOfSpeechCategory, type PosCategory, type LangCode } from "../../services/language";
@@ -90,8 +90,29 @@ export function WordInfoButton({
 }) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
+  // While open, dismiss on a tap/click outside the wrap (button + panel) or on
+  // Escape. pointerdown (capture) fires on iOS WKWebView + desktop; a pointerdown
+  // ON the button is inside the wrap, so its own toggle still works.
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onOutside, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onOutside, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <span className="wordinfo-wrap">
+    <span className="wordinfo-wrap" ref={wrapRef}>
       <button
         type="button"
         className="wordinfo-btn"
