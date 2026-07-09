@@ -207,9 +207,19 @@ describe("projectMany (batch projection)", () => {
   });
 });
 
-describe("mergeProviderResults (WordNet-first EN→JA merge)", () => {
+describe("mergeProviderResults (intersection-boosted EN→JA merge)", () => {
   const wn = (entryId: string, translation: string, sensePos: number): ProviderResult =>
     ({ translation, entryId, sensePos });
+
+  it("intersection-boost: an entry BOTH providers return leads, in gloss order (cat→猫 not やつ)", () => {
+    // WordNet floats a common-but-wrong word first (やつ before 猫); the gloss ranks
+    // 猫 (head-match) first. 猫 is in both → boosted to the front, keeping WordNet's row.
+    const primary = [wn("yatsu", "やつ", 0), wn("neko", "猫", 1), wn("tsuku", "つく", 2)];
+    const fallback = [wn("neko", "猫-gloss", 0), wn("cat2", "キャット", 1)];
+    const merged = mergeProviderResults(primary, fallback, 12);
+    expect(merged.map((r) => r.entryId)).toEqual(["neko", "yatsu", "tsuku", "cat2"]);
+    expect(merged[0].translation).toBe("猫"); // WordNet's row kept for the shared entry
+  });
 
   it("leads with the primary (WordNet) results, then appends fallback", () => {
     const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
