@@ -282,9 +282,27 @@ export function mergeProviderResults(
   fallback: ProviderResult[],
   limit: number,
 ): ProviderResult[] {
+  // INTERSECTION-BOOST. An entry BOTH providers return is high-confidence: WordNet
+  // asserts a semantic link AND the JA word's own gloss leads with the English input
+  // (the gloss path ranks head-matches first). Lead with those, ordered by the GLOSS
+  // rank — because WordNet's own order is frequency-polluted and can float a
+  // common-but-wrong word to the top (cat→やつ over 猫: both synsets tie at sense_rank
+  // 0, so JA frequency wins it, and やつ "guy" > 猫). Keep the PRIMARY (WordNet) row
+  // for shared entries (same JMdict entry → same projection). Then WordNet-only, then
+  // gloss-only. Falls back to the old WordNet-first order when there's no overlap.
+  const fallbackRank = new Map<string, number>();
+  fallback.forEach((r, i) => { if (r.entryId != null && !fallbackRank.has(r.entryId)) fallbackRank.set(r.entryId, i); });
+  const primaryIds = new Set(primary.map((r) => r.entryId).filter((k): k is string => k != null));
+
+  const shared = primary
+    .filter((r) => r.entryId != null && fallbackRank.has(r.entryId))
+    .sort((a, b) => fallbackRank.get(a.entryId!)! - fallbackRank.get(b.entryId!)!);
+  const primaryOnly = primary.filter((r) => r.entryId == null || !fallbackRank.has(r.entryId));
+  const fallbackOnly = fallback.filter((r) => r.entryId == null || !primaryIds.has(r.entryId));
+
   const seen = new Set<string>();
   const merged: ProviderResult[] = [];
-  for (const r of [...primary, ...fallback]) {
+  for (const r of [...shared, ...primaryOnly, ...fallbackOnly]) {
     if (merged.length >= limit) break;
     const key = r.entryId ?? null;
     if (key != null) {

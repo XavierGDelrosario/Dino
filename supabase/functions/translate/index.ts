@@ -72,7 +72,11 @@ import {
 //       english_frequency/english_proficiency tables (20260721/20260722). Rows < 6
 //       carry stale values (JA rows: borrowed kana freq; EN rows: the JA translation's
 //       freq/JLPT band) until re-projected — the deferred (#5) sweep targets them.
-const CURRENT_PROJECTION_VERSION = 6;
+//   7 = EN→JA intersection-boost: senses both WordNet AND the gloss return lead (in
+//       gloss head-match order), fixing common-but-wrong primaries (cat→猫 not やつ).
+//       Only the EN→JA sensePos ORDER changed; cached rows keep the old order until
+//       re-translated (the deferred #5 sweep flags version < 7).
+const CURRENT_PROJECTION_VERSION = 7;
 
 // Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
 // `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
@@ -575,6 +579,16 @@ async function reserveGlobalQuota(supabase: Supa, chars: number, quota: number):
   return row?.allowed !== false;
 }
 
+// A REVERSE lookup INTO Japanese (EN→JA today): the source isn't the dictionary's
+// native language (JA), so every sense shares the ENGLISH input's frequency (the
+// applyEnglishFrequency override) — frequency can't order them, and jmdict_sense_pos
+// (the merge's intersection-boosted rank) is the authoritative order. The native
+// JA→EN direction keeps frequency-first (it discriminates homograph ENTRIES:
+// 顔→かお before かんばせ). See CURRENT_PROJECTION_VERSION 7.
+function isReverseIntoJa(sourceLang: string, targetLang: string): boolean {
+  return sourceLang.toUpperCase() !== "JA" && targetLang.toUpperCase() === "JA";
+}
+
 /** All verified `words` rows for a lookup tuple (the multi-sense cache read). */
 async function fetchVerified(
   supabase: Supa,
@@ -589,20 +603,28 @@ async function fetchVerified(
   // like "cat, dog" would corrupt the filter — double-quoting (with \ and " escaped)
   // makes it a literal value.
   const q = `"${input.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  const { data, error } = await supabase
+  let query = supabase
     .from("words")
     .select("*")
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
-    .or(`input.eq.${q},input_reading.eq.${q}`)
-    // Order to MATCH jmdict_lookup's ranking (frequency DESC, then entry, then
-    // sense), so the cached primary equals the lookup's primary even for a word
-    // with several ENTRIES (顔 → かお-entry before かんばせ-entry). Ordering by
-    // sense_pos ALONE scrambled entries that tie at sense 0 (the 顔/かんばせ bug).
-    .order("frequency", { ascending: false, nullsFirst: false })
-    .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+    .or(`input.eq.${q},input_reading.eq.${q}`);
+  if (isReverseIntoJa(sourceLang, targetLang)) {
+    // EN→JA: uniform input-frequency → order by the projected sense rank.
+    query = query
+      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
+      .order("jmdict_entry_id", { ascending: true, nullsFirst: false });
+  } else {
+    // JA→EN: MATCH jmdict_lookup's ranking (frequency DESC, then entry, then sense)
+    // so the cached primary equals the lookup's, even for a word with several ENTRIES
+    // (顔 → かお-entry before かんばせ-entry). sense_pos alone scrambled sense-0 ties.
+    query = query
+      .order("frequency", { ascending: false, nullsFirst: false })
+      .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
+      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as WordRow[];
 }
@@ -611,20 +633,27 @@ async function fetchVerified(
  *  then jmdict_entry_id ASC, then jmdict_sense_pos ASC NULLS LAST), for rows
  *  returned inline by upsert().select(). Keeps the primary consistent across
  *  multi-entry words (顔 → かお before かんばせ) instead of scrambling by sense alone. */
-function sortBySensePos(rows: WordRow[]): WordRow[] {
+function sortBySensePos(rows: WordRow[], reverseIntoJa = false): WordRow[] {
+  const bySensePos = (a: WordRow, b: WordRow): number => {
+    if (a.jmdict_sense_pos == null) return b.jmdict_sense_pos == null ? 0 : 1;
+    if (b.jmdict_sense_pos == null) return -1;
+    return a.jmdict_sense_pos - b.jmdict_sense_pos;
+  };
+  const byEntry = (a: WordRow, b: WordRow): number => {
+    const ea = a.jmdict_entry_id ?? "", eb = b.jmdict_entry_id ?? "";
+    return ea === eb ? 0 : ea < eb ? -1 : 1;
+  };
   return [...rows].sort((a, b) => {
-    // frequency DESC, NULLs last
+    if (reverseIntoJa) {
+      // EN→JA: uniform input-frequency, so the projected sense rank is authoritative.
+      return bySensePos(a, b) || byEntry(a, b);
+    }
+    // JA→EN: frequency DESC, NULLs last
     if (a.frequency == null !== (b.frequency == null)) return a.frequency == null ? 1 : -1;
     if (a.frequency != null && b.frequency != null && a.frequency !== b.frequency) {
       return b.frequency - a.frequency;
     }
-    // jmdict_entry_id ASC (text; ent_seq are fixed-width numeric strings)
-    const ea = a.jmdict_entry_id ?? "", eb = b.jmdict_entry_id ?? "";
-    if (ea !== eb) return ea < eb ? -1 : 1;
-    // jmdict_sense_pos ASC, NULLs (MT rows) last
-    if (a.jmdict_sense_pos == null) return b.jmdict_sense_pos == null ? 0 : 1;
-    if (b.jmdict_sense_pos == null) return -1;
-    return a.jmdict_sense_pos - b.jmdict_sense_pos;
+    return byEntry(a, b) || bySensePos(a, b);
   });
 }
 
@@ -1151,7 +1180,7 @@ async function handleRequest(req: Request): Promise<Response> {
     return finish({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
   }
 
-  const ordered = sortBySensePos((saved ?? []) as WordRow[]);
+  const ordered = sortBySensePos((saved ?? []) as WordRow[], isReverseIntoJa(sourceLang, targetLang));
   return reply(ordered.length > 0 ? respondWords(input, ordered) : {
     translated: true,
     translation: results[0].translation,
