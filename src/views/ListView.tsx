@@ -24,7 +24,7 @@ type SortBy = "newest" | "oldest" | "conf-asc" | "conf-desc";
 // exact); rendering is split into fixed pages so the user isn't handed a wall of
 // hundreds of rows. Changing the page only moves the window — it never touches
 // the filter/sort state.
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 100;
 
 const langName = (code: string) =>
   targetOptions().find((o) => o.code === code)?.name ?? code;
@@ -144,7 +144,9 @@ export function ListView({
       <div className="lists__bar">
         <h2 className="lists__title">
           {selectedList ? selectedList.listName : t("lists.allWords")}
-          <span className="lists__count">{L.words.length}</span>
+          {/* Count reflects the FILTERED set actually shown (equals the list total
+              when no filter is active), not the raw list size. */}
+          <span className="lists__count">{visible.length}</span>
         </h2>
         {L.words.length > 0 && (
           <button
@@ -315,7 +317,7 @@ export function ListView({
         </ul>
       )}
 
-      {/* Pager: switches the 200-row window over the already-cached rows (no fetch).
+      {/* Pager: switches the 100-row window over the already-cached rows (no fetch).
           Only shown when the matches span more than one page. Changing the page
           leaves every filter/sort control untouched. */}
       {L.status === "ready" && pageCount > 1 && (

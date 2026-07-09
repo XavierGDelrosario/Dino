@@ -139,8 +139,8 @@
 /* dual-thumb range slider: two <input type=range> overlaid on one track */
 .dualrange {
   position: relative;
-  width: 110px;
-  height: 1.2rem;
+  width: 150px;
+  height: 2.4rem;
   display: flex;
   align-items: center;
 }
@@ -148,7 +148,7 @@
 .dualrange__track,
 .dualrange__fill {
   position: absolute;
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
   pointer-events: none;
 }
@@ -168,7 +168,7 @@
   position: absolute;
   left: 0;
   width: 100%;
-  height: 1.2rem;
+  height: 2.4rem;
   margin: 0;
   background: none;
   -webkit-appearance: none;
@@ -185,21 +185,23 @@
 .dualrange__input::-webkit-slider-thumb {
   -webkit-appearance: none;
   pointer-events: auto; /* …only the thumbs are */
-  width: 14px;
-  height: 14px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
 .dualrange__input::-moz-range-thumb {
   pointer-events: auto;
-  width: 14px;
-  height: 14px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
