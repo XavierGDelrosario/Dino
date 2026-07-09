@@ -3,6 +3,17 @@ import { fileURLToPath } from "node:url";
 
 const resolvePath = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+// The gated integration suite hits a REAL booted Supabase stack (Postgres + a
+// locally-served edge function). That stack has transient, non-deterministic
+// hiccups under CI boot/load — a cold-start edge 502, a slow round-trip — which
+// red an otherwise-correct run (this is what turned a recent merge into
+// re-run whack-a-mole). Retry the FAILING test a couple times so a transient
+// infra blip self-heals; a REAL failure still fails every attempt, so nothing is
+// masked. Also give integration a larger timeout (a cold round-trip to local
+// Supabase can exceed the 5s default under load). Unit runs do no real I/O, so
+// they keep retry=0 + the default timeout — this only applies with RUN_INTEGRATION=1.
+const isIntegration = process.env.RUN_INTEGRATION === "1";
+
 // Vitest config for the service-layer test suite.
 //
 // - Tests live under tests/ (mirroring src/); shared helpers in tests/support/.
@@ -22,6 +33,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],
+    retry: isIntegration ? 2 : 0,
+    testTimeout: isIntegration ? 20000 : 5000,
+    hookTimeout: isIntegration ? 20000 : 10000,
     env: {
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ?? "http://localhost:54321",
       VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY ?? "test-anon-key",

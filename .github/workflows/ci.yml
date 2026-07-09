@@ -1,7 +1,14 @@
 name: CI
 
 on:
+  # PRs get the full gate via `pull_request` (against the merge commit). Direct
+  # pushes only trigger on `main` (post-merge verification). A feature branch with
+  # an open PR therefore runs the suite ONCE (the PR run) instead of twice — the
+  # old `push:`+`pull_request:` pair reported every required check from TWO runs, so
+  # a single flaky run on either blocked the merge (a real problem on the flaky
+  # integration job). Open a PR to get checks on a branch (expected workflow).
   push:
+    branches: [main]
   pull_request:
 
 # Cancel superseded runs on the same ref.
