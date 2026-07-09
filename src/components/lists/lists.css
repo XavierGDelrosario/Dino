@@ -139,8 +139,8 @@
 /* dual-thumb range slider: two <input type=range> overlaid on one track */
 .dualrange {
   position: relative;
-  width: 150px;
-  height: 2.4rem;
+  width: 113px;
+  height: 1.8rem;
   display: flex;
   align-items: center;
 }
@@ -148,7 +148,7 @@
 .dualrange__track,
 .dualrange__fill {
   position: absolute;
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
   pointer-events: none;
 }
@@ -168,7 +168,7 @@
   position: absolute;
   left: 0;
   width: 100%;
-  height: 2.4rem;
+  height: 1.8rem;
   margin: 0;
   background: none;
   -webkit-appearance: none;
@@ -185,8 +185,8 @@
 .dualrange__input::-webkit-slider-thumb {
   -webkit-appearance: none;
   pointer-events: auto; /* …only the thumbs are */
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
@@ -196,8 +196,8 @@
 
 .dualrange__input::-moz-range-thumb {
   pointer-events: auto;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
@@ -345,17 +345,44 @@
   color: var(--muted);
 }
 
-/* Numbered pager under the list. */
+/* Numbered pager under the list. One non-wrapping row: Prev / Next are pinned as
+   fixed flanks (never shrink, never drop below), and the numbers sit in a middle
+   group that scrolls horizontally only in the rare many-page case — so the layout
+   stays consistent and Next always stays inline. */
 .listrows__pager {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.4rem;
   margin-top: 1rem;
+  max-width: 100%;
+}
+
+/* Prev / Next: fixed-size flanks that never shrink or wrap their label. */
+.listrows__pageredge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* The number buttons. min-width:0 lets the group shrink instead of pushing Next
+   below; overflow-x scrolls the numbers if they can't all fit. */
+.listrows__pagenums {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox: hide the scrollbar (still scrollable) */
+  padding: 2px; /* room for the active button's border/focus ring */
+}
+
+.listrows__pagenums::-webkit-scrollbar {
+  display: none; /* WebKit: hide the scrollbar */
 }
 
 .listrows__pagenum {
+  flex: 0 0 auto;
   min-width: 2.2rem;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -374,6 +401,7 @@
 }
 
 .listrows__pagegap {
+  flex: 0 0 auto;
   color: var(--muted);
   padding: 0 0.15rem;
 }

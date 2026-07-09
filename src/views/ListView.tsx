@@ -323,31 +323,33 @@ export function ListView({
       {L.status === "ready" && pageCount > 1 && (
         <nav className="listrows__pager" aria-label={t("lists.pagerAria")}>
           <button
-            className="btn btn--sm"
+            className="btn btn--sm listrows__pageredge"
             onClick={() => setPage((p) => Math.max(0, Math.min(p, pageCount - 1) - 1))}
             disabled={currentPage === 0}
           >
             {t("lists.prevPage")}
           </button>
-          {pageWindow(currentPage, pageCount).map((p, i) =>
-            p === "gap" ? (
-              <span key={`gap-${i}`} className="listrows__pagegap">…</span>
-            ) : (
-              <button
-                key={p}
-                className={`btn btn--sm listrows__pagenum${
-                  p === currentPage ? " listrows__pagenum--active" : ""
-                }`}
-                onClick={() => setPage(p)}
-                aria-current={p === currentPage ? "page" : undefined}
-                aria-label={t("lists.gotoPage", { n: p + 1 })}
-              >
-                {p + 1}
-              </button>
-            )
-          )}
+          <div className="listrows__pagenums">
+            {pageWindow(currentPage, pageCount).map((p, i) =>
+              p === "gap" ? (
+                <span key={`gap-${i}`} className="listrows__pagegap">…</span>
+              ) : (
+                <button
+                  key={p}
+                  className={`btn btn--sm listrows__pagenum${
+                    p === currentPage ? " listrows__pagenum--active" : ""
+                  }`}
+                  onClick={() => setPage(p)}
+                  aria-current={p === currentPage ? "page" : undefined}
+                  aria-label={t("lists.gotoPage", { n: p + 1 })}
+                >
+                  {p + 1}
+                </button>
+              )
+            )}
+          </div>
           <button
-            className="btn btn--sm"
+            className="btn btn--sm listrows__pageredge"
             onClick={() => setPage((p) => Math.min(pageCount - 1, Math.min(p, pageCount - 1) + 1))}
             disabled={currentPage === pageCount - 1}
           >
