@@ -72,10 +72,10 @@ We ship only the derived `<surface>\t<band>` numbers (surface → 1..5, easiest�
 not the original CSVs. JLPT® is a registered trademark of the Japan Foundation and
 JEES; this project is not affiliated with or endorsed by them.
 
-## Proficiency band — CEFR / English (`data/proficiency/en.tsv`) — PLANNED (not yet shipped)
+## Proficiency band — CEFR / English (`data/proficiency/en.tsv`)
 
-> Drafted ahead of ingest. The registry already maps EN→CEFR, but `data/proficiency/en.tsv`
-> is not built/shipped yet — activate this section when it is. See
+> SHIPPED 2026-07-09. `data/proficiency/en.tsv` (8,845 surfaces, A1→1 … C2→6) is built by
+> `scripts/build-proficiency-cefr.py` from the sources below. See
 > `docs/research/CEFR_Licensing_And_Quality.md` for the full licensing/quality analysis.
 
 The English proficiency-label signal (the CEFR band, `proficiency_band` for EN source

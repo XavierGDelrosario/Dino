@@ -39,10 +39,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Pure helpers live in _lib.ts so they're unit-testable from the Node/Vitest
 // suite (this Deno file can't be imported there). See tests/edge/translate-lib.test.ts.
 import {
+  applyInputAttributeOverride,
   corsHeaders,
   groupByInput,
   lemmaCandidates,
   parseAllowedOrigins,
+  parseLearnRequest,
   projectMany,
   projectRows,
   resolvePerInputWithCandidates,
@@ -63,7 +65,12 @@ import {
 //   4 = WordNet-first EN->JA: synset-grouped senses (re-ranked sensePos) replace
 //       the raw reverse-gloss order; JA->EN rows are unaffected but re-stamped.
 //   5 = proficiency_band projected (JLPT/CEFR curated band, services/proficiency)
-const CURRENT_PROJECTION_VERSION = 5;
+//   6 = own-frequency/own-band: the shown writing's OWN value, not COALESCE(kanji,kana)
+//       (migration 20260720) + EN-source frequency/CEFR-band overrides from the
+//       english_frequency/english_proficiency tables (20260721/20260722). Rows < 6
+//       carry stale values (JA rows: borrowed kana freq; EN rows: the JA translation's
+//       freq/JLPT band) until re-projected — the deferred (#5) sweep targets them.
+const CURRENT_PROJECTION_VERSION = 6;
 
 // Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
 // `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
@@ -315,6 +322,60 @@ async function resolveDictionaryMany(
     }
   }
   return out;
+}
+
+// ── English frequency (difficulty axis for EN-source words) ─────────────────
+// For an EN→JA lookup, `words.frequency` should be the ENGLISH input's own corpus
+// frequency, not the matched JA translation's. Override each resolved result's
+// frequency with english_frequency[lower(input)] (?? NULL — never the JA value).
+// EN→JA RESULT ORDERING is ranked inside jmdict_lookup's SQL BEFORE this, so this
+// only corrects the stored frequency attribute (low-risk). Fail-open: on any error
+// the frequencies are left as-is. No-op for every non-EN→JA direction.
+async function applyEnglishFrequency(
+  supabase: Supa,
+  perInput: { input: string; results: ProviderResult[] }[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<void> {
+  if (sourceLang !== "EN" || targetLang !== "JA" || perInput.length === 0) return;
+  const keys = [...new Set(perInput.map((p) => p.input.toLowerCase()))];
+  const { data, error } = await supabase
+    .from("english_frequency")
+    .select("surface, frequency")
+    .in("surface", keys);
+  if (error) {
+    console.error("english_frequency lookup failed:", error.message);
+    return; // fail-open — leave frequencies untouched
+  }
+  const freq = new Map<string, number>();
+  for (const r of (data ?? []) as { surface: string; frequency: number }[]) freq.set(r.surface, r.frequency);
+  applyInputAttributeOverride(perInput, freq, "frequency"); // English freq or NULL, never the JA one
+}
+
+/** As applyEnglishFrequency, but for the CEFR proficiency BAND (english_proficiency).
+ *  EN→JA only: overrides each row's proficiency_band with the English input's CEFR band
+ *  (A1→1 … C2→6) instead of the matched JA translation's JLPT band. Fail-open; a stored-
+ *  attribute correction that doesn't affect ordering. In the leveling model the CEFR band
+ *  LEADS over frequency, so this also drives an English word's difficulty. */
+async function applyEnglishProficiency(
+  supabase: Supa,
+  perInput: { input: string; results: ProviderResult[] }[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<void> {
+  if (sourceLang !== "EN" || targetLang !== "JA" || perInput.length === 0) return;
+  const keys = [...new Set(perInput.map((p) => p.input.toLowerCase()))];
+  const { data, error } = await supabase
+    .from("english_proficiency")
+    .select("surface, band")
+    .in("surface", keys);
+  if (error) {
+    console.error("english_proficiency lookup failed:", error.message);
+    return; // fail-open — leave bands untouched
+  }
+  const band = new Map<string, number>();
+  for (const r of (data ?? []) as { surface: string; band: number }[]) band.set(r.surface, r.band);
+  applyInputAttributeOverride(perInput, band, "proficiencyBand"); // CEFR band or NULL, never the JA JLPT one
 }
 
 // Google Cloud Translation API v2 endpoint (REST, API-key auth). Overridable via
@@ -723,6 +784,11 @@ async function resolveBatch(
     }
   }
 
+  // EN→JA: override each word's frequency + CEFR band with the ENGLISH input's own
+  // values (before projection, so both the upsert and the refToTerms mapping see them).
+  await applyEnglishFrequency(supabase, perInput, sourceLang, targetLang);
+  await applyEnglishProficiency(supabase, perInput, sourceLang, targetLang);
+
   // 3. One upsert for every freshly-projected sense (deduped by dictionary_ref).
   let savedRows: WordRow[] = [];
   if (perInput.length > 0) {
@@ -774,6 +840,34 @@ async function resolveBatch(
       ? { input, translated: true, translation: ws[0].translation, word: toWord(ws[0]), words: ws.map(toWord) }
       : { input, translated: false, translation: null, word: null, words: [] };
   });
+}
+
+// ── Level-based new-words quiz (Proficiency.md feature 2) ───────────────────
+// Request parsing/clamping (band/limit/excludeSeen) lives in _lib.parseLearnRequest
+// (unit-tested). This file keeps only the I/O.
+
+/** Unseen headwords at proficiency band `band` for the caller (JMdict source →
+ *  the SQL retrieval; see migration 20260717). Empty for a pair/band with no
+ *  curated wordlist (only JA→EN/JLPT is populated today). */
+async function selectLearnHeadwords(
+  supabase: Supa,
+  sourceLang: string,
+  targetLang: string,
+  band: number,
+  userId: string | null,
+  limit: number,
+  excludeSeen: boolean,
+): Promise<string[]> {
+  const { data, error } = await supabase.rpc("learn_words_at_band", {
+    p_source: sourceLang,
+    p_target: targetLang,
+    p_band: band,
+    p_user_id: userId,
+    p_limit: limit,
+    p_exclude_seen: excludeSeen,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r: { headword: string }) => r.headword);
 }
 
 // Best-effort append to the admin error_log (service role bypasses RLS — see
@@ -849,6 +943,40 @@ async function handleRequest(req: Request): Promise<Response> {
         detail: e instanceof Error ? e.message : String(e),
       });
       return reply({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
+    }
+  }
+
+  // LEARN mode: { learn: { band, limit? } } → up to `limit` UNSEEN words at the
+  // given proficiency band, projected into the cache (via the batch path) and
+  // returned as quiz cards (each card = one word's full sense list, primary
+  // first). The source retrieval reads JMdict (the `words` cache is incomplete);
+  // resolveBatch then projects + groups exactly like a paragraph's new words.
+  if (body.learn && typeof body.learn === "object") {
+    const parsed = parseLearnRequest(body.learn as { band?: unknown; limit?: unknown; excludeSeen?: unknown });
+    if (!parsed.ok) return reply({ error: parsed.error }, 400);
+    const { band, limit, excludeSeen } = parsed;
+    const userId = userIdFromAuth(req.headers.get("Authorization"));
+    try {
+      const headwords = await selectLearnHeadwords(supabase, sourceLang, targetLang, band, userId, limit, excludeSeen);
+      if (headwords.length === 0) return reply({ cards: [] });
+      // Reuse the batch resolver: cache read → JMdict projection → grouped rows.
+      // These are JMdict headwords, so they resolve without the paid MT path.
+      const entries = await resolveBatch(
+        supabase, headwords, sourceLang, targetLang, req.headers.get("Authorization"),
+      );
+      const cards = entries
+        .filter((e) => e.translated && e.words.length > 0)
+        .map((e) => e.words);
+      return reply({ cards });
+    } catch (e) {
+      console.error("learn resolve failed:", e); // detail server-side only
+      await recordError(supabase, {
+        code: "learn_failed",
+        source: "translate.learn",
+        userId,
+        detail: e instanceof Error ? e.message : String(e),
+      });
+      return reply({ error: "Could not load words" }, 500); // generic — no schema/SQL leak
     }
   }
 
@@ -973,6 +1101,10 @@ async function handleRequest(req: Request): Promise<Response> {
       words: [],
     });
   }
+
+  // EN→JA: override the frequency + CEFR band with the ENGLISH input's own values.
+  await applyEnglishFrequency(supabase, [{ input, results }], sourceLang, targetLang);
+  await applyEnglishProficiency(supabase, [{ input, results }], sourceLang, targetLang);
 
   // 4. Persist every sense as a verified global word (service role bypasses RLS).
   //    projectRows (in _lib.ts) stores the canonical headword as `input`, DEDUPEs

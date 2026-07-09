@@ -23,6 +23,7 @@ export const en = {
   "app.sessionErrorTitle": "Couldn’t start a session.",
   "tabs.translate": "Translate",
   "tabs.lists": "Lists",
+  "tabs.learn": "Learn",
   "tabs.review": "Review",
 
   // translate surface
@@ -184,6 +185,32 @@ export const en = {
   "quiz.nextMeaning": "Next meaning",
   "quiz.meaningPos": "{i} / {n}",
 
+  // learn (level-based new-words quiz)
+  "learn.intro": "Pick a {framework} level to quiz new words you haven't saved yet.",
+  "learn.pickLevel": "Choose a level",
+  "learn.hint": "Choose a level above to begin.",
+  "learn.loading": "Finding new words…",
+  "learn.empty": "No new words left at {level} — try another level. 🎉",
+  "learn.noFramework": "Level-based quizzes aren't available for this language yet.",
+  "learn.yourLevel": "Your level: {level}",
+  "learn.noLevel": "Level not set yet.",
+  "learn.findLevel": "Find my level",
+  "learn.recalibrate": "Retake level check",
+
+  // calibration ("Find my level" placement quiz)
+  "calib.instruction": "Tap the words you DON'T know.",
+  "calib.round": "Round {n}",
+  "calib.loading": "Loading words…",
+  "calib.next": "Next ({n} unknown)",
+  "calib.knowAll": "I know all these",
+  "calib.back": "← Back",
+  "calib.unavailable": "The level check isn't available for this language yet.",
+  "calib.resultLevel": "Your level is around {level}.",
+  "calib.resultBeginner": "You're just getting started — welcome!",
+  "calib.resultSaved": "Added {n} words you know to your list at full confidence.",
+  "calib.resultNote": "We'll use this to pace new words. You can retake it anytime.",
+  "calib.again": "Retake",
+
   // add-to-list button / destination picker
   "add.addedAria": "Added",
   "add.menuTitle": "Add to a list",
@@ -270,6 +297,7 @@ export const ja: Record<MessageKey, string> = {
   "app.sessionErrorTitle": "セッションを開始できませんでした。",
   "tabs.translate": "翻訳",
   "tabs.lists": "リスト",
+  "tabs.learn": "学習",
   "tabs.review": "復習",
 
   "translate.inputPlaceholder": "単語または文章を入力…",
@@ -421,6 +449,31 @@ export const ja: Record<MessageKey, string> = {
   "quiz.prevMeaning": "前の意味",
   "quiz.nextMeaning": "次の意味",
   "quiz.meaningPos": "{i} / {n}",
+
+  "learn.intro": "{framework}のレベルを選んで、まだ保存していない新しい単語をクイズしましょう。",
+  "learn.pickLevel": "レベルを選択",
+  "learn.hint": "上のレベルを選んで始めてください。",
+  "learn.loading": "新しい単語を検索中…",
+  "learn.empty": "{level}に新しい単語はありません — 別のレベルをお試しください。🎉",
+  "learn.noFramework": "この言語ではまだレベル別クイズを利用できません。",
+  "learn.yourLevel": "あなたのレベル：{level}",
+  "learn.noLevel": "レベルは未設定です。",
+  "learn.findLevel": "レベルを診断",
+  "learn.recalibrate": "レベル診断をやり直す",
+
+  // calibration ("Find my level" placement quiz)
+  "calib.instruction": "知らない単語をタップしてください。",
+  "calib.round": "ラウンド {n}",
+  "calib.loading": "単語を読み込み中…",
+  "calib.next": "次へ（{n}語 未知）",
+  "calib.knowAll": "すべて知っている",
+  "calib.back": "← 戻る",
+  "calib.unavailable": "この言語ではまだレベル診断を利用できません。",
+  "calib.resultLevel": "あなたのレベルは{level}前後です。",
+  "calib.resultBeginner": "まだ始めたばかりですね — ようこそ！",
+  "calib.resultSaved": "知っている単語{n}個を自信度満点でリストに追加しました。",
+  "calib.resultNote": "この結果を新しい単語のペース配分に使います。いつでもやり直せます。",
+  "calib.again": "やり直す",
 
   "add.addedAria": "追加しました",
   "add.menuTitle": "リストに追加",

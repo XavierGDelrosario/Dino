@@ -22,6 +22,15 @@ conflated:
 Proficiency is a *sparse, authoritative label*; frequency is the *dense, universal*
 difficulty substrate. They can co-exist on a word; neither replaces the other.
 
+**Precedence update (2026-07-09):** the two *columns* stay separate, but the DIFFICULTY
+resolver now **prefers the curated proficiency level over frequency** —
+`getDifficulty = override ?? proficiency ?? frequency` (`services/difficulty`). Rationale:
+corpus frequency measures COMMONNESS, not learner LEVEL (的 is ~12th-most-frequent kanji
+yet N3), so where a curated JLPT/CEFR band exists it's the right answer to "how hard for a
+learner"; frequency is the dense proxy for the ~96% of words with no band, plus ordering
+within a level. `getProficiency` is unchanged (pure label). See the leveling note in
+`docs/TODO.md` for the (still-open) downstream user-level/axis reconciliation.
+
 ## Design decisions
 
 1. **One generic concept, NOT a per-language feature.** A framework is a *named,
@@ -97,11 +106,44 @@ Word.proficiencyBand → services/proficiency getProficiency(word)
 1. **UI badge (feature 1)** — nothing renders `getProficiency()` yet. Drop a small
    "N3"/"B2" badge into `ListRow`, the translate result head, the reader hovercard,
    and the flashcard face.
-2. **Level-based new-words quiz (feature 2)** — not started. Needs a server-side
-   "select unseen words at band X" retrieval (the lazy `words` cache is incomplete,
-   so it must read the source), then reuse the existing `useTextQuiz` save+review
-   loop. `proficiencyFrameworkFor(lang)` already gives a picker its bands. See also
-   `docs/Design_Quiz.md`.
+2. **Level-based new-words quiz (feature 2)** — **BUILT (needs live verify).** A new
+   **Learn** tab (`views/LearnView.tsx`) with a band picker (from
+   `proficiencyFrameworkFor(lang)`) → pulls N UNSEEN words at the chosen band and
+   quizzes them through the existing `useTextQuiz` save+review loop (mode `learn`,
+   so each grade adds the word + seeds SRS + refines the level, exactly like the
+   reader's "Quiz N new words").
+   - **Source retrieval** — `learn_words_at_band(source, target, band, user_id, limit)`
+     (migration `20260717_learn_words.sql`, server-only EXECUTE) reads the JMdict
+     source (the lazy `words` cache is incomplete), takes each entry's HEADWORD band
+     (same pick as frequency), EXCLUDES entries already in the caller's `user_words`,
+     collapses homograph writings, and orders by frequency DESC. JA→EN/JLPT only
+     today (other pairs return nothing; the Learn tab shows "not available").
+   - **Edge** — a `{ learn: { band, limit } }` mode in `translate/index.ts` selects
+     the headwords then reuses `resolveBatch` to project them into `words` and return
+     quiz cards (`Word[][]`). No paid MT (all headwords are JMdict-backed).
+   - **Client** — `services/learn.ts` `fetchLearnWords`; `LearnView` reuses
+     `TextQuizView`. Unit test `tests/services/learn.test.ts`; gated integration test
+     for `learn_words_at_band` in `tests/integration/rpc.integration.test.ts`.
+   - **Remaining:** live verify (migration apply + edge serve + drive the Learn tab —
+     Supabase CLI/Deno weren't available in the build env); optional polish (a
+     word-count / "learn more" picker, band styling, shuffling within a band).
+   - **Calibration/placement quiz (feature 3, also #10) — BUILT (needs live verify).**
+     A **"Find my level"** flow on the Learn tab (`CalibrationView` + `useCalibration`):
+     a grid of 8 words at one band; the user taps the ones they DON'T know; an adaptive
+     **binary search over the bands** (`advanceBandSearch`, pure + unit-tested in
+     `tests/services/calibration.test.ts`) converges — in ~log₂(bands) rounds — on the
+     hardest band known ≥ 80%. Result stored on TWO SEPARATE axes (never conflated):
+     the JLPT band → `users.proficiency_band` (migration `20260718`; the "N3" the learner
+     sees + the Learn default band), and `estimateLevel()` over the tested words'
+     FREQUENCY → `users.level` (the DIFFICULTY axis the #12 embeddings/domain filter +
+     `seedStability` consume — bands are too sparse to filter arbitrary neighbours). Words
+     the user KNOWS (left unmarked) are added to ALL at full confidence via the
+     non-clobbering cold-start seed (`initialStability=40` → confidence 5); unknown words
+     are left alone and NO per-word reviews are recorded. Sources words from the SAME
+     `learn_words_at_band` retrieval and passes `excludeSeen=true` (like the learn quiz)
+     so already-added words don't re-appear on retake — an earlier `false` ("sample the
+     whole band") re-showed them, which read as a bug. The "reveal meanings after a
+     round" variant was deliberately NOT taken (speed) — see `DesignChoices.md` §15.
 3. **Deploy** — the migration + wordlist land on prod/staging via a re-ingest
    (`npm run ingest:jmdict` now populates the band) OR loading the re-dumped seed.
    Until then prod/staging bands are NULL.
@@ -110,7 +152,12 @@ Word.proficiencyBand → services/proficiency getProficiency(word)
 5. **English/CEFR data** — the registry maps EN→CEFR, but there is no
    `data/proficiency/en.tsv` yet (needs an openly-licensed CEFR wordlist, e.g. the
    CEFR-J list for the JA-native-learning-English market). JLPT (JA) is the only
-   populated framework today.
+   populated framework today. **Which list to use is now settled: CEFR-J** (free for
+   commercial use w/ citation; the others — Oxford, Cambridge EVP, Kelly — are legally
+   unusable) — see [`docs/research/CEFR_Licensing_And_Quality.md`](research/CEFR_Licensing_And_Quality.md)
+   for the licensing/quality analysis and the **English attachment-point gap** (the
+   JMdict ingest join covers Japanese surfaces only, so English CEFR bands need a
+   separate join in the edge projection).
 
 ## Adding another language's framework
 

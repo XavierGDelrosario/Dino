@@ -11,7 +11,8 @@
 
 import type { LangCode } from "../language";
 import type { Word } from "../words/repository";
-import { type Difficulty, fromFrequency, fromOverride } from "./level";
+import { proficiencyFrameworkFor } from "../proficiency";
+import { type Difficulty, fromFrequency, fromOverride, fromProficiencyBand } from "./level";
 
 export type DifficultyResolver = (word: Word) => Difficulty;
 
@@ -19,19 +20,35 @@ export type DifficultyResolver = (word: Word) => Difficulty;
 // 猫 505), ≥450 → L2, ≥400 → L3, ≥300 → L4, else L5 (rare/hard, e.g. 形而上学 256).
 const ZIPF_BINS = [500, 450, 400, 300] as const;
 
-/** Shared resolver: a curated override (JLPT/HSK, future) wins, else bin the Zipf score. */
-const frequencyResolver: DifficultyResolver = (w) =>
-  fromOverride(w.difficultyOverride) ?? fromFrequency(w.frequency, ZIPF_BINS);
+/**
+ * Curated proficiency LEVEL for a word, normalized to 1..5 — or null when the word
+ * has no band (or its language no framework). Reads the band straight off the Word +
+ * the framework's band count; getProficiency (the LABEL resolver) isn't needed here.
+ */
+function fromProficiency(w: Word): Difficulty | null {
+  const fw = proficiencyFrameworkFor(w.sourceLang);
+  return fw ? fromProficiencyBand(w.proficiencyBand, fw.bands.length) : null;
+}
 
 /**
- * Japanese (getDifficultyJapanese): identical to the default today — the Zipf scale
- * is language-neutral — but kept as the explicit per-language seam (e.g. for a
- * JLPT-specific override mapping later).
+ * Shared resolver — precedence: explicit manual override (JLPT/HSK-curated, NULL
+ * today) → the curated PROFICIENCY level (JLPT/CEFR; the RIGHT axis for "how hard for
+ * a learner") → the Zipf frequency bin (dense COMMONNESS proxy, for the ~96% of words
+ * with no curated band). "Authoritative-with-fallback", never a blend — frequency ≠
+ * level (see docs/TODO leveling note), so a curated level wins wherever it exists.
  */
-const japaneseResolver: DifficultyResolver = frequencyResolver;
+const composedResolver: DifficultyResolver = (w) =>
+  fromOverride(w.difficultyOverride) ?? fromProficiency(w) ?? fromFrequency(w.frequency, ZIPF_BINS);
+
+/**
+ * Japanese (getDifficultyJapanese): identical to the default — the same precedence
+ * works for every language (proficiency routes by framework, Zipf is language-neutral).
+ * Kept as the explicit per-language seam for genuine future divergence.
+ */
+const japaneseResolver: DifficultyResolver = composedResolver;
 
 /** Default for any language: Zipf scores are comparable, so one binning fits all. */
-const defaultResolver: DifficultyResolver = frequencyResolver;
+const defaultResolver: DifficultyResolver = composedResolver;
 
 interface ResolverEntry {
   supports(lang: LangCode): boolean;

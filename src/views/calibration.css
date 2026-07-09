@@ -1,0 +1,79 @@
+/* Placement quiz ("Find my level"). A tap-grid of words; marked = "don't know". */
+.calib__round {
+  text-align: center;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin: 0 0 0.75rem;
+}
+
+.calib__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  margin: 0 auto 1rem;
+  max-width: 34rem;
+}
+@media (min-width: 30rem) {
+  .calib__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* One word cell — default state reads as "known"; tapping marks it "don't know". */
+.calcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 4.5rem;
+  padding: 0.6rem 0.4rem;
+  border: 1px solid var(--border, #d0d0d0);
+  border-radius: 0.6rem;
+  background: var(--card-bg, #fff);
+  cursor: pointer;
+  transition: opacity 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.calcard:hover {
+  border-color: var(--accent, #4a7);
+}
+.calcard__reading {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  line-height: 1;
+}
+.calcard__word {
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+/* "Don't know" — dimmed + struck + a subtle red edge, so a glance shows the picks. */
+.calcard.is-unknown {
+  opacity: 0.45;
+  border-color: var(--danger, #d66);
+  border-style: dashed;
+  background: var(--card-bg-muted, #faf5f5);
+}
+.calcard.is-unknown .calcard__word {
+  text-decoration: line-through;
+}
+
+.calib__actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+.calib__result {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .calcard {
+    background: var(--card-bg, #1e1e1e);
+    border-color: var(--border, #3a3a3a);
+  }
+  .calcard.is-unknown {
+    background: var(--card-bg-muted, #2a2020);
+  }
+}

@@ -65,6 +65,58 @@ export function estimateLevel(samples: CalibrationSample[]): LevelValue | null {
   return estimate;
 }
 
+// ── Adaptive placement quiz (#10, the "Find my level" flow) ────────────────
+// A DIFFERENT calibration path from estimateLevel above: instead of grading a
+// fixed paragraph, it BINARY-SEARCHES the proficiency bands. Each round shows a
+// batch of words at one band; the user marks the ones they DON'T know; if they
+// know ≥ CALIBRATION_TARGET of the batch the band is "passed" and we search
+// harder, else easier. The result is the HARDEST band passed — converging in
+// ~log2(bands) rounds (≤3 for JLPT's 5), which is the "focus on speed" goal.
+//
+// PURE state machine (unit-tested): the hook owns fetching/answers, this owns the
+// search. Bands are the framework ordinal (1 = easiest); the result is clamped to
+// the 1..5 users.level scale (JLPT is 5 bands, so it fits).
+
+/** Fraction of a batch the user must know for a band to count as "passed". */
+export const CALIBRATION_TARGET = 0.8;
+
+/** Binary-search cursor over the bands 1..maxBand. `band` is the one to test now;
+ *  `best` is the hardest band passed so far (0 = none yet). */
+export interface BandSearch {
+  lo: number;
+  hi: number;
+  best: number;
+  band: number;
+}
+
+/** Begin an adaptive search over bands 1..maxBand, starting at the middle band. */
+export function startBandSearch(maxBand: number): BandSearch {
+  const lo = 1;
+  const hi = Math.max(1, maxBand);
+  return { lo, hi, best: 0, band: Math.floor((lo + hi) / 2) };
+}
+
+/**
+ * Fold one round's result (the fraction of the batch the user KNEW) into the
+ * search. Returns either the next band to test, or the final level once the search
+ * has converged (lo > hi). The final level is the hardest band passed, floored at
+ * 1 and capped at 5 (the users.level range) — so even a user who fails the easiest
+ * band records level 1 (seedStability then shades it to a cold start anyway).
+ */
+export function advanceBandSearch(
+  s: BandSearch,
+  knownFraction: number,
+): { done: true; level: LevelValue } | { done: false; search: BandSearch } {
+  const passed = knownFraction >= CALIBRATION_TARGET;
+  const lo = passed ? s.band + 1 : s.lo;
+  const hi = passed ? s.hi : s.band - 1;
+  const best = passed ? s.band : s.best;
+  if (lo > hi) {
+    return { done: true, level: Math.min(5, Math.max(1, best)) as LevelValue };
+  }
+  return { done: false, search: { lo, hi, best, band: Math.floor((lo + hi) / 2) } };
+}
+
 /** Modest day-values for the initial memory strength of a pre-known word, indexed
  *  by how far BELOW the (shaded) user level the word sits. Kept small so an over-
  *  credit only lengthens the first interval slightly — never hides the word. */
@@ -112,5 +164,30 @@ export async function getUserLevel(userId: string): Promise<LevelValue | null> {
  */
 export async function setUserLevel(userId: string, level: LevelValue | null): Promise<void> {
   const { error } = await supabase.from("users").update({ level }).eq("user_id", userId);
+  if (error) throw toServiceError(error);
+}
+
+// ── Proficiency band (the SEPARATE proficiency axis) ───────────────────────
+// users.proficiency_band holds the placement quiz's JLPT/CEFR band — DISTINCT from
+// users.level (difficulty/frequency). Kept apart on purpose so the embeddings/seed
+// consumers of `level` never see a band and vice versa (never conflate the axes).
+// The raw ordinal is framework-relative (1 = easiest); services/proficiency maps it
+// to a label. The placement quiz writes this alongside a difficulty estimate.
+
+/** The user's stored proficiency band (framework ordinal, 1 = easiest), or null if
+ *  never calibrated. RLS-scoped to the caller's own row. */
+export async function getUserProficiencyBand(userId: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("proficiency_band")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw toServiceError(error);
+  return (data?.proficiency_band ?? null) as number | null;
+}
+
+/** Persists the user's proficiency band (null clears it). Own-row UPDATE. */
+export async function setUserProficiencyBand(userId: string, band: number | null): Promise<void> {
+  const { error } = await supabase.from("users").update({ proficiency_band: band }).eq("user_id", userId);
   if (error) throw toServiceError(error);
 }

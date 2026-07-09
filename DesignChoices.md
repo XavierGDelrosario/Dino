@@ -342,6 +342,88 @@ constraint — and flagging a real build-vs-buy fork *before* it's forced.
 
 ---
 
+## 15. Placement quiz: adaptive know/don't-know, not a graded paragraph
+
+**The fork.** #10 (level calibration) was originally sketched as "quiz a paragraph to
+estimate level." Two sub-forks surfaced when building the actual UX: (a) *what the user
+does per word* — a 1–5 self-graded recall (like the SRS) vs. a binary know/don't-know; and
+(b) *whether a marked word reveals its meaning* before moving on.
+
+**What we did.** Optimized for **speed and sample size over per-item richness.** A round is
+a grid of 8 words at one proficiency band; the user taps only the ones they *don't* know
+(default = known, so a fluent band is zero taps) and advances. A **binary search over the
+bands** (`advanceBandSearch`, pure + unit-tested) converges on the hardest band they know
+≥ 80% of in ~log₂(bands) rounds — ≤ 3 for JLPT's five — instead of a linear climb. The
+result is persisted on **two separate axes, never collapsed into one number** — the
+proficiency-vs-difficulty distinction (§3) applied to the *user* row:
+- **`users.proficiency_band`** ← the JLPT search result. The band the learner sees ("N3")
+  and the Learn tab's default. A proficiency label, sparse.
+- **`users.level`** ← `estimateLevel()` over the tested words' **frequency-difficulty** (a
+  different axis, computed from the *same* answers). This is the value `seedStability` and
+  the #12 embeddings/domain filter consume — they compare against each word's frequency,
+  and JLPT bands are far too sparse to filter arbitrary embedding neighbours, so that path
+  needs the dense frequency axis. Storing the band here (the naive first cut) would be the
+  exact conflation §3 forbids.
+
+Every word the user leaves unmarked (knows) is also added to the vocabulary at **full
+confidence** via the #10 cold-start SEED path (`saveDictionaryWord` `initialStability` →
+`confidence_from_stability(40) = 5`), which is **non-clobbering** — a word already under
+review keeps its real strength. No *per-word reviews* are recorded (a placement test, not a
+study session — unlike `useTextQuiz`, which grades every card).
+
+**The divergent choice, named not taken:** meanings are **not** revealed after a round.
+A "reveal to confirm/learn" variant would turn each round into a small study moment
+(higher retention, more engagement) at the cost of the speed that makes a placement test
+tolerable. Recorded here as a viable alternative, *not* a backlog item — the fast path is a
+deliberate product stance, revisitable if placement-as-onboarding wants a teaching beat.
+
+**Reuse over new infrastructure.** The quiz sources its words from the *same*
+`learn_words_at_band` retrieval the level-based Learn quiz uses — the only addition was a
+`p_exclude_seen` flag. Both quizzes ultimately pass it TRUE — the Learn quiz to teach
+only new words, and calibration so already-added words don't re-appear on a retake (it
+briefly passed FALSE to "sample the whole band," but that re-showed added words and read
+as repeats). One SQL function, two consumers.
+
+**What it shows.** Matching the *interaction cost* to the *goal*: a level estimate needs
+breadth (many words, fast), not depth (careful grading), so the cheapest correct signal
+wins — and an adaptive search beats a fixed sweep for both speed and accuracy.
+
+---
+
+## 16. Leveling: curated level leads, frequency covers the gaps — not "frequency-first"
+
+**The fork.** A word's difficulty/level (1..5) drives word selection, SRS cold-start seeding,
+and the domain filter. Two signals are available: **corpus frequency** (wordfreq Zipf —
+dense, objective, covers the whole dictionary) and a **curated proficiency band** (JLPT/CEFR
+— sparse, unofficial, ~8k words). Which is authoritative?
+
+**The tempting answer.** Frequency. It's objective, reproducible, and there is *no official
+JLPT vocabulary list* (the organizers stopped publishing one in 2010; every community list
+traces to one decade-old reconstruction). So: use frequency as the level, JLPT as a fuzzy
+label. This was the initial call.
+
+**Why it's wrong.** Frequency measures **commonness**, not **learner level** — different
+quantities. 的 is the ~12th most frequent kanji yet is JLPT N3 (it's an abstract grammatical
+suffix); 影響 / 経済 / 政治 are high-frequency in adult text but N3–N2, not beginner vocabulary.
+Corpus frequency is skewed toward adult/written language, so it *systematically* over-rates
+abstract-but-common words as "easy." Objectivity doesn't help when you're measuring the wrong
+quantity — a precise answer to the wrong question.
+
+**What we did.** Precedence, not a blend: `getDifficulty = override ?? proficiency ?? frequency`.
+The curated JLPT/CEFR level — approximate but the *right axis* — wins wherever a word has a
+band; frequency is the dense **proxy** for the ~96% of words with no band, plus the tiebreaker
+for ordering *within* a level ("most useful N5 word first"). Never a weighted blend — blending
+a fuzzy-but-right signal with an objective-but-wrong one just dilutes both. The two remain
+*separate columns* (`proficiency_band` vs `frequency`); only the difficulty *resolver* prefers
+one over the other, the same authoritative-with-fallback shape as verified readings vs kuromoji.
+
+**What it shows.** Distinguishing *accuracy* from *objectivity*: a noisy signal that measures
+the right thing beats a precise one that measures the wrong thing. The honest move is to lead
+with the imperfect-but-correct axis and let the objective signal fill the coverage gaps —
+while being upfront that the level is approximate.
+
+---
+
 ## The through-line
 
 Most of these share one instinct: **treat identity and data-model decisions as the

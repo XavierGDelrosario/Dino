@@ -473,6 +473,7 @@ export type Database = {
           learning_language: string | null
           level: number | null
           native_language: string | null
+          proficiency_band: number | null
           terms_agreed_at: string | null
           terms_version: string | null
           user_id: string
@@ -484,6 +485,7 @@ export type Database = {
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
+          proficiency_band?: number | null
           terms_agreed_at?: string | null
           terms_version?: string | null
           user_id: string
@@ -495,6 +497,7 @@ export type Database = {
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
+          proficiency_band?: number | null
           terms_agreed_at?: string | null
           terms_version?: string | null
           user_id?: string

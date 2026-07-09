@@ -115,6 +115,39 @@ export function parseAllowedOrigins(raw: string | undefined | null): string[] {
   return (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+// ── Learn / calibration request (level-based new-words quiz) ────────────────
+/** Default / max words per learn (or calibration) round. Bounded so one request
+ *  can't fan out a huge batch projection. */
+export const DEFAULT_LEARN_LIMIT = 10;
+export const MAX_LEARN_LIMIT = 30;
+
+/** Validated learn-request params, or an error message for a bad band. */
+export type ParsedLearn =
+  | { ok: true; band: number; limit: number; excludeSeen: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Validate + normalize a `{ band, limit?, excludeSeen? }` learn request:
+ *   - band  — must be an INTEGER 1..6 (the framework ordinal); anything else errors.
+ *   - limit — clamped to [1, MAX_LEARN_LIMIT]; a missing/NaN/≤0 value → DEFAULT.
+ *   - excludeSeen — defaults TRUE (the learn quiz wants only NEW words); only the
+ *     calibration caller passes false to sample the whole band.
+ */
+export function parseLearnRequest(
+  learn: { band?: unknown; limit?: unknown; excludeSeen?: unknown },
+): ParsedLearn {
+  const band = Number(learn.band);
+  if (!Number.isInteger(band) || band < 1 || band > 6) {
+    return { ok: false, error: "learn.band must be an integer 1..6" };
+  }
+  const limit = Math.min(
+    Math.max(Math.trunc(Number(learn.limit)) || DEFAULT_LEARN_LIMIT, 1),
+    MAX_LEARN_LIMIT,
+  );
+  const excludeSeen = learn.excludeSeen !== false;
+  return { ok: true, band, limit, excludeSeen };
+}
+
 /**
  * Resolve the service-role key the edge client authenticates with. Prefers an
  * explicit SERVICE_ROLE_SECRET (a new `sb_secret_…` key, set when legacy API keys
@@ -207,6 +240,28 @@ export function projectMany(
     }
   }
   return rows;
+}
+
+/**
+ * Override a per-input attribute on every result with the value keyed by the
+ * LOWERCASED input, or NULL when the input isn't in the map — never leaving the
+ * matched translation's value. Pure; the DB read that builds `bySurface` stays in
+ * the edge I/O shell. Used by the EN->JA overrides (english_frequency /
+ * english_proficiency) so an English headword carries its OWN corpus frequency /
+ * CEFR band, not the JA translation's JLPT/JA value.
+ */
+export function applyInputAttributeOverride(
+  perInput: { input: string; results: ProviderResult[] }[],
+  bySurface: Map<string, number>,
+  attr: "frequency" | "proficiencyBand",
+): void {
+  for (const p of perInput) {
+    const v = bySurface.get(p.input.toLowerCase()) ?? null; // input's own value, or NULL
+    for (const r of p.results) {
+      if (attr === "frequency") r.frequency = v;
+      else r.proficiencyBand = v;
+    }
+  }
 }
 
 /**

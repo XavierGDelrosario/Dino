@@ -37,4 +37,42 @@ describe("getDifficulty", () => {
     const w = makeWord({ sourceLang: "EN", targetLang: "JA", frequency: 505 });
     expect(getDifficulty(w)).toEqual({ level: 1, source: "frequency" });
   });
+
+  // ── curated proficiency LEVEL beats frequency (common ≠ beginner) ──────────
+  it("prefers the curated JLPT band over frequency, even for a COMMON word", () => {
+    // 的-style: very common (Zipf 552 → freq level 1) but curated N3 (band 3) →
+    // difficulty follows the LEVEL, not the commonness.
+    const w = makeWord({ sourceLang: "JA", frequency: 552, proficiencyBand: 3 });
+    expect(getDifficulty(w)).toEqual({ level: 3, source: "proficiency" });
+  });
+
+  it("maps JLPT bands 1:1 to difficulty (5 bands → identity)", () => {
+    const at = (band: number) =>
+      getDifficulty(makeWord({ sourceLang: "JA", frequency: 552, proficiencyBand: band })).level;
+    expect([1, 2, 3, 4, 5].map(at)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("normalizes CEFR's 6 bands onto the 1..5 scale (A1→1 … C2→5)", () => {
+    const at = (band: number) =>
+      getDifficulty(makeWord({ sourceLang: "EN", targetLang: "JA", frequency: 552, proficiencyBand: band })).level;
+    // A1,A2,B1,B2,C1,C2 → 1,2,3,3,4,5
+    expect([1, 2, 3, 4, 5, 6].map(at)).toEqual([1, 2, 3, 3, 4, 5]);
+  });
+
+  it("lets an explicit override outrank even the proficiency band", () => {
+    const w = makeWord({ sourceLang: "JA", frequency: 552, proficiencyBand: 5, difficultyOverride: 2 });
+    expect(getDifficulty(w)).toEqual({ level: 2, source: "override" });
+  });
+
+  it("falls back to frequency when a band is out of the framework's range", () => {
+    // JLPT has 5 bands; band 6 is invalid → ignore it, use frequency.
+    const w = makeWord({ sourceLang: "JA", frequency: 420, proficiencyBand: 6 });
+    expect(getDifficulty(w)).toEqual({ level: 3, source: "frequency" });
+  });
+
+  it("falls back to frequency when the language has no proficiency framework", () => {
+    // KO has no framework in the registry → the band can't be interpreted → frequency.
+    const w = makeWord({ sourceLang: "KO", targetLang: "EN", frequency: 505, proficiencyBand: 2 });
+    expect(getDifficulty(w)).toEqual({ level: 1, source: "frequency" });
+  });
 });

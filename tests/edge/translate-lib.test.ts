@@ -5,12 +5,16 @@
 // projection that CLAUDE.md flags as breaking common words if dropped.
 import { describe, it, expect } from "vitest";
 import {
+  applyInputAttributeOverride,
   corsHeaders,
   dropOffScriptTranslations,
   groupByInput,
   lemmaCandidates,
   mergeProviderResults,
   parseAllowedOrigins,
+  parseLearnRequest,
+  DEFAULT_LEARN_LIMIT,
+  MAX_LEARN_LIMIT,
   resolvePerInputWithCandidates,
   projectMany,
   projectRows,
@@ -459,5 +463,90 @@ describe("resolvePerInputWithCandidates (batch/paragraph lemmatization)", () => 
       8,
     );
     expect(out.has("xyzzy")).toBe(false);
+  });
+});
+
+describe("parseLearnRequest", () => {
+  it("accepts a valid band + limit + explicit excludeSeen", () => {
+    expect(parseLearnRequest({ band: 3, limit: 8, excludeSeen: false })).toEqual({
+      ok: true, band: 3, limit: 8, excludeSeen: false,
+    });
+  });
+
+  it("defaults excludeSeen to TRUE when omitted (the learn-quiz default)", () => {
+    const r = parseLearnRequest({ band: 1 });
+    expect(r).toMatchObject({ ok: true, excludeSeen: true });
+  });
+
+  it("only false disables excludeSeen — a truthy/other value stays true", () => {
+    expect(parseLearnRequest({ band: 1, excludeSeen: false })).toMatchObject({ excludeSeen: false });
+    expect(parseLearnRequest({ band: 1, excludeSeen: true })).toMatchObject({ excludeSeen: true });
+    expect(parseLearnRequest({ band: 1, excludeSeen: 0 as unknown })).toMatchObject({ excludeSeen: true });
+  });
+
+  it("rejects a non-integer / out-of-range band", () => {
+    for (const band of [0, 7, -1, 2.5, "x", null, undefined, NaN]) {
+      expect(parseLearnRequest({ band }).ok).toBe(false);
+    }
+    expect(parseLearnRequest({ band: "x" })).toEqual({
+      ok: false, error: "learn.band must be an integer 1..6",
+    });
+  });
+
+  it("accepts every band 1..6", () => {
+    for (let b = 1; b <= 6; b++) expect(parseLearnRequest({ band: b }).ok).toBe(true);
+  });
+
+  it("defaults the limit when missing / NaN / zero", () => {
+    for (const limit of [undefined, "abc", 0, null]) {
+      expect(parseLearnRequest({ band: 1, limit }) as { limit: number }).toMatchObject({
+        limit: DEFAULT_LEARN_LIMIT,
+      });
+    }
+  });
+
+  it("clamps the limit to [1, MAX] and truncates fractions", () => {
+    expect(parseLearnRequest({ band: 1, limit: 5 })).toMatchObject({ limit: 5 });
+    expect(parseLearnRequest({ band: 1, limit: 999 })).toMatchObject({ limit: MAX_LEARN_LIMIT });
+    expect(parseLearnRequest({ band: 1, limit: -4 })).toMatchObject({ limit: 1 });
+    expect(parseLearnRequest({ band: 1, limit: 3.9 })).toMatchObject({ limit: 3 });
+  });
+});
+
+describe("applyInputAttributeOverride (EN->JA english_frequency / english_proficiency)", () => {
+  const res = (translation: string, extra: Partial<ProviderResult> = {}): ProviderResult => ({
+    translation,
+    ...extra,
+  });
+
+  it("overrides frequency with the LOWERCASED input's own value on every result", () => {
+    const perInput = [
+      { input: "Penguin", results: [res("ペンギン", { frequency: 999 }), res("ペングイン")] },
+    ];
+    applyInputAttributeOverride(perInput, new Map([["penguin", 378]]), "frequency");
+    expect(perInput[0].results.map((r) => r.frequency)).toEqual([378, 378]);
+  });
+
+  it("sets NULL when the input has no entry — never keeps the JA translation's value", () => {
+    const perInput = [{ input: "flabbergasted", results: [res("びっくり", { frequency: 500 })] }];
+    applyInputAttributeOverride(perInput, new Map(), "frequency");
+    expect(perInput[0].results[0].frequency).toBeNull();
+  });
+
+  it("overrides the proficiency band independently of frequency", () => {
+    const perInput = [{ input: "wonderful", results: [res("素晴らしい", { proficiencyBand: 3, frequency: 42 })] }];
+    applyInputAttributeOverride(perInput, new Map([["wonderful", 1]]), "proficiencyBand");
+    expect(perInput[0].results[0].proficiencyBand).toBe(1); // CEFR A1 -> 1
+    expect(perInput[0].results[0].frequency).toBe(42); // untouched
+  });
+
+  it("keys per input across a batch (each input gets its own value / NULL)", () => {
+    const perInput = [
+      { input: "cat", results: [res("猫")] },
+      { input: "serendipity", results: [res("偶然の幸運")] },
+    ];
+    applyInputAttributeOverride(perInput, new Map([["cat", 500]]), "frequency");
+    expect(perInput[0].results[0].frequency).toBe(500);
+    expect(perInput[1].results[0].frequency).toBeNull();
   });
 });
