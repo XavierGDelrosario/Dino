@@ -466,3 +466,61 @@ export function groupByInput<
   }
   return out;
 }
+
+// ── Single-word sense overrides (server-side twin of the client's
+// src/services/language/readingOverrides.ts — KEEP IN SYNC, cross-runtime dup).
+//
+// A no-context single-word lookup ranks senses by (frequency DESC, entry, sense).
+// When homograph entries share/borrow a surface's frequency the tiebreak picks the
+// WRONG primary — 前→さき (want まえ), 人→"-ian" suffix (want ひと), ところ→野老 yam
+// (want 所). The client fixed this for its own lookup path only; the LEARN /
+// CALIBRATION path builds cards in the edge, so it needs the same reorder here (so a
+// saved word gets the right meaning). Reorder only — never invents a sense.
+
+/** surface (NFC kanji) → its correct everyday standalone reading (hiragana). */
+export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
+  前: "まえ", 人: "ひと", 本: "ほん", 彼: "かれ", 娘: "むすめ",
+  形: "かたち", 頭: "あたま", 秋: "あき", 裏: "うら", 字: "じ",
+};
+
+/** surface (NFC kana) → its correct default WRITING (kanji headword). */
+export const SINGLE_WORD_WRITING_OVERRIDES: Readonly<Record<string, string>> = {
+  もの: "物", ところ: "所",
+};
+
+/** Move senses whose reading == the surface's preferred reading to the front. */
+export function applyReadingOverride<T extends { inputReading: string | null }>(
+  surface: string,
+  senses: T[],
+): T[] {
+  const pref = SINGLE_WORD_READING_OVERRIDES[surface];
+  if (!pref || senses.length < 2) return senses;
+  const match = senses.filter((s) => s.inputReading === pref);
+  if (match.length === 0 || match.length === senses.length) return senses;
+  return [...match, ...senses.filter((s) => s.inputReading !== pref)];
+}
+
+/** Move senses whose headword == the surface's preferred writing to the front. */
+export function applyWritingOverride<T extends { input: string }>(
+  surface: string,
+  senses: T[],
+): T[] {
+  const pref = SINGLE_WORD_WRITING_OVERRIDES[surface];
+  if (!pref || senses.length < 2) return senses;
+  const match = senses.filter((s) => s.input === pref);
+  if (match.length === 0 || match.length === senses.length) return senses;
+  return [...match, ...senses.filter((s) => s.input !== pref)];
+}
+
+/**
+ * Reorder a word's senses so the correct primary leads, for a single-word (no
+ * context) result — writing override then reading override. No-op when the surface
+ * has no override or no sense carries the preferred form. Used by the edge's card /
+ * single-word assembly so learn/calibration + translate all agree on the primary.
+ */
+export function orderSensesForInput<T extends { input: string; inputReading: string | null }>(
+  input: string,
+  words: T[],
+): T[] {
+  return applyWritingOverride(input, applyReadingOverride(input, words));
+}

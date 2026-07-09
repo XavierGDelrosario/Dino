@@ -11,6 +11,7 @@ import {
   groupByInput,
   lemmaCandidates,
   mergeProviderResults,
+  orderSensesForInput,
   parseAllowedOrigins,
   parseLearnRequest,
   DEFAULT_LEARN_LIMIT,
@@ -548,5 +549,43 @@ describe("applyInputAttributeOverride (EN->JA english_frequency / english_profic
     applyInputAttributeOverride(perInput, new Map([["cat", 500]]), "frequency");
     expect(perInput[0].results[0].frequency).toBe(500);
     expect(perInput[1].results[0].frequency).toBeNull();
+  });
+});
+
+describe("orderSensesForInput (single-word sense overrides, edge twin of the client)", () => {
+  const s = (input: string, inputReading: string | null, translation: string) => ({ input, inputReading, translation });
+
+  it("reading override: 前 leads まえ, not the higher-ranked さき", () => {
+    const out = orderSensesForInput("前", [
+      s("前", "さき", "ahead"),
+      s("前", "まえ", "front; before"),
+    ]);
+    expect(out[0].translation).toBe("front; before");
+  });
+
+  it("reading override: 人 leads ひと (person), not the -ian suffix", () => {
+    const out = orderSensesForInput("人", [
+      s("人", "じん", "-ian; -ite"),
+      s("人", "ひと", "person"),
+    ]);
+    expect(out[0].translation).toBe("person");
+  });
+
+  it("writing override: ところ leads 所 (place), not 野老 (the yam)", () => {
+    const out = orderSensesForInput("ところ", [
+      s("野老", "ところ", "wild yam"),
+      s("所", "ところ", "place"),
+    ]);
+    expect(out[0].translation).toBe("place");
+  });
+
+  it("is a no-op when the surface has no override", () => {
+    const senses = [s("猫", "ねこ", "cat")];
+    expect(orderSensesForInput("猫", senses)).toBe(senses);
+  });
+
+  it("never invents a sense: no-op when the preferred form is absent", () => {
+    const senses = [s("前", "ぜん", "previous"), s("前", "さき", "ahead")];
+    expect(orderSensesForInput("前", senses)).toBe(senses); // no まえ present
   });
 });

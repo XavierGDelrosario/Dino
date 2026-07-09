@@ -43,6 +43,7 @@ import {
   corsHeaders,
   groupByInput,
   lemmaCandidates,
+  orderSensesForInput,
   parseAllowedOrigins,
   parseLearnRequest,
   projectMany,
@@ -685,13 +686,15 @@ async function storeIdempotent(
   if (error) console.error("idempotency store failed:", error.message);
 }
 
-/** The success response for a set of verified rows (primary = first row). */
-function respondWords(rows: WordRow[]) {
+/** The success response for a set of verified rows (primary = first row). The
+ *  single-word overrides reorder so the correct sense leads (前→まえ, ところ→所). */
+function respondWords(input: string, rows: WordRow[]) {
+  const words = orderSensesForInput(input, rows.map(toWord));
   return {
     translated: true,
-    translation: rows[0].translation,
-    word: toWord(rows[0]),
-    words: rows.map(toWord),
+    translation: words[0].translation,
+    word: words[0],
+    words,
   };
 }
 
@@ -834,11 +837,13 @@ async function resolveBatch(
   };
   return inputs.map((input) => {
     // An input is either a cache hit OR a miss (never both — see `missing`), so
-    // these two sources don't overlap; combine + order primary-first.
+    // these two sources don't overlap; combine + order primary-first. The
+    // single-word override then reorders to the correct primary (前→まえ, ところ→所,
+    // 人→ひと) so a saved learn/calibration card gets the right meaning.
     const ws = [...(cachedByTerm.get(input) ?? []), ...(savedByTerm.get(input) ?? [])].sort(bySensePos);
-    return ws.length > 0
-      ? { input, translated: true, translation: ws[0].translation, word: toWord(ws[0]), words: ws.map(toWord) }
-      : { input, translated: false, translation: null, word: null, words: [] };
+    if (ws.length === 0) return { input, translated: false, translation: null, word: null, words: [] };
+    const words = orderSensesForInput(input, ws.map(toWord));
+    return { input, translated: true, translation: words[0].translation, word: words[0], words };
   });
 }
 
@@ -1023,7 +1028,7 @@ async function handleRequest(req: Request): Promise<Response> {
   //    exact-headword row exists and future lookups hit the cache).
   if (persist) {
     const cached = await fetchVerified(supabase, input, sourceLang, targetLang);
-    if (cached.some((r) => r.input === input)) return reply(respondWords(cached));
+    if (cached.some((r) => r.input === input)) return reply(respondWords(input, cached));
   }
 
   // 2. Resolve senses: JMdict first, then the Google MT fallback.
@@ -1137,7 +1142,7 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   const ordered = sortBySensePos((saved ?? []) as WordRow[]);
-  return reply(ordered.length > 0 ? respondWords(ordered) : {
+  return reply(ordered.length > 0 ? respondWords(input, ordered) : {
     translated: true,
     translation: results[0].translation,
     word: null,
