@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Hook spec for useTextQuiz — the extract-and-quiz session over NEW words in a
 // pasted text. Each card is a word's full SENSE LIST (primary first): the user can
-// cycle meanings with next/prevMeaning and add the selected one with addCurrent (the
+// cycle meanings with next/prevMeaning and add the selected one with addWord (the
 // ＋ button). Grading saves the SELECTED sense then records the first review
 // (seeding SRS); when calibrate is on, finishing persists the user's level silently.
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -101,12 +101,12 @@ describe("useTextQuiz", () => {
     expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-s2", grade: 4 });
   });
 
-  it("addCurrent (＋) adds the selected sense WITHOUT a review and marks it saved", async () => {
+  it("addWord (＋) adds the selected sense WITHOUT a review and marks it saved", async () => {
     const onGraded = vi.fn();
     const { result } = renderHook(() => useTextQuiz("user-1", [[s1, s2]], { onGraded }));
 
     await act(async () => {
-      await result.current.addCurrent();
+      await result.current.addWord(result.current.current!);
     });
 
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ word: s1 })); // the first, default

@@ -7,6 +7,8 @@ import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { errorMessage } from "../lib/errorMessage";
 import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
+import { ErrorText } from "../components/common/ErrorText";
+import { InputField } from "../components/common/InputField";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
 
@@ -97,10 +99,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           <p className="review__msg">{t("auth.resetSent")}</p>
         ) : (
           <>
-            <input className="input" type="email" value={email} placeholder={t("auth.emailPlaceholder")}
-              aria-label={t("auth.emailPlaceholder")} autoComplete="email"
-              onChange={(e) => setEmail(e.target.value)} />
-            {err && <pre className="review__error">{err}</pre>}
+            <InputField type="email" value={email} onChange={setEmail}
+              placeholder={t("auth.emailPlaceholder")} ariaLabel={t("auth.emailPlaceholder")} autoComplete="email" />
+            <ErrorText message={err} />
             <button className="btn" disabled={busy || !email.trim()} onClick={sendReset}>
               {t("auth.sendReset")}
             </button>
@@ -126,19 +127,16 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   return (
     <section className="authpage">
       <h2 className="authpage__title">{mode === "signup" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h2>
-      <input className="input" type="email" value={email} placeholder={t("auth.emailPlaceholder")}
-        aria-label={t("auth.emailPlaceholder")} autoComplete="email"
-        onChange={(e) => setEmail(e.target.value)} />
-      <input className="input" type="password" value={password} placeholder={t("auth.passwordPlaceholder")}
-        aria-label={t("auth.passwordPlaceholder")}
+      <InputField type="email" value={email} onChange={setEmail}
+        placeholder={t("auth.emailPlaceholder")} ariaLabel={t("auth.emailPlaceholder")} autoComplete="email" />
+      <InputField type="password" value={password} onChange={setPassword}
+        placeholder={t("auth.passwordPlaceholder")} ariaLabel={t("auth.passwordPlaceholder")}
         autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()} />
+        onEnter={submit} />
       {mode === "signup" && (
-        <input className="input" type="password" value={confirm} placeholder={t("auth.confirmPasswordPlaceholder")}
-          aria-label={t("auth.confirmPasswordPlaceholder")} autoComplete="new-password"
-          onChange={(e) => setConfirm(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()} />
+        <InputField type="password" value={confirm} onChange={setConfirm}
+          placeholder={t("auth.confirmPasswordPlaceholder")} ariaLabel={t("auth.confirmPasswordPlaceholder")}
+          autoComplete="new-password" onEnter={submit} />
       )}
       {mode === "signup" && (
         <label className="authpage__agree">
@@ -152,7 +150,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           </span>
         </label>
       )}
-      {err && <pre className="review__error">{err}</pre>}
+      <ErrorText message={err} />
       <button className="btn"
         disabled={busy || !email.trim() || password === "" || needsAgreement || (mode === "signup" && confirm === "")}
         onClick={submit}>

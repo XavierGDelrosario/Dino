@@ -58,3 +58,36 @@ export function applyReadingOverride<T extends { inputReading: string | null }>(
   if (match.length === 0 || match.length === senses.length) return senses;
   return [...match, ...senses.filter((s) => s.inputReading !== pref)];
 }
+
+// ── Wrong-WORD-from-a-kana-search overrides ─────────────────────────────────
+// A separate class from the reading overrides above: searching a KANA surface
+// returns a rare homograph first because it shares (or borrows) the surface's
+// corpus frequency. Here the candidates share the READING, so a reading override
+// can't discriminate — we must reorder by the WRITING (headword). Same capped,
+// hand-verified discipline: a common standalone word with an obvious default form.
+//   もの   → 物 (thing)  — not 者 (person); both read もの (frequency can't split them)
+//   ところ → 所 (place)  — not 野老 (a rare yam that's "usually kana", so it inherits
+//                          the common ところ string's frequency and outranks 所)
+
+/** surface (NFC kana) → its correct default WRITING (kanji headword). */
+export const SINGLE_WORD_WRITING_OVERRIDES: Readonly<Record<string, string>> = {
+  もの: "物",
+  ところ: "所",
+};
+
+/**
+ * Reorder senses so the overridden WRITING is PRIMARY for a single-word lookup.
+ * Mirrors applyReadingOverride but matches the headword (`input`) instead of the
+ * reading — for cases where the wrong primary shares a reading with the right one.
+ * No-op when the surface has no override or no sense carries that writing.
+ */
+export function applyWritingOverride<T extends { input: string }>(
+  surface: string,
+  senses: T[],
+): T[] {
+  const pref = SINGLE_WORD_WRITING_OVERRIDES[surface];
+  if (!pref || senses.length < 2) return senses;
+  const match = senses.filter((s) => s.input === pref);
+  if (match.length === 0 || match.length === senses.length) return senses;
+  return [...match, ...senses.filter((s) => s.input !== pref)];
+}

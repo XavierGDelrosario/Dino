@@ -10,6 +10,7 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { nfc } from "../../lib/text";
 import { toServiceError } from "../errors";
 import { getCachedSenses, setCachedSenses } from "./cache";
 import type { Database } from "../../types/database.types";
@@ -36,6 +37,14 @@ export interface Word {
   frequency: number | null;
   /** Normalized 1..5 curated difficulty (JLPT/HSK); overrides frequency. null today. */
   difficultyOverride: number | null;
+  /**
+   * PROFICIENCY LABEL axis (curated, per-language: JLPT for JA, CEFR for EN …).
+   * Raw framework band, ascending = HARDER; resolved to a display label ("N3",
+   * "B2") by services/proficiency (the framework is derived from sourceLang).
+   * Null when the word has no curated band (the common case until a wordlist is
+   * ingested). SEPARATE from the frequency difficulty axis above — never conflate.
+   */
+  proficiencyBand: number | null;
   /**
    * STABLE JMdict source identity (null for non-JMdict rows). The sense this row
    * was projected from, INDEPENDENT of the mutable headword — what `user_words`
@@ -65,6 +74,7 @@ function toWord(row: WordRow): Word {
     partOfSpeech: row.part_of_speech ?? null,
     frequency: row.frequency ?? null,
     difficultyOverride: row.difficulty_override ?? null,
+    proficiencyBand: row.proficiency_band ?? null,
     jmdictEntryId: row.jmdict_entry_id ?? null,
     jmdictSensePos: row.jmdict_sense_pos ?? null,
     isVerified: row.is_verified,
@@ -85,7 +95,7 @@ export async function findCachedWord(params: {
   targetLang: LangCode;
 }): Promise<Word | null> {
   const { sourceLang, targetLang } = params;
-  const input = params.input.normalize("NFC");
+  const input = nfc(params.input);
 
   // Read-through: if the full sense list is memoized, the preferred sense is its
   // first element (same verified-first order) — no round-trip. A miss keeps the
@@ -123,7 +133,7 @@ export async function findWordTranslations(params: {
   targetLang: LangCode;
 }): Promise<Word[]> {
   const { sourceLang, targetLang } = params;
-  const input = params.input.normalize("NFC");
+  const input = nfc(params.input);
 
   const cached = getCachedSenses(input, sourceLang, targetLang);
   if (cached) return cached;
@@ -157,7 +167,7 @@ export async function findWordTranslationsBatch(params: {
   targetLang: LangCode;
 }): Promise<Map<string, Word[]>> {
   const { sourceLang, targetLang } = params;
-  const unique = [...new Set(params.inputs.map((i) => i.normalize("NFC")))];
+  const unique = [...new Set(params.inputs.map(nfc))];
   const byWord = new Map<string, Word[]>();
   if (unique.length === 0) return byWord;
 

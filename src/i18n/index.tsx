@@ -42,6 +42,10 @@ function interpolate(s: string, params?: Record<string, string | number>): strin
 
 export type TFn = (key: MessageKey, params?: Record<string, string | number>) => string;
 
+/** Count-based singular/plural: plural(t, n, "common.word", "common.words"). */
+export const plural = (t: TFn, n: number, one: MessageKey, other: MessageKey): string =>
+  t(n === 1 ? one : other);
+
 interface I18nValue {
   locale: Locale;
   setLocale: (l: Locale) => void;

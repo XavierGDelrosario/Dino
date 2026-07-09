@@ -27,6 +27,7 @@ import { findCachedWord, type Word } from "./words/repository";
 import { saveDictionaryWord } from "./words/userWords";
 import { translate, MAX_TRANSLATION_CONCURRENCY } from "./translation";
 import { mapLimit } from "../lib/concurrency";
+import { nfcTrim } from "../lib/text";
 import { ServiceError } from "./errors";
 
 export interface AddWordResult {
@@ -64,7 +65,7 @@ export async function addWordToList(params: {
 
   // NFC-normalize so visually identical inputs (composed vs decomposed,
   // full/half-width) share one cache key — important for Japanese.
-  const input = params.input.trim().normalize("NFC");
+  const input = nfcTrim(params.input);
   if (!input) {
     throw new ServiceError("Cannot add an empty word", "validation");
   }
@@ -154,7 +155,7 @@ export async function addWordsToList(params: {
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const raw of inputs) {
-    const input = raw.trim().normalize("NFC");
+    const input = nfcTrim(raw);
     if (input && !seen.has(input)) {
       seen.add(input);
       unique.push(input);

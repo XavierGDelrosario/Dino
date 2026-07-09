@@ -3,7 +3,7 @@
 // available (localization works before any session). Reuses the ProfileMenu
 // button/panel styles; positioned left of it via the .langmenu class.
 import { useI18n, LOCALES, type Locale } from "../../i18n";
-import "./common.css";
+import { PopoverMenu } from "./PopoverMenu";
 
 // Controlled by App so it and ProfileMenu are mutually exclusive (opening one
 // closes the other).
@@ -19,29 +19,17 @@ export function LanguageMenu({
   const { t, locale, setLocale } = useI18n();
 
   return (
-    <div className="profilemenu langmenu">
-      <button
-        className="profilemenu__btn"
-        aria-label={t("ui.language")}
-        aria-haspopup="menu"
-        onClick={onToggle}
-      >
-        <span aria-hidden="true">🌐</span>
-      </button>
-      {open && (
-        <div className="profilemenu__panel" role="menu">
-          {LOCALES.map((l) => (
-            <button
-              key={l.code}
-              className="profilemenu__item"
-              aria-current={l.code === locale}
-              onClick={() => { setLocale(l.code as Locale); onClose(); }}
-            >
-              {l.label}{l.code === locale ? " ✓" : ""}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <PopoverMenu icon="🌐" ariaLabel={t("ui.language")} open={open} onToggle={onToggle} className="langmenu">
+      {LOCALES.map((l) => (
+        <button
+          key={l.code}
+          className="profilemenu__item"
+          aria-current={l.code === locale}
+          onClick={() => { setLocale(l.code as Locale); onClose(); }}
+        >
+          {l.label}{l.code === locale ? " ✓" : ""}
+        </button>
+      ))}
+    </PopoverMenu>
   );
 }

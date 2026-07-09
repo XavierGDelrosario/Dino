@@ -473,6 +473,7 @@ export type Database = {
           learning_language: string | null
           level: number | null
           native_language: string | null
+          proficiency_band: number | null
           terms_agreed_at: string | null
           terms_version: string | null
           user_id: string
@@ -484,6 +485,7 @@ export type Database = {
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
+          proficiency_band?: number | null
           terms_agreed_at?: string | null
           terms_version?: string | null
           user_id: string
@@ -495,6 +497,7 @@ export type Database = {
           learning_language?: string | null
           level?: number | null
           native_language?: string | null
+          proficiency_band?: number | null
           terms_agreed_at?: string | null
           terms_version?: string | null
           user_id?: string
@@ -536,6 +539,7 @@ export type Database = {
           jmdict_entry_id: string | null
           jmdict_sense_pos: number | null
           part_of_speech: string[] | null
+          proficiency_band: number | null
           projection_version: number
           source_lang: string
           target_lang: string
@@ -553,6 +557,7 @@ export type Database = {
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
           part_of_speech?: string[] | null
+          proficiency_band?: number | null
           projection_version?: number
           source_lang: string
           target_lang: string
@@ -570,6 +575,7 @@ export type Database = {
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
           part_of_speech?: string[] | null
+          proficiency_band?: number | null
           projection_version?: number
           source_lang?: string
           target_lang?: string

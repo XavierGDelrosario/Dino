@@ -23,6 +23,9 @@ export interface ProviderResult {
   sensePos?: number | null;
   // Difficulty axis: corpus-frequency rank (lower = more common; null for MT).
   frequency?: number | null;
+  // Proficiency-label axis: the headword's curated band (JLPT/CEFR; null for MT
+  // or words the wordlist lacks). Ascending = harder. See services/proficiency.
+  proficiencyBand?: number | null;
   // POS tags of the sense (null for MT).
   partOfSpeech?: string[] | null;
 }
@@ -37,8 +40,11 @@ export interface WordRowInsert {
   translation_reading: string | null;
   part_of_speech: string[] | null;
   frequency: number | null;
-  // Always null from projection — JMdict carries no JLPT; a later curated ingest
-  // populates it. Listed so the upsert row shape matches the table.
+  // Curated proficiency band (JLPT/CEFR) of the headword; null when the wordlist
+  // lacks it or for MT rows. Projected from jmdict_lookup, like frequency.
+  proficiency_band: number | null;
+  // Always null from projection — the NORMALIZED 1..5 difficulty override is a
+  // separate axis, unset today. Listed so the upsert row shape matches the table.
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
@@ -109,6 +115,39 @@ export function parseAllowedOrigins(raw: string | undefined | null): string[] {
   return (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+// ── Learn / calibration request (level-based new-words quiz) ────────────────
+/** Default / max words per learn (or calibration) round. Bounded so one request
+ *  can't fan out a huge batch projection. */
+export const DEFAULT_LEARN_LIMIT = 10;
+export const MAX_LEARN_LIMIT = 30;
+
+/** Validated learn-request params, or an error message for a bad band. */
+export type ParsedLearn =
+  | { ok: true; band: number; limit: number; excludeSeen: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Validate + normalize a `{ band, limit?, excludeSeen? }` learn request:
+ *   - band  — must be an INTEGER 1..6 (the framework ordinal); anything else errors.
+ *   - limit — clamped to [1, MAX_LEARN_LIMIT]; a missing/NaN/≤0 value → DEFAULT.
+ *   - excludeSeen — defaults TRUE (the learn quiz wants only NEW words); only the
+ *     calibration caller passes false to sample the whole band.
+ */
+export function parseLearnRequest(
+  learn: { band?: unknown; limit?: unknown; excludeSeen?: unknown },
+): ParsedLearn {
+  const band = Number(learn.band);
+  if (!Number.isInteger(band) || band < 1 || band > 6) {
+    return { ok: false, error: "learn.band must be an integer 1..6" };
+  }
+  const limit = Math.min(
+    Math.max(Math.trunc(Number(learn.limit)) || DEFAULT_LEARN_LIMIT, 1),
+    MAX_LEARN_LIMIT,
+  );
+  const excludeSeen = learn.excludeSeen !== false;
+  return { ok: true, band, limit, excludeSeen };
+}
+
 /**
  * Resolve the service-role key the edge client authenticates with. Prefers an
  * explicit SERVICE_ROLE_SECRET (a new `sb_secret_…` key, set when legacy API keys
@@ -164,6 +203,7 @@ export function projectRows(
       translation_reading: r.translationReading ?? null,
       part_of_speech: r.partOfSpeech ?? null,
       frequency: r.frequency ?? null,
+      proficiency_band: r.proficiencyBand ?? null,
       difficulty_override: null,
       jmdict_entry_id: r.entryId ?? null,
       jmdict_sense_pos: r.sensePos ?? null,
@@ -200,6 +240,28 @@ export function projectMany(
     }
   }
   return rows;
+}
+
+/**
+ * Override a per-input attribute on every result with the value keyed by the
+ * LOWERCASED input, or NULL when the input isn't in the map — never leaving the
+ * matched translation's value. Pure; the DB read that builds `bySurface` stays in
+ * the edge I/O shell. Used by the EN->JA overrides (english_frequency /
+ * english_proficiency) so an English headword carries its OWN corpus frequency /
+ * CEFR band, not the JA translation's JLPT/JA value.
+ */
+export function applyInputAttributeOverride(
+  perInput: { input: string; results: ProviderResult[] }[],
+  bySurface: Map<string, number>,
+  attr: "frequency" | "proficiencyBand",
+): void {
+  for (const p of perInput) {
+    const v = bySurface.get(p.input.toLowerCase()) ?? null; // input's own value, or NULL
+    for (const r of p.results) {
+      if (attr === "frequency") r.frequency = v;
+      else r.proficiencyBand = v;
+    }
+  }
 }
 
 /**
@@ -403,4 +465,62 @@ export function groupByInput<
     out.set(input, matched);
   }
   return out;
+}
+
+// ── Single-word sense overrides (server-side twin of the client's
+// src/services/language/readingOverrides.ts — KEEP IN SYNC, cross-runtime dup).
+//
+// A no-context single-word lookup ranks senses by (frequency DESC, entry, sense).
+// When homograph entries share/borrow a surface's frequency the tiebreak picks the
+// WRONG primary — 前→さき (want まえ), 人→"-ian" suffix (want ひと), ところ→野老 yam
+// (want 所). The client fixed this for its own lookup path only; the LEARN /
+// CALIBRATION path builds cards in the edge, so it needs the same reorder here (so a
+// saved word gets the right meaning). Reorder only — never invents a sense.
+
+/** surface (NFC kanji) → its correct everyday standalone reading (hiragana). */
+export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
+  前: "まえ", 人: "ひと", 本: "ほん", 彼: "かれ", 娘: "むすめ",
+  形: "かたち", 頭: "あたま", 秋: "あき", 裏: "うら", 字: "じ",
+};
+
+/** surface (NFC kana) → its correct default WRITING (kanji headword). */
+export const SINGLE_WORD_WRITING_OVERRIDES: Readonly<Record<string, string>> = {
+  もの: "物", ところ: "所",
+};
+
+/** Move senses whose reading == the surface's preferred reading to the front. */
+export function applyReadingOverride<T extends { inputReading: string | null }>(
+  surface: string,
+  senses: T[],
+): T[] {
+  const pref = SINGLE_WORD_READING_OVERRIDES[surface];
+  if (!pref || senses.length < 2) return senses;
+  const match = senses.filter((s) => s.inputReading === pref);
+  if (match.length === 0 || match.length === senses.length) return senses;
+  return [...match, ...senses.filter((s) => s.inputReading !== pref)];
+}
+
+/** Move senses whose headword == the surface's preferred writing to the front. */
+export function applyWritingOverride<T extends { input: string }>(
+  surface: string,
+  senses: T[],
+): T[] {
+  const pref = SINGLE_WORD_WRITING_OVERRIDES[surface];
+  if (!pref || senses.length < 2) return senses;
+  const match = senses.filter((s) => s.input === pref);
+  if (match.length === 0 || match.length === senses.length) return senses;
+  return [...match, ...senses.filter((s) => s.input !== pref)];
+}
+
+/**
+ * Reorder a word's senses so the correct primary leads, for a single-word (no
+ * context) result — writing override then reading override. No-op when the surface
+ * has no override or no sense carries the preferred form. Used by the edge's card /
+ * single-word assembly so learn/calibration + translate all agree on the primary.
+ */
+export function orderSensesForInput<T extends { input: string; inputReading: string | null }>(
+  input: string,
+  words: T[],
+): T[] {
+  return applyWritingOverride(input, applyReadingOverride(input, words));
 }

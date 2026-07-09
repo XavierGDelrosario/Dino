@@ -146,11 +146,15 @@
   flex-direction: column;
   gap: 0.5rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  /* NOTE: no `overflow: hidden` here — it clips the per-sense add-to-list menu when
+     it opens (worst with 1–2 senses / a short card). The senses list scrolls via
+     its OWN overflow-y (.hovercard__senses), which doesn't clip the popover. */
 }
 
 .hovercard__word {
   font-size: 1.25rem;
   font-weight: 600;
+  flex: 0 0 auto; /* header stays pinned; the senses list below scrolls */
 }
 
 .hovercard__senses {
@@ -162,10 +166,12 @@
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.95rem;
-  /* Scroll the sense list itself when the card is height-capped near a viewport
-     edge — the word header stays pinned, the senses below it scroll. */
+  /* Scroll the sense list itself when the card is height-capped (many meanings) —
+     the word header stays pinned, the senses below it scroll. */
   overflow-y: auto;
   min-height: 0;
+  -webkit-overflow-scrolling: touch; /* momentum scroll in the iOS WKWebView */
+  overscroll-behavior: contain; /* don't let the scroll bleed to the page */
 }
 
 /* .sense* and .results__more moved to common/SenseText.css (shared sense-list
@@ -478,66 +484,8 @@
   display: inline-block;
 }
 
-.addmenu {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 0.35rem);
-  right: 0;
-  min-width: 12rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.4rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-.addmenu__title {
-  font-size: 0.75rem;
-  color: var(--muted);
-  padding: 0.2rem 0.4rem;
-}
-
-.addmenu__item {
-  appearance: none;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.addmenu__item:hover {
-  background: var(--surface-2);
-}
-
-.addmenu__new {
-  color: var(--accent);
-}
-
-.addmenu__create {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-  padding: 0.2rem;
-}
-
-.addmenu__close {
-  appearance: none;
-  margin-top: 0.2rem;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  border-radius: 6px;
-  padding: 0.3rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
+/* The sub-list picker popover moved to the shared component src/components/common/
+   ListMenu.css (.addmenu*), used by AddToListButton and the list-view row. */
 
 /* Word-by-word reader loading indicator (shown under the translation while the
    reader's kuromoji analysis + lookups stream in). */

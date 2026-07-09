@@ -35,7 +35,7 @@ public class DigitalInkPlugin: CAPPlugin, CAPBridgedPlugin {
     // also keeps a strong reference, which ML Kit requires across the async call.
     private var recognizers: [String: DigitalInkRecognizer] = [:]
 
-    private func recognizer(forTag tag: String, model: DigitalInkRecognitionModel) -> DigitalInkRecognizer {
+    private func recognizer(forTag tag: String, model: DigitalInkRecognitionModel) ->   DigitalInkRecognizer {
         if let existing = recognizers[tag] { return existing }
         let options = DigitalInkRecognizerOptions(model: model)
         let recognizer = DigitalInkRecognizer.digitalInkRecognizer(options: options)

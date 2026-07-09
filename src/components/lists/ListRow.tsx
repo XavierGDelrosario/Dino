@@ -3,9 +3,11 @@
 // SAME user_words row, never a new one). "Add to list" tags it into a sub-list;
 // "Remove from list" only shows when viewing a sub-list (un-tags, keeps the word
 // in the vocabulary); the trash deletes it from the vocabulary entirely.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
+import { ListMenu } from "../common/ListMenu";
+import { WordInfoButton } from "../common/WordInfo";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
 
@@ -36,6 +38,7 @@ export function ListRow({
   onEdit,
   onDelete,
   onTag,
+  onCreateList,
   onRemoveFromList,
 }: {
   word: UserWord;
@@ -43,121 +46,156 @@ export function ListRow({
   onEdit: (translation: string) => void;
   onDelete: () => void;
   onTag: (listId: string) => void;
+  /** Create a sub-list and tag this word into it (the on-the-fly "New list…"). */
+  onCreateList: (name: string) => Promise<void>;
   /** Present only when viewing a sub-list (enables un-tagging). */
   onRemoveFromList?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [tagMenu, setTagMenu] = useState(false);
+  const tagBtnRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState(word.translation);
   const { t, locale } = useI18n();
   const added = fmtDate(word.originallyTranslatedDate, locale, t("lists.never"));
   const reviewed = fmtDate(word.lastReviewedDate, locale, t("lists.never"));
 
+  // Split a multi-sense translation ("cat; feline; puss") so each meaning gets its
+  // own line below the header instead of one squished run.
+  const meanings = word.translation
+    .split(";")
+    .map((m) => m.trim())
+    .filter(Boolean);
+
   return (
     <li className="listrow">
-      <div className="listrow__main">
+      {/* Header: the word (+reading) and ALL the metadata/actions, so the meaning
+          below gets the full row width. */}
+      <div className="listrow__header">
         <span className="listrow__head">
           {word.input}
           {word.inputReading && <em className="listrow__reading">{word.inputReading}</em>}
         </span>
 
-        {editing ? (
-          <span className="listrow__editing">
-            <input
-              className="input input--sm"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              aria-label={t("lists.editMeaningAria")}
-            />
-            <button
-              className="iconbtn"
-              onClick={() => {
-                const v = draft.trim();
-                if (v) onEdit(v);
-                setEditing(false);
-              }}
-              title={t("common.save")}
-            >
-              ✓
-            </button>
-            <button
-              className="iconbtn"
-              onClick={() => {
-                setDraft(word.translation);
-                setEditing(false);
-              }}
-              title={t("common.cancel")}
-            >
-              ✕
-            </button>
-          </span>
-        ) : (
-          <span className="listrow__meaning">
-            {word.translation}
-            {word.translationReading && (
-              <em className="listrow__reading">{word.translationReading}</em>
-            )}
-          </span>
-        )}
-      </div>
+        <div className="listrow__meta">
+          {/* Word info as a floating OVERLAY (not inline text that reflows the row):
+              Level (JLPT/CEFR) + Part of Speech, then the added/reviewed dates. The
+              shared "?" affordance — same panel appears on the flashcard. */}
+          <WordInfoButton
+            word={word}
+            extra={
+              <>
+                <span>
+                  {t("lists.added")}: {added}
+                </span>
+                <span>
+                  {t("lists.reviewed")}: {reviewed}
+                </span>
+              </>
+            }
+          />
 
-      <div className="listrow__meta">
-        <span
-          className="listrow__info"
-          role="img"
-          aria-label={t("lists.infoAria", { added, reviewed })}
-          title={t("lists.infoTitle", { added, reviewed })}
-        >
-          ?
-        </span>
+          <ConfidenceDots rating={word.confidenceRating} />
 
-        <ConfidenceDots rating={word.confidenceRating} />
+          {!editing && (
+            <>
+              <button className="iconbtn" onClick={() => setEditing(true)} title={t("lists.editMeaningTitle")}>
+                ✎
+              </button>
 
-        {!editing && (
-          <>
-            <button className="iconbtn" onClick={() => setEditing(true)} title={t("lists.editMeaningTitle")}>
-              ✎
-            </button>
-
-            {lists.length > 0 && (
-              <select
+              {/* Tag into a sub-list — the shared ListMenu, so "New list…" (create
+                  on the fly) works here just like the translate/quiz add button.
+                  Shown even with no sub-lists yet, so the first one can be made. */}
+              <button
+                ref={tagBtnRef}
                 className="iconbtn listrow__tag"
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) onTag(e.target.value);
-                  e.target.value = "";
-                }}
+                onClick={() => setTagMenu(true)}
                 aria-label={t("lists.addToSublist")}
                 title={t("lists.addToSublist")}
               >
-                <option value="">{t("lists.addListOption")}</option>
-                {lists.map((l) => (
-                  <option key={l.listId} value={l.listId}>
-                    {l.listName}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {onRemoveFromList && (
-              <button
-                className="iconbtn"
-                onClick={onRemoveFromList}
-                title={t("lists.removeFromList")}
-              >
-                −
+                ＋
               </button>
-            )}
+              {tagMenu && (
+                <ListMenu
+                  anchorRef={tagBtnRef}
+                  lists={lists}
+                  title={t("lists.addToSublist")}
+                  onPick={(listId) => {
+                    onTag(listId);
+                    setTagMenu(false);
+                  }}
+                  onCreate={(name) => onCreateList(name).then(() => setTagMenu(false))}
+                  onClose={() => setTagMenu(false)}
+                />
+              )}
 
-            <button
-              className="iconbtn iconbtn--danger"
-              onClick={onDelete}
-              title={t("lists.deleteFromVocab")}
-            >
-              🗑
-            </button>
-          </>
-        )}
+              {/* One trash button. In a sub-list it REMOVES FROM THIS LIST (word
+                  stays in the vocabulary); delete-from-vocabulary is only offered
+                  in ALL, where onRemoveFromList is absent. */}
+              {onRemoveFromList ? (
+                <button
+                  className="iconbtn"
+                  onClick={onRemoveFromList}
+                  title={t("lists.removeFromList")}
+                >
+                  🗑
+                </button>
+              ) : (
+                <button
+                  className="iconbtn iconbtn--danger"
+                  onClick={onDelete}
+                  title={t("lists.deleteFromVocab")}
+                >
+                  🗑
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Meaning(s) on their own line(s) below the header. */}
+      {editing ? (
+        <span className="listrow__editing">
+          <input
+            className="input input--sm"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            aria-label={t("lists.editMeaningAria")}
+          />
+          <button
+            className="iconbtn"
+            onClick={() => {
+              const v = draft.trim();
+              if (v) onEdit(v);
+              setEditing(false);
+            }}
+            title={t("common.save")}
+          >
+            ✓
+          </button>
+          <button
+            className="iconbtn"
+            onClick={() => {
+              setDraft(word.translation);
+              setEditing(false);
+            }}
+            title={t("common.cancel")}
+          >
+            ✕
+          </button>
+        </span>
+      ) : (
+        <div className="listrow__meaning">
+          {meanings.map((m, i) => (
+            <span key={i} className="listrow__meaning-line">
+              {m}
+              {i === 0 && word.translationReading && (
+                <em className="listrow__reading">{word.translationReading}</em>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
     </li>
   );
 }

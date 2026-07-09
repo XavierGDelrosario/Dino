@@ -9,6 +9,7 @@ import { useState } from "react";
 import { recordTermsAgreement } from "../../services/session";
 import { errorMessage as message } from "../../lib/errorMessage";
 import { useI18n } from "../../i18n";
+import { ErrorText } from "./ErrorText";
 import "./common.css";
 
 export function TermsGateView({ onDone }: { onDone: () => void }) {
@@ -43,7 +44,7 @@ export function TermsGateView({ onDone }: { onDone: () => void }) {
           {t("auth.agreeSuf")}
         </span>
       </label>
-      {err && <pre className="review__error">{err}</pre>}
+      <ErrorText message={err} />
       <button className="btn" disabled={busy || !agreed} onClick={submit}>
         {t("terms.gateContinue")}
       </button>

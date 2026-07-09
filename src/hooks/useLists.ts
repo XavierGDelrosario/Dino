@@ -215,6 +215,19 @@ export function useLists(userId: string) {
     [guard]
   );
 
+  // Create a brand-new sub-list from a row and tag this word into it (the ListRow
+  // "New list…" flow). Reloads lists so the new one shows in the chips/menus; the
+  // current view is unchanged (the word already appears here).
+  const createListForWord = useCallback(
+    (userWordId: string, name: string) =>
+      guard(async () => {
+        const list = await createListSvc({ userId, listName: name });
+        await addUserWordToList({ listId: list.listId, userWordId });
+        await loadLists();
+      }),
+    [guard, userId, loadLists]
+  );
+
   const addList = useCallback(
     async (name: string) => {
       setError(null);
@@ -271,6 +284,7 @@ export function useLists(userId: string) {
     deleteWord,
     untagWord,
     tagWord,
+    createListForWord,
     addList,
     renameListById,
     deleteListById,

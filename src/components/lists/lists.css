@@ -139,8 +139,8 @@
 /* dual-thumb range slider: two <input type=range> overlaid on one track */
 .dualrange {
   position: relative;
-  width: 110px;
-  height: 1.2rem;
+  width: 113px;
+  height: 1.8rem;
   display: flex;
   align-items: center;
 }
@@ -148,7 +148,7 @@
 .dualrange__track,
 .dualrange__fill {
   position: absolute;
-  height: 4px;
+  height: 5px;
   border-radius: 999px;
   pointer-events: none;
 }
@@ -168,7 +168,7 @@
   position: absolute;
   left: 0;
   width: 100%;
-  height: 1.2rem;
+  height: 1.8rem;
   margin: 0;
   background: none;
   -webkit-appearance: none;
@@ -185,25 +185,27 @@
 .dualrange__input::-webkit-slider-thumb {
   -webkit-appearance: none;
   pointer-events: auto; /* …only the thumbs are */
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
 .dualrange__input::-moz-range-thumb {
   pointer-events: auto;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
 
-/* "?" date badge on a row */
+/* "?" date badge on a row — a real button that toggles the info panel below. */
 .listrow__info {
   flex-shrink: 0;
   width: 1.2rem;
@@ -213,14 +215,51 @@
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--border);
+  background: none;
+  padding: 0;
   color: var(--muted);
+  font: inherit;
   font-size: 0.75rem;
-  cursor: help;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.listrow__info:hover {
+.listrow__info:hover,
+.listrow__info[aria-expanded="true"] {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Tap-revealed date panel (added / last-reviewed), full row width. */
+/* Anchor for the floating info overlay. */
+.listrow__info-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Floating date overlay above the row content — does NOT reflow the row. Hidden by
+   default; shown on hover (desktop) or when the "?" is toggled open (touch/iOS). */
+.listrow__infopanel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  flex-direction: column;
+  gap: 0.15rem;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.listrow__info-wrap:hover .listrow__infopanel,
+.listrow__info[aria-expanded="true"] ~ .listrow__infopanel {
+  display: flex;
 }
 
 /* add-custom-word form */
@@ -306,6 +345,67 @@
   color: var(--muted);
 }
 
+/* Numbered pager under the list. One non-wrapping row: Prev / Next are pinned as
+   fixed flanks (never shrink, never drop below), and the numbers sit in a middle
+   group that scrolls horizontally only in the rare many-page case — so the layout
+   stays consistent and Next always stays inline. */
+.listrows__pager {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  max-width: 100%;
+}
+
+/* Prev / Next: fixed-size flanks that never shrink or wrap their label. */
+.listrows__pageredge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* The number buttons. min-width:0 lets the group shrink instead of pushing Next
+   below; overflow-x scrolls the numbers if they can't all fit. */
+.listrows__pagenums {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox: hide the scrollbar (still scrollable) */
+  padding: 2px; /* room for the active button's border/focus ring */
+}
+
+.listrows__pagenums::-webkit-scrollbar {
+  display: none; /* WebKit: hide the scrollbar */
+}
+
+.listrows__pagenum {
+  flex: 0 0 auto;
+  min-width: 2.2rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  text-align: center;
+}
+
+.listrows__pagenum--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.listrows__pagenum--active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.listrows__pagegap {
+  flex: 0 0 auto;
+  color: var(--muted);
+  padding: 0 0.15rem;
+}
+
 .listrows {
   list-style: none;
   margin: 0;
@@ -317,25 +417,29 @@
 
 .listrow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.6rem 0.8rem;
 }
 
-.listrow__main {
+/* Top row: the word (+reading) on the left, all the metadata/actions on the
+   right. The meaning below then gets the full width. */
+.listrow__header {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   min-width: 0;
 }
 
 .listrow__head {
   font-size: 1.15rem;
   font-weight: 600;
+  min-width: 0;
 }
 
 .listrow__reading {
@@ -345,7 +449,11 @@
   margin-left: 0.4rem;
 }
 
+/* Meanings stack one per line (split on ';') across the full row width. */
 .listrow__meaning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
   font-size: 0.95rem;
   color: var(--muted);
 }
@@ -359,6 +467,8 @@
 .listrow__meta {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.35rem;
   flex-shrink: 0;
 }

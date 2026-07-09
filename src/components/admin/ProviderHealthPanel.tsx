@@ -1,25 +1,22 @@
 // Admin panel: third-party API health. Tracks each provider's credential expiry
 // (manually maintained — most providers expose no expiry API) with a warning when
 // it's near, plus the MT usage we already track. Click a row to edit its expiry/note.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { getProviderHealth, setProvider, type ProviderHealth } from "../../services/admin";
 import { errorMessage } from "../../lib/errorMessage";
+import { AdminPanel, AdminStatus } from "./AdminPanel";
+import { useAdminResource } from "./useAdminResource";
+import { formatCount } from "./format";
 
 const WARN_DAYS = 30;
 
 export function ProviderHealthPanel() {
-  const [rows, setRows] = useState<ProviderHealth[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const { data: rows, error, reload } = useAdminResource<ProviderHealth[]>(getProviderHealth);
   const [editing, setEditing] = useState<string | null>(null);
   const [expires, setExpires] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const load = useCallback(() => {
-    setErr(null);
-    getProviderHealth().then(setRows).catch((e) => setErr(errorMessage(e)));
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  const [formErr, setFormErr] = useState<string | null>(null);
 
   const startEdit = (p: ProviderHealth) => {
     setEditing(p.provider);
@@ -30,13 +27,13 @@ export function ProviderHealthPanel() {
   const save = async () => {
     if (!editing) return;
     setBusy(true);
-    setErr(null);
+    setFormErr(null);
     try {
       await setProvider({ provider: editing, expiresAt: expires || undefined, quotaNote: note || undefined });
       setEditing(null);
-      load();
+      reload();
     } catch (e) {
-      setErr(errorMessage(e));
+      setFormErr(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -53,15 +50,16 @@ export function ProviderHealthPanel() {
   };
 
   return (
-    <section className="admin__panel">
-      <h3 className="admin__panel-title">Third-party API health</h3>
-      <p className="admin__muted">
-        Credential expiry is tracked manually (most providers expose no expiry API). Live usage-vs-quota
-        polling (Brevo, Supabase billing) is a follow-up; MT chars come from our own usage table.
-      </p>
-
-      {err && <pre className="admin__error">{err}</pre>}
-      {!rows && !err && <p className="admin__muted">Loading…</p>}
+    <AdminPanel
+      title="Third-party API health"
+      description={
+        <>
+          Credential expiry is tracked manually (most providers expose no expiry API). Live usage-vs-quota
+          polling (Brevo, Supabase billing) is a follow-up; MT chars come from our own usage table.
+        </>
+      }
+    >
+      <AdminStatus error={formErr ?? error} pending={rows == null && formErr == null} />
 
       {rows && (
         <table className="admin__table">
@@ -74,7 +72,7 @@ export function ProviderHealthPanel() {
                 <tr key={p.provider}>
                   <td className="admin__bucket">{p.provider}</td>
                   <td><input className="admin__input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} /></td>
-                  <td className="admin__muted">{p.mtCharsUsed != null ? `${p.mtCharsUsed.toLocaleString()} ch` : "—"}</td>
+                  <td className="admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
                   <td><input className="admin__input" value={note} onChange={(e) => setNote(e.target.value)} /></td>
                   <td className="admin__nowrap">
                     <button type="button" className="admin__seg-btn admin__seg-btn--on" disabled={busy} onClick={save}>Save</button>
@@ -85,7 +83,7 @@ export function ProviderHealthPanel() {
                 <tr key={p.provider}>
                   <td className="admin__bucket">{p.provider}</td>
                   <td>{expiryCell(p)}</td>
-                  <td className="admin__muted">{p.mtCharsUsed != null ? `${p.mtCharsUsed.toLocaleString()} ch` : "—"}</td>
+                  <td className="admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
                   <td className="admin__truncate" title={p.quotaNote ?? undefined}>{p.quotaNote ?? "—"}</td>
                   <td className="admin__nowrap"><button type="button" className="admin__seg-btn" onClick={() => startEdit(p)}>Edit</button></td>
                 </tr>
@@ -94,6 +92,6 @@ export function ProviderHealthPanel() {
           </tbody>
         </table>
       )}
-    </section>
+    </AdminPanel>
   );
 }

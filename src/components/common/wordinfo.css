@@ -1,0 +1,62 @@
+/* Shared "?" word-info affordance (Level + Part of Speech), used by a Lists row
+   and a flashcard. Mirrors the original .listrow__info styling, made generic. */
+
+.wordinfo-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The round "?" toggle. */
+.wordinfo-btn {
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: none;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wordinfo-btn:hover,
+.wordinfo-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Floating panel above the surrounding content — does NOT reflow it. Hidden by
+   default; shown on hover (desktop) or when the "?" is toggled open (touch/iOS). */
+.wordinfo-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 30;
+  flex-direction: column;
+  gap: 0.15rem;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.wordinfo-panel--right {
+  right: 0;
+}
+.wordinfo-panel--left {
+  left: 0;
+}
+
+.wordinfo-wrap:hover .wordinfo-panel,
+.wordinfo-btn[aria-expanded="true"] ~ .wordinfo-panel {
+  display: flex;
+}

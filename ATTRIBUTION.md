@@ -54,3 +54,46 @@ Japanese mappings come from the released `wnjpn.db` + `wnjpn-ok.tab` files.
 We ship only the derived `wordnet_*` numbers/mappings (synset ids, lemmas, sense
 ranks), not the original release files. The user-facing app footer notice
 (`AttributionFooter.tsx`) credits these sources alongside JMdict.
+
+## Proficiency band — JLPT (`data/proficiency/ja.tsv`)
+
+The Japanese proficiency-label signal (the JLPT band shown as extra info, and the
+level-quiz filter — the `proficiency_band` column, built by
+`scripts/build-proficiency.py`) is derived from the per-level vocabulary lists in
+**jamsinclair/open-anki-jlpt-decks** (https://github.com/jamsinclair/open-anki-jlpt-decks),
+which are in turn based on **Jonathan Waller's JLPT lists** (tanos.co.uk) via
+chyyran/jlpt-anki-decks.
+
+- The **open-anki-jlpt-decks** repository is licensed under the **MIT License**.
+- The JLPT itself publishes **no** official post-2010 vocabulary list; these
+  community lists are an approximation of each N-level's vocabulary.
+
+We ship only the derived `<surface>\t<band>` numbers (surface → 1..5, easiest→hardest),
+not the original CSVs. JLPT® is a registered trademark of the Japan Foundation and
+JEES; this project is not affiliated with or endorsed by them.
+
+## Proficiency band — CEFR / English (`data/proficiency/en.tsv`)
+
+> SHIPPED 2026-07-09. `data/proficiency/en.tsv` (8,845 surfaces, A1→1 … C2→6) is built by
+> `scripts/build-proficiency-cefr.py` from the sources below. See
+> `docs/research/CEFR_Licensing_And_Quality.md` for the full licensing/quality analysis.
+
+The English proficiency-label signal (the CEFR band, `proficiency_band` for EN source
+words) is derived from the **CEFR-J Vocabulary Profile** (© Yukio Tono / Tono Lab, Tokyo
+University of Foreign Studies), distributed via **Open Language Profiles**
+(https://github.com/openlanguageprofiles/olp-en-cefrj), optionally packaged through the
+MIT-licensed **Words-CEFR-Dataset** (https://github.com/Maximax67/Words-CEFR-Dataset).
+
+- The CEFR-J Vocabulary/Grammar Profile "can be used for research and commercial purposes
+  with no charge, provided that you cite the dataset properly." Citation to **Tono Lab,
+  TUFS** is required. (Informal prose license from the copyright holder — **not** a
+  standard OSI/CC license; a legal read is advised before ship.)
+- The **Words-CEFR-Dataset** MIT wrapper permits commercial use with attribution, but its
+  CEFR levels are DERIVED from CEFR-J, so the CEFR-J citation is still owed — attribute
+  **both** the MIT notice AND CEFR-J / Tono Lab.
+- The C1/C2 **Octanove Vocabulary Profile** extension (if used to fill CEFR-J's thin top
+  end) is **CC BY-SA 4.0** — attribution + share-alike, tracked separately.
+
+We ship only the derived `<surface>\t<band>` numbers, not the source files. CEFR is a
+framework of the **Council of Europe**; we reference the level labels only and reproduce
+none of its copyrighted descriptor scales.

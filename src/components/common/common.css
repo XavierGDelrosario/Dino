@@ -345,6 +345,18 @@ body {
   cursor: default;
 }
 
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.btn--primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: brightness(1.1);
+}
+
 .btn--danger {
   color: #ffb4ad;
 }

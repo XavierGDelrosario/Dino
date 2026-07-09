@@ -61,6 +61,15 @@ npm run ingest:wordnet -- ./wnjpn.db ./wnjpn-ok.tab
 #   Reads the SQLite via Node's built-in node:sqlite (Node ≥ 22). Same DB-URL
 #   convention; writes ONLY wordnet_*. See scripts/ingest-wordnet.ts.
 
+# English leveling — the DIFFICULTY (frequency) + PROFICIENCY (CEFR) axes for
+# ENGLISH-source words. NOT in db:dump-seed, so a fresh/local/new-env DB has NULL
+# English leveling until these run (the edge's applyEnglish{Frequency,Proficiency}
+# read these server-only tables when projecting EN→JA). Same DATABASE_URL convention.
+#   Data files (regeneration only): scripts/build-frequency.py en  → data/frequency/en.tsv
+#                                   scripts/build-proficiency-cefr.py /tmp/cefr → data/proficiency/en.tsv
+npm run ingest:english-frequency     # data/frequency/en.tsv  -> english_frequency (migration 20260721)
+npm run ingest:english-proficiency   # data/proficiency/en.tsv -> english_proficiency (migration 20260722)
+
 # Backups — off-site export of the IRREPLACEABLE user tables (NOT the reproducible
 # dictionary; that's db:dump-seed). The in-repo half of Launch-Checklist #6 / §2:
 npm run db:backup          # pg_dump users/user_words/lists/list_words/review_log/

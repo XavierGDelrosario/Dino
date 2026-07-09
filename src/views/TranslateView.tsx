@@ -22,6 +22,7 @@ import { targetOptions, AUTO_DETECT } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
 import { isSpeechAvailable, startSpeech, stopSpeech, SpeechPermissionError } from "../services/speech";
 import { useI18n } from "../i18n";
+import { ErrorText } from "../components/common/ErrorText";
 import type { Word } from "../services/words/repository";
 import "../components/translate/translate.css";
 
@@ -129,8 +130,10 @@ export function TranslateView({ userId }: { userId: string }) {
         <TextQuizView
           userId={userId}
           cards={quiz.cards}
+          lists={t.lists}
           mode={quiz.mode}
           onGraded={t.applyReview}
+          onCreateList={t.createNamedList}
           onClose={() => setQuiz(null)}
         />
       </section>
@@ -262,9 +265,9 @@ export function TranslateView({ userId }: { userId: string }) {
         </select>
       </label>
 
-      {t.error && <pre className="review__error">{t.error}</pre>}
-      {speechError && <pre className="review__error">{speechError}</pre>}
-      {ocrError && <pre className="review__error">{ocrError}</pre>}
+      <ErrorText message={t.error} />
+      <ErrorText message={speechError} />
+      <ErrorText message={ocrError} />
 
       {/* The translation shows above as soon as it's ready; the word-by-word reader
           (kuromoji + lookups) streams in after — spinner while it loads. */}

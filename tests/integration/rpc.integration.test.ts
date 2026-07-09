@@ -431,6 +431,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
   // reading. (The なる(成る) vs 鳴る(なる) behavior, asserted data-drivenly.)
   const hasKanji = (s: string) => /[一-龯]/.test(s);
   type LookupRow = { writing: string; input_reading: string | null; jmdict_entry_id: string };
+  type LookupFreqRow = LookupRow & { frequency: number | null };
 
   it("uk entries headline as KANA with the kanji in the reading slot", async () => {
     const svc = serviceClient();
@@ -489,6 +490,25 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     const rows = (data ?? []) as LookupRow[];
     if (rows.length === 0) return; // いく not in the loaded subset
     expect(rows[0].writing).toBe("行く");
+  });
+
+  // Own-frequency (20260720): a rare KANJI headword uses its OWN corpus frequency,
+  // never a BORROWED value from its (common) kana reading. 亡い (deceased) shares the
+  // kana ない with the very common negation, but 亡い's own kanji frequency is NULL —
+  // it must NOT inherit ない's. Self-skips if 亡い isn't in the loaded subset.
+  it("a rare kanji headword doesn't borrow its kana's frequency (亡い → own/NULL)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const lookup = async (input: string) =>
+      ((await svc.rpc("jmdict_lookup", { p_input: input, p_source: "JA", p_target: "EN" })).data ?? []) as LookupFreqRow[];
+    const rows = (await lookup("亡い")).filter((r) => r.writing === "亡い");
+    if (rows.length === 0) return; // 亡い not loaded
+    // Its own kanji surface has no frequency → NULL, not the kana ない's high value.
+    const naiFreq = (await lookup("ない"))[0]?.frequency ?? null;
+    for (const r of rows) {
+      expect(r.frequency).toBeNull();
+      if (naiFreq != null) expect(r.frequency).not.toBe(naiFreq); // never the borrowed kana value
+    }
   });
 
   // Secondary-writing headword (20260715 fix): searching a NON-preferred kanji form
@@ -666,6 +686,97 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup_many", () => {
       const batched = rows.filter((r) => r.input === term);
       expect(batched.length).toBe(single.length); // batch == single, per input
     }
+  });
+});
+
+// ── learn_words_at_band (level-based new-words quiz; service-role only) ─────
+// Sources UNSEEN headwords at a proficiency band from JMdict. Self-skips unless
+// BOTH JMdict is ingested AND the proficiency wordlist has been joined in (bands
+// are NULL otherwise → no candidates).
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
+  it("is NOT callable by a client (no EXECUTE grant)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("learn_words_at_band", {
+      p_source: "JA", p_target: "EN", p_band: 1, p_user_id: u.userId, p_limit: 5,
+    });
+    expect(error).not.toBeNull(); // permission denied — server-only
+  });
+
+  it("returns unique unseen JA headwords at a band, dropping one once it's saved", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // Find a band that actually has data (proficiency ingested?), else skip.
+    const { data: banded } = await svc
+      .from("jmdict_kanji").select("proficiency_band").not("proficiency_band", "is", null).limit(1);
+    if (!banded || banded.length === 0) return; // proficiency not ingested → skip
+    const band = (banded[0] as { proficiency_band: number }).proficiency_band;
+
+    const u = await makeUser();
+    const learn = async (limit: number, excludeSeen: boolean): Promise<string[]> =>
+      (((await svc.rpc("learn_words_at_band", {
+        p_source: "JA", p_target: "EN", p_band: band, p_user_id: u.userId,
+        p_limit: limit, p_exclude_seen: excludeSeen,
+      })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+
+    // An unseen draw: unique, non-empty, no duplicate cards.
+    const draw = await learn(5, true);
+    expect(draw.length).toBeGreaterThan(0);
+    expect(new Set(draw).size).toBe(draw.length);
+
+    // It's a real JMdict word (resolves via the same lookup the edge uses).
+    const first = draw[0];
+    const senses = ((await svc.rpc("jmdict_lookup", { p_input: first, p_source: "JA", p_target: "EN" })).data ??
+      []) as { jmdict_entry_id: string; translation: string }[];
+    expect(senses.length).toBeGreaterThan(0);
+
+    // "Save" the word for every entry that produces this headword (homographs may
+    // split across entries), so it counts as SEEN.
+    const entryIds = [...new Set(senses.map((s) => s.jmdict_entry_id))];
+    for (const eid of entryIds) {
+      const seeded = await svc.from("words").insert({
+        input: first, translation: `learn-seed-${eid}`, source_lang: "JA", target_lang: "EN",
+        is_verified: true, jmdict_entry_id: eid,
+      }).select("word_id").single();
+      const wordId = (seeded.data as { word_id: string }).word_id;
+      await u.client.rpc("save_dictionary_word", { p_user_id: u.userId, p_dictionary_word_id: wordId });
+    }
+
+    // Once saved, the exclude_seen path SQL-filters it out, so it can't appear in
+    // ANY draw — assert its ABSENCE. (We can't assert a specific word's PRESENCE:
+    // selection is random AND PostgREST caps the response at 1000 rows, so for a
+    // band with >1000 words a draw is a random subset — presence isn't guaranteed,
+    // absence-of-a-filtered-word is.)
+    expect(await learn(1000, true)).not.toContain(first);
+  });
+
+  it("varies across draws (random sample from a frequent pool → new words on retry)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data: banded } = await svc
+      .from("jmdict_kanji").select("proficiency_band").not("proficiency_band", "is", null).limit(1);
+    if (!banded || banded.length === 0) return; // proficiency not ingested → skip
+    const band = (banded[0] as { proficiency_band: number }).proficiency_band;
+    const u = await makeUser();
+    const draw = async () =>
+      (((await svc.rpc("learn_words_at_band", {
+        p_source: "JA", p_target: "EN", p_band: band, p_user_id: u.userId, p_limit: 8,
+      })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+    const a = await draw();
+    const b = await draw();
+    // A band's frequent pool is far larger than 8, so two random draws differ
+    // (deterministic top-N would return the identical list — the bug this fixes).
+    if (a.length >= 8) expect(a.join(",")).not.toBe(b.join(","));
+  });
+
+  it("returns nothing for a pair with no curated framework", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const { data, error } = await svc.rpc("learn_words_at_band", {
+      p_source: "EN", p_target: "JA", p_band: 1, p_user_id: u.userId, p_limit: 5,
+    });
+    expect(error).toBeNull();
+    expect((data as unknown[]) ?? []).toHaveLength(0); // JA→EN only today
   });
 });
 

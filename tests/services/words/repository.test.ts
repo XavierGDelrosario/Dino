@@ -49,6 +49,7 @@ describe("findCachedWord", () => {
       partOfSpeech: null,
       frequency: null,
       difficultyOverride: null,
+      proficiencyBand: null,
       jmdictEntryId: "1467640",
       jmdictSensePos: 0,
       isVerified: true,

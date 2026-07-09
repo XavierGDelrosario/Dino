@@ -10,6 +10,7 @@ import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { TermsGateView } from "./components/common/TermsGateView";
+import { ErrorText } from "./components/common/ErrorText";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
@@ -87,7 +88,7 @@ export function App() {
       {error && (
         <div className="review__msg">
           <p>{t("app.sessionErrorTitle")}</p>
-          <pre className="review__error">{error.message}</pre>
+          <ErrorText message={error.message} />
         </div>
       )}
 

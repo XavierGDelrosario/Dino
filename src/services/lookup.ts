@@ -22,7 +22,8 @@ import {
   type Word,
 } from "./words/repository";
 import { setCachedSenses } from "./words/cache";
-import { applyReadingOverride } from "./language/readingOverrides";
+import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
+import { nfc, nfcTrim } from "../lib/text";
 import { translate, translateBatch } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
@@ -49,7 +50,7 @@ export async function lookupWord(params: {
   meanings: Word[];
 }> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
-  const input = params.input.trim().normalize("NFC");
+  const input = nfcTrim(params.input);
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
   let meanings = await findWordTranslations({
@@ -74,12 +75,15 @@ export async function lookupWord(params: {
 
   // TEMPORARY hand-verified fix for the no-context default reading of a handful
   // of common standalone words that lose jmdict_lookup's frequency tiebreak
-  // (前 → さき instead of まえ). Reorders the PRIMARY sense only; no-op otherwise.
+  // (前 → さき instead of まえ; もの → 者 instead of 物; ところ → 野老 yam instead of
+  // 所). The reading override fixes wrong-READING kanji; the writing override fixes
+  // wrong-WORD kana searches (whose candidates share a reading). Both reorder the
+  // PRIMARY sense only; no-op otherwise, and a surface is in at most one list.
   return {
     input,
     sourceLang: resolvedSource,
     targetLang,
-    meanings: applyReadingOverride(input, meanings),
+    meanings: applyWritingOverride(input, applyReadingOverride(input, meanings)),
   };
 }
 
@@ -103,7 +107,7 @@ export async function lookupWordsBatch(params: {
 }): Promise<Map<string, Word[]>> {
   const { sourceLang, targetLang } = params;
   const inputs = [
-    ...new Set(params.inputs.map((i) => i.trim().normalize("NFC")).filter(Boolean)),
+    ...new Set(params.inputs.map(nfcTrim).filter(Boolean)),
   ];
   if (inputs.length === 0) return new Map();
 
@@ -176,7 +180,7 @@ export async function translateParagraph(params: {
   onGloss?: (gloss: { translation: string; translated: boolean }) => void;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
-  const input = params.input.normalize("NFC");
+  const input = nfc(params.input);
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
   // 1. Kick off the whole-paragraph gloss (display only, persist = false) WITHOUT
@@ -201,7 +205,7 @@ export async function translateParagraph(params: {
   //    行った resolves via its dictionary entry 行く), falling back to the
   //    surface text. The dictionary is keyed on dictionary forms, so this is the
   //    lookup key; results are re-exposed under the surface text below.
-  const keyOf = (t: AnalyzedToken) => (t.lemma ?? t.text).normalize("NFC");
+  const keyOf = (t: AnalyzedToken) => nfc(t.lemma ?? t.text);
   const uniqueKeys = [...new Set(tokens.map(keyOf))];
 
   // All meanings per key in ONE query (client cache + a single .in() read); any

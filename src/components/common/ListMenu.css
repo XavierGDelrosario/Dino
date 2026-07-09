@@ -1,0 +1,63 @@
+/* The shared sub-list picker popover (ListMenu.tsx). position/left + top-or-bottom
+   + max-height are supplied INLINE as position:FIXED so the menu floats OVER the
+   content and escapes any overflow clipping; overflow-y:auto + the inline
+   max-height give a scrollbar when there are many sub-lists. */
+.addmenu {
+  position: fixed;
+  z-index: 60;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow-y: auto;
+  padding: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.addmenu__title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0.2rem 0.4rem;
+}
+
+.addmenu__item {
+  appearance: none;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.addmenu__item:hover {
+  background: var(--surface-2);
+}
+
+.addmenu__new {
+  color: var(--accent);
+}
+
+.addmenu__create {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.2rem;
+}
+
+.addmenu__close {
+  appearance: none;
+  margin-top: 0.2rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 0.3rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}

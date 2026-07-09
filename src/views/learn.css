@@ -1,0 +1,26 @@
+/* Learn tab: the "Find my level" launcher row + a hinted (calibrated) band. */
+.learn__level {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+}
+.learn__levelnote {
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+/* The band matching the user's calibrated level — a soft nudge, not a selection. */
+.tab.tab--suggested {
+  position: relative;
+  font-weight: 600;
+}
+.tab.tab--suggested::after {
+  content: "★";
+  font-size: 0.6rem;
+  margin-left: 0.2rem;
+  color: var(--accent, #4a7);
+  vertical-align: super;
+}

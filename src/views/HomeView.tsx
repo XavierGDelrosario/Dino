@@ -10,8 +10,9 @@ const ListView = lazy(() => import("./ListView").then((m) => ({ default: m.ListV
 const FlashcardView = lazy(() =>
   import("./FlashcardView").then((m) => ({ default: m.FlashcardView })),
 );
+const LearnView = lazy(() => import("./LearnView").then((m) => ({ default: m.LearnView })));
 
-type Tab = "translate" | "lists" | "review";
+type Tab = "translate" | "lists" | "learn" | "review";
 
 export function HomeView({ userId }: { userId: string }) {
   const { t } = useI18n();
@@ -33,6 +34,9 @@ export function HomeView({ userId }: { userId: string }) {
         <button className={`tab${tab === "lists" ? " tab--active" : ""}`} onClick={() => setTab("lists")}>
           {t("tabs.lists")}
         </button>
+        <button className={`tab${tab === "learn" ? " tab--active" : ""}`} onClick={() => setTab("learn")}>
+          {t("tabs.learn")}
+        </button>
         <button className={`tab${tab === "review" ? " tab--active" : ""}`} onClick={() => setTab("review")}>
           {t("tabs.review")}
         </button>
@@ -52,6 +56,7 @@ export function HomeView({ userId }: { userId: string }) {
             }}
           />
         )}
+        {tab === "learn" && <LearnView key={userId} userId={userId} />}
         {tab === "review" && (
           <FlashcardView
             key={userId}

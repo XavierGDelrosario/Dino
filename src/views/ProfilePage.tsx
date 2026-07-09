@@ -7,6 +7,7 @@ import { getUserProfile, updateUserLanguages } from "../services/session";
 import { targetOptions, DEFAULT_NATIVE_LANGUAGE, DEFAULT_LEARNING_LANGUAGE } from "../services/language";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, LOCALES, type Locale } from "../i18n";
+import { ErrorText } from "../components/common/ErrorText";
 import { Link } from "../router";
 import { AttributionFooter } from "../components/common/AttributionFooter";
 import "../components/common/common.css";
@@ -88,7 +89,7 @@ export function ProfilePage({
         </select>
       </div>
 
-      {err && <pre className="review__error">{err}</pre>}
+      <ErrorText message={err} />
 
       {/* Footer: Back (left) · Delete account (right). Sign-out lives in the
           top-right account menu; delete is its own confirmation page. */}

@@ -1,34 +1,25 @@
 // Admin panel: anonymized MT-character usage for the current month.
-import { useEffect, useState } from "react";
 import { getUsageOverview, type UsageOverview } from "../../services/admin";
-import { errorMessage } from "../../lib/errorMessage";
+import { AdminPanel, AdminStatus } from "./AdminPanel";
+import { useAdminResource } from "./useAdminResource";
+import { formatCount } from "./format";
 
 export function UsagePanel() {
-  const [usage, setUsage] = useState<UsageOverview | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    getUsageOverview()
-      .then((u) => active && setUsage(u))
-      .catch((e) => active && setErr(errorMessage(e)));
-    return () => { active = false; };
-  }, []);
+  const { data: usage, error } = useAdminResource<UsageOverview>(getUsageOverview);
 
   return (
-    <section className="admin__panel">
-      <h3 className="admin__panel-title">Translation usage — this month</h3>
-      <p className="admin__muted">Anonymized: each user is an opaque bucket, no email or PII.</p>
-
-      {err && <pre className="admin__error">{err}</pre>}
-      {!usage && !err && <p className="admin__muted">Loading…</p>}
+    <AdminPanel
+      title="Translation usage — this month"
+      description="Anonymized: each user is an opaque bucket, no email or PII."
+    >
+      <AdminStatus error={error} pending={usage == null} />
 
       {usage && (
         <>
           <div className="admin__stat">
             <span className="admin__stat-label">Global characters (all users)</span>
             <span className="admin__stat-value">
-              {usage.global ? usage.global.charsUsed.toLocaleString() : "—"}
+              {usage.global ? formatCount(usage.global.charsUsed) : "—"}
             </span>
           </div>
 
@@ -43,13 +34,13 @@ export function UsagePanel() {
               {usage.users.map((u) => (
                 <tr key={u.bucket}>
                   <td className="admin__bucket">{u.bucket}</td>
-                  <td className="admin__num">{u.charsUsed.toLocaleString()}</td>
+                  <td className="admin__num">{formatCount(u.charsUsed)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </>
       )}
-    </section>
+    </AdminPanel>
   );
 }

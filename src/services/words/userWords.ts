@@ -17,6 +17,7 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
 import { ServiceError, toServiceError } from "../errors";
 import type { Database } from "../../types/database.types";
@@ -54,6 +55,16 @@ export interface UserWord {
   confidenceRating: number;
   lastReviewedDate: string | null;
   originallyTranslatedDate: string;
+  /**
+   * Read-only dictionary attributes joined from the referenced `words` sense (null
+   * for a standalone created word, or when the sense has none). All feed the
+   * word-info panel: `proficiencyBand` → getProficiency's label (JLPT/CEFR),
+   * `partOfSpeech` → partOfSpeechCategory, `frequency` → frequencyCommonness (a
+   * plain-language "how common" band). Never stored on `user_words`.
+   */
+  proficiencyBand: number | null;
+  partOfSpeech: string[] | null;
+  frequency: number | null;
 }
 
 // Flat columns derived from the generated schema types (so a schema change
@@ -64,13 +75,18 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
   /** Embedded dictionary row when selected via the FK (reads only). */
   words?: Pick<
     Database["public"]["Tables"]["words"]["Row"],
-    "translation" | "input_reading" | "translation_reading"
+    | "translation"
+    | "input_reading"
+    | "translation_reading"
+    | "proficiency_band"
+    | "part_of_speech"
+    | "frequency"
   > | null;
 };
 
 /** Embed string that pulls the referenced dictionary fields for resolution. */
 const SELECT_WITH_DICTIONARY =
-  "*, words(translation, input_reading, translation_reading)";
+  "*, words(translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency)";
 
 function toUserWord(row: UserWordRow): UserWord {
   return {
@@ -94,6 +110,10 @@ function toUserWord(row: UserWordRow): UserWord {
     confidenceRating: row.confidence_rating,
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
+    // Dictionary attributes for the info panel (null for a standalone word).
+    proficiencyBand: row.words?.proficiency_band ?? null,
+    partOfSpeech: row.words?.part_of_speech ?? null,
+    frequency: row.words?.frequency ?? null,
   };
 }
 
@@ -147,6 +167,9 @@ export async function saveDictionaryWord(params: {
     translation: word.translation,
     inputReading: word.inputReading,
     translationReading: word.translationReading,
+    proficiencyBand: word.proficiencyBand,
+    partOfSpeech: word.partOfSpeech,
+    frequency: word.frequency,
   };
 }
 
@@ -193,7 +216,15 @@ export async function saveDictionaryWords(params: {
     const uw = toUserWord(row);
     const w = row.dictionary_word_id ? byId.get(row.dictionary_word_id) : undefined;
     return w
-      ? { ...uw, translation: w.translation, inputReading: w.inputReading, translationReading: w.translationReading }
+      ? {
+          ...uw,
+          translation: w.translation,
+          inputReading: w.inputReading,
+          translationReading: w.translationReading,
+          proficiencyBand: w.proficiencyBand,
+          partOfSpeech: w.partOfSpeech,
+          frequency: w.frequency,
+        }
       : uw;
   });
 }
@@ -214,8 +245,8 @@ export async function createCustomWord(params: {
   listId?: string;
 }): Promise<UserWord> {
   const { userId, sourceLang, targetLang, listId } = params;
-  const input = params.input.trim().normalize("NFC");
-  const translation = params.translation.trim().normalize("NFC");
+  const input = nfcTrim(params.input);
+  const translation = nfcTrim(params.translation);
   if (!input || !translation) {
     throw new ServiceError("Both the word and its meaning are required", "validation");
   }
@@ -253,7 +284,7 @@ export async function editUserWord(params: {
   userWordId: string;
   translation: string;
 }): Promise<UserWord> {
-  const translation = params.translation.trim().normalize("NFC");
+  const translation = nfcTrim(params.translation);
   if (!translation) throw new ServiceError("A meaning is required", "validation");
 
   const { data, error } = await supabase

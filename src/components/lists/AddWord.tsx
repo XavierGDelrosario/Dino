@@ -14,6 +14,9 @@ import {
 import type { Word } from "../../services/words/repository";
 import { SenseText } from "../common/SenseText";
 import { useI18n } from "../../i18n";
+import { ErrorText } from "../common/ErrorText";
+import { LangPair } from "./LangPair";
+import { InputField } from "../common/InputField";
 import "./lists.css";
 
 export function AddWord({
@@ -90,39 +93,23 @@ export function AddWord({
   return (
     <div className="addword addword--lookup">
       <div className="addword__row">
-        <div className="addword__langs">
-          <select
-            className="select select--sm"
-            value={sourceLang}
-            onChange={(e) => setSourceLang(e.target.value)}
-            aria-label={t("lists.wordLangAria")}
-          >
-            {sourceOptions().map((o) => (
-              <option key={o.code} value={o.code}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-          <span className="langbar__arrow">→</span>
-          <select
-            className="select select--sm"
-            value={targetLang}
-            onChange={(e) => setTargetLang(e.target.value as LangCode)}
-            aria-label={t("lists.meaningLangAria")}
-          >
-            {targetOptions().map((o) => (
-              <option key={o.code} value={o.code}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <input
+        <LangPair
+          source={sourceLang}
+          onSource={setSourceLang}
+          target={targetLang}
+          onTarget={(v) => setTargetLang(v as LangCode)}
+          sourceOptions={sourceOptions()}
+          targetOptions={targetOptions()}
+          sourceAria={t("lists.wordLangAria")}
+          targetAria={t("lists.meaningLangAria")}
+        />
+        {/* No Enter-to-submit: Japanese IME uses Enter to confirm kanji. */}
+        <InputField
           className="input input--sm"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={setInput}
           placeholder={t("lists.wordPlaceholder")}
-          aria-label={t("lists.wordLookupAria")}
+          ariaLabel={t("lists.wordLookupAria")}
         />
         <button className="btn" onClick={submit} disabled={!input.trim() || busy}>
           {busy ? "…" : t("common.add")}
@@ -140,7 +127,7 @@ export function AddWord({
         </button>
       </div>
 
-      {err && <pre className="review__error">{err}</pre>}
+      <ErrorText message={err} />
 
       {primary && (
         <div className="addword__result">

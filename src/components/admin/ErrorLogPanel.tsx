@@ -1,8 +1,10 @@
 // Admin panel: the append-only failure audit (error_log). Filter by lookback
 // window + error code; newest first. Reads through the is_admin()-gated RPC.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { getErrorLog, type ErrorLogRow } from "../../services/admin";
-import { errorMessage } from "../../lib/errorMessage";
+import { AdminPanel, AdminStatus } from "./AdminPanel";
+import { useAdminResource } from "./useAdminResource";
+import { formatDateTime } from "./format";
 
 const WINDOWS = [
   { label: "24h", hours: 24 },
@@ -11,31 +13,25 @@ const WINDOWS = [
 ];
 
 export function ErrorLogPanel() {
-  const [rows, setRows] = useState<ErrorLogRow[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const [hours, setHours] = useState(24 * 7);
   const [code, setCode] = useState("");
 
-  const load = useCallback(() => {
-    setRows(null);
-    setErr(null);
-    // Compute the lower bound client-side from the chosen window. (Date.now is fine
-    // in app code — only the workflow runtime forbids it.)
-    const since = new Date(Date.now() - hours * 3600_000).toISOString();
-    getErrorLog({ since, code: code.trim() || undefined })
-      .then(setRows)
-      .catch((e) => setErr(errorMessage(e)));
-  }, [hours, code]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const fmtTime = (iso: string) => new Date(iso).toLocaleString();
+  const { data: rows, error, reload } = useAdminResource<ErrorLogRow[]>(
+    () => {
+      // Compute the lower bound client-side from the chosen window. (Date.now is fine
+      // in app code — only the workflow runtime forbids it.)
+      const since = new Date(Date.now() - hours * 3600_000).toISOString();
+      return getErrorLog({ since, code: code.trim() || undefined });
+    },
+    [hours, code],
+    { resetOnReload: true },
+  );
 
   return (
-    <section className="admin__panel">
-      <h3 className="admin__panel-title">Error log</h3>
-      <p className="admin__muted">Append-only audit of failures (esp. paid features). Newest first.</p>
-
+    <AdminPanel
+      title="Error log"
+      description="Append-only audit of failures (esp. paid features). Newest first."
+    >
       <div className="admin__filters">
         <div className="admin__seg">
           {WINDOWS.map((w) => (
@@ -55,11 +51,10 @@ export function ErrorLogPanel() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
-        <button type="button" className="admin__seg-btn" onClick={load}>Refresh</button>
+        <button type="button" className="admin__seg-btn" onClick={reload}>Refresh</button>
       </div>
 
-      {err && <pre className="admin__error">{err}</pre>}
-      {!rows && !err && <p className="admin__muted">Loading…</p>}
+      <AdminStatus error={error} pending={rows == null} />
 
       {rows && (
         <table className="admin__table">
@@ -72,7 +67,7 @@ export function ErrorLogPanel() {
             )}
             {rows.map((r) => (
               <tr key={r.id} title={r.detail ?? undefined}>
-                <td className="admin__nowrap">{fmtTime(r.occurredAt)}</td>
+                <td className="admin__nowrap">{formatDateTime(r.occurredAt)}</td>
                 <td className="admin__bucket">{r.errorCode}</td>
                 <td className="admin__muted">{r.source ?? "—"}</td>
                 <td className="admin__truncate">{r.input ?? "—"}</td>
@@ -81,6 +76,6 @@ export function ErrorLogPanel() {
           </tbody>
         </table>
       )}
-    </section>
+    </AdminPanel>
   );
 }
