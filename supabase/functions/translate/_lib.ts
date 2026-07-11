@@ -87,20 +87,20 @@ export function userIdFromAuth(authHeader: string | null): string | null {
 }
 
 /**
- * CORS headers for a request Origin against an allow-list. Empty list → "*"
- * (dev convenience). Non-empty → echo the Origin if it's listed, else grant none
- * ("null", a non-usable value). NOTE: the local `supabase start` Kong gateway
- * rewrites this to "*"; the function's value is authoritative only in production.
+ * CORS headers for a request Origin against an allow-list. DEFAULT-TO-DENY: an
+ * empty list grants NONE ("null", a non-usable value) rather than "*", so a prod
+ * deploy that forgets to set ALLOWED_ORIGINS fails closed instead of wide open.
+ * Non-empty → echo the Origin if it's listed, else "null". NOTE: local dev is
+ * unaffected — the `supabase start` Kong gateway rewrites the response header to
+ * "*"; the function's own value is authoritative only in production.
  */
 export function corsHeaders(
   origin: string | null,
   allowedOrigins: string[],
 ): Record<string, string> {
-  const allowOrigin = allowedOrigins.length === 0
-    ? "*"
-    : allowedOrigins.includes(origin ?? "")
-      ? (origin as string)
-      : "null";
+  const allowOrigin = allowedOrigins.includes(origin ?? "")
+    ? (origin as string)
+    : "null";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers":

@@ -15,6 +15,7 @@ import type { Word } from "../../services/words/repository";
 import { SenseText } from "../common/SenseText";
 import { useI18n } from "../../i18n";
 import { ErrorText } from "../common/ErrorText";
+import { errorMessage } from "../../lib/errorMessage";
 import { LangPair } from "./LangPair";
 import { InputField } from "../common/InputField";
 import "./lists.css";
@@ -71,7 +72,7 @@ export function AddWord({
       await onSave(r.meanings[0]); // auto-add primary
       setSaved(new Set([r.meanings[0].wordId]));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -83,7 +84,7 @@ export function AddWord({
       await onSave(w);
       setSaved((s) => new Set(s).add(w.wordId));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(errorMessage(e));
     }
   };
 

@@ -13,10 +13,21 @@ import { nativeRecognizer } from "./providers/native";
 
 const RECOGNIZERS: HandwritingRecognizer[] = [nativeRecognizer];
 
+// Availability is a stable property of the platform (native bridge presence), so
+// probe once and reuse the promise — the UI calls resolveRecognizer() on every
+// keystroke/affordance check and each probe hits the Capacitor bridge otherwise.
+// Mirrors analyze.ts's tokenizerPromise cache.
+let resolved: Promise<HandwritingRecognizer | null> | null = null;
+
 /** The first usable recognizer on this platform, or null if none (e.g. web today). */
-export async function resolveRecognizer(): Promise<HandwritingRecognizer | null> {
-  for (const r of RECOGNIZERS) {
-    if (await r.available()) return r;
+export function resolveRecognizer(): Promise<HandwritingRecognizer | null> {
+  if (!resolved) {
+    resolved = (async () => {
+      for (const r of RECOGNIZERS) {
+        if (await r.available()) return r;
+      }
+      return null;
+    })();
   }
-  return null;
+  return resolved;
 }

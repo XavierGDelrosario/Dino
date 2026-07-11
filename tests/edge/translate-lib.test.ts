@@ -84,8 +84,8 @@ describe("parseAllowedOrigins", () => {
 });
 
 describe("corsHeaders", () => {
-  it("an empty allow-list grants '*' (dev)", () => {
-    expect(corsHeaders("https://anything.com", [])["Access-Control-Allow-Origin"]).toBe("*");
+  it("default-to-deny: an empty allow-list grants none ('null'), not '*'", () => {
+    expect(corsHeaders("https://anything.com", [])["Access-Control-Allow-Origin"]).toBe("null");
   });
   it("echoes an allowed origin (and sets Vary: Origin)", () => {
     const h = corsHeaders("https://app.dino.com", ["https://app.dino.com", "https://dino.com"]);

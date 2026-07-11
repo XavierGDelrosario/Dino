@@ -24,12 +24,13 @@ function parseAllowedOrigins(raw: string | undefined | null): string[] {
   return (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+// DEFAULT-TO-DENY: an empty allow-list grants none ("null"), so a prod deploy that
+// forgets ALLOWED_ORIGINS fails closed. Local dev is unaffected — Kong rewrites the
+// header to "*". Mirrors translate/_lib.ts corsHeaders.
 function corsHeaders(origin: string | null, allowed: string[]): Record<string, string> {
-  const allowOrigin = allowed.length === 0
-    ? "*"
-    : allowed.includes(origin ?? "")
-      ? (origin as string)
-      : "null";
+  const allowOrigin = allowed.includes(origin ?? "")
+    ? (origin as string)
+    : "null";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
