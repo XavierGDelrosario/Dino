@@ -171,7 +171,10 @@ Cascade: deleting a `user_words` row removes the word from **every sub-list** (`
 - **Edge upsert must DEDUPE senses by the onConflict tuple** before writing `words`. JMdict can return several senses that aggregate to the SAME translation string (e.g. 私 → "I; me" twice); a single `INSERT … ON CONFLICT` can't update one row twice (Postgres 21000 "cannot affect row a second time"). The edge function dedupes by `translation` (keeping the primary). This breaks word-by-word/paragraph for common words if dropped.
 - IME: translation submit should be a **button press, never Enter** (Japanese IME uses Enter to confirm kanji).
 - Secrets: frontend `VITE_*` in `.env` (anon key is public; RLS protects data). Edge secrets are server-side only.
-- **`docs/TODO.md` upkeep:** when an item is COMPLETED, MOVE it out of its tier and into the **`## ✅ Completed`** section at the BOTTOM (newest first, under a `### <YYYY-MM-DD>` date heading), matching the existing entry formatting (bold lead-in, `[#N]`/`[§N]` tags, the verified date). Don't just strike it through in place.
+- **`docs/TODO.md` = REMAINING WORK ONLY.** Accuracy and cleanliness beat history.
+  - Completed item → **DELETE it.** Never write `DONE` / `COMPLETED` / a "verified" date, never strike it through, never move it to a "Completed" section (there is none — don't add one). Shipped work lives in git history, `tests/`, and `docs/`.
+  - Partially done item → delete the done part, rewrite the entry as just the action that's LEFT.
+  - Additions: concise, minimal, **point form**. State the remaining action, not the investigation, the verification, or the backstory.
 
 ## Known deferred items (POC-acceptable; TODOs in code)
 
