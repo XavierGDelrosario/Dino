@@ -6,12 +6,21 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import { getCurrentUserId, ensureSession, getUserProfile } from "@/services/session";
+// Captcha is OFF in this suite by default (no sitekey → undefined token), matching a
+// build with no VITE_TURNSTILE_SITE_KEY. The captcha describe-block below drives it on.
+vi.mock("@/services/captcha", () => ({
+  getCaptchaToken: vi.fn(async () => undefined),
+  captchaEnabled: vi.fn(() => false),
+}));
+
+import { getCurrentUserId, ensureSession, getUserProfile, signIn, requestPasswordReset } from "@/services/session";
+import { getCaptchaToken } from "@/services/captcha";
 
 let stub: SupabaseStub;
 beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
+  vi.mocked(getCaptchaToken).mockResolvedValue(undefined);
 });
 
 describe("getCurrentUserId", () => {
@@ -104,5 +113,70 @@ describe("getUserProfile", () => {
   it("returns null when there is no row", async () => {
     stub.queueFrom("users", { data: null, error: null });
     expect(await getUserProfile("u1")).toBeNull();
+  });
+});
+
+// Captcha (anti-sybil, 2026-06-28 audit). Once the project's [auth.captcha] is on,
+// the server REJECTS these calls without a token — so the token must actually reach
+// each of the three endpoints GoTrue gates. (upgradeToAccount is deliberately absent:
+// updateUser is not captcha-gated, and its session already passed the anon check.)
+describe("captcha token", () => {
+  it("passes the token to anonymous sign-in — the call that mints a user per visitor", async () => {
+    vi.mocked(getCaptchaToken).mockResolvedValue("tok-anon");
+    stub.auth.getUser.mockResolvedValue({ data: { user: null } });
+    stub.auth.signInAnonymously.mockResolvedValue({
+      data: { user: { id: "guest-1", email: null } },
+      error: null,
+    });
+    stub.queueFrom("users", { data: null, error: null });
+
+    await ensureSession();
+
+    expect(stub.auth.signInAnonymously).toHaveBeenCalledWith({
+      options: { captchaToken: "tok-anon" },
+    });
+  });
+
+  it("passes the token to password sign-in", async () => {
+    vi.mocked(getCaptchaToken).mockResolvedValue("tok-signin");
+    stub.auth.signInWithPassword.mockResolvedValue({
+      data: { user: { id: "u1", email: "a@b.com" } },
+      error: null,
+    });
+    stub.queueFrom("users", { data: null, error: null });
+
+    await signIn({ email: "A@b.com ", password: "pw" });
+
+    expect(stub.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: "a@b.com",
+      password: "pw",
+      options: { captchaToken: "tok-signin" },
+    });
+  });
+
+  it("passes the token to the password-reset email request", async () => {
+    vi.mocked(getCaptchaToken).mockResolvedValue("tok-reset");
+    stub.auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+
+    await requestPasswordReset("A@b.com");
+
+    const [email, options] = stub.auth.resetPasswordForEmail.mock.calls[0];
+    expect(email).toBe("a@b.com");
+    expect(options.captchaToken).toBe("tok-reset");
+  });
+
+  it("sends NO token when captcha is off, leaving the auth calls as they were", async () => {
+    stub.auth.getUser.mockResolvedValue({ data: { user: null } });
+    stub.auth.signInAnonymously.mockResolvedValue({
+      data: { user: { id: "guest-1", email: null } },
+      error: null,
+    });
+    stub.queueFrom("users", { data: null, error: null });
+
+    await ensureSession();
+
+    expect(stub.auth.signInAnonymously).toHaveBeenCalledWith({
+      options: { captchaToken: undefined },
+    });
   });
 });

@@ -9,6 +9,7 @@
 
 import { Browser } from "@capacitor/browser";
 import { supabase } from "../config/supabaseClient";
+import { getCaptchaToken } from "./captcha";
 import { toServiceError } from "./errors";
 import { CURRENT_TERMS_VERSION } from "../lib/terms";
 import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
@@ -64,6 +65,11 @@ export async function getAuthStatus(): Promise<AuthStatus | null> {
  * Local dev has email confirmations OFF, so the email applies immediately; with
  * confirmations ON in prod, the email change is pending until confirmed.
  */
+// NOTE (captcha): this upgrades an EXISTING session via updateUser (PUT /user),
+// which GoTrue does NOT captcha-gate — only the endpoints that MINT a user or a
+// session do (signup / token / recover). That's fine: the guest whose session this
+// upgrades already passed the captcha at anonymous sign-in, so the sybil surface is
+// already covered. Nothing to pass here.
 export async function upgradeToAccount(
   params: { email: string; password: string },
 ): Promise<{ status: AuthStatus; emailPending: boolean }> {
@@ -88,7 +94,12 @@ export async function upgradeToAccount(
  */
 export async function signIn(params: { email: string; password: string }): Promise<AuthStatus> {
   const email = params.email.trim().toLowerCase();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: params.password });
+  const captchaToken = await getCaptchaToken();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: params.password,
+    options: { captchaToken },
+  });
   if (error) throw toServiceError(error, "Sign in failed");
   if (!data.user) throw toServiceError(null, "Sign in failed");
   await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
@@ -190,7 +201,11 @@ export async function signOut(): Promise<string> {
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
+  const captchaToken = await getCaptchaToken();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo,
+    captchaToken,
+  });
   if (error) throw toServiceError(error, "Could not send the reset email");
 }
 
@@ -265,7 +280,12 @@ async function runEnsureSession(): Promise<string> {
   // "couldn't start a session".
   if (!user) {
     await supabase.auth.signOut().catch(() => {});
-    const { data, error: signErr } = await supabase.auth.signInAnonymously();
+    // The sybil-relevant call: this MINTS an auth.users row for every visitor, so
+    // it's the one the captcha guards (undefined token when captcha is off).
+    const captchaToken = await getCaptchaToken();
+    const { data, error: signErr } = await supabase.auth.signInAnonymously({
+      options: { captchaToken },
+    });
     if (signErr || !data.user) {
       throw toServiceError(signErr, "Anonymous sign-in failed");
     }

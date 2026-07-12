@@ -217,11 +217,30 @@ token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
-# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
+# Captcha on the user/session-MINTING endpoints (anonymous sign-in, password sign-in,
+# password recovery) — the 2026-06-28 audit's [MED] anti-sybil item. The IP rate-limit
+# above does not stop a rotating-IP bot from bloating auth.users, and EVERY visitor
+# mints an anonymous user at bootstrap. Client side is src/services/captcha.ts
+# (Cloudflare Turnstile, INVISIBLE widget — the anon token is minted during bootstrap,
+# where an interactive challenge would deadlock first paint).
+#
+# OFF here by default so the local stack + the integration suite (which sign in
+# anonymously with no token) keep working untouched. To exercise the real path
+# locally, uncomment this block AND set VITE_TURNSTILE_SITE_KEY in .env — the keys
+# below are Cloudflare's DUMMY pair, which are valid on any hostname incl. localhost:
+#   secret 1x0000…AA (always passes)  pairs with sitekey 1x00000000000000000000BB
+#   secret 2x0000…AA (always fails)   pairs with sitekey 2x00000000000000000000BB
+# Swap to the always-fails pair to prove the rejection path is real, then flip back.
+#
+# PROD: enable it in the dashboard (Authentication → Attack Protection) with a REAL
+# Turnstile sitekey/secret, and only AFTER a client carrying the sitekey is deployed
+# — the server starts REQUIRING a token the moment it's on. Turnstile cannot run
+# under `capacitor://`, so a native build pointed at that project loses anonymous
+# sign-in; see docs/TODO.md before enabling on a project iOS uses.
 # [auth.captcha]
 # enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# provider = "turnstile"
+# secret = "1x0000000000000000000000000000000AA"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.

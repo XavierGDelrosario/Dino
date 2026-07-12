@@ -493,9 +493,14 @@
   border-color: var(--accent);
 }
 
-/* small icon buttons */
+/* small icon buttons. Holds BOTH text glyphs (＋ ✓ ✕) and SVG icons (edit/trash —
+   see components/common/icons.tsx), so centre the content rather than relying on the
+   text baseline, which would drop an inline <svg> a few px low. */
 .iconbtn {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);

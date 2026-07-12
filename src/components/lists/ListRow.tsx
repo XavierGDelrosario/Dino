@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
 import { ListMenu } from "../common/ListMenu";
+import { PencilIcon, TrashIcon } from "../common/icons";
 import { WordInfoButton } from "../common/WordInfo";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
@@ -98,8 +99,13 @@ export function ListRow({
 
           {!editing && (
             <>
-              <button className="iconbtn" onClick={() => setEditing(true)} title={t("lists.editMeaningTitle")}>
-                ✎
+              <button
+                className="iconbtn"
+                onClick={() => setEditing(true)}
+                aria-label={t("lists.editMeaningTitle")}
+                title={t("lists.editMeaningTitle")}
+              >
+                <PencilIcon size={16} />
               </button>
 
               {/* Tag into a sub-list — the shared ListMenu, so "New list…" (create
@@ -135,17 +141,19 @@ export function ListRow({
                 <button
                   className="iconbtn"
                   onClick={onRemoveFromList}
+                  aria-label={t("lists.removeFromList")}
                   title={t("lists.removeFromList")}
                 >
-                  🗑
+                  <TrashIcon size={16} />
                 </button>
               ) : (
                 <button
                   className="iconbtn iconbtn--danger"
                   onClick={onDelete}
+                  aria-label={t("lists.deleteFromVocab")}
                   title={t("lists.deleteFromVocab")}
                 >
-                  🗑
+                  <TrashIcon size={16} />
                 </button>
               )}
             </>
