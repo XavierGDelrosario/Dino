@@ -8,12 +8,10 @@ Tags: `[concern]` raised directly · `[#N]` roadmap item · `[§N]` `Production_
 ## ⏳ Awaiting merge — code done, just merge
 | PR | What | Note |
 |----|------|------|
-| **#32** | Captcha (session-minting) + empty-guest sweep (`20260727`) | This branch's base |
-| **#30** | CORS default-to-deny · error-`kind` rendering · recognizer memoization | LOW cluster |
-| **#31** | EN→JA sense ordering | ⚠️ May duplicate #29, already on main |
-| **#24** | Deploy FE with publishable key, not legacy anon JWT | |
-| **#22** | Docs only — "`projection_version` read-side unwired" | ⚠️ **Obsolete — close it.** The read-side gate is now built (differently, and better: `gte CURRENT` + MT-exempt, not the v0 sentinel it proposed). |
-| *(branch)* | `fix/stale-cache-read-gate` — the read-side gate itself | Not yet on `main`. Merge it, then "Edit `words` cache" below is storage-only. |
+| **#30** | CORS default-to-deny · error-`kind` rendering · recognizer memoization | LOW security cluster |
+| **#31** | EN→JA sense ordering | ⚠️ **Check first — likely superseded.** #29 shipped the same fix (cat→猫, water→水) and is on `main`. |
+
+*Landed 2026-07-13 (was in this table): #24 publishable key · #32 captcha + guest sweep · #34 stale-cache read gate. #22 closed as obsolete.*
 
 ---
 
@@ -44,7 +42,7 @@ Items 2–4 done. None blocking launch. Numbers preserved.
 **Remaining panels / logs:**
 
 **Edit `words` cache** — re-projection sweep (#3) — *downgraded 2026-07-13*
-- **Correctness is SOLVED** (read-side gate): stale rows are now a cache MISS and re-project themselves in place on next use. `FRESH_OR_MT` gate (`src/lib/projection.ts`), applied in both edge read paths + all 3 client repo call sites; `CURRENT_PROJECTION_VERSION = 7` (drift-guarded by `tests/services/projection-version.test.ts`); MT rows exempt, so healing can't re-spend Google credits. Covered by `tests/integration/stale-cache.integration.test.ts`.
+- **Correctness is SOLVED** — shipped in #34, on `main`. Stale rows are a cache MISS and re-project themselves in place on next use: `FRESH_OR_MT` gate (`src/lib/projection.ts`) applied in both edge read paths + all 3 client repo call sites; `CURRENT_PROJECTION_VERSION = 7` (drift-guarded by `tests/services/projection-version.test.ts`); MT rows exempt, so healing can't re-spend Google credits. Covered by `tests/integration/stale-cache.integration.test.ts`.
 - **Left — STORAGE chore, not correctness:** rows the current projection no longer emits are never served but still occupy the 500 MB free tier.
 - **Left — destructive merge/repoint:** still gated on a test harness.
 - Optional: eager warming instead of lazy healing.
@@ -107,7 +105,7 @@ Items 2–4 done. None blocking launch. Numbers preserved.
 - In `supabase/functions/.env`. Bounded (API-restricted + `GLOBAL_MONTHLY_CHAR_QUOTA`) → hygiene, not urgent.
 - Keep it only in `supabase secrets` / local dev.
 
-**[MED] Enable captcha in prod** — code ships in #32, inert without `VITE_TURNSTILE_SITE_KEY`
+**[MED] Enable captcha in prod** — code is ON MAIN (`src/services/captcha.ts`), inert without `VITE_TURNSTILE_SITE_KEY`
 - **Order matters** (server requires a token the moment it's on): (1) deploy client with real sitekey → (2) enable Attack Protection with matching secret.
 - **Blocked — native:** Turnstile can't run under `capacitor://`; `build-ios.sh` defaults to PROD → flipping it kills anon sign-in on iOS.
 - Founder call (2026-07-13): **account merging lands first.**
