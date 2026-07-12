@@ -12,6 +12,7 @@ import {
   findWordTranslationsBatch,
 } from "@/services/words/repository";
 import { __clearWordsCache } from "@/services/words/cache";
+import { FRESH_OR_MT } from "@/lib/projection";
 
 let stub: SupabaseStub;
 beforeEach(() => {
@@ -188,5 +189,26 @@ describe("NFC normalization at the cache + DB boundary", () => {
     await findWordTranslationsBatch({ inputs: [DECOMPOSED], sourceLang: "JA", targetLang: "EN" });
     const inCall = stub.callsFor("words", "in").find((c) => c.args[0] === "input");
     expect(inCall?.args[1]).toEqual([COMPOSED]);
+  });
+});
+
+// The client reads `words` DIRECTLY and short-circuits the edge on a hit — so if it
+// serves a row projected by older logic, the edge never gets the chance to re-project
+// it and the improvement never reaches that word. Every read must carry the gate.
+describe("stale-projection gate", () => {
+  it.each([
+    ["findCachedWord", () => findCachedWord({ input: "猫", sourceLang: "JA", targetLang: "EN" })],
+    ["findWordTranslations", () => findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" })],
+    ["findWordTranslationsBatch", () => findWordTranslationsBatch({ inputs: ["猫"], sourceLang: "JA", targetLang: "EN" })],
+  ])("%s only serves CURRENT projections (MT rows exempt)", async (_name, read) => {
+    stub.queueFrom("words", { data: [], error: null });
+
+    await read();
+
+    const or = stub.callsFor("words", "or")[0];
+    expect(or?.args[0]).toBe(FRESH_OR_MT);
+    // Exempting MT is the money-safety half: those rows project nothing, so treating
+    // them as stale would re-call the PAID provider on every version bump.
+    expect(FRESH_OR_MT).toContain("dictionary_ref.like.mt:*");
   });
 });
