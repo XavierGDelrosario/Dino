@@ -83,6 +83,8 @@ export function createSupabaseStub() {
   const auth = {
     getUser: vi.fn(),
     signInAnonymously: vi.fn(),
+    signInWithPassword: vi.fn(),
+    resetPasswordForEmail: vi.fn(),
     signOut: vi.fn().mockResolvedValue({ error: null }),
   };
   const functions = {

@@ -27,9 +27,27 @@ numbers preserved; cross-referenced elsewhere):
 ## 🐞 Remaining bugs, scalability & hardening
 
 ### Security & architecture hardening (2026-06-28 audit)
-- **[MED] CAPTCHA for anon + email signup** — IP rate-limit is on, but a
-  rotating-IP sybil can still bloat `auth.users` (paid MT stays capped). Add
-  Turnstile/hCaptcha + a periodic sweep of empty guests (0 `user_words`).
+- **[MED] CAPTCHA for anon + email signup — CODE DONE 2026-07-13, ENABLING IT IS BLOCKED.**
+  Client half shipped: `src/services/captcha.ts` (Cloudflare Turnstile, **INVISIBLE** widget —
+  the anon token is minted during bootstrap, where an interactive challenge would deadlock
+  first paint) feeding `signInAnonymously` / `signInWithPassword` / `resetPasswordForEmail`,
+  the three endpoints GoTrue gates. (`updateUser` — the guest→account upgrade — is NOT
+  captcha-gated by GoTrue, and doesn't need to be: its session already passed the anon check.)
+  **Inert until `VITE_TURNSTILE_SITE_KEY` is set**, so nothing changes today. Verified in a
+  real browser against the live Cloudflare script (dummy invisible keys: `1x…BB` mints a token,
+  `2x…BB` rejects, widget cleaned up both times) + unit-tested; local config recipe in
+  `supabase/config.toml [auth.captcha]`.
+  **REMAINING (2 steps, ORDER MATTERS — the server starts REQUIRING a token the moment it's on):**
+  (1) deploy a client carrying a real sitekey, THEN (2) enable Attack Protection in the
+  dashboard with the matching secret. **BLOCKER — native:** Turnstile cannot run under
+  `capacitor://`, so an iOS build pointed at a captcha-enabled project loses anonymous sign-in,
+  and `build-ios.sh` defaults to **PROD**. Founder call (2026-07-13): **account merging lands
+  before iOS is re-pointed**, so do not flip prod on until that's settled (options then: move
+  dev devices to staging, switch the WebView to an `https://` scheme + a registered hostname,
+  or swap to hCaptcha, which has native SDKs). Cost of waiting is low — the IP rate-limit still
+  applies and paid MT stays capped; the guest sweep below reclaims the bloat meanwhile.
+- **[MED] Sweep empty guests** — the other half of the anti-sybil item: reap anonymous users
+  with zero saved words (see the sweep migration + `prune_anonymous_guests`).
 - **[MED · scale-only] Global-quota advisory lock** — reserved once per batch; the
   once-per-request contention only bites at huge MT throughput → shard by hash bucket /
   lock-free UPDATE if it does.
