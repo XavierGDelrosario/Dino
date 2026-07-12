@@ -78,6 +78,22 @@ import {
 //       re-translated (the deferred #5 sweep flags version < 7).
 const CURRENT_PROJECTION_VERSION = 7;
 
+// The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
+// was still a cache HIT and every bump above reached only words nobody had looked up
+// yet (prod: ~4.7k of ~5k rows were stuck on versions 3–6). A row now only counts as a
+// hit if it is CURRENT; a stale one is a MISS and gets re-projected. The re-projection
+// upserts on `dictionary_ref`, so it UPDATES the row in place — the word_id survives
+// and `user_words.dictionary_word_id` never dangles. Nothing is deleted; the cache
+// heals as words are used.
+//
+// MT rows (`dictionary_ref` = `mt:<input>`) are EXEMPT — they project nothing, so
+// "re-projecting" one would just re-call the PAID Google endpoint for the same text. A
+// version bump must never become a spend event.
+//
+// MIRRORS src/lib/projection.ts (separate runtime; tests fail if the two drift).
+const FRESH_OR_MT =
+  `projection_version.gte.${CURRENT_PROJECTION_VERSION},dictionary_ref.like.mt:*`;
+
 // Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
 // `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
 // function keeps full RLS-bypass access after the legacy API keys are disabled
@@ -609,7 +625,8 @@ async function fetchVerified(
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
-    .or(`input.eq.${q},input_reading.eq.${q}`);
+    .or(`input.eq.${q},input_reading.eq.${q}`)
+    .or(FRESH_OR_MT); // a stale projection is a MISS → re-projected in place
   if (isReverseIntoJa(sourceLang, targetLang)) {
     // EN→JA: uniform input-frequency → order by the projected sense rank.
     query = query
@@ -677,6 +694,7 @@ async function fetchVerifiedMany(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.in.(${list}),input_reading.in.(${list})`)
+    .or(FRESH_OR_MT) // a stale projection is a MISS → re-projected in place
     // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
     // words keep the lookup's primary on the cache read.
     .order("frequency", { ascending: false, nullsFirst: false })
