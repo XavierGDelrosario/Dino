@@ -79,17 +79,27 @@ deploy_supabase() {
 }
 
 resolve_anon_key() {
-  require SUPABASE_PROJECT_REF "needed to fetch the anon key"
+  require SUPABASE_PROJECT_REF "needed to fetch the publishable key"
   if [ -n "${VITE_SUPABASE_ANON_KEY:-}" ]; then return; fi
-  # Try the CLI; fall back to a clear instruction if the output format differs.
+  # MUST be the PUBLISHABLE key (sb_publishable_…), NOT the legacy `anon` JWT — the
+  # legacy keys are DISABLED in prod, so a bundle built with the anon JWT can't
+  # authenticate and the app is dead on load (see docs/Deploy.md §6). Select by
+  # type=="publishable" (matches scripts/build-ios.sh), never by name=="anon".
   VITE_SUPABASE_ANON_KEY="$(sb projects api-keys --project-ref "$SUPABASE_PROJECT_REF" -o json 2>/dev/null \
-    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s);const k=a.find(x=>x.name==="anon");process.stdout.write(k?k.api_key:"")}catch{}})' || true)"
+    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const p=JSON.parse(s);const a=Array.isArray(p)?p:(p.keys||[]);const k=a.find(x=>x.type==="publishable");process.stdout.write(k?k.api_key:"")}catch{}})' || true)"
   if [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-    echo "error: could not auto-fetch the anon key." >&2
-    echo "  Grab it from dashboard → Settings → API → 'anon public', then re-run with:" >&2
-    echo "  export VITE_SUPABASE_ANON_KEY='...'" >&2
+    echo "error: could not auto-fetch the PUBLISHABLE key." >&2
+    echo "  Grab it from dashboard → Settings → API keys → 'default' publishable (sb_publishable_…)," >&2
+    echo "  then re-run with:  export VITE_SUPABASE_ANON_KEY='sb_publishable_...'" >&2
     exit 1
   fi
+  case "$VITE_SUPABASE_ANON_KEY" in
+    sb_publishable_*) : ;;
+    *) echo "error: resolved key is not a publishable key (got '${VITE_SUPABASE_ANON_KEY:0:12}…')." >&2
+       echo "  Refusing to build with a legacy anon JWT — it's disabled in prod (docs/Deploy.md §6)." >&2
+       echo "  Export the publishable key explicitly: export VITE_SUPABASE_ANON_KEY='sb_publishable_...'" >&2
+       exit 1 ;;
+  esac
 }
 
 deploy_frontend() {
