@@ -46,8 +46,20 @@ numbers preserved; cross-referenced elsewhere):
   dev devices to staging, switch the WebView to an `https://` scheme + a registered hostname,
   or swap to hCaptcha, which has native SDKs). Cost of waiting is low — the IP rate-limit still
   applies and paid MT stays capped; the guest sweep below reclaims the bloat meanwhile.
-- **[MED] Sweep empty guests** — the other half of the anti-sybil item: reap anonymous users
-  with zero saved words (see the sweep migration + `prune_anonymous_guests`).
+- **[MED] Sweep empty guests — DONE 2026-07-13** (migration `20260727`). The other half of the
+  anti-sybil item, and the one that works TODAY (it needs no console flip, so it reclaims bloat
+  while the captcha waits on native). `prune_anonymous_guests(min_age, max_rows, dry_run)` deletes
+  ANONYMOUS users only, and only when EMPTY (no `user_words` / `lists` / `feature_grants` /
+  `user_limits`), OLD (created + last-seen > 30d), and with NO current-month MT spend (so a sweep
+  can never hand back a spent monthly quota). Bounded (≤500/run), audited (`account_deletion_log`),
+  `dry_run` counts without deleting, EXECUTE revoked from clients, and it sets the `20260714`
+  deletion-guard override itself. Weekly pg_cron (`prune-anonymous-guests`, Sun 04:23), non-fatal
+  where pg_cron is absent. Verified live on local Postgres — `tests/integration/prune-guests.integration.test.ts`
+  (9/9): really deletes an aged empty guest (login + profile + audit row) and KEEPS a guest with a
+  word, with a list, a recent guest, one with in-month spend, and a real account; not callable by a client.
+  **Remaining:** confirm the cron job is registered on prod/staging (same caveat as the
+  `idempotency_keys` prune below — it no-ops without pg_cron), and consider a `dry_run` pass there
+  first. This also subsumes the Tier-3 "purge dev/test guests" chore.
 - **[MED · scale-only] Global-quota advisory lock** — reserved once per batch; the
   once-per-request contention only bites at huge MT throughput → shard by hash bucket /
   lock-free UPDATE if it does.
