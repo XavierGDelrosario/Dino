@@ -239,9 +239,11 @@
 .filtermenu__checks {
   display: flex;
   flex-wrap: wrap;
-  gap: 0;
-  /* pull the padding back out at the edges: the row spacing IS the padding (0.7rem
-     between rows), and the first option still aligns with the section label */
+  /* a row gap ON TOP of the padding — the wrapped rows read as separate lines rather
+     than one block. Vertical only; the horizontal spacing is the padding alone. */
+  gap: 0.3rem 0;
+  /* pull the padding back out at the edges so the first option still aligns flush
+     under the section label */
   margin: -0.35rem -0.5rem;
 }
 
