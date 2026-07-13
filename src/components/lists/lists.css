@@ -136,7 +136,8 @@
 .filtermenu__box {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem 1.5rem;
+  align-items: start; /* columns of unequal height must not stretch to match */
+  gap: 1rem 1.5rem;
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -179,7 +180,7 @@
 .filtermenu__section {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.4rem;
   min-width: 0;
 }
 
@@ -193,7 +194,7 @@
 }
 
 .filtermenu__sublabel {
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.4rem;
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--muted);
@@ -225,26 +226,30 @@
 
 /* The proficiency bands a selected language reveals. */
 .filtermenu__bands {
-  margin-top: 0.4rem;
+  margin-top: 0.5rem;
   padding-left: 0.5rem;
   border-left: 2px solid var(--border);
 }
 
-/* Compact wrapped rows (a grid of 44px cells made the panel enormous). The touch
-   fix is PADDING, not size: the whole label is the hit target — box + text — so
-   padding around it buys thumb room without changing the layout, and the extra gap
-   keeps neighbouring options from being adjacent to each other. */
+/* Compact wrapped rows (a grid of 44px cells made the panel enormous). The touch fix
+   is PADDING, not size: the whole label is the hit target — box + text — so padding
+   around it buys thumb room without changing the layout. The padding is ALSO the only
+   thing spacing the rows (gap: 0), which is what makes the rhythm even: label→row and
+   row→row are both 0.7rem, instead of a gap and a padding stacking unevenly. */
 .filtermenu__checks {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.2rem 0.5rem;
+  gap: 0;
+  /* pull the padding back out at the edges: the row spacing IS the padding (0.7rem
+     between rows), and the first option still aligns with the section label */
+  margin: -0.35rem -0.5rem;
 }
 
 .filtermenu__check {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.4rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   border-radius: 6px;
   font-size: 0.8rem;
   cursor: pointer;
