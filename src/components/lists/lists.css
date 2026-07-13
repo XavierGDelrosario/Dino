@@ -98,14 +98,10 @@
   padding: 0.4rem 0.8rem;
 }
 
-/* The line directly above the rows: sort at the left, the selection bar (select
-   mode only) filling the rest to the right. One row, so entering select mode doesn't
-   shove the list down. */
+/* Sort — its own line, left-aligned, directly above the first row. */
 .listrows__sort {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
+  justify-content: flex-start;
 }
 
 /* Funnel button + its filter card (language/level/usage/word class/dates/confidence).
@@ -587,13 +583,14 @@
 }
 
 /* Multi-select toolbar (above the rows): count on the left, actions on the right. */
+/* CENTRED under the Select button that turns it on — it belongs to that action, not
+   to the list's ordering. Its own row, so it never crowds the sort. */
 .listsel {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
   flex-wrap: wrap;
-  flex: 1 1 auto; /* share the sort's line; the actions stay hard right within it */
-  justify-content: flex-end;
 }
 
 .listsel__count {
@@ -604,8 +601,9 @@
 .listsel__actions {
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  margin-left: auto; /* keep the actions hard right even when the count wraps */
 }
 
 .listrows {
