@@ -59,6 +59,90 @@
   margin: 0;
 }
 
+/* Quiz header: the scope line ("Reviewing: ALL") is centered on the VIEW and must
+   never move. So the toggle is taken out of flow (absolute, top-right) — in flow its
+   width changes when the "next card" note appears and would shove the scope text
+   sideways. Symmetric gutters reserve the corner space, so a centered scope line can
+   still never run under the toggle. */
+.review__head {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 8.5rem; /* ≥ the toggle's widest state, both sides, to keep centering true */
+}
+
+.quizflip {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* Off = word-first (the default): a quiet outline. */
+.quizflip__btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+.quizflip__btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* On = meaning-first. Filled, so the active direction reads at a glance. */
+.quizflip__btn.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Armed but not yet showing (the swap lands on the next card): a static highlight
+   ring. Reads on BOTH settled states (outline sits outside the pill, so it shows
+   over the filled meaning-first look too), no motion. */
+.quizflip__btn.is-pending {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.quizflip__btn.is-on.is-pending {
+  color: #fff;
+}
+
+/* The "next card" hint. Absolute (under the toggle) so showing it can't resize the
+   toggle — that resize is what used to shift the scope line. */
+.quizflip__note {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  font-size: 0.7rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Narrow screens: drop the direction label (the ⇄ plus its filled / highlighted
+   state still carry it) and shrink the header gutters to match the now icon-sized
+   toggle. The "next card" note stays — that hint is the whole point of the deferred
+   swap, and the phone is the primary surface. */
+@media (max-width: 520px) {
+  .quizflip__label {
+    display: none;
+  }
+  .review__head {
+    padding: 0 3.25rem;
+  }
+}
+
 .review__error {
   background: #2a1416;
   color: #ffb4ad;

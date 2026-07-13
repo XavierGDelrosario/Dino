@@ -264,13 +264,14 @@ describe("deleteUserWord", () => {
 });
 
 describe("sub-list tagging", () => {
+  // The single-word tag is the 1-element case of the batch upsert (one statement,
+  // one idempotency contract) — hence the array payload.
   it("addUserWordToList upserts a tag", async () => {
     stub.queueFrom("list_words", { data: null, error: null });
     await addUserWordToList({ listId: "verbs", userWordId: "uw1" });
-    expect(stub.callsFor("list_words", "upsert")[0]?.args[0]).toEqual({
-      list_id: "verbs",
-      user_word_id: "uw1",
-    });
+    expect(stub.callsFor("list_words", "upsert")[0]?.args[0]).toEqual([
+      { list_id: "verbs", user_word_id: "uw1" },
+    ]);
   });
 
   it("the same word can be tagged into multiple sub-lists", async () => {
@@ -278,8 +279,8 @@ describe("sub-list tagging", () => {
     await addUserWordToList({ listId: "verbs", userWordId: "uw1" });
     await addUserWordToList({ listId: "animals", userWordId: "uw1" });
     expect(stub.callsFor("list_words", "upsert").map((c) => c.args[0])).toEqual([
-      { list_id: "verbs", user_word_id: "uw1" },
-      { list_id: "animals", user_word_id: "uw1" },
+      [{ list_id: "verbs", user_word_id: "uw1" }],
+      [{ list_id: "animals", user_word_id: "uw1" }],
     ]);
   });
 

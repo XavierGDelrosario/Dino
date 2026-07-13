@@ -21,7 +21,7 @@ import {
   createCustomWord,
   editUserWord,
   deleteUserWord,
-  addUserWordToList,
+  addUserWordsToList,
   removeUserWordFromList,
   type UserWord,
 } from "../services/words/userWords";
@@ -140,13 +140,18 @@ export function useLists(userId: string) {
   }, [loadWords]);
 
   // Run a mutation and surface any error. The caller patches the local cache on
-  // success (no full reload); on failure the cache is left untouched.
-  const guard = useCallback(async (op: () => Promise<void>) => {
+  // success (no full reload); on failure the cache is left untouched. Returns
+  // whether it succeeded — callers that discard UI state on completion (e.g. the
+  // multi-select clearing its picks) must NOT do so on a failure the user still
+  // has to react to. Callers that don't care can keep ignoring the result.
+  const guard = useCallback(async (op: () => Promise<void>): Promise<boolean> => {
     setError(null);
     try {
       await op();
+      return true;
     } catch (e) {
       setError(message(e));
+      return false;
     }
   }, []);
 
@@ -207,25 +212,36 @@ export function useLists(userId: string) {
     [guard, selectedListId, removeLocal]
   );
 
-  // Tag into ANOTHER sub-list. Doesn't change the current view's membership (the
-  // word is already shown here), so the cache needs no patch.
-  const tagWord = useCallback(
-    (userWordId: string, listId: string) =>
-      guard(() => addUserWordToList({ listId, userWordId })),
+  // Tag a selection into an existing sub-list (one round trip). Never changes the
+  // current view's membership — the words are already shown here — so the cache
+  // needs no patch. The single-word row action is just the 1-element case (below),
+  // so the two paths can't drift.
+  const tagWords = useCallback(
+    (userWordIds: string[], listId: string) =>
+      guard(() => addUserWordsToList({ listId, userWordIds })),
     [guard]
   );
 
-  // Create a brand-new sub-list from a row and tag this word into it (the ListRow
-  // "New list…" flow). Reloads lists so the new one shows in the chips/menus; the
-  // current view is unchanged (the word already appears here).
-  const createListForWord = useCallback(
-    (userWordId: string, name: string) =>
+  // Same, into a brand-new sub-list ("New list…" from the selection toolbar or a row).
+  // Reloads lists so the new one shows in the chips/menus.
+  const createListForWords = useCallback(
+    (userWordIds: string[], name: string) =>
       guard(async () => {
         const list = await createListSvc({ userId, listName: name });
-        await addUserWordToList({ listId: list.listId, userWordId });
+        await addUserWordsToList({ listId: list.listId, userWordIds });
         await loadLists();
       }),
     [guard, userId, loadLists]
+  );
+
+  // The ListRow (single-word) flavours of the two above.
+  const tagWord = useCallback(
+    (userWordId: string, listId: string) => tagWords([userWordId], listId),
+    [tagWords]
+  );
+  const createListForWord = useCallback(
+    (userWordId: string, name: string) => createListForWords([userWordId], name),
+    [createListForWords]
   );
 
   const addList = useCallback(
@@ -284,7 +300,9 @@ export function useLists(userId: string) {
     deleteWord,
     untagWord,
     tagWord,
+    tagWords,
     createListForWord,
+    createListForWords,
     addList,
     renameListById,
     deleteListById,

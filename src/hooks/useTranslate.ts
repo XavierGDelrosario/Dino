@@ -16,7 +16,6 @@ import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
-import { getUserProfile } from "../services/session";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { expandDomain } from "../services/domain";
 import { isExplicitSuggestion } from "../services/contentSafety";
@@ -26,6 +25,7 @@ import {
   analyze,
   isSingleWord,
   isContentPos,
+  dictionaryFormOf,
   resolveSourceLanguage,
   SUPPORTED_LANGUAGES,
   DEFAULT_LEARNING_LANGUAGE,
@@ -34,6 +34,7 @@ import {
   type SourceSelection,
 } from "../services/language";
 import { errorMessage as message } from "../lib/errorMessage";
+import { useLanguagePrefs } from "./useLanguagePrefs";
 import type { Word } from "../services/words/repository";
 
 export type TranslateMode = "word" | "paragraph";
@@ -109,15 +110,12 @@ export function useTranslate(userId: string) {
   // user types what they study and reads the meaning in their own language. Falls
   // back to the registry defaults for a fresh guest (no saved prefs). Both stay
   // changeable in the LangBar.
+  const prefs = useLanguagePrefs(userId);
   useEffect(() => {
-    getUserProfile(userId).then((p) => {
-      const learn = (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode;
-      const native = (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode;
-      setSource(learn);
-      setTarget(native);
-      setLearning(learn);
-    }).catch((e) => console.warn("useTranslate: failed to load language prefs", e));
-  }, [userId]);
+    setSource(prefs.learning);
+    setTarget(prefs.native);
+    setLearning(prefs.learning);
+  }, [prefs]);
 
   // The explanation language the reader's words were studied in (set by submit);
   // domain expansion looks related words up in the same learning→native direction.
@@ -288,8 +286,7 @@ export function useTranslate(userId: string) {
 
       if (isSingleWord(tokens, learning)) {
         // Resolve the dictionary form from the CONTENT token (行った → 行く).
-        const contentTok = tokens.find((t) => t.pos !== null && isContentPos(t.pos));
-        const lemma = contentTok?.lemma ?? contentTok?.text ?? learningText;
+        const lemma = dictionaryFormOf(tokens, learningText);
         const r = await lookupWord({ input: lemma, sourceLang: learning, targetLang: native });
         await loadSenseState(r.meanings.map((m) => m.wordId));
         setHeadword(r.input);

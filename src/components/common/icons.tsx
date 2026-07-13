@@ -85,6 +85,15 @@ export function TrashIcon({ size }: { size?: number }) {
   );
 }
 
+/** Funnel — the conventional "filter" glyph. */
+export function FilterIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </Svg>
+  );
+}
+
 export function CameraIcon({ size }: { size?: number }) {
   return (
     <Svg size={size}>

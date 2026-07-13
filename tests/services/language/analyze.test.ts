@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyze, isContentPos, isSingleWord } from "@/services/language/analyze";
+import { analyze, dictionaryForm, isContentPos, isSingleWord } from "@/services/language/analyze";
 
 // These exercise the REAL kuromoji engine (no mock): building the tokenizer
 // loads the IPADIC dictionary on first use, hence the generous timeout. This is
@@ -174,5 +174,41 @@ describe("analyze — non-Japanese falls back to segmentation only", () => {
     const toks = await analyze("hello world", "EN");
     expect(toks.map((t) => t.text)).toEqual(["hello", "world"]);
     expect(toks.every((t) => t.reading === null && t.lemma === null)).toBe(true);
+  });
+});
+
+// The dictionary-form rule the paragraph reader, Translate, and the Lists add form
+// all share: look an inflected surface up under its LEMMA, because the dictionary
+// is keyed on dictionary forms.
+describe("dictionaryForm", () => {
+  it(
+    "resolves an inflected Japanese word to its dictionary form",
+    async () => {
+      expect(await dictionaryForm("行った", "JA")).toBe("行く");
+      expect(await dictionaryForm("食べました", "JA")).toBe("食べる");
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "leaves a word already in dictionary form alone",
+    async () => {
+      expect(await dictionaryForm("行く", "JA")).toBe("行く");
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "leaves a PHRASE alone (it belongs to the reader, which lemmatizes per token)",
+    async () => {
+      const phrase = "日本に行った";
+      expect(await dictionaryForm(phrase, "JA")).toBe(phrase);
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it("returns English UNCHANGED — no engine gives English lemmas (a known gap)", async () => {
+    expect(await dictionaryForm("ran", "EN")).toBe("ran");
+    expect(await dictionaryForm("running", "EN")).toBe("running");
   });
 });

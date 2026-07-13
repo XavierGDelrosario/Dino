@@ -1,6 +1,12 @@
 // One flashcard. Front shows the term only (recall the meaning); the back
 // reveals the reading (furigana) + the translation. Readings come straight off
 // the source row — authoritative for the no-context surface (see CLAUDE.md).
+//
+// `reversed` swaps the two faces (meaning on the front, term revealed on the back)
+// — a DISPLAY swap only; nothing about the word or its review changes. The readings
+// stay on the REVEALED face in both directions: a reading on the front would hand
+// the user the answer in the reversed direction (furigana spells out the term) and
+// spoil the recall.
 import { useRef } from "react";
 import { WordInfoButton } from "../common/WordInfo";
 import { useI18n } from "../../i18n";
@@ -30,6 +36,7 @@ export function FlashcardCard({
   onFlip,
   onSwipeLeft,
   onSwipeRight,
+  reversed = false,
 }: {
   word: CardFace;
   flipped: boolean;
@@ -37,6 +44,8 @@ export function FlashcardCard({
   /** Optional horizontal-swipe handlers (e.g. cycle meanings). Left = next. */
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  /** Show the MEANING on the front and the term on the back (display only). */
+  reversed?: boolean;
 }) {
   const { t } = useI18n();
   // Track the touch start so touchend can classify it as a horizontal swipe.
@@ -80,7 +89,7 @@ export function FlashcardCard({
         <WordInfoButton word={word} align="left" />
       </span>
 
-      <div className="flashcard__term">{word.input}</div>
+      <div className="flashcard__term">{reversed ? word.translation : word.input}</div>
 
       {flipped ? (
         <div className="flashcard__back">
@@ -90,7 +99,7 @@ export function FlashcardCard({
           {word.inputReading && (
             <div className="flashcard__reading">{word.inputReading}</div>
           )}
-          <div className="flashcard__translation">{word.translation}</div>
+          <div className="flashcard__translation">{reversed ? word.input : word.translation}</div>
         </div>
       ) : (
         <div className="flashcard__hint">{t("flashcard.tapToReveal")}</div>

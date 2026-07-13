@@ -2,7 +2,9 @@
 // least-confident words. The grade is a 1–5 self-rated recall confidence
 // (1 = forgot … 5 = easy); clicking a rating records it and advances.
 import { useReview } from "../hooks/useReview";
+import { useQuizFlip } from "../hooks/useQuizFlip";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { useI18n, plural } from "../i18n";
@@ -22,6 +24,9 @@ export function FlashcardView({
   userWordIds?: string[];
 }) {
   const r = useReview(userId, listId, undefined, userWordIds);
+  // Deferred to the card boundary — toggling never rewrites the card in front of the
+  // user (r.position is the boundary; a restart resets it to 1).
+  const flip = useQuizFlip(r.position);
   const { t } = useI18n();
   const scopeName = listName || t("lists.allWords");
   const noun = (n: number) => plural(t, n, "common.word", "common.words");
@@ -72,10 +77,13 @@ export function FlashcardView({
   const card = r.current!;
   return (
     <section className="review">
-      {scope}
+      <div className="review__head">
+        {scope}
+        <FlipButton flip={flip} />
+      </div>
       <ProgressBar position={r.position} total={r.total} />
 
-      <FlashcardCard word={card} flipped={r.flipped} onFlip={r.flip} />
+      <FlashcardCard word={card} flipped={r.flipped} onFlip={r.flip} reversed={flip.reversed} />
 
       <ErrorText message={r.error} />
 

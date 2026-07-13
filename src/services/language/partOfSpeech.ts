@@ -12,23 +12,32 @@
 // non-JMdict / MT row with no POS, or an unrecognised code).
 // =========================================================
 
+/**
+ * Every coarse word class, in the canonical order a picker lists them (commonest
+ * classes first). The SOURCE of the enum: `PosCategory` is derived from it, so adding
+ * a category here is enough — nothing else keeps its own copy of the list, and a UI
+ * that iterates it (the Lists filter) can't silently omit a new one.
+ */
+export const POS_CATEGORIES = [
+  "noun",
+  "pronoun",
+  "verb",
+  "adjective",
+  "adverb",
+  "particle",
+  "conjunction",
+  "interjection",
+  "auxiliary",
+  "counter",
+  "prefix",
+  "suffix",
+  "numeric",
+  "determiner",
+  "expression",
+] as const;
+
 /** Coarse, learner-facing word class. */
-export type PosCategory =
-  | "noun"
-  | "pronoun"
-  | "verb"
-  | "adjective"
-  | "adverb"
-  | "particle"
-  | "conjunction"
-  | "interjection"
-  | "auxiliary"
-  | "counter"
-  | "prefix"
-  | "suffix"
-  | "numeric"
-  | "determiner"
-  | "expression";
+export type PosCategory = (typeof POS_CATEGORIES)[number];
 
 /** Map ONE JMdict POS code to a coarse category, or null if unrecognised. */
 function categoryOf(code: string): PosCategory | null {

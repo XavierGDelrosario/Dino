@@ -118,13 +118,15 @@ function toUserWord(row: UserWordRow): UserWord {
 }
 
 /** Tags a user_word into a sub-list (idempotent). */
-async function tagInList(userWordId: string, listId: string): Promise<void> {
-  const { error } = await supabase
-    .from("list_words")
-    .upsert(
-      { list_id: listId, user_word_id: userWordId },
-      { onConflict: "list_id,user_word_id" }
-    );
+/** The ONE `list_words` write: an idempotent upsert of N tags (N ≥ 1). Every tag
+ *  path — single-word, multi-select, save-with-list — goes through here, so the
+ *  conflict target (the idempotency contract) is stated once. */
+async function tagInList(userWordIds: string[], listId: string): Promise<void> {
+  if (userWordIds.length === 0) return;
+  const { error } = await supabase.from("list_words").upsert(
+    userWordIds.map((userWordId) => ({ list_id: listId, user_word_id: userWordId })),
+    { onConflict: "list_id,user_word_id" }
+  );
   if (error) throw toServiceError(error);
 }
 
@@ -317,7 +319,25 @@ export async function addUserWordToList(params: {
   listId: string;
   userWordId: string;
 }): Promise<void> {
-  await tagInList(params.userWordId, params.listId);
+  await tagInList([params.userWordId], params.listId);
+}
+
+/**
+ * Tags MANY user_words into one sub-list in a single round trip (the Lists
+ * multi-select "Add to list"). Same idempotent upsert as the single-word tag (it IS
+ * the same statement), so words already in the list are a no-op rather than a
+ * unique violation.
+ *
+ * OUTPUT: void.
+ * CONSTRAINTS: every id must be the caller's own — RLS gates BOTH sides of the tag
+ * (list and word), so a foreign id fails the whole statement rather than tagging
+ * part of the batch.
+ */
+export async function addUserWordsToList(params: {
+  listId: string;
+  userWordIds: string[];
+}): Promise<void> {
+  await tagInList(params.userWordIds, params.listId);
 }
 
 /**

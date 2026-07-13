@@ -1,6 +1,8 @@
-// The source → target language dual-select shared by the add-word forms
-// (<AddWord> dictionary lookup, <AddCustomWord> own word). Same markup verbatim;
-// only the option lists and aria labels differ.
+// The source → target language dual-select of the Lists add-word form — the
+// compact sibling of the Translate surface's <LangBar>, with the same ⇄ flip
+// button between the two selects (the flip itself is the shared, pure
+// `swapLanguages`, so the two surfaces can't drift).
+import { useI18n } from "../../i18n";
 import "./lists.css";
 
 type LangOption = { code: string; name: string };
@@ -10,6 +12,7 @@ export function LangPair({
   onSource,
   target,
   onTarget,
+  onSwap,
   sourceOptions,
   targetOptions,
   sourceAria,
@@ -19,11 +22,14 @@ export function LangPair({
   onSource: (code: string) => void;
   target: string;
   onTarget: (code: string) => void;
+  /** Flip input ⇄ output. */
+  onSwap: () => void;
   sourceOptions: LangOption[];
   targetOptions: LangOption[];
   sourceAria?: string;
   targetAria?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="addword__langs">
       <select
@@ -36,7 +42,15 @@ export function LangPair({
           <option key={o.code} value={o.code}>{o.name}</option>
         ))}
       </select>
-      <span className="langbar__arrow">→</span>
+      <button
+        type="button"
+        className="langbar__swap langbar__swap--sm"
+        onClick={onSwap}
+        title={t("langbar.swapTitle")}
+        aria-label={t("langbar.swapAria")}
+      >
+        ⇄
+      </button>
       <select
         className="select select--sm"
         value={target}
