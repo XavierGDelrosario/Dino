@@ -302,35 +302,10 @@ export function ListView({
         <p className="review__msg">{t("lists.noMatch")}</p>
       )}
 
-      {/* Selection toolbar — sits directly above the rows, actions to the right. */}
-      {L.status === "ready" && selectMode && L.words.length > 0 && (
-        <SelectionBar
-          count={selected.length}
-          visibleCount={visible.length}
-          allVisibleSelected={
-            visible.length > 0 && visible.every((w) => picked.has(w.userWordId))
-          }
-          lists={L.lists}
-          // Adds the filtered set to the picks (union, not replace) — see SelectionBar.
-          onSelectAll={() =>
-            setPicked((prev) => new Set([...prev, ...visible.map((w) => w.userWordId)]))
-          }
-          onUnselectAll={() => setPicked(new Set())}
-          // Keep the selection if the write failed (the error shows above); only a
-          // successful tag ends the operation.
-          onAddToList={(listId) => {
-            void L.tagWords(selected, listId).then((ok) => ok && exitSelect());
-          }}
-          onCreateList={(name) =>
-            L.createListForWords(selected, name).then((ok) => {
-              if (ok) exitSelect();
-            })
-          }
-        />
-      )}
-
-      {/* Sort belongs to the ROWS (it only reorders what's already shown), so it sits
-          right on top of them rather than up with the actions. */}
+      {/* The row directly above the words: sort on the left, and — in select mode —
+          the selection count + its actions on the right. Both act on the rows below
+          (reorder them / act on the picked ones), so they share ONE line; entering
+          select mode must not push the list down by a whole new row. */}
       {L.status === "ready" && shown.length > 0 && (
         <div className="listrows__sort">
           <select
@@ -344,6 +319,32 @@ export function ListView({
             <option value="conf-asc">{t("lists.sortConfAsc")}</option>
             <option value="conf-desc">{t("lists.sortConfDesc")}</option>
           </select>
+
+          {selectMode && (
+            <SelectionBar
+              count={selected.length}
+              visibleCount={visible.length}
+              allVisibleSelected={
+                visible.length > 0 && visible.every((w) => picked.has(w.userWordId))
+              }
+              lists={L.lists}
+              // Adds the filtered set to the picks (union, not replace) — see SelectionBar.
+              onSelectAll={() =>
+                setPicked((prev) => new Set([...prev, ...visible.map((w) => w.userWordId)]))
+              }
+              onUnselectAll={() => setPicked(new Set())}
+              // Keep the selection if the write failed (the error shows above); only a
+              // successful tag ends the operation.
+              onAddToList={(listId) => {
+                void L.tagWords(selected, listId).then((ok) => ok && exitSelect());
+              }}
+              onCreateList={(name) =>
+                L.createListForWords(selected, name).then((ok) => {
+                  if (ok) exitSelect();
+                })
+              }
+            />
+          )}
         </div>
       )}
 

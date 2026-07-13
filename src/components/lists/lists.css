@@ -98,10 +98,14 @@
   padding: 0.4rem 0.8rem;
 }
 
-/* Sort — its own line, left-aligned, directly above the first row. */
+/* The line directly above the rows: sort at the left, the selection bar (select
+   mode only) filling the rest to the right. One row, so entering select mode doesn't
+   shove the list down. */
 .listrows__sort {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
 }
 
 /* Funnel button + its filter card (language/level/usage/word class/dates/confidence).
@@ -586,9 +590,10 @@
 .listsel {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
+  flex: 1 1 auto; /* share the sort's line; the actions stay hard right within it */
+  justify-content: flex-end;
 }
 
 .listsel__count {
