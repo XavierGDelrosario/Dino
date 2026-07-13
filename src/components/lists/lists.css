@@ -230,24 +230,22 @@
   border-left: 2px solid var(--border);
 }
 
-/* A COLUMN GRID, not wrapped inline text: the boxes line up, so a thumb aiming at
-   one can't clip its neighbour. Cells size to the longest label ("Fairly common"). */
+/* Compact wrapped rows (a grid of 44px cells made the panel enormous). The touch
+   fix is PADDING, not size: the whole label is the hit target — box + text — so
+   padding around it buys thumb room without changing the layout, and the extra gap
+   keeps neighbouring options from being adjacent to each other. */
 .filtermenu__checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  gap: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.5rem;
 }
 
-/* The whole row is the hit target (the <label> wraps the box AND its text), padded
-   out to the 44px minimum — these are checkboxes people tap on a phone, and a bare
-   inline label gives a thumb ~16px of box to hit. */
 .filtermenu__check {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 0.5rem;
-  border-radius: 8px;
+  gap: 0.45rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
   font-size: 0.8rem;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -260,16 +258,10 @@
 
 .filtermenu__check input {
   flex: 0 0 auto;
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.05rem;
+  height: 1.05rem;
   margin: 0;
   accent-color: var(--accent);
-}
-
-/* The band row (N5…N1, A1…C2) — short labels, so pack them tighter than the
-   word-length ones, but keep the same tall tap target. */
-.filtermenu__bands .filtermenu__checks {
-  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
 }
 
 /* The period selects + confidence slider now live INSIDE the filter box: full
