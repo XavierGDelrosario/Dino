@@ -13,6 +13,7 @@ import { createSupabaseStub, type SupabaseStub } from "@test/supabaseStub";
 import {
   getIsAdmin, getUsageOverview, getTableSizes, getErrorLog,
   grantFeature, listGrants, getProviderHealth, setProvider,
+  reportQualityIssue, listQualityReports,
 } from "@/services/admin";
 
 let stub: SupabaseStub;
@@ -84,6 +85,20 @@ describe("write RPCs pass args + propagate errors", () => {
     stub.rpc.mockResolvedValue({ data: {}, error: null });
     await setProvider({ provider: "brevo", expiresAt: "2026-09-01", quotaNote: "n" });
     expect(stub.rpc).toHaveBeenCalledWith("admin_set_provider", { p_provider: "brevo", p_expires_at: "2026-09-01", p_quota_note: "n" });
+  });
+  it("reportQualityIssue passes trimmed args", async () => {
+    stub.rpc.mockResolvedValue({ data: {}, error: null });
+    await reportQualityIssue({ input: " 辛い ", description: " wrong sense " });
+    expect(stub.rpc).toHaveBeenCalledWith("admin_report_quality_issue", { p_input: "辛い", p_description: "wrong sense" });
+  });
+  it("listQualityReports maps rows, omits p_limit by default, propagates an error", async () => {
+    stub.rpc.mockResolvedValue({ data: [{ id: 3, reported_at: "t", reported_by: "u1", input: "辛い", description: "wrong sense" }], error: null });
+    expect((await listQualityReports())[0]).toEqual({ id: 3, reportedAt: "t", reportedBy: "u1", input: "辛い", description: "wrong sense" });
+    expect(stub.rpc).toHaveBeenCalledWith("admin_quality_reports", {});
+    await listQualityReports(50);
+    expect(stub.rpc).toHaveBeenLastCalledWith("admin_quality_reports", { p_limit: 50 });
+    stub.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    await expect(listQualityReports()).rejects.toBeTruthy();
   });
   it("listGrants maps rows + propagates an error", async () => {
     stub.rpc.mockResolvedValue({ data: [{ id: 2, email: "a@b.c", feature: "voice", value: null, granted_at: "g", expires_at: null, active: true, note: null }], error: null });

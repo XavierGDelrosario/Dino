@@ -98,10 +98,74 @@
   padding: 0.4rem 0.8rem;
 }
 
-/* Sort — its own line, left-aligned, directly above the first row. */
+/* Sort + search — one line, directly above the first row. Sort keeps its natural
+   width on the left; search takes the rest, since a query is the thing you actually
+   read back while typing. Wraps to two lines on a narrow screen rather than squeezing
+   the query into a few characters. */
 .listrows__sort {
   display: flex;
   justify-content: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.listrows__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
+/* Two classes deep on purpose: .input--sm (shared, declared LATER in this file) sets the
+   `padding` SHORTHAND, which would otherwise reset these and drop the placeholder under
+   the magnifier. The extra specificity is what keeps the room reserved for the glyphs the
+   box sits behind — magnifier left, clear button right. */
+.listrows__search .listrows__searchinput {
+  width: 100%;
+  padding-left: 2rem;
+  padding-right: 1.9rem;
+}
+
+/* Decorative magnifier, seated inside the box. pointer-events:none so a click on the
+   icon still lands on the input (the icon is part of the field, not a control). */
+.listrows__searchicon {
+  position: absolute;
+  left: 0.6rem;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* The native search-input clear affordance is inconsistent across browsers (absent in
+   Firefox, unstyleable in WebKit), so it's suppressed and replaced with our own. */
+.listrows__searchinput::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.listrows__searchclear {
+  position: absolute;
+  right: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.listrows__searchclear:hover {
+  color: var(--text);
 }
 
 /* Funnel button + its filter card (language/level/usage/word class/dates/confidence).

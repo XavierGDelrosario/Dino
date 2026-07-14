@@ -177,6 +177,40 @@ export async function listGrants(email?: string): Promise<FeatureGrant[]> {
   }));
 }
 
+/** One translation-quality report: the input that was translated + what was wrong. */
+export interface QualityReport {
+  id: number;
+  reportedAt: string;
+  reportedBy: string | null;
+  input: string;
+  description: string;
+}
+
+/**
+ * File a translation-quality report. Admin-only (the RPC gates on is_admin()).
+ * Trimming/empty-checks are re-done server-side.
+ */
+export async function reportQualityIssue(input: { input: string; description: string }): Promise<void> {
+  const { error } = await supabase.rpc("admin_report_quality_issue", {
+    p_input: input.input.trim(),
+    p_description: input.description.trim(),
+  });
+  if (error) throw toServiceError(error);
+}
+
+/** The filed quality reports, newest first. Admin-only. */
+export async function listQualityReports(limit?: number): Promise<QualityReport[]> {
+  const { data, error } = await supabase.rpc("admin_quality_reports", limit ? { p_limit: limit } : {});
+  if (error) throw toServiceError(error);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    reportedAt: r.reported_at,
+    reportedBy: r.reported_by,
+    input: r.input,
+    description: r.description,
+  }));
+}
+
 /** Health/expiry status of one external provider. */
 export interface ProviderHealth {
   provider: string;

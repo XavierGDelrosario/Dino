@@ -658,6 +658,26 @@ export type Database = {
           detail: string | null
         }[]
       }
+      admin_report_quality_issue: {
+        Args: { p_input: string; p_description: string }
+        Returns: {
+          id: number
+          reported_at: string
+          reported_by: string | null
+          input: string
+          description: string
+        }
+      }
+      admin_quality_reports: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: number
+          reported_at: string
+          reported_by: string | null
+          input: string
+          description: string
+        }[]
+      }
       admin_table_sizes: {
         Args: never
         Returns: {

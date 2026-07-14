@@ -13,8 +13,11 @@
 //   2. The row is UPDATED IN PLACE — same word_id — so a saved word's
 //      user_words.dictionary_word_id keeps pointing at it (never orphaned/duplicated).
 //      This is the whole reason the fix isn't "DELETE the stale rows".
-//   3. An MT row (dictionary_ref = mt:…) is EXEMPT: it projects nothing, so a version
-//      bump must not re-call the PAID Google endpoint for it.
+//   3. An MT row (dictionary_ref = mt:…) is gated too, as of v8 — exempting it froze the
+//      MT answer forever (接す stayed Google's "Contact" long after the dictionary could
+//      resolve it). A stale MT row buys a FREE dictionary re-check: if the dictionary now
+//      answers, it takes over; if not, the row we already paid for is revived (re-stamped
+//      + served), so a version bump still never re-calls the PAID Google endpoint.
 //
 // PREREQUISITES:
 //   1. supabase start
@@ -124,34 +127,66 @@ describe.skipIf(!RUN)("stale projections are re-projected, not served", () => {
     expect((uw!.words as unknown as { translation: string }).translation).toMatch(/cat/i);
   });
 
-  it("does NOT re-project an MT row — a version bump must never re-spend on Google", async () => {
-    const user = await makeUser();
-    const { data: sess } = await user.client.auth.getSession();
-
-    // An MT-cached word (no JMdict entry): dictionary_ref = mt:<input>, and MT rows are
-    // written with whatever version was current when they were cached.
-    // Upsert, not insert-after-delete: service_role deliberately has no DELETE grant
-    // on `words` (the dictionary is server-write-only), so the seed must be idempotent.
-    const input = "ゼゼテスト";
+  // Seed an MT-cached row (dictionary_ref = mt:<input>) at an ancient version. Upsert,
+  // not insert-after-delete: service_role deliberately has no DELETE grant on `words`
+  // (the dictionary is server-write-only), so the seed must be idempotent.
+  async function seedStaleMt(input: string, translation: string) {
     const { error } = await admin.from("words").upsert(
       {
         input,
-        translation: "mt cached meaning",
+        translation,
         source_lang: "JA",
         target_lang: "EN",
         is_verified: true,
         dictionary_ref: `mt:${input}`,
-        projection_version: 1, // ancient — but MT rows are exempt from the gate
+        projection_version: 1, // ancient → stale under the v8 gate
       },
       { onConflict: "dictionary_ref,source_lang,target_lang" },
     );
     expect(error).toBeNull();
+  }
+
+  it("REVIVES a stale MT row the dictionary still can't answer — never re-spends on Google", async () => {
+    // The money-safety half of gating MT rows (v8). The word has no dictionary entry, so
+    // the free re-check finds nothing; the row we ALREADY paid for is re-stamped current
+    // and served as-is. Google is not called (locally it isn't even configured — a
+    // fall-through would come back untranslated, which is exactly what must not happen).
+    const user = await makeUser();
+    const { data: sess } = await user.client.auth.getSession();
+    const input = "ゼゼテスト";
+    await seedStaleMt(input, "mt cached meaning");
 
     const { body } = await translate(sess.session!.access_token, input);
 
-    // Served straight from the MT cache: same text, no provider call, still version 1.
+    expect(body.translated).toBe(true);
     expect(body.word?.translation).toBe("mt cached meaning");
     const [row] = await rowsFor(input);
-    expect(row.projection_version).toBe(1); // untouched: no re-projection, no provider call
+    expect(row.projection_version).toBe(CURRENT_PROJECTION_VERSION); // revived, not re-bought
+  });
+
+  it("STOPS serving a stale MT row once the dictionary can answer (接す → 接する, not Google's gloss)", async () => {
+    // The staleness half. 接す is kuromoji's lemma for 接して; JMdict only has 接する, so the
+    // word used to fall through to MT and cache a bare "Contact" — which, while MT rows
+    // were exempt from the gate, was then served FOREVER, even after the 〜す→〜する lemma
+    // fallback taught the dictionary to resolve it. Now the stale MT row is a miss, the
+    // dictionary answers, and the MT text is never served again.
+    if (!hasDict) return; // JMdict not ingested in this environment
+    const user = await makeUser();
+    const { data: sess } = await user.client.auth.getSession();
+    const input = "接す";
+    await seedStaleMt(input, "Contact");
+
+    const { body } = await translate(sess.session!.access_token, input);
+
+    expect(body.word?.input).toBe("接する"); // the real headword…
+    expect(body.word?.inputReading).toBe("せっする"); // …with its reading, which MT never had
+    expect(body.word?.translation).toMatch(/to touch|to come in contact/i);
+    expect(body.words?.some((w: { translation: string }) => w.translation === "Contact")).toBe(false);
+
+    // The superseded MT row is left in place (a saved user_word may still reference it)
+    // but stays below the current version, so it can never win a cache read again.
+    const [mtRow] = await rowsFor(input);
+    expect(mtRow.dictionary_ref).toBe(`mt:${input}`);
+    expect(mtRow.projection_version).toBeLessThan(CURRENT_PROJECTION_VERSION);
   });
 });

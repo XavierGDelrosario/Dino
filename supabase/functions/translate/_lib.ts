@@ -401,6 +401,25 @@ function regularLemmaCandidates(w: string): string[] {
 }
 
 /**
+ * JA lemma candidates: the surface first, then its する-verb form when the surface ends
+ * in す.
+ *
+ * kuromoji/IPADIC files the stem of a する-verb under a 五段・サ行 lemma ending in す —
+ * 接して → 接す, 察して → 察す — but JMdict's headword is 接する / 察する, so the lemma
+ * misses the dictionary entirely and the word falls through to the paid MT fallback
+ * (which answers with a bare, sentence-cased gloss like "Contact"). Offering 〜する as a
+ * FALLBACK candidate resolves it to the real entry, with readings, senses and frequency.
+ *
+ * The surface is always tried FIRST, so genuine 五段 〜す verbs (出す, 話す, 返す, 消す)
+ * still resolve to themselves; the する candidate is only consulted when the surface has
+ * no entry, and a bogus one (出する) simply returns no rows.
+ */
+function jaSuruCandidates(input: string): string[] {
+  if (input.length < 2 || !input.endsWith("す")) return [input];
+  return [input, `${input.slice(0, -1)}する`];
+}
+
+/**
  * Lemma candidates for a query, keyed on SOURCE language — the per-language input seam.
  * Returns the SURFACE form first (morphy tries it before lemmatizing), then ordered
  * base-form candidates. The caller looks each up IN ORDER and keeps the first that
@@ -408,9 +427,13 @@ function regularLemmaCandidates(w: string): string[] {
  *   EN — WordNet-morphy: irregular map + regular detachment rules. Covers cats→cat,
  *        ran→run, studies→study, running→run, mice→mouse. Long-tail irregulars are the
  *        Princeton verb.exc/noun.exc upgrade (see docs/TODO.md).
- *   other — identity ([input]); JA arrives pre-lemmatized from kuromoji.
+ *   JA — arrives pre-lemmatized from kuromoji, but IPADIC's lemma for the stem of a
+ *        する-verb is a 五段 〜す form JMdict has no headword for (接して → 接す, while the
+ *        entry is 接する). See jaSuruCandidates.
+ *   other — identity ([input]).
  */
 export function lemmaCandidates(input: string, sourceLang: string): string[] {
+  if (sourceLang.toUpperCase() === "JA") return jaSuruCandidates(input);
   if (sourceLang.toUpperCase() !== "EN") return [input];
   const w = input.toLowerCase();
   const cands = [input];
@@ -422,6 +445,36 @@ export function lemmaCandidates(input: string, sourceLang: string): string[] {
   if (EN_IRREGULARS[w]) push(EN_IRREGULARS[w]);
   for (const c of regularLemmaCandidates(w)) push(c);
   return cands;
+}
+
+/**
+ * First-hit-wins resolution over lemma candidates, for the directions served by a
+ * SINGLE provider (JA→EN and every non-EN→JA pair). The caller queries the UNION of
+ * every input's candidates in one RPC (`byCand` is keyed by candidate); each input then
+ * takes the senses of its FIRST candidate that resolved — so the surface form always
+ * beats its fallback lemma (出す stays 出す; only 接す, which has no entry, falls back to
+ * 接する). Results are re-keyed to the ORIGINAL input, which is what the reader looks
+ * meanings up by. Inputs that resolve to nothing are omitted.
+ *
+ * (EN→JA has its own resolver — resolvePerInputWithCandidates — because it merges TWO
+ * providers, WordNet + the gloss fallback, per candidate.)
+ */
+export function resolvePerInputFirstHit(
+  inputs: string[],
+  candsByInput: Map<string, string[]>,
+  byCand: Map<string, ProviderResult[]>,
+): Map<string, ProviderResult[]> {
+  const out = new Map<string, ProviderResult[]>();
+  for (const input of inputs) {
+    for (const cand of candsByInput.get(input) ?? [input]) {
+      const hit = byCand.get(cand);
+      if (hit && hit.length > 0) {
+        out.set(input, hit);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /**

@@ -50,6 +50,7 @@ import {
   projectMany,
   projectRows,
   resolvePerInputWithCandidates,
+  resolvePerInputFirstHit,
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
@@ -76,7 +77,10 @@ import {
 //       gloss head-match order), fixing common-but-wrong primaries (cat→猫 not やつ).
 //       Only the EN→JA sensePos ORDER changed; cached rows keep the old order until
 //       re-translated (the deferred #5 sweep flags version < 7).
-const CURRENT_PROJECTION_VERSION = 7;
+//   8 = JA 〜す→〜する lemma fallback (kuromoji's 接す resolves to JMdict's 接する instead
+//       of falling through to MT) + MT rows are no longer exempt from the gate below, so
+//       a word MT once answered gets one FREE dictionary re-check (reviveMtRows).
+const CURRENT_PROJECTION_VERSION = 8;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up
@@ -86,13 +90,17 @@ const CURRENT_PROJECTION_VERSION = 7;
 // and `user_words.dictionary_word_id` never dangles. Nothing is deleted; the cache
 // heals as words are used.
 //
-// MT rows (`dictionary_ref` = `mt:<input>`) are EXEMPT — they project nothing, so
-// "re-projecting" one would just re-call the PAID Google endpoint for the same text. A
-// version bump must never become a spend event.
+// MT rows (`dictionary_ref` = `mt:<input>`) are gated TOO, as of v8. They used to be
+// exempt — nothing to re-project, and redoing one costs money — but that froze an MT
+// answer forever: 接す stayed Google's "Contact" even after the dictionary learned to
+// resolve it, because the MT row was always a hit so the dictionary was never asked
+// again. The spend concern is handled by reviveMtRows instead: a stale MT row is a MISS,
+// which buys a FREE dictionary re-check, and if the dictionary still has nothing we
+// serve the MT text we ALREADY paid for and re-stamp it current. Google is never
+// re-called, so a version bump still costs nothing.
 //
 // MIRRORS src/lib/projection.ts (separate runtime; tests fail if the two drift).
-const FRESH_OR_MT =
-  `projection_version.gte.${CURRENT_PROJECTION_VERSION},dictionary_ref.like.mt:*`;
+const FRESH = `projection_version.gte.${CURRENT_PROJECTION_VERSION}`;
 
 // Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
 // `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
@@ -252,7 +260,14 @@ async function resolveDictionary(
     );
     return resolved.get(input) ?? [];
   }
-  return lookupJMdict(supabase, input, sourceLang, targetLang);
+  // JA→EN (and every other pair): one provider, but the input may still need a lemma
+  // candidate — kuromoji hands us IPADIC's 〜す lemma for a する-verb stem (接して → 接す)
+  // and JMdict only carries 接する. Surface first, so 出す/話す are untouched; the extra
+  // candidate costs one batched RPC instead of a paid MT call.
+  const cands = lemmaCandidates(input, sourceLang);
+  if (cands.length === 1) return lookupJMdict(supabase, input, sourceLang, targetLang);
+  const byCand = groupProviderByInput(await lookupJMdictMany(supabase, cands, sourceLang, targetLang));
+  return resolvePerInputFirstHit([input], new Map([[input, cands]]), byCand).get(input) ?? [];
 }
 
 // One DB row from a (single or _many) lookup function → a ProviderResult. Shared by
@@ -346,10 +361,14 @@ async function resolveDictionaryMany(
       out.set(input, results);
     }
   } else {
-    const by = groupProviderByInput(await lookupJMdictMany(supabase, inputs, sourceLang, targetLang));
-    for (const input of inputs) {
-      const r = by.get(input) ?? [];
-      if (r.length > 0) out.set(input, r);
+    // Same first-hit-wins candidate resolution as the single-word path, over the UNION
+    // of every token's candidates — so a paragraph's 接して (lemma 接す) reads from the
+    // 接する entry instead of dropping to MT, still in ONE round-trip.
+    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    const allCands = [...new Set([...candsByInput.values()].flat())];
+    const byCand = groupProviderByInput(await lookupJMdictMany(supabase, allCands, sourceLang, targetLang));
+    for (const [input, results] of resolvePerInputFirstHit(inputs, candsByInput, byCand)) {
+      out.set(input, results);
     }
   }
   return out;
@@ -626,7 +645,7 @@ async function fetchVerified(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.eq.${q},input_reading.eq.${q}`)
-    .or(FRESH_OR_MT); // a stale projection is a MISS → re-projected in place
+    .or(FRESH); // a stale projection is a MISS → re-projected in place
   if (isReverseIntoJa(sourceLang, targetLang)) {
     // EN→JA: uniform input-frequency → order by the projected sense rank.
     query = query
@@ -694,13 +713,52 @@ async function fetchVerifiedMany(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.in.(${list}),input_reading.in.(${list})`)
-    .or(FRESH_OR_MT) // a stale projection is a MISS → re-projected in place
+    .or(FRESH) // a stale projection is a MISS → re-projected in place
     // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
     // words keep the lookup's primary on the cache read.
     .order("frequency", { ascending: false, nullsFirst: false })
     .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
+  return (data ?? []) as WordRow[];
+}
+
+/**
+ * REVIVE the MT rows for inputs the dictionary just failed to resolve — the piece that
+ * lets MT rows be version-gated without a bump ever costing money (see FRESH above).
+ *
+ * A stale MT row is a cache miss, so the caller has already re-asked the dictionary for
+ * free. If the dictionary answered, we never get here and the stale MT row simply stops
+ * being served (it stays below the current version, so it can never win a cache read
+ * again — dead storage, but nothing is deleted, so a `user_words` row still pointing at
+ * it keeps resolving). If the dictionary still has nothing, THIS runs: re-stamp the row
+ * we already paid Google for to the current version and serve it, so the word is a plain
+ * cache hit again until the next bump — and Google is not called.
+ *
+ * Returns the revived rows (UPDATE … RETURNING, so it re-stamps and reads in one trip).
+ * Fails OPEN: on error we return none and the caller proceeds to the normal paid path,
+ * which is correct-but-costly rather than wrong.
+ */
+async function reviveMtRows(
+  supabase: Supa,
+  inputs: string[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<WordRow[]> {
+  if (inputs.length === 0) return [];
+  const { data, error } = await supabase
+    .from("words")
+    .update({ projection_version: CURRENT_PROJECTION_VERSION })
+    .eq("source_lang", sourceLang)
+    .eq("target_lang", targetLang)
+    .eq("is_verified", true)
+    .in("dictionary_ref", inputs.map((i) => `mt:${i}`))
+    .lt("projection_version", CURRENT_PROJECTION_VERSION)
+    .select("*");
+  if (error) {
+    console.error("MT revive failed:", error.message);
+    return [];
+  }
   return (data ?? []) as WordRow[];
 }
 
@@ -817,11 +875,19 @@ async function resolveBatch(
   //    MT per word and refund the reserved-but-unspent remainder.
   const canMT = mtConfigured() && !!userId;
   const stillMissing = missing.filter((i) => !dictByInput.has(i));
-  if (canMT && stillMissing.length > 0) {
+
+  // 3a. Revive before spending: a word the dictionary still lacks may already have a
+  //     PAID MT row that the version gate marked stale. Re-stamp + reuse it (free); only
+  //     what has no MT row at all goes to Google. Same rule as the single path.
+  const revivedRows = await reviveMtRows(supabase, stillMissing, sourceLang, targetLang);
+  const revived = new Set(revivedRows.map((r) => r.input));
+
+  const needMT = stillMissing.filter((i) => !revived.has(i));
+  if (canMT && needMT.length > 0) {
     const limits = await resolveLimits(supabase, userId!);
     // (#2) over-cap entries are never sent to paid MT (the per-request paragraph cap
     // holds on the batch path too).
-    const mtWords = stillMissing.filter((i) => i.length <= limits.paragraphCharLimit);
+    const mtWords = needMT.filter((i) => i.length <= limits.paragraphCharLimit);
     const totalChars = mtWords.reduce((n, w) => n + w.length, 0);
     if (totalChars > 0) {
       const reserve = await reserveQuota(supabase, userId!, totalChars, limits.monthlyCharQuota);
@@ -869,7 +935,8 @@ async function resolveBatch(
   //      writing of はやい, stored under headword 早い, so neither its headword (早い)
   //      nor its reading (はやい) equals the search term 速い — groupByInput alone
   //      drops it (the single path doesn't, hence the single/batch discrepancy).
-  const cachedByTerm = groupByInput(cachedRows, inputs);
+  //    - Revived MT rows (3a) are cache hits too — their `input` IS the search term.
+  const cachedByTerm = groupByInput([...cachedRows, ...revivedRows], inputs);
   const refToTerms = new Map<string, string[]>();
   for (const { input, results } of perInput) {
     for (const r of projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION)) {
@@ -1095,6 +1162,15 @@ async function handleRequest(req: Request): Promise<Response> {
   //    (The app's guests are real anonymous-auth users, so they always have a sub.)
   const userId = userIdFromAuth(req.headers.get("Authorization"));
   let results = await resolveDictionary(supabase, input, sourceLang, targetLang);
+
+  // 2a. The dictionary has nothing — but this word may already have a PAID MT row that
+  //     the version gate just treated as stale. Serve that (re-stamped) instead of
+  //     buying the same text again; only a word with no MT row at all reaches Google.
+  if (persist && results.length === 0) {
+    const revived = await reviveMtRows(supabase, [input], sourceLang, targetLang);
+    if (revived.length > 0) return reply(respondWords(input, revived));
+  }
+
   if (results.length === 0 && mtConfigured() && userId) {
     // MT is the only PAID path → enforce the caller's limits here, the hard
     // server-side gate (the client also pre-checks for UX). Both checks happen

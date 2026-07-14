@@ -16,6 +16,7 @@ const ADMIN_RPCS = [
   "admin_provider_health",
   "admin_list_grants",
   "admin_table_sizes",
+  "admin_quality_reports",
 ];
 
 describe.skipIf(!ENABLED)("admin: gating denies non-admins", () => {
@@ -33,6 +34,26 @@ describe.skipIf(!ENABLED)("admin: gating denies non-admins", () => {
       expect(error, `${fn} should deny a non-admin`).not.toBeNull();
       expect(error?.code).toBe("42501");
     }
+  });
+});
+
+describe.skipIf(!ENABLED)("admin: quality reports are admin-only end to end", () => {
+  it("a non-admin can neither file a report nor touch the table directly", async () => {
+    const u = await makeUser();
+    // The write RPC gates before it validates its args.
+    const { error: rpcErr } = await u.client.rpc("admin_report_quality_issue", {
+      p_input: "辛い",
+      p_description: "wrong sense",
+    });
+    expect(rpcErr?.code).toBe("42501");
+
+    // …and the table itself is server-only (no policies, no grants).
+    const { error: readErr } = await u.client.from("quality_reports").select("*");
+    expect(readErr).not.toBeNull();
+    const { error: writeErr } = await u.client
+      .from("quality_reports")
+      .insert({ input: "辛い", description: "wrong sense" });
+    expect(writeErr).not.toBeNull();
   });
 });
 

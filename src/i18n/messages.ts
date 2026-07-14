@@ -96,6 +96,10 @@ export const en = {
   "lists.sortOldest": "Oldest first",
   "lists.sortConfAsc": "Confidence: low → high",
   "lists.sortConfDesc": "Confidence: high → low",
+  // search bar (next to sort): matches headword, meaning, and — for a kana query — reading
+  "lists.searchPlaceholder": "Search words, meanings, readings…",
+  "lists.searchAria": "Search words",
+  "lists.searchClear": "Clear search",
   // filter menu (funnel button): language → its proficiency levels, usage, word class
   "lists.filterAria": "Filter words",
   "lists.filterTitle": "Filter",
@@ -411,6 +415,9 @@ export const ja: Record<MessageKey, string> = {
   "lists.sortOldest": "古い順",
   "lists.sortConfAsc": "自信度：低い → 高い",
   "lists.sortConfDesc": "自信度：高い → 低い",
+  "lists.searchPlaceholder": "単語・意味・読みを検索…",
+  "lists.searchAria": "単語を検索",
+  "lists.searchClear": "検索をクリア",
   "lists.filterAria": "単語をフィルター",
   "lists.filterTitle": "フィルター",
   "lists.filterClear": "すべて解除",

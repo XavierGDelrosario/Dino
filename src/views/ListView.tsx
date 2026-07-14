@@ -18,8 +18,10 @@ import {
   NO_FILTERS,
   type WordFilters,
 } from "../services/words/filters";
+import { makeSearchMatcher } from "../services/words/search";
 import { partOfSpeechCategory, POS_CATEGORIES, type PosCategory } from "../services/language";
 import { useI18n } from "../i18n";
+import { SearchIcon, XIcon } from "../components/common/icons";
 import { ErrorText } from "../components/common/ErrorText";
 import type { UserWord } from "../services/words/userWords";
 import "../components/lists/lists.css";
@@ -80,6 +82,10 @@ export function ListView({
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
   const [sort, setSort] = useState<SortBy>("newest");
+  // Free-text search (headword · meaning · reading — see services/words/search.ts). Kept
+  // out of `filters`: that value is the funnel menu's, and a query isn't an axis you
+  // toggle. It narrows the same way a filter does, though — see `visible`.
+  const [query, setQuery] = useState("");
   // Which panel is open below the actions row. ONE at a time — both are big blocks
   // that push the rows down, so stacking them would bury the list.
   const [panel, setPanel] = useState<"add" | "filter" | null>(null);
@@ -88,8 +94,10 @@ export function ListView({
   // presentational). The resting value narrows nothing; the view only sorts + pages.
   const [filters, setFilters] = useState<WordFilters>(NO_FILTERS);
 
-  // Any filter narrowing WHICH words show (sort doesn't change the set).
-  const filtersActive = activeFilterCount(filters) > 0;
+  // Anything narrowing WHICH words show (sort doesn't change the set). The search query
+  // counts: "Review" quizzes exactly what's on screen, and a search is how you'd pick the
+  // handful of words you want to drill.
+  const filtersActive = activeFilterCount(filters) > 0 || query.trim() !== "";
 
   // The attribute values actually present in the current list — the filter menu only
   // offers a language/word class you could actually match.
@@ -108,10 +116,14 @@ export function ListView({
   // The words the current filters match, in the chosen sort order.
   // makeMatcher, not matchesFilters: the cutoffs/bounds/band sets are resolved ONCE
   // per pass rather than per word (a confidence drag re-filters on every pointer event).
-  const visible = useMemo(
-    () => sortWords(L.words.filter(makeMatcher(filters)), sort),
-    [L.words, filters, sort]
-  );
+  const visible = useMemo(() => {
+    const matchesFilter = makeMatcher(filters);
+    const matchesQuery = makeSearchMatcher(query);
+    return sortWords(
+      L.words.filter((w) => matchesFilter(w) && matchesQuery(w)),
+      sort
+    );
+  }, [L.words, filters, query, sort]);
 
   // ---- Multi-select -------------------------------------------------------
   // Selection is held as user_word IDs, NOT rows, and is deliberately NOT cleared
@@ -168,7 +180,7 @@ export function ListView({
   const [page, setPage] = useState(0);
   useEffect(() => {
     setPage(0);
-  }, [L.selectedListId, sort, filters]);
+  }, [L.selectedListId, sort, filters, query]);
 
   // Paged over `rows` (filtered set + pinned picks), so the pinned block leads page 1.
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -325,17 +337,12 @@ export function ListView({
         </p>
       )}
 
-      {/* Nothing matches — but a pinned pick still counts as a row, so key this on
-          `rows`, or the picks would render underneath a "no matches" message. */}
-      {L.status === "ready" && L.words.length > 0 && rows.length === 0 && (
-        <p className="review__msg">{t("lists.noMatch")}</p>
-      )}
-
-      {/* The row directly above the words: sort on the left, and — in select mode —
-          the selection count + its actions on the right. Both act on the rows below
-          (reorder them / act on the picked ones), so they share ONE line; entering
-          select mode must not push the list down by a whole new row. */}
-      {L.status === "ready" && shown.length > 0 && (
+      {/* The row directly above the words: sort, then search. Both act on the rows below
+          (reorder them / narrow them), so they share ONE line. Gated on the LIST having
+          words, not on any being shown — a search that matches nothing must keep its own
+          box on screen, or you'd have no way to edit or clear the query that emptied the
+          list. */}
+      {L.status === "ready" && L.words.length > 0 && (
         <div className="listrows__sort">
           <select
             className="select select--sm"
@@ -349,7 +356,37 @@ export function ListView({
             <option value="conf-desc">{t("lists.sortConfDesc")}</option>
           </select>
 
+          <div className="listrows__search">
+            {/* Decorative — the input already carries the label. */}
+            <span className="listrows__searchicon" aria-hidden="true">
+              <SearchIcon size={15} />
+            </span>
+            <input
+              type="search"
+              className="input input--sm listrows__searchinput"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("lists.searchPlaceholder")}
+              aria-label={t("lists.searchAria")}
+            />
+            {query && (
+              <button
+                type="button"
+                className="listrows__searchclear"
+                onClick={() => setQuery("")}
+                aria-label={t("lists.searchClear")}
+              >
+                <XIcon size={14} />
+              </button>
+            )}
+          </div>
         </div>
+      )}
+
+      {/* Nothing matches — but a pinned pick still counts as a row, so key this on
+          `rows`, or the picks would render underneath a "no matches" message. */}
+      {L.status === "ready" && L.words.length > 0 && rows.length === 0 && (
+        <p className="review__msg">{t("lists.noMatch")}</p>
       )}
 
       {L.status === "ready" && shown.length > 0 && (

@@ -12,7 +12,7 @@
 import { supabase } from "../../config/supabaseClient";
 import { nfc } from "../../lib/text";
 import { toServiceError } from "../errors";
-import { FRESH_OR_MT } from "../../lib/projection";
+import { FRESH } from "../../lib/projection";
 import { getCachedSenses, setCachedSenses } from "./cache";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
@@ -113,9 +113,10 @@ export async function findCachedWord(params: {
     .eq("target_lang", targetLang)
     // Skip rows projected by OLDER logic — a stale hit here would short-circuit the
     // edge and serve the pre-fix projection forever. Treating them as a miss sends the
-    // word to the edge, which re-projects it in place. (MT rows are exempt: nothing to
-    // re-project, and redoing one costs money.)
-    .or(FRESH_OR_MT)
+    // word to the edge, which re-projects it in place. MT rows are gated too: the edge
+    // re-checks the dictionary for free and only falls back on the paid text it already
+    // has (see src/lib/projection.ts).
+    .or(FRESH)
     .order("is_verified", { ascending: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
     .limit(1);
@@ -150,7 +151,7 @@ export async function findWordTranslations(params: {
     .eq("input", input)
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
-    .or(FRESH_OR_MT) // stale projections are a MISS (see findCachedWord)
+    .or(FRESH) // stale projections are a MISS (see findCachedWord)
     .order("is_verified", { ascending: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
 
@@ -193,7 +194,7 @@ export async function findWordTranslationsBatch(params: {
     .in("input", misses)
     .eq("source_lang", sourceLang)
     .eq("target_lang", targetLang)
-    .or(FRESH_OR_MT) // stale projections are a MISS (see findCachedWord)
+    .or(FRESH) // stale projections are a MISS (see findCachedWord)
     .order("is_verified", { ascending: false })
     .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
   if (error) throw toServiceError(error);
