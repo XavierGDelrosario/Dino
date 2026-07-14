@@ -311,6 +311,36 @@
   margin: -0.35rem -0.5rem;
 }
 
+/* Part-of-speech, collapsed to two rows on a phone (see PosChecks in FilterMenu.tsx).
+   --pos-clamp is the MEASURED bottom of row 2, set by that component — the options wrap
+   differently per language and touch devices force 16px fields, so a hard-coded height
+   would be wrong somewhere. Clipping (not `display:none`) keeps every option laid out,
+   which is what makes the measurement stay valid while collapsed. */
+.filtermenu__checks--clamped {
+  max-height: var(--pos-clamp);
+  overflow: hidden;
+}
+
+/* Reads as a link, not a control — it reveals rows, it doesn't filter anything. Aligned
+   with the options above it (which are pulled out by the container's negative margin). */
+.filtermenu__more {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  padding: 0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filtermenu__more:hover,
+.filtermenu__more:focus-visible {
+  text-decoration: underline;
+}
+
 .filtermenu__check {
   display: inline-flex;
   align-items: center;

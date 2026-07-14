@@ -5,9 +5,22 @@
 // user_word carries a `stability` (memory strength, in days); recall
 // probability at time t is the Ebbinghaus/Duolingo-HLR shape
 //   R(t) = exp(-Δdays / stability).
-// There is NO stored next-review date: the "review queue" is simply the user's
-// vocabulary ranked by CURRENT R ascending (least confident first). A scheduled
-// quiz is "give me the N least-confident words", never "these are due now".
+// There is NO stored next-review date — "due" is computed from that curve, not looked up.
+//
+// A session is dealt in TWO phases (migration 20260732; the SQL is the authority):
+//   DUE  — words whose R has fallen to the freshness line (≤ 0.9), most-overdue first.
+//          That line is the SAME one record_review freezes at, so the queue and the
+//          scheduler agree by construction: a card the scheduler would learn nothing
+//          from is never dealt. Confidence 5 is included here — a mature word that has
+//          actually decayed is the whole point, and it's how a known word can lapse.
+//   FILL — when nothing (or too little) is due, top the session up from the NOT-due pool,
+//          shakiest first: confidence ≤3 mostly, ~1 in 5 slots a confidence 4, and NEVER
+//          a confidence 5. Fill cards are fresh, so grading them is frozen (logged, no
+//          schedule change) — they are practice, not evidence.
+//
+// Why the gate exists: without it the queue dealt the top-N regardless of due-ness, and
+// the cram freeze made grading those cards a no-op — so the same few confidence-5 words
+// were replayed every session, forever. See 20260732's header.
 //
 // Split of responsibility:
 //   * retrievability()  — the pure decay formula (ranking, fully unit-tested).
@@ -100,10 +113,11 @@ interface ReviewQueueRow {
 }
 
 /**
- * The N least-confident words, ranked by CURRENT retrievability ascending (new /
- * most-forgotten first), ties broken by oldest review. This is the review surface
- * — not a due-date schedule. Scoped to one sub-list when `listId` is given, else
- * the whole vocabulary (ALL).
+ * A review session: the DUE words (most-forgotten first), topped up with shaky NOT-due
+ * ones when little or nothing is due — see the two-phase model in the module header. An
+ * EMPTY result is a real answer, not an error: it means nothing is due and there is
+ * nothing shaky left to practise (every remaining word is known cold). Scoped to one
+ * sub-list when `listId` is given, else the whole vocabulary (ALL).
  *
  * The ranking + LIMIT run in the `review_queue` Postgres function, so only the ≤
  * `limit` cards cross the wire (not the whole vocabulary). The R = exp(-Δ/S)

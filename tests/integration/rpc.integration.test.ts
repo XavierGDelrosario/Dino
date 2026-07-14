@@ -21,6 +21,7 @@ import { describe, it, expect } from "vitest";
 import {
   ENABLED,
   SERVICE_KEY,
+  backdateReview,
   makeList,
   makeStandaloneWord,
   makeUser,
@@ -429,10 +430,10 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_words", () => {
 describe.skipIf(!ENABLED)("rpc: review_queue", () => {
   it("ranks least-confident first and respects the limit", async () => {
     const u = await makeUser();
-    // never-reviewed (R=0) + a strong one (R≈1). Both standalone words.
+    // never-reviewed (R=0) + a strong one (conf 5, just reviewed → R≈1). Both standalone.
     const fresh = await makeStandaloneWord(u, { input: "新出", meaning: "new word" });
     const strong = await makeStandaloneWord(u, { input: "得意", meaning: "strong word" });
-    await u.client.rpc("record_review", { p_user_word_id: strong, p_grade: 5 }); // stability 7, R≈1
+    await u.client.rpc("record_review", { p_user_word_id: strong, p_grade: 5 });
 
     const { data, error } = await u.client.rpc("review_queue", {
       p_user_id: u.userId,
@@ -443,11 +444,80 @@ describe.skipIf(!ENABLED)("rpc: review_queue", () => {
     expect(queue[0].user_word_id).toBe(fresh); // R=0 sorts first
     expect(queue[0].retrievability).toBe(0);
     expect(queue[0].translation).toBe("new word"); // resolved meaning rides along
-    // the strong word is present but ranked after the fresh one
-    expect(queue.find((q) => q.user_word_id === strong)!.retrievability).toBeGreaterThan(0.9);
+    // …and the strong word is NOT dealt at all (20260732): it is fresh, so record_review
+    // would FREEZE any grade ≥3 on it — a card the scheduler can't learn from is a card
+    // that must not be served, or it comes back forever (the conf-5 replay bug).
+    expect(queue.some((q) => q.user_word_id === strong)).toBe(false);
 
     const limited = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 1 });
     expect((limited.data as unknown[]).length).toBe(1);
+  });
+
+  // ── the due gate + fill phases (migration 20260732) ───────────────────────
+  // The bug: with no due gate the queue dealt the least-fresh of a fully-fresh set, and
+  // 20260729's cram freeze made grading those cards a no-op — so the SAME few conf-5
+  // words came back every session, forever. These pin the fix.
+  it("deals NOTHING when the whole vocabulary is known and fresh (no conf-5 replay)", async () => {
+    const u = await makeUser();
+    for (const input of ["住まい", "会議", "経済"]) {
+      const id = await makeStandaloneWord(u, { input, meaning: `${input}-m` });
+      await u.client.rpc("record_review", { p_user_word_id: id, p_grade: 5 });
+    }
+    // Three sessions in a row: all empty. (Before the fix: the same three cards, forever.)
+    for (let session = 0; session < 3; session++) {
+      const { data } = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 10 });
+      expect(data as unknown[]).toHaveLength(0);
+    }
+  });
+
+  it("still deals a conf-5 word that has genuinely DECAYED (a mature word must be able to lapse)", async () => {
+    const u = await makeUser();
+    const decayed = await makeStandaloneWord(u, { input: "住まい", meaning: "residence" });
+    const held = await makeStandaloneWord(u, { input: "会議", meaning: "meeting" });
+    await u.client.rpc("record_review", { p_user_word_id: decayed, p_grade: 5 }); // S ≈ 40d
+    await u.client.rpc("record_review", { p_user_word_id: held, p_grade: 5 });
+
+    // 60 days later: R = exp(-60/40) ≈ 0.22 → below the 0.9 freshness line → DUE.
+    if (!(await backdateReview(decayed, 60))) return; // no direct DB access → skip
+
+    const { data } = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 10 });
+    const queue = data as { user_word_id: string; confidence_rating: number }[];
+    expect(queue.map((q) => q.user_word_id)).toContain(decayed); // decayed conf-5 → served
+    expect(queue.map((q) => q.user_word_id)).not.toContain(held); // still fresh → not served
+    expect(queue.find((q) => q.user_word_id === decayed)!.confidence_rating).toBe(5);
+  });
+
+  it("fills a quiet session with the tuned mix — 12–17 conf ≤3, 3–8 conf-4, a conf-5 cameo at most", async () => {
+    // Migration 20260734, against the default 20-card session: 3–8 conf-4, the rest shaky
+    // (≤3), and confidence 5 ONLY via a 1%-per-slot cameo — capped at one, never filler.
+    // The quotas are randomized per session, so assert the CONTRACT (bounds + the cap),
+    // not one draw; the distribution itself was measured over 200 sessions.
+    const u = await makeUser();
+    const grade = async (input: string, g: number) => {
+      const id = await makeStandaloneWord(u, { input, meaning: `${input}-m` });
+      await u.client.rpc("record_review", { p_user_word_id: id, p_grade: g });
+      return id;
+    };
+    for (let i = 0; i < 25; i++) await grade(`低${i}`, i % 2 ? 2 : 3); // conf 2–3, well populated
+    for (let i = 0; i < 10; i++) await grade(`中${i}`, 4); // conf 4 — enough to fill the widened band
+    for (let i = 0; i < 8; i++) await grade(`熟${i}`, 5); // conf 5
+
+    // Nothing is due (everything was just reviewed) → every session is pure FILL.
+    for (let session = 0; session < 5; session++) {
+      const { data } = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 20 });
+      const queue = data as { confidence_rating: number }[];
+      expect(queue).toHaveLength(20);
+
+      const low = queue.filter((q) => q.confidence_rating <= 3).length;
+      const four = queue.filter((q) => q.confidence_rating === 4).length;
+      const five = queue.filter((q) => q.confidence_rating === 5).length;
+
+      expect(five, "the conf-5 cameo is capped at ONE per session").toBeLessThanOrEqual(1);
+      expect(four, "conf-4 is a 15% floor + a uniform draw → 3–8 of 20").toBeGreaterThanOrEqual(3);
+      expect(four).toBeLessThanOrEqual(8);
+      expect(low, "the shaky pool is still the bulk of the session").toBeGreaterThanOrEqual(11);
+      expect(low + four + five).toBe(20);
+    }
   });
 
   it("scopes to a sub-list when p_list_id is given", async () => {

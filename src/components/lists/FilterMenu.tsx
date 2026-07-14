@@ -14,7 +14,7 @@
 // (JLPT for JA, CEFR for EN) with every band already checked — unchecking the
 // language hides them again. The bands can't be a flat list because the scale
 // itself is per-language.
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FilterIcon } from "../common/icons";
 import { COMMONNESS_LABEL_KEY, POS_LABEL_KEY } from "../common/wordLabels";
 import { proficiencyFrameworkFor } from "../../services/proficiency";
@@ -37,6 +37,107 @@ const USAGE_BANDS: LevelValue[] = [1, 2, 3, 4, 5];
 
 const langName = (code: string) =>
   targetOptions().find((o) => o.code === code)?.name ?? code;
+
+// ── The part-of-speech axis, collapsed on a phone ───────────────────────────
+// It's the one axis whose length is DATA-driven (one option per word class actually
+// present in the vocabulary — up to a dozen), and on a phone the panel is a single
+// column (the 560px breakpoint in lists.css), so it can run four or five rows and
+// push every axis below it off-screen. Two rows, then a button.
+const POS_COLLAPSED_ROWS = 2;
+const PHONE = "(max-width: 560px)";
+
+/** The POS checks, clamped to POS_COLLAPSED_ROWS on a phone.
+ *
+ *  Rows are MEASURED (grouping the options by their laid-out `offsetTop`) rather than
+ *  assumed from a pixel height: the options wrap differently per language — "Adjectival
+ *  noun" vs "形容動詞" — and touch devices now force fields to 16px (the iOS zoom fix),
+ *  so any hard-coded two-row height would be wrong somewhere. Clipping happens in CSS
+ *  (`max-height: var(--pos-clamp)`), which doesn't move anything, so the measurement
+ *  stays valid while collapsed. */
+function PosChecks({
+  posPresent,
+  selected,
+  onToggle,
+}: {
+  posPresent: PosCategory[];
+  selected: PosCategory[];
+  onToggle: (category: PosCategory) => void;
+}) {
+  const { t } = useI18n();
+  const ref = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  // How many options fall below the fold when collapsed. 0 ⇒ everything fits (or we're
+  // not on a phone) ⇒ no button, no clamp — the desktop panel is untouched.
+  const [hidden, setHidden] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const measure = () => {
+      const clear = () => {
+        el.style.removeProperty("--pos-clamp");
+        setHidden(0);
+      };
+      // `?.` — matchMedia is absent in jsdom (and in any non-browser host a future native
+      // shell might use). No media query ⇒ assume not a phone ⇒ never clamp: the failure
+      // mode is "shows every option", not "hides options with no way to reveal them".
+      if (!window.matchMedia?.(PHONE).matches) return clear();
+
+      const items = Array.from(el.children) as HTMLElement[];
+      const rowTops = [...new Set(items.map((i) => i.offsetTop))].sort((a, b) => a - b);
+      if (rowTops.length <= POS_COLLAPSED_ROWS) return clear();
+
+      const lastVisibleTop = rowTops[POS_COLLAPSED_ROWS - 1];
+      const fold = Math.max(
+        ...items.filter((i) => i.offsetTop === lastVisibleTop).map((i) => i.offsetTop + i.offsetHeight),
+      );
+      el.style.setProperty("--pos-clamp", `${fold}px`);
+      setHidden(items.filter((i) => i.offsetTop > lastVisibleTop).length);
+    };
+
+    measure();
+    // The row count depends on the panel's width, so re-measure when it can change.
+    // (A plain resize listener, not a ResizeObserver on `el` — clamping changes el's own
+    // height, which an observer on it would see as a resize and re-enter.)
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, [posPresent]);
+
+  const clamped = hidden > 0 && !expanded;
+
+  return (
+    <>
+      <div
+        ref={ref}
+        className={`filtermenu__checks${clamped ? " filtermenu__checks--clamped" : ""}`}
+      >
+        {posPresent.map((category) => (
+          <Check
+            key={category}
+            label={t(POS_LABEL_KEY[category])}
+            checked={selected.includes(category)}
+            onChange={() => onToggle(category)}
+          />
+        ))}
+      </div>
+      {hidden > 0 && (
+        <button
+          type="button"
+          className="filtermenu__more"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {expanded ? t("lists.filterPosLess") : t("lists.filterPosMore", { n: hidden })}
+        </button>
+      )}
+    </>
+  );
+}
 
 function Check({
   label,
@@ -192,16 +293,11 @@ export function FilterPanel({
       {posPresent.length > 0 && (
         <section className="filtermenu__section">
           <h4 className="filtermenu__label">{t("lists.filterPos")}</h4>
-          <div className="filtermenu__checks">
-            {posPresent.map((category) => (
-              <Check
-                key={category}
-                label={t(POS_LABEL_KEY[category])}
-                checked={filters.pos.includes(category)}
-                onChange={() => onChange({ ...filters, pos: toggle(filters.pos, category) })}
-              />
-            ))}
-          </div>
+          <PosChecks
+            posPresent={posPresent}
+            selected={filters.pos}
+            onToggle={(category) => onChange({ ...filters, pos: toggle(filters.pos, category) })}
+          />
         </section>
       )}
 

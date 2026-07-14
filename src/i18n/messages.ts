@@ -96,8 +96,10 @@ export const en = {
   "lists.sortOldest": "Oldest first",
   "lists.sortConfAsc": "Confidence: low → high",
   "lists.sortConfDesc": "Confidence: high → low",
-  // search bar (next to sort): matches headword, meaning, and — for a kana query — reading
-  "lists.searchPlaceholder": "Search words, meanings, readings…",
+  // search bar (next to sort). The prompt is just "Search" — the box is small and the
+  // magnifier already says what it is. It still matches headword, meaning, and (for a kana
+  // query) reading; see services/words/search.ts.
+  "lists.searchPlaceholder": "Search",
   "lists.searchAria": "Search words",
   "lists.searchClear": "Clear search",
   // filter menu (funnel button): language → its proficiency levels, usage, word class
@@ -107,6 +109,8 @@ export const en = {
   "lists.filterLanguage": "Language",
   "lists.filterUsage": "Usage",
   "lists.filterPos": "Part of speech",
+  "lists.filterPosMore": "Show {n} more",
+  "lists.filterPosLess": "Show less",
   "lists.filterWhen": "Study history",
   "lists.confidenceRange": "Confidence {min}–{max}",
   "lists.confMinAria": "Minimum confidence",
@@ -415,7 +419,7 @@ export const ja: Record<MessageKey, string> = {
   "lists.sortOldest": "古い順",
   "lists.sortConfAsc": "自信度：低い → 高い",
   "lists.sortConfDesc": "自信度：高い → 低い",
-  "lists.searchPlaceholder": "単語・意味・読みを検索…",
+  "lists.searchPlaceholder": "検索",
   "lists.searchAria": "単語を検索",
   "lists.searchClear": "検索をクリア",
   "lists.filterAria": "単語をフィルター",
@@ -424,6 +428,8 @@ export const ja: Record<MessageKey, string> = {
   "lists.filterLanguage": "言語",
   "lists.filterUsage": "使用頻度",
   "lists.filterPos": "品詞",
+  "lists.filterPosMore": "他{n}件を表示",
+  "lists.filterPosLess": "表示を減らす",
   "lists.filterWhen": "学習履歴",
   "lists.confidenceRange": "自信度 {min}–{max}",
   "lists.confMinAria": "最小自信度",
