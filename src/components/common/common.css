@@ -17,6 +17,29 @@ html {
   height: 100%;
 }
 
+/* ---- iOS zoom trap (do not remove) ----------------------------------------
+   Focusing an input/select/textarea whose font is UNDER 16px makes iOS zoom the
+   viewport in. In the Capacitor WKWebView pinch-zoom is disabled, so there is no
+   gesture to undo it: tap a language dropdown or the list filter once and the app
+   is stuck zoomed for the rest of the session.
+
+   Fixed by SIZE rather than by locking the viewport (`user-scalable=no` /
+   `maximum-scale=1`): Safari ignores those for pinch anyway, and they would take
+   zoom away from people who rely on it. 16px is also the right minimum for a touch
+   target, so this costs nothing on a phone.
+
+   `!important` on purpose — it has to beat the per-component class rules (.select,
+   .input--sm, .filtermenu__section .select …), and this is a platform constraint,
+   not a design preference. Any NEW field is covered automatically, which is the
+   point: the bug is easy to reintroduce one small font-size at a time. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100%;
