@@ -84,16 +84,27 @@ function PosChecks({
       // mode is "shows every option", not "hides options with no way to reveal them".
       if (!window.matchMedia?.(PHONE).matches) return clear();
 
+      // Measure each option RELATIVE TO THIS CONTAINER. Not `offsetTop`: that is measured
+      // from the nearest POSITIONED ancestor, which here is the page — so it groups the
+      // rows correctly (the differences are consistent) but yields a fold hundreds of px
+      // down the page, and `max-height: <that>` clips nothing. That bug shipped: the
+      // button appeared with the right count while every option stayed visible.
       const items = Array.from(el.children) as HTMLElement[];
-      const rowTops = [...new Set(items.map((i) => i.offsetTop))].sort((a, b) => a - b);
+      const top = el.getBoundingClientRect().top;
+      const rows = items.map((i) => {
+        const r = i.getBoundingClientRect();
+        // Round: sub-pixel layout can give two options on the same visual row tops that
+        // differ by a hair, which would count as separate rows.
+        return { el: i, top: Math.round(r.top - top), bottom: r.bottom - top };
+      });
+
+      const rowTops = [...new Set(rows.map((r) => r.top))].sort((a, b) => a - b);
       if (rowTops.length <= POS_COLLAPSED_ROWS) return clear();
 
       const lastVisibleTop = rowTops[POS_COLLAPSED_ROWS - 1];
-      const fold = Math.max(
-        ...items.filter((i) => i.offsetTop === lastVisibleTop).map((i) => i.offsetTop + i.offsetHeight),
-      );
+      const fold = Math.max(...rows.filter((r) => r.top === lastVisibleTop).map((r) => r.bottom));
       el.style.setProperty("--pos-clamp", `${fold}px`);
-      setHidden(items.filter((i) => i.offsetTop > lastVisibleTop).length);
+      setHidden(rows.filter((r) => r.top > lastVisibleTop).length);
     };
 
     measure();

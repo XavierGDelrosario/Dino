@@ -20,21 +20,29 @@ import type { PosCategory } from "@/services/language";
 
 const ROW_HEIGHT = 30;
 
-/** Pretend the browser wrapped the options `perRow` to a line. */
-function stubWrap(perRow: number) {
-  Object.defineProperty(HTMLElement.prototype, "offsetTop", {
-    configurable: true,
-    get(this: HTMLElement) {
-      const parent = this.parentElement;
-      if (!parent?.className.includes("filtermenu__checks")) return 0;
+/**
+ * Pretend the browser wrapped the options `perRow` to a line, `pageOffset` px down the
+ * page. That offset is the whole point: an earlier version measured with `offsetTop`,
+ * which is relative to the nearest POSITIONED ancestor — the page, not the container —
+ * so it grouped the rows correctly (right button count) but set a fold hundreds of px
+ * down, and `max-height: <that>` clipped nothing. The button appeared and every option
+ * stayed visible. Any measurement here must be relative to the CONTAINER, so the tests
+ * put the container well down the page and assert the clamp is still two rows tall.
+ */
+function stubWrap(perRow: number, pageOffset = 600) {
+  const rect = (top: number, height: number) =>
+    ({ top, bottom: top + height, height, left: 0, right: 0, width: 0, x: 0, y: top,
+       toJSON: () => {} }) as DOMRect;
+
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    const parent = this.parentElement;
+    if (this.className.includes("filtermenu__checks")) return rect(pageOffset, 0);
+    if (parent?.className.includes("filtermenu__checks")) {
       const i = Array.from(parent.children).indexOf(this);
-      return Math.floor(i / perRow) * ROW_HEIGHT;
-    },
-  });
-  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-    configurable: true,
-    get: () => ROW_HEIGHT,
-  });
+      return rect(pageOffset + Math.floor(i / perRow) * ROW_HEIGHT, ROW_HEIGHT);
+    }
+    return rect(0, 0);
+  };
 }
 
 /** matchMedia is absent in jsdom — supply it, since the clamp is phone-only. */
@@ -79,7 +87,9 @@ describe("FilterPanel — part-of-speech, collapsed on a phone", () => {
     expect(more).toBeTruthy();
     expect(more.getAttribute("aria-expanded")).toBe("false");
 
-    // Clipped at the bottom of row 2 — a MEASURED height, not a guessed one.
+    // Clipped at the bottom of row 2 — a MEASURED height, relative to the CONTAINER.
+    // The container sits 600px down the page in this stub; the clamp must still be two
+    // rows tall (60px), not 660px, or it clips nothing at all (the bug this pins).
     const checks = document.querySelector(".filtermenu__checks--clamped") as HTMLElement;
     expect(checks).toBeTruthy();
     expect(checks.style.getPropertyValue("--pos-clamp")).toBe(`${ROW_HEIGHT * 2}px`);
