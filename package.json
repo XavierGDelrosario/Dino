@@ -18,6 +18,7 @@
     "ingest:jmdict": "tsx scripts/ingest-jmdict.ts",
     "ingest:wordnet": "tsx scripts/ingest-wordnet.ts",
     "ingest:english-frequency": "tsx scripts/ingest-english-frequency.ts",
+    "build:leveling": "tsx scripts/build-leveling-profile.ts",
     "ingest:english-proficiency": "tsx scripts/ingest-english-proficiency.ts",
     "db:up": "bash scripts/supabase-up.sh",
     "db:dump-seed": "bash scripts/dump-seed.sh",

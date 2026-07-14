@@ -230,6 +230,48 @@ Where content/data quality is capped by free tiers. Ceilings, not bugs. Top 3 le
 - **Pick one:** keep `users.level` explicitly frequency, OR go proficiency-preferred everywhere + let bandless words fall to frequency.
 - Low-urgency (±1 window absorbs it) but decide **before #12 ships**. Don't over-promise JLPT precision in UI copy.
 
+### Leveling registry + SRS ease `[#8]` — **BUILT 2026-07-14** (`20260731`), remaining below
+DONE: one language-agnostic ease calculator (`srs_leveling`) + a per-language profile as
+MEASURED reference data (`npm run build:leveling -- JA`), ease capped by signal quality
+(band 2.5× / frequency 1.6×), POS correction in the safe direction only, and `review_log`
+now records `ease`/`word_position`/`user_position`/`level_source`/`retrievability`.
+Verified live: an N5 word an N3 user grades 5 goes 82d → 525d → retired, an at-level word
+stays on the normal ladder (46d → 156d → 426d), and a lapse pulls either back to ~2 days.
+**Remaining:**
+- **Run `build:leveling` on every environment** (staging + prod) after their ingests — the
+  ease is INERT without a profile, so prod is still level-blind until this runs.
+- **English has no POS source** → EN gets band anchors only (no offsets), so its ease
+  leans entirely on CEFR coverage. Needs an English POS tagging pass before it can use
+  the frequency path properly.
+- **FIT the curve from `review_log`** (slope `ease_per_unit`, the two caps, the POS
+  offsets) against real recall once there's volume. Today they're calibrated against JLPT,
+  which is itself only a proxy — see §6 of the research doc.
+- **`user_language_levels`** — `users.proficiency_band` is still a single language-agnostic
+  column, so switching learning language would silently level the new language with the
+  old framework's band. Guarded (ease → 1.0 on a language mismatch), not fixed. Do it
+  before a second learning language ships.
+
+The evidence the design is built on (7,523 JLPT-banded surfaces, local DB):
+- **Frequency vs JLPT: R² = 0.24**, exact match 31.5%, MAE 0.96 levels. **14.7%** of words
+  are ≥2 levels *easier* by frequency than JLPT says — the direction that would wrongly
+  retire a word. Coverage is the mirror image: bands cover **3.4%** of the dictionary
+  (60% of looked-up words); frequency covers **21.7%** (91%). Neither can be dropped.
+- **The disagreement is POS-structured** (root cause: frequency is per-SURFACE, and
+  inflection splits a word's mass across its forms). Relative to the median frequency of
+  its own JLPT band: **affixes/counters +0.60 Zipf** (never inflect → mass concentrates),
+  **verbs −0.76** (heavily inflected → look rarer than they are), nouns/adjectives/adverbs
+  ±0.06 (fine). Correcting ONLY in the safe direction (never nudge a word *easier*) roughly
+  halves the risky class.
+- **English is a different shape and can't reuse any of it:** far less inflection, no
+  counters, CEFR is 6 bands not 5, and `words.part_of_speech` on an EN-source row holds
+  **JMdict Japanese tags describing the translation** (`pension` → `{n, adj-no}`) — there is
+  no English POS source at all today.
+**A structurally different language** (ZH blending character-vs-word frequency; KO needing
+morphological analysis before surface frequency means anything) is the one case that would
+need more than a profile — a per-language RESOLVER. Deliberately NOT built: the seam stays
+empty until something forces it, as in `senses/registry.ts`.
+Full analysis + reproducible queries: `docs/research/Frequency_vs_Proficiency_by_POS.md`.
+
 ### Frequency sources — supplement wordfreq `[#8]` — see `docs/research/Frequency_Sources.md`
 - **English:** add **SUBTLEX-US** (best learner fit; CC-BY-SA w/ commercial grant) → upgrades `data/frequency/en.tsv`.
 - **Per-reading JA (only license-clean path = build our own):** MeCab (BSD) + UniDic over a JA Wikipedia dump (CC-BY-SA) → count on `(語彙素, 語彙素読み)`, join by surface AND reading. Feeds the 前→まえ fix.

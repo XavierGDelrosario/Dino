@@ -20,6 +20,18 @@
 // the READ decay shape. The two share the exp(-Δ/S) curve — keep them in sync.
 // Swapping in the in-depth algorithm (FSRS) is a new function body + this
 // formula; the { userWordId, grade } contract below does not change.
+//
+// TWO server-side properties the client can't see, both in 20260729 (read it before
+// reasoning about why a word did or didn't come back):
+//   * EASE — the gap between the user's level and the word's scales how fast a
+//     recalled word's stability grows, so beginner vocabulary you clearly know
+//     leaves the rotation instead of grinding round every few weeks. A lapse gets
+//     no ease, so a word you actually forget returns promptly.
+//   * FUZZ — every stability write is jittered, so words seeded or reviewed
+//     TOGETHER don't come due together. retrievability() below stays pure and
+//     deterministic (it re-reads the stored, already-fuzzed stability); the
+//     nondeterminism lives entirely at the write, plus a ±15% jitter on the
+//     queue's ordering so a tied cohort isn't replayed in the same block.
 // =========================================================
 
 import { supabase } from "../config/supabaseClient";

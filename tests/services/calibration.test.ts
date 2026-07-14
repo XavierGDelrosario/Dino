@@ -15,7 +15,7 @@ import {
   setUserProficiencyBand,
   startBandSearch,
   advanceBandSearch,
-  CALIBRATION_TARGET,
+  resolveLevelMove,
   type BandSearch,
   type CalibrationSample,
 } from "@/services/calibration";
@@ -87,21 +87,30 @@ describe("seedStability (conservative cold-start bias)", () => {
 });
 
 describe("adaptive band search (placement quiz)", () => {
-  const PASS = CALIBRATION_TARGET; // known-fraction that passes a band
-  const FAIL = 0.5;
+  const BATCH = 12;
+  // Counts that are DECISIVE (outside BORDERLINE_MARGIN of the 0.8 cutoff), so a
+  // round is a verdict rather than a coin-flip: 12/12 = 1.0 passes, 6/12 = 0.5 fails.
+  const PASS = BATCH;
+  const FAIL = 6;
+  // 10/12 = 0.833 — a pass, but within the margin → must be confirmed, not trusted.
+  const BORDERLINE = 10;
 
-  // Walk the search to convergence, feeding each round's known-fraction from `fn`.
-  const run = (maxBand: number, fractionFor: (band: number) => number): number => {
-    let s: BandSearch = startBandSearch(maxBand);
+  // Walk the search to convergence, feeding each round's KNOWN count from `fn`.
+  const run = (
+    maxBand: number,
+    knownFor: (band: number) => number,
+    prior: number | null = null,
+  ): number => {
+    let s: BandSearch = startBandSearch(maxBand, prior);
     for (let guard = 0; guard < 20; guard++) {
-      const step = advanceBandSearch(s, fractionFor(s.band));
+      const step = advanceBandSearch(s, knownFor(s.band), BATCH);
       if (step.done) return step.level;
       s = step.search;
     }
     throw new Error("did not converge");
   };
 
-  it("starts at the middle band", () => {
+  it("starts at the middle band when there's no prior", () => {
     expect(startBandSearch(5).band).toBe(3);
     expect(startBandSearch(6).band).toBe(3);
     expect(startBandSearch(1).band).toBe(1);
@@ -129,17 +138,86 @@ describe("adaptive band search (placement quiz)", () => {
     let s = startBandSearch(5);
     for (;;) {
       rounds++;
-      const step = advanceBandSearch(s, s.band <= 3 ? PASS : FAIL);
+      const step = advanceBandSearch(s, s.band <= 3 ? PASS : FAIL, BATCH);
       if (step.done) break;
       s = step.search;
     }
     expect(rounds).toBeLessThanOrEqual(4); // ~log2(5), not 5
   });
 
-  it("treats exactly the target fraction as a pass (≥, not >)", () => {
-    // A single-band framework: passing it → level 1, failing → level 1 (floored).
-    const passed = advanceBandSearch(startBandSearch(1), PASS);
-    expect(passed).toEqual({ done: true, level: 1 });
+  it("treats exactly the target fraction as a pass (≥, not >) once confirmed", () => {
+    // Exactly at the cutoff (8/10 = CALIBRATION_TARGET) is BORDERLINE by definition →
+    // one confirming round at the same band, then the pooled sample (still exactly at
+    // the cutoff) passes.
+    const s = startBandSearch(1);
+    const first = advanceBandSearch(s, 8, 10);
+    expect(first).toEqual({ done: false, search: { ...s, pooled: { known: 8, total: 10 } } });
+    if (first.done) throw new Error("unreachable");
+    expect(advanceBandSearch(first.search, 8, 10)).toEqual({ done: true, level: 1 });
+  });
+
+  // ── The anti-swing behavior (a small sample must not move a whole level) ──
+
+  it("re-tests a BORDERLINE band once and decides on the POOLED sample", () => {
+    const s = startBandSearch(5);          // band 3
+    const first = advanceBandSearch(s, BORDERLINE, BATCH); // .833 — too close to call
+    if (first.done) throw new Error("a borderline batch must not decide the band");
+    expect(first.search.band).toBe(3);     // same band again
+    expect(first.search.pooled).toEqual({ known: BORDERLINE, total: BATCH });
+
+    // The confirming batch goes badly (6/12) → pooled 16/24 = .67 → the band FAILS,
+    // where the first batch alone would have passed it.
+    const second = advanceBandSearch(first.search, FAIL, BATCH);
+    if (second.done) throw new Error("expected the search to continue below band 3");
+    expect(second.search.band).toBeLessThan(3);
+    expect(second.search.best).toBe(0);    // band 3 was never credited
+    expect(second.search.pooled).toBeUndefined(); // pooled evidence doesn't leak bands
+  });
+
+  it("confirms a band at most ONCE (a second borderline batch decides it)", () => {
+    const s = startBandSearch(5);
+    const first = advanceBandSearch(s, BORDERLINE, BATCH);
+    if (first.done) throw new Error("unreachable");
+    const second = advanceBandSearch(first.search, BORDERLINE, BATCH);
+    if (second.done) throw new Error("unreachable"); // 20/24 = .833 → passes, searches on
+    expect(second.search.band).toBeGreaterThan(3);   // moved on, did NOT re-test again
+  });
+
+  it("with a PRIOR, the search spans only prior ± 1 and starts at the prior", () => {
+    const s = startBandSearch(5, 3);
+    expect(s).toMatchObject({ lo: 2, hi: 4, band: 3, prior: 3 });
+    // Clamped at the ends of the framework.
+    expect(startBandSearch(5, 1)).toMatchObject({ lo: 1, hi: 2, band: 1 });
+    expect(startBandSearch(5, 5)).toMatchObject({ lo: 4, hi: 5, band: 5 });
+  });
+
+  it("a re-calibration can move at most ONE band, up or down", () => {
+    // Aces everything → +1 (not straight to 5).
+    expect(run(5, () => PASS, 2)).toBe(3);
+    // Fails everything, including a band below the prior → −1 (not down to 1).
+    expect(run(5, () => FAIL, 4)).toBe(3);
+    // Confirms the prior → unchanged.
+    expect(run(5, (b) => (b <= 3 ? PASS : FAIL), 3)).toBe(3);
+  });
+});
+
+describe("resolveLevelMove (hysteresis)", () => {
+  it("clamps a measured level to within one band of the prior", () => {
+    expect(resolveLevelMove(5, 2)).toBe(3); // a 3-band jump becomes +1
+    expect(resolveLevelMove(1, 4)).toBe(3); // a 3-band drop becomes −1
+    expect(resolveLevelMove(3, 3)).toBe(3); // confirmed
+  });
+
+  it("a first calibration (no prior) is unclamped, within 1..5", () => {
+    expect(resolveLevelMove(5, null)).toBe(5);
+    expect(resolveLevelMove(1, null)).toBe(1);
+    expect(resolveLevelMove(9, null)).toBe(5);
+  });
+
+  it("crediting NOTHING steps one band down from the prior, never to zero", () => {
+    expect(resolveLevelMove(0, 3)).toBe(2);
+    expect(resolveLevelMove(0, 1)).toBe(1); // floored
+    expect(resolveLevelMove(0, null)).toBe(1);
   });
 });
 

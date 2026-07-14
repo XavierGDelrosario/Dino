@@ -90,6 +90,10 @@ describe.skipIf(!ENABLED)("rpc: create_custom_word", () => {
 
 // ── record_review (anon-callable, SECURITY DEFINER) ────────────────────────
 describe.skipIf(!ENABLED)("rpc: record_review", () => {
+  // NOTE (20260729): every stability write is FUZZED (±15% here), so these assert
+  // RANGES, not exact days — that nondeterminism is the feature (it stops a batch
+  // reviewed together from coming due together). The CONFIDENCE bucket is derived
+  // from the UN-fuzzed value, so it stays exact.
   it("first review seeds stability from the grade + appends a review_log row", async () => {
     const u = await makeUser();
     const w = await makeStandaloneWord(u, { input: "学ぶ", meaning: "to learn" });
@@ -99,8 +103,10 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     });
     expect(error).toBeNull();
     const row = data as { stability: number; confidence_rating: number; last_reviewed_date: string };
-    expect(row.stability).toBeCloseTo(40.0, 5); // grade 5 seed
-    expect(row.confidence_rating).toBe(5); // 40.0 → bucket >=35: first-review confidence == grade
+    // Grade-5 seed = 40d (a custom word has no level → ease 1), ±15% fuzz.
+    expect(row.stability).toBeGreaterThanOrEqual(40 * 0.85);
+    expect(row.stability).toBeLessThanOrEqual(40 * 1.15);
+    expect(row.confidence_rating).toBe(5); // un-fuzzed 40.0 → bucket >=35: confidence == grade
     expect(row.last_reviewed_date).not.toBeNull();
 
     const { data: log } = await u.client
@@ -111,16 +117,96 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     expect((log![0] as { grade: number }).grade).toBe(5);
   });
 
-  it("a lapse (grade 1) after a strong review shrinks stability", async () => {
+  it("fuzzes each write, so two words seeded identically do NOT come due together", async () => {
+    // The anti-mass-review property, asserted directly: same word, same grade, same
+    // instant → different stabilities. (P(collision) is ~0 for a REAL from a uniform
+    // draw; a deterministic scheduler makes this fail every time.)
+    const u = await makeUser();
+    const stabilities = await Promise.all(
+      ["一", "二", "三", "四", "五", "六"].map(async (input, i) => {
+        const w = await makeStandaloneWord(u, { input, meaning: `n${i}` });
+        const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+        return (data as { stability: number }).stability;
+      }),
+    );
+    expect(new Set(stabilities).size).toBeGreaterThan(1);
+  });
+
+  it("a lapse (grade 1) drops a word to a couple of DAYS, however mature it was", async () => {
+    // The lapse is capped in ABSOLUTE days, not merely scaled — a percentage cut is
+    // toothless once the ease has pushed a word out to hundreds of days (0.3 × 645d
+    // would still be half a year, reading 5/5, for a word the user just forgot). This
+    // is what keeps the level-based retirement honest, so assert the ceiling, not the
+    // factor.
     const u = await makeUser();
     const w = await makeStandaloneWord(u, { input: "覚える", meaning: "to memorize" });
-    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 }); // stability 40.0
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 }); // ~40d
     const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
     const row = data as { stability: number; confidence_rating: number };
-    expect(row.stability).toBeCloseTo(12.0, 1); // 40.0 * 0.3 lapse factor
-    expect(row.confidence_rating).toBe(3); // 12.0 → bucket [7,16)
+    expect(row.stability).toBeLessThanOrEqual(2 * 1.15); // ≤ 2d cap, ±15% fuzz
+    expect(row.confidence_rating).toBe(1); // un-fuzzed 2.0 → bucket [1,3): confidence == grade
     const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
     expect(log ?? []).toHaveLength(2); // append-only: two rows
+  });
+
+  // ── the CRAM FREEZE: re-testing a word you still hold changes nothing ───────
+  it("a SUCCESSFUL review of a still-fresh word (R > 0.9) is logged but changes nothing", async () => {
+    // Measured before the fix: 14 days of daily grade-5 reviews took a word from 40d
+    // to ~85d, so the model then claimed R = 0.84 at a two-week gap — a 14-day
+    // retention claim from someone who only ever recalled it at ONE-day intervals.
+    // Now a review while the word is still held teaches the scheduler nothing.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "詰め込み", meaning: "cramming" });
+    const first = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    const seeded = first.data as { stability: number; last_reviewed_date: string };
+
+    // Immediately grade it 5 again (R ≈ 1) — and again.
+    for (let i = 0; i < 2; i++) {
+      const again = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+      const row = again.data as { stability: number; last_reviewed_date: string };
+      expect(row.stability).toBeCloseTo(seeded.stability, 5); // strength unmoved
+      // The CLOCK is frozen too: resetting last_reviewed_date alone would push the
+      // next review further out for free, which is the same inflation by another door.
+      expect(row.last_reviewed_date).toBe(seeded.last_reviewed_date);
+    }
+
+    // Still APPENDED to the history (FSRS trains on it; the review did happen).
+    const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
+    expect(log ?? []).toHaveLength(3);
+  });
+
+  it("a LAPSE is exempt from the freeze — failing a word you just saw still counts", async () => {
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "忘れる", meaning: "to forget" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 }); // ~40d, R ≈ 1
+    const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
+    const row = data as { stability: number; confidence_rating: number };
+    expect(row.stability).toBeLessThanOrEqual(2 * 1.15); // the ≤2d lapse cap still applies
+    expect(row.confidence_rating).toBe(1);
+  });
+
+  it("a freshly-lapsed word is NOT frozen — daily study can still rehabilitate it", async () => {
+    // A lapsed word sits at ~2d, so after a day R = exp(-1/2) = 0.61 — below the
+    // freshness bar. This is what keeps daily practice useful for the words you're
+    // actually failing, while refusing to reward cramming the ones you know.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "苦手", meaning: "weak point" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    const lapsed = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
+    const low = (lapsed.data as { stability: number }).stability; // ~2d
+
+    // Age it one day. Done as the OWNER: service_role has no write grant on user data
+    // at all (20260625_privileges.sql), and RLS lets a user manage their own row.
+    const aged = await u.client
+      .from("user_words")
+      .update({ last_reviewed_date: new Date(Date.now() - 86_400_000).toISOString() })
+      .eq("user_word_id", w)
+      .select("last_reviewed_date");
+    expect(aged.error).toBeNull();
+    expect(aged.data ?? []).toHaveLength(1); // the backdate actually landed
+
+    const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4 });
+    expect((data as { stability: number }).stability).toBeGreaterThan(low); // it GREW
   });
 
   it("rejects an invalid grade", async () => {
@@ -226,7 +312,8 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word cold-start 
     const wordId = (seeded.data as { word_id: string }).word_id;
 
     const u = await makeUser();
-    // First save WITH a seed → new row starts at stability 5, confidence bucket(5)=2.
+    // First save WITH a seed → new row starts near stability 5 (±35% seed fuzz, and
+    // ease 1: this user has no level), confidence from the UN-fuzzed 5 → bucket 2.
     const first = await u.client.rpc("save_dictionary_word", {
       p_user_id: u.userId,
       p_dictionary_word_id: wordId,
@@ -234,8 +321,9 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word cold-start 
     });
     expect(first.error).toBeNull();
     const row = first.data as { user_word_id: string; stability: number; confidence_rating: number };
-    expect(row.stability).toBeCloseTo(5, 5);
-    expect(row.confidence_rating).toBe(2); // 3 ≤ 5 < 7
+    expect(row.stability).toBeGreaterThanOrEqual(5 * 0.65);
+    expect(row.stability).toBeLessThanOrEqual(5 * 1.35);
+    expect(row.confidence_rating).toBe(2); // 3 ≤ 5 < 7, from the base seed
 
     // Re-save with a DIFFERENT seed → existing row's stability is preserved.
     const again = await u.client.rpc("save_dictionary_word", {
@@ -243,7 +331,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word cold-start 
       p_dictionary_word_id: wordId,
       p_initial_stability: 30,
     });
-    expect((again.data as { stability: number }).stability).toBeCloseTo(5, 5); // unchanged
+    expect((again.data as { stability: number }).stability).toBeCloseTo(row.stability, 5); // unchanged
   });
 
   it("omitting the seed cold-starts (stability NULL, confidence 0) — back-compat", async () => {
@@ -749,6 +837,30 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
     expect(await learn(1000, true)).not.toContain(first);
   });
 
+  it("never quizzes GRAMMATICAL words — particles, conjunctions, interjections, determiners, expressions, affixes", async () => {
+    // Migration 20260730: a placement/learn card showing は or しかし tests grammar, not
+    // vocabulary, and tells us nothing about the learner's LEVEL. The rule stays inclusive
+    // (a word with any content sense survives), so this asserts the grammar-ONLY entries
+    // are gone. Band 1 (N5) is where they cluster; a limit this large draws the WHOLE
+    // gated pool (the pool CTE takes limit×6), so absence here is absence, not luck.
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const draw = (((await svc.rpc("learn_words_at_band", {
+      p_source: "JA", p_target: "EN", p_band: 1, p_user_id: u.userId, p_limit: 400,
+      p_exclude_seen: false,
+    })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+    if (draw.length === 0) return; // proficiency/JMdict not ingested → skip
+
+    // これ/この (determiner+pronoun), しかし (conj), いいえ/さあ (int), ばかり (prt),
+    // どういたしまして (exp) — all real N5-band entries the old affix-only filter let through.
+    for (const grammatical of ["これ", "この", "しかし", "いいえ", "さあ", "ばかり", "どういたしまして"]) {
+      expect(draw, `${grammatical} must not be quizzable`).not.toContain(grammatical);
+    }
+    // …and the pool is still a pool (the filter trims the edges, it doesn't gut it).
+    expect(draw.length).toBeGreaterThan(100);
+  });
+
   it("varies across draws (random sample from a frequent pool → new words on retry)", async () => {
     const svc = serviceClient();
     if (!svc) return;
@@ -947,5 +1059,186 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("privilege lockdown", () => {
     expect(
       (await svc.from("account_deletion_log").select("user_id").eq("user_id", a.userId)).data ?? [],
     ).toHaveLength(1);
+  });
+});
+
+// ── srs_leveling + the ease (migration 20260731) ────────────────────────────
+// The ease needs a MEASURED per-language profile (language_leveling /
+// language_pos_offset, written by `npm run build:leveling -- JA`), so these self-skip
+// on a DB where it hasn't been built — exactly like the JMdict-dependent tests. With no
+// profile the scheduler falls back to ease 1.0, which is the whole point of the design:
+// nothing is confidently wrong for a language we haven't measured.
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: srs_leveling (the ease)", () => {
+  /** A verified JA sense with explicit leveling. */
+  const seedWord = async (
+    svc: NonNullable<ReturnType<typeof serviceClient>>,
+    attrs: { band?: number | null; frequency?: number | null; pos?: string[] },
+  ): Promise<string> => {
+    const r = await svc
+      .from("words")
+      .insert({
+        input: `__lvl_${Math.random().toString(36).slice(2)}__`,
+        translation: "x",
+        source_lang: "JA",
+        target_lang: "EN",
+        is_verified: true,
+        proficiency_band: attrs.band ?? null,
+        frequency: attrs.frequency ?? null,
+        part_of_speech: attrs.pos ?? null,
+      })
+      .select("word_id")
+      .single();
+    expect(r.error).toBeNull();
+    return (r.data as { word_id: string }).word_id;
+  };
+
+  /** The profile is server-only (RLS, no policies) — service_role bypasses RLS. */
+  const profile = async (): Promise<{ band_anchors: number[] } | null> => {
+    const svc = serviceClient();
+    if (!svc) return null;
+    const { data } = await svc
+      .from("language_leveling")
+      .select("band_anchors")
+      .eq("language", "JA")
+      .maybeSingle();
+    return (data as { band_anchors: number[] } | null) ?? null;
+  };
+
+  it("an N5 word an N3 user aces retires FAST; the same grade on an N3 word doesn't", async () => {
+    const svc = serviceClient();
+    const p = await profile();
+    if (!svc || !p) return; // no measured profile on this DB → ease is 1.0 by design
+    const [easyBand, atLevelBand] = [p.band_anchors[0], p.band_anchors[2]];
+    const expectedEase = Math.min(2.5, 1 + 0.03 * (easyBand - atLevelBand));
+
+    const easy = await seedWord(svc, { band: 1, frequency: 505, pos: ["n"] }); // N5
+    const atLevel = await seedWord(svc, { band: 3, frequency: 430, pos: ["n"] }); // N3
+
+    const u = await makeUser();
+    // Learning JA, placed at N3 — the band is only meaningful for the language it was
+    // measured in, which is why srs_leveling checks learning_language.
+    const set = await u.client
+      .from("users")
+      .update({ proficiency_band: 3, learning_language: "JA" })
+      .eq("user_id", u.userId);
+    expect(set.error).toBeNull();
+
+    const firstReview = async (wordId: string): Promise<number> => {
+      const saved = await u.client.rpc("save_dictionary_word", {
+        p_user_id: u.userId,
+        p_dictionary_word_id: wordId,
+      });
+      expect(saved.error).toBeNull();
+      const r = await u.client.rpc("record_review", {
+        p_user_word_id: (saved.data as { user_word_id: string }).user_word_id,
+        p_grade: 5,
+      });
+      expect(r.error).toBeNull();
+      return (r.data as { stability: number }).stability;
+    };
+
+    // First grade-5 review seeds 40d × ease (±15% fuzz). The at-level word gets no ease.
+    const easyS = await firstReview(easy);
+    const atLevelS = await firstReview(atLevel);
+    expect(easyS).toBeGreaterThanOrEqual(40 * expectedEase * 0.85);
+    expect(easyS).toBeLessThanOrEqual(40 * expectedEase * 1.15);
+    expect(atLevelS).toBeLessThanOrEqual(40 * 1.15); // ease 1.0
+    expect(easyS).toBeGreaterThan(atLevelS);
+  });
+
+  it("the POS correction: an AFFIX earns less ease than a noun of the SAME frequency", async () => {
+    // Frequency is per-surface, so affixes (which never inflect) concentrate their whole
+    // corpus mass on one form and LOOK common without being easy — measured at +0.58 Zipf
+    // above the median of their own JLPT band. The correction only ever pushes a word
+    // HARDER, never easier.
+    const svc = serviceClient();
+    const p = await profile();
+    if (!svc || !p) return;
+    const noun = await seedWord(svc, { band: null, frequency: 505, pos: ["n"] });
+    const affix = await seedWord(svc, { band: null, frequency: 505, pos: ["suf"] });
+
+    const u = await makeUser();
+    await u.client
+      .from("users")
+      .update({ proficiency_band: 3, learning_language: "JA" })
+      .eq("user_id", u.userId);
+
+    const easeOf = async (wordId: string): Promise<number> => {
+      const { data } = await svc.rpc("srs_leveling", {
+        p_user_id: u.userId,
+        p_dictionary_word_id: wordId,
+      });
+      return (data as { ease: number; level_source: string }).ease;
+    };
+    const nounEase = await easeOf(noun);
+    const affixEase = await easeOf(affix);
+    expect(affixEase).toBeLessThan(nounEase); // same frequency, less ease
+    expect(nounEase).toBeLessThanOrEqual(1.6); // frequency-only → the LOW cap, never 2.5
+  });
+
+  it("no ease when the word's language isn't the one the user's band was measured in", async () => {
+    const svc = serviceClient();
+    const p = await profile();
+    if (!svc || !p) return;
+    const en = await svc
+      .from("words")
+      .insert({
+        input: `__lvl_en_${Date.now()}__`,
+        translation: "x",
+        source_lang: "EN",
+        target_lang: "JA",
+        is_verified: true,
+        proficiency_band: 1,
+        frequency: 600,
+      })
+      .select("word_id")
+      .single();
+    const u = await makeUser();
+    await u.client
+      .from("users")
+      .update({ proficiency_band: 3, learning_language: "JA" }) // placed on JLPT
+      .eq("user_id", u.userId);
+
+    const { data } = await svc.rpc("srs_leveling", {
+      p_user_id: u.userId,
+      p_dictionary_word_id: (en.data as { word_id: string }).word_id,
+    });
+    // A CEFR band is not a JLPT band — comparing them would be meaningless, so: no ease.
+    expect((data as { ease: number }).ease).toBe(1);
+  });
+
+  it("records WHY the schedule moved (review_log ease / positions / R)", async () => {
+    // These columns can't be backfilled and are what will let us fit the ease curve
+    // against real recall instead of against a wordlist.
+    const svc = serviceClient();
+    const p = await profile();
+    if (!svc || !p) return;
+    const wordId = await seedWord(svc, { band: 1, frequency: 505, pos: ["n"] });
+    const u = await makeUser();
+    await u.client
+      .from("users")
+      .update({ proficiency_band: 3, learning_language: "JA" })
+      .eq("user_id", u.userId);
+    const saved = await u.client.rpc("save_dictionary_word", {
+      p_user_id: u.userId,
+      p_dictionary_word_id: wordId,
+    });
+    const uw = (saved.data as { user_word_id: string }).user_word_id;
+    await u.client.rpc("record_review", { p_user_word_id: uw, p_grade: 5 });
+
+    const { data } = await u.client
+      .from("review_log")
+      .select("ease, word_position, user_position, level_source")
+      .eq("user_word_id", uw)
+      .single();
+    const row = data as {
+      ease: number;
+      word_position: number;
+      user_position: number;
+      level_source: string;
+    };
+    expect(row.level_source).toBe("band");
+    expect(row.ease).toBeGreaterThan(1);
+    expect(row.word_position).toBeGreaterThan(row.user_position); // more common = below them
   });
 });

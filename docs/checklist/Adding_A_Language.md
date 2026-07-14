@@ -122,6 +122,18 @@ This is where the language-specificity lives. `words`/`user_words` stay unchange
       so the ONE bin set in `services/difficulty/level.ts` serves every language. Only add
       a `services/difficulty/registry.ts` per-language entry for genuine divergence (e.g. a
       JLPT/HSK-style curated override → `difficulty_override`).
+- [ ] **Leveling profile (the SRS ease)** — `npm run build:leveling -- <L>`, AFTER the
+      frequency + proficiency ingests. It MEASURES the language's band anchors (each band's
+      median frequency — this is what encodes its non-uniform spacing) and its POS frequency
+      offsets (frequency is per-SURFACE, so how much inflection distorts it is a property of
+      the language: JA affixes read +0.58 Zipf too easy, JA verbs −0.75 too hard). Add the
+      language's source query to `SOURCES` in `scripts/build-leveling-profile.ts` (where its
+      levelled words live) and its POS taxonomy to `language_pos_group` — the tag set is
+      language-specific, the calculator is not.
+      **Without a profile the ease is 1.0** — the scheduler simply won't retire that
+      language's words early. Safe, and the correct default: nothing is confidently wrong for
+      a language we haven't measured. A language with NO POS source (English today) gets band
+      anchors only. See `docs/research/Frequency_vs_Proficiency_by_POS.md`.
 
 ## 8. Embeddings / word map (the relatedness axis)
 - [ ] **Embed** — `scripts/build-embeddings.py --source-lang <L>` (per-source seam:
