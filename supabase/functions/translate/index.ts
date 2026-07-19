@@ -55,6 +55,7 @@ import {
   toGoogleLang,
   userIdFromAuth,
   type ProviderResult,
+  chunkForUrlFilter,
 } from "./_lib.ts";
 
 // Stamp written onto every projected `words` row (projection_version). BUMP this
@@ -705,22 +706,46 @@ async function fetchVerifiedMany(
   // Quote each term: the PostgREST or()/in() grammar uses comma/parens/quote as
   // syntax, so a raw term would corrupt the filter (see fetchVerified).
   const quote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  const list = inputs.map(quote).join(",");
-  const { data, error } = await supabase
-    .from("words")
-    .select("*")
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    .eq("is_verified", true)
-    .or(`input.in.(${list}),input_reading.in.(${list})`)
-    .or(FRESH) // a stale projection is a MISS → re-projected in place
-    // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
-    // words keep the lookup's primary on the cache read.
-    .order("frequency", { ascending: false, nullsFirst: false })
-    .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as WordRow[];
+  // CHUNK by encoded size. Inlining every term put the whole list in the query
+  // string TWICE (input + input_reading); at ~9 bytes per encoded Japanese char a
+  // long paste built a URL the runtime refused to send ("TypeError: error sending
+  // request"), the batch threw, and the reader rendered every word grey. That is
+  // quality report #3, and prod's error_log shows it recurring. `repeats: 2`
+  // accounts for the doubled list — see src/lib/urlFilter.ts (hand-mirrored here;
+  // separate Deno runtime).
+  const chunks = chunkForUrlFilter(inputs, { repeats: 2 });
+  const perChunk = await Promise.all(chunks.map(async (chunk) => {
+    const list = chunk.map(quote).join(",");
+    const { data, error } = await supabase
+      .from("words")
+      .select("*")
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("is_verified", true)
+      .or(`input.in.(${list}),input_reading.in.(${list})`)
+      .or(FRESH) // a stale projection is a MISS → re-projected in place
+      // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
+      // words keep the lookup's primary on the cache read. Each term lands in ONE
+      // chunk, so a word's senses are always ordered within their own query.
+      .order("frequency", { ascending: false, nullsFirst: false })
+      .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
+      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as WordRow[];
+  }));
+  // DEDUPE across chunks. The filter matches a row by `input` OR `input_reading`,
+  // so one row can be returned by two different chunks — e.g. a text using both
+  // 行く and its reading いく as separate lookup keys: chunk A matches the row by
+  // its headword, chunk B by its reading. groupByInput then assigns that row to
+  // its term once PER copy, and every sense of the word renders twice.
+  // (Measured: 行く came back 24 rows / 12 unique before this.) The single-query
+  // version could not hit this, so the dedupe belongs with the chunking.
+  const seen = new Set<string>();
+  return perChunk.flat().filter((row) => {
+    if (seen.has(row.word_id)) return false;
+    seen.add(row.word_id);
+    return true;
+  });
 }
 
 /**
@@ -746,20 +771,27 @@ async function reviveMtRows(
   targetLang: string,
 ): Promise<WordRow[]> {
   if (inputs.length === 0) return [];
-  const { data, error } = await supabase
-    .from("words")
-    .update({ projection_version: CURRENT_PROJECTION_VERSION })
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    .eq("is_verified", true)
-    .in("dictionary_ref", inputs.map((i) => `mt:${i}`))
-    .lt("projection_version", CURRENT_PROJECTION_VERSION)
-    .select("*");
-  if (error) {
-    console.error("MT revive failed:", error.message);
-    return [];
-  }
-  return (data ?? []) as WordRow[];
+  // Chunked for the same URL-length reason as fetchVerifiedMany — and here the
+  // stakes are money, not just display: this call is what avoids re-paying Google
+  // for words already translated, so a whole-list failure would silently re-spend.
+  const chunks = chunkForUrlFilter(inputs.map((i) => `mt:${i}`));
+  const perChunk = await Promise.all(chunks.map(async (refs) => {
+    const { data, error } = await supabase
+      .from("words")
+      .update({ projection_version: CURRENT_PROJECTION_VERSION })
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("is_verified", true)
+      .in("dictionary_ref", refs)
+      .lt("projection_version", CURRENT_PROJECTION_VERSION)
+      .select("*");
+    if (error) {
+      console.error("MT revive failed:", error.message);
+      return []; // fails OPEN per chunk: the rest still revive
+    }
+    return (data ?? []) as WordRow[];
+  }));
+  return perChunk.flat();
 }
 
 // ── Idempotency (see migration 20260626) ───────────────────────────────────
@@ -828,6 +860,16 @@ interface BatchEntry {
  * per-word resolution as the single path (cache → JMdict → metered MT fallback),
  * just looped server-side with the cache read and the final upsert batched. The
  * whole-paragraph display gloss is NOT batched (it's a single persist=false call).
+ *
+ * `dictionaryOnly` = resolve from the CACHE + DICTIONARY only, never MT. This is
+ * for callers that PROBE speculative terms ("is this string a real word?") rather
+ * than translating terms a user actually asked for — today the reader's
+ * compound-merge check (柔軟 ＋ 剤 → is 柔軟剤 a word?). Those probes are mostly
+ * expected to MISS, and a miss is the answer, not a failure: sending them down the
+ * MT fallback would bill Google for every wrong guess and cache the junk it
+ * returned as a verified word. So this flag is a COST + CORRECTNESS boundary, not
+ * an optimization. It also skips the MT-row revive, so a probe can never be
+ * validated by a leftover MT row (that would resurrect the same junk for free).
  */
 async function resolveBatch(
   supabase: Supa,
@@ -835,6 +877,7 @@ async function resolveBatch(
   sourceLang: string,
   targetLang: string,
   authHeader: string | null,
+  dictionaryOnly = false,
 ): Promise<BatchEntry[]> {
   // IDEMPOTENCY: unlike the single path, batch has no idempotency_keys entry — it
   // relies on the `words` cache instead. On success each MT word is upserted, so a
@@ -873,13 +916,16 @@ async function resolveBatch(
   //    word, so the app-wide global-quota lock + hot row is touched once per request
   //    instead of once per MT word (the global-quota serialization fix). Then call
   //    MT per word and refund the reserved-but-unspent remainder.
-  const canMT = mtConfigured() && !!userId;
+  const canMT = mtConfigured() && !!userId && !dictionaryOnly;
   const stillMissing = missing.filter((i) => !dictByInput.has(i));
 
   // 3a. Revive before spending: a word the dictionary still lacks may already have a
   //     PAID MT row that the version gate marked stale. Re-stamp + reuse it (free); only
   //     what has no MT row at all goes to Google. Same rule as the single path.
-  const revivedRows = await reviveMtRows(supabase, stillMissing, sourceLang, targetLang);
+  //     Skipped for probes — see `dictionaryOnly` above.
+  const revivedRows = dictionaryOnly
+    ? []
+    : await reviveMtRows(supabase, stillMissing, sourceLang, targetLang);
   const revived = new Set(revivedRows.map((r) => r.input));
 
   const needMT = stillMissing.filter((i) => !revived.has(i));
@@ -1060,6 +1106,7 @@ async function handleRequest(req: Request): Promise<Response> {
     try {
       const results = await resolveBatch(
         supabase, body.inputs, sourceLang, targetLang, req.headers.get("Authorization"),
+        body.dictionaryOnly === true,
       );
       return reply({ results });
     } catch (e) {

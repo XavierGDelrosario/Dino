@@ -13,6 +13,8 @@ import { supabase } from "../../config/supabaseClient";
 import { nfc } from "../../lib/text";
 import { toServiceError } from "../errors";
 import { FRESH } from "../../lib/projection";
+import { chunkForUrlFilter } from "../../lib/urlFilter";
+import { mapLimit } from "../../lib/concurrency";
 import { getCachedSenses, setCachedSenses } from "./cache";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
@@ -169,6 +171,9 @@ export async function findWordTranslations(params: {
  * OUTPUT: Map<input, Word[]> keyed by the stored input string.
  * CONSTRAINTS: inputs are NFC-normalized here (matching the stored rows).
  */
+/** Cap in-flight chunk queries so a long paste can't open a request per chunk. */
+const URL_FILTER_CONCURRENCY = 6;
+
 export async function findWordTranslationsBatch(params: {
   inputs: string[];
   sourceLang: LangCode;
@@ -179,7 +184,7 @@ export async function findWordTranslationsBatch(params: {
   const byWord = new Map<string, Word[]>();
   if (unique.length === 0) return byWord;
 
-  // Serve memoized inputs from the cache; query only the misses in one .in().
+  // Serve memoized inputs from the cache; query only the misses.
   const misses: string[] = [];
   for (const input of unique) {
     const cached = getCachedSenses(input, sourceLang, targetLang);
@@ -188,21 +193,30 @@ export async function findWordTranslationsBatch(params: {
   }
   if (misses.length === 0) return byWord;
 
-  const { data, error } = await supabase
-    .from("words")
-    .select<string, WordRow>("*")
-    .in("input", misses)
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    .or(FRESH) // stale projections are a MISS (see findCachedWord)
-    .order("is_verified", { ascending: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
-  if (error) throw toServiceError(error);
+  // CHUNK the `.in()` filter by encoded size. Inlining every term makes a GET URL
+  // that a long paste can push past the request limit — the whole query then fails
+  // and the caller sees NO meanings for ANY word (quality report #3; see
+  // lib/urlFilter.ts). Each term lands in exactly one chunk, so the per-input
+  // ordering the grouping below relies on is preserved within its own query.
+  const chunks = chunkForUrlFilter(misses);
+  const rowsPerChunk = await mapLimit(chunks, URL_FILTER_CONCURRENCY, async (inputs) => {
+    const { data, error } = await supabase
+      .from("words")
+      .select<string, WordRow>("*")
+      .in("input", inputs)
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .or(FRESH) // stale projections are a MISS (see findCachedWord)
+      .order("is_verified", { ascending: false })
+      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+    if (error) throw toServiceError(error);
+    return data ?? [];
+  });
 
   // Group the fetched rows by their stored headword (= the query input for these
   // dictionary-form lookups), then memoize each non-empty group for next time.
   const fetched = new Map<string, Word[]>();
-  for (const row of data ?? []) {
+  for (const row of rowsPerChunk.flat()) {
     const word = toWord(row);
     const list = fetched.get(word.input) ?? [];
     list.push(word);

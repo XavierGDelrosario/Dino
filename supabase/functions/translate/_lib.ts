@@ -611,3 +611,46 @@ export function orderSensesForInput<T extends { input: string; inputReading: str
 ): T[] {
   return applyWritingOverride(input, applyReadingOverride(input, words));
 }
+
+// ── PostgREST list-filter chunking ─────────────────────────────────────────
+// Hand-mirrored from src/lib/urlFilter.ts (separate Deno runtime — same rule as
+// CURRENT_PROJECTION_VERSION). Keep the two in sync; tests/edge/url-filter.test.ts
+// fails on drift.
+//
+// PostgREST puts filter values in the query string, so a long list makes a long
+// URL. Past some length the request cannot be sent at all — from Deno this
+// surfaces as "TypeError: error sending request", which is exactly what prod's
+// error_log recorded for quality report #3: a 712-char Japanese paste inlined 161
+// terms, the cache read never left the function, and every word in the reader went
+// grey. Percent-encoded Japanese is ~9 bytes per CHARACTER, which is why the
+// budget counts encoded bytes rather than items.
+
+export const URL_FILTER_BUDGET_BYTES = 3000;
+const PER_VALUE_OVERHEAD = 4;
+
+/**
+ * Split `values` so each chunk's encoded size stays within the budget.
+ * `repeats` = how many times the list appears in ONE url (the words cache read
+ * matches input AND input_reading, so it passes 2).
+ */
+export function chunkForUrlFilter(
+  values: string[],
+  opts: { budgetBytes?: number; repeats?: number } = {},
+): string[][] {
+  const budget = Math.max(1, (opts.budgetBytes ?? URL_FILTER_BUDGET_BYTES) / (opts.repeats ?? 1));
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  let size = 0;
+  for (const value of values) {
+    const cost = encodeURIComponent(value).length + PER_VALUE_OVERHEAD;
+    if (current.length > 0 && size + cost > budget) {
+      chunks.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(value);
+    size += cost;
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}

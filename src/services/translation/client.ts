@@ -121,11 +121,18 @@ interface BatchEntry {
  * under that kana even though the stored headword is the kanji).
  * CONSTRAINTS: persist is implied true (batch is for cacheable words); the
  * whole-paragraph display gloss stays a separate persist:false `translate` call.
+ *
+ * `dictionaryOnly` restricts resolution to the cache + dictionary, never the paid
+ * MT fallback. Use it when PROBING whether a string is a real word (the reader's
+ * compound merge) rather than translating something the user asked for: probes are
+ * expected to miss, and billing MT for each wrong guess — then caching its output
+ * as a verified word — is exactly the wrong answer. See the edge-side note.
  */
 export async function translateBatch(params: {
   inputs: string[];
   sourceLang: LangCode;
   targetLang: LangCode;
+  dictionaryOnly?: boolean;
 }): Promise<Map<string, Word[]>> {
   const map = new Map<string, Word[]>();
   if (params.inputs.length === 0) return map;
