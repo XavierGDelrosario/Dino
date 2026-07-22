@@ -2,6 +2,7 @@
 // Review). Owns the tab + review-scope state. Lazy-loads each view's chunk.
 import { Suspense, lazy, useState } from "react";
 import { useI18n } from "../i18n";
+import { useStickyState } from "../hooks/useStickyState";
 
 const TranslateView = lazy(() =>
   import("./TranslateView").then((m) => ({ default: m.TranslateView })),
@@ -16,7 +17,7 @@ type Tab = "translate" | "lists" | "learn" | "review";
 
 export function HomeView({ userId }: { userId: string }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>("translate");
+  const [tab, setTab] = useStickyState<Tab>(userId, "home.tab", "translate");
   // which vocabulary the Review tab quizzes (null = ALL; name "" = the virtual ALL
   // list, which FlashcardView localizes). Set by a list's "Review" button.
   const [reviewScope, setReviewScope] = useState<{

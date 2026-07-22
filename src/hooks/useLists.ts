@@ -29,12 +29,18 @@ import { lookupWord } from "../services/lookup";
 import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 import type { LangCode, SourceSelection } from "../services/language";
+import { useStickyState } from "./useStickyState";
 
 export type ListStatus = "loading" | "ready" | "error";
 
 export function useLists(userId: string) {
   const [lists, setLists] = useState<List[]>([]);
-  const [selectedListId, setSelectedListId] = useState<string | null>(null); // null = ALL
+  // null = ALL. Sticky so returning to Lists keeps the chip you were on — but the
+  // list can be deleted from elsewhere while you're away, so it's validated
+  // against `lists` once they load (below) rather than trusted.
+  const [selectedListId, setSelectedListId] = useStickyState<string | null>(
+    userId, "lists.selectedListId", null,
+  );
   const [words, setWords] = useState<UserWord[]>([]);
   // False while later batches are still streaming in (the first page shows fast,
   // the rest fill in behind it). Filters/counts are exact once this is true.
@@ -51,11 +57,16 @@ export function useLists(userId: string) {
 
   const loadLists = useCallback(async () => {
     try {
-      setLists(await listUserLists(userId));
+      const ls = await listUserLists(userId);
+      setLists(ls);
+      // A restored selection can point at a list deleted from another surface (or
+      // another device) while we were away — fall back to ALL rather than paging a
+      // list that no longer exists.
+      setSelectedListId((id) => (id === null || ls.some((l) => l.listId === id) ? id : null));
     } catch (e) {
       setError(message(e));
     }
-  }, [userId]);
+  }, [userId, setSelectedListId]);
 
   // Fetch one page (the ALL vocabulary or a sub-list) at the given offset.
   const fetchPage = useCallback(
@@ -255,7 +266,7 @@ export function useLists(userId: string) {
         setError(message(e));
       }
     },
-    [userId, loadLists]
+    [userId, loadLists, setSelectedListId]
   );
 
   const renameListById = useCallback(
@@ -282,7 +293,7 @@ export function useLists(userId: string) {
         setError(message(e));
       }
     },
-    [selectedListId, loadLists]
+    [selectedListId, loadLists, setSelectedListId]
   );
 
   return {

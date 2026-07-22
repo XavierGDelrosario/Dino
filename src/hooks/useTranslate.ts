@@ -8,6 +8,7 @@
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStickyState } from "./useStickyState";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { translate } from "../services/translation";
@@ -48,7 +49,10 @@ export function useTranslate(userId: string) {
   // freely changeable in the LangBar (incl. switching source to Detect).
   const [source, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
   const [target, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
-  const [input, setInput] = useState("");
+  // Sticky: what you typed survives a tab switch. The RESULTS deliberately don't
+  // (they'd be a stale mirror of saved/confidence state) — you come back to your
+  // text with a clean slate and re-submit.
+  const [input, setInput] = useStickyState(userId, "translate.input", "");
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
   const [error, setError] = useState<string | null>(null);
@@ -356,7 +360,7 @@ export function useTranslate(userId: string) {
     setTarget(newTarget);
     setInput(text);
     if (text.trim()) void submit({ text, source: newSource, target: newTarget });
-  }, [status, target, source, input, output, submit]);
+  }, [status, target, source, input, output, submit, setInput]);
 
   /** Mark a sense saved at the given confidence (shared by the save paths). */
   const markSaved = useCallback((wordId: string, userWordId: string, confidenceRating: number) => {

@@ -24,6 +24,7 @@ import { useI18n } from "../i18n";
 import { SearchIcon, XIcon } from "../components/common/icons";
 import { ErrorText } from "../components/common/ErrorText";
 import type { UserWord } from "../services/words/userWords";
+import { useStickyState } from "../hooks/useStickyState";
 import "../components/lists/lists.css";
 
 type SortBy = "newest" | "oldest" | "conf-asc" | "conf-desc";
@@ -81,18 +82,18 @@ export function ListView({
   const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
-  const [sort, setSort] = useState<SortBy>("newest");
+  const [sort, setSort] = useStickyState<SortBy>(userId, "lists.sort", "newest");
   // Free-text search (headword · meaning · reading — see services/words/search.ts). Kept
   // out of `filters`: that value is the funnel menu's, and a query isn't an axis you
   // toggle. It narrows the same way a filter does, though — see `visible`.
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useStickyState(userId, "lists.query", "");
   // Which panel is open below the actions row. ONE at a time — both are big blocks
   // that push the rows down, so stacking them would bury the list.
   const [panel, setPanel] = useState<"add" | "filter" | null>(null);
   // EVERY filter (language → its levels · usage · POS · added · reviewed ·
   // confidence) lives in this one value, owned by the funnel menu (which is
   // presentational). The resting value narrows nothing; the view only sorts + pages.
-  const [filters, setFilters] = useState<WordFilters>(NO_FILTERS);
+  const [filters, setFilters] = useStickyState<WordFilters>(userId, "lists.filters", NO_FILTERS);
 
   // Anything narrowing WHICH words show (sort doesn't change the set). The search query
   // counts: "Review" quizzes exactly what's on screen, and a search is how you'd pick the
