@@ -20,6 +20,7 @@ import { supabase } from "../../config/supabaseClient";
 import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
 import { ServiceError, toServiceError } from "../errors";
+import { displayConfidence } from "../confidence";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
@@ -107,7 +108,19 @@ function toUserWord(row: UserWordRow): UserWord {
       ? null
       : row.words?.translation_reading ?? null,
     stability: row.stability ?? null,
-    confidenceRating: row.confidence_rating,
+    // LIVE, not the stored snapshot: the number decays with time and carries the
+    // short-term strength a study session earned (services/confidence.ts, mirroring
+    // migration 20260735). Reading row.confidence_rating here would show a value
+    // frozen at the last review — and would disagree with the review queue, which
+    // computes the same thing server-side.
+    confidenceRating: displayConfidence({
+      stability: row.stability ?? null,
+      lastReviewedDate: row.last_reviewed_date,
+      originallyTranslatedDate: row.originally_translated_date,
+      shortStability: row.short_stability ?? null,
+      shortStabilityAt: row.short_stability_at ?? null,
+      peakConfidence: row.peak_confidence ?? null,
+    }),
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
     // Dictionary attributes for the info panel (null for a standalone word).
@@ -472,7 +485,10 @@ export async function getUserWordStates(params: {
     const { data, error } = await supabase
       .from("user_words")
       .select<string, UserWordRow>(
-        "user_word_id, dictionary_word_id, confidence_rating, last_reviewed_date"
+        // The last four feed displayConfidence below — the reader's ✓ n/5 must be the
+        // same live number Lists shows, not the snapshot on the row.
+        "user_word_id, dictionary_word_id, confidence_rating, last_reviewed_date, " +
+          "stability, originally_translated_date, short_stability, short_stability_at, peak_confidence"
       )
       .eq("user_id", userId)
       .in("dictionary_word_id", ids);
@@ -486,7 +502,14 @@ export async function getUserWordStates(params: {
       states.set(r.dictionary_word_id, {
         tracked: true,
         userWordId: r.user_word_id,
-        confidenceRating: r.confidence_rating,
+        confidenceRating: displayConfidence({
+          stability: r.stability ?? null,
+          lastReviewedDate: r.last_reviewed_date,
+          originallyTranslatedDate: r.originally_translated_date,
+          shortStability: r.short_stability ?? null,
+          shortStabilityAt: r.short_stability_at ?? null,
+          peakConfidence: r.peak_confidence ?? null,
+        }),
         lastReviewedDate: r.last_reviewed_date,
       });
     }

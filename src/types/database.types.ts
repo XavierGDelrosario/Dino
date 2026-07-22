@@ -416,6 +416,9 @@ export type Database = {
           input: string
           last_reviewed_date: string | null
           originally_translated_date: string
+          peak_confidence: number
+          short_stability: number | null
+          short_stability_at: string | null
           source_lang: string
           stability: number | null
           target_lang: string
@@ -429,6 +432,9 @@ export type Database = {
           input: string
           last_reviewed_date?: string | null
           originally_translated_date?: string
+          peak_confidence?: number
+          short_stability?: number | null
+          short_stability_at?: string | null
           source_lang: string
           stability?: number | null
           target_lang: string
@@ -442,6 +448,9 @@ export type Database = {
           input?: string
           last_reviewed_date?: string | null
           originally_translated_date?: string
+          peak_confidence?: number
+          short_stability?: number | null
+          short_stability_at?: string | null
           source_lang?: string
           stability?: number | null
           target_lang?: string

@@ -145,7 +145,10 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
     const row = data as { stability: number; confidence_rating: number };
     expect(row.stability).toBeLessThanOrEqual(2 * 1.15); // ≤ 2d cap, ±15% fuzz
-    expect(row.confidence_rating).toBe(1); // un-fuzzed 2.0 → bucket [1,3): confidence == grade
+    // FRESH failure (20260735): the word was aced moments ago, so the cut is amplified
+    // (×0.2, landing on the 0.5d floor) and the peak-5 display floor is voided — it is
+    // allowed to read 0. Forgetting a word you just aced is the strongest signal there is.
+    expect(row.confidence_rating).toBe(0);
     const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
     expect(log ?? []).toHaveLength(2); // append-only: two rows
   });
@@ -183,7 +186,7 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
     const row = data as { stability: number; confidence_rating: number };
     expect(row.stability).toBeLessThanOrEqual(2 * 1.15); // the ≤2d lapse cap still applies
-    expect(row.confidence_rating).toBe(1);
+    expect(row.confidence_rating).toBe(0); // fresh failure → amplified, floor voided (20260735)
   });
 
   it("a freshly-lapsed word is NOT frozen — daily study can still rehabilitate it", async () => {
@@ -484,7 +487,113 @@ describe.skipIf(!ENABLED)("rpc: review_queue", () => {
     const queue = data as { user_word_id: string; confidence_rating: number }[];
     expect(queue.map((q) => q.user_word_id)).toContain(decayed); // decayed conf-5 → served
     expect(queue.map((q) => q.user_word_id)).not.toContain(held); // still fresh → not served
-    expect(queue.find((q) => q.user_word_id === decayed)!.confidence_rating).toBe(5);
+    // The DUE gate runs on true R, but the confidence SHOWN is the gentler display curve
+    // (20260735): 40d of strength, 60 days away → 40·R^0.35 ≈ 23.6 → bucket 4. It reads
+    // "worth a look", not "mastered" and not "forgotten".
+    expect(queue.find((q) => q.user_word_id === decayed)!.confidence_rating).toBe(4);
+  });
+
+  // ── the live display confidence (migration 20260735) ──────────────────────
+  it("shows a session's cramming WITHOUT moving the schedule", async () => {
+    // Reported 2026-07-22: quizzing a word repeatedly in one sitting moved the display
+    // 0 → 0 → 0, because the cram freeze (which protects the schedule, correctly) also
+    // blanked the display. Now the frozen passes grow a short-term strength instead.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "頑張る", meaning: "to persevere" });
+
+    const first = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 2 });
+    const seeded = first.data as { stability: number; confidence_rating: number };
+    expect(seeded.confidence_rating).toBe(2); // the grade reads back
+
+    // Four more passes in the same sitting. Every one is frozen by the scheduler.
+    const seen: number[] = [];
+    for (const g of [4, 5, 5, 5]) {
+      const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: g });
+      const row = data as { stability: number; confidence_rating: number };
+      expect(row.stability).toBeCloseTo(seeded.stability, 5); // SCHEDULE untouched — still frozen
+      seen.push(row.confidence_rating);
+    }
+    // …but the display climbed as the work went in.
+    expect(seen[seen.length - 1]).toBeGreaterThan(seeded.confidence_rating);
+    expect(seen).toEqual([...seen].sort((a, b) => a - b)); // monotone, never dropping mid-session
+  });
+
+  it("lets the crammed confidence decay overnight", async () => {
+    // The other half of the deal: cramming is rewarded, then honestly forgotten. The
+    // short-term strength half-lives in 8h, so by morning only the long term is left.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "一夜漬け", meaning: "cramming overnight" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 2 });
+    for (const g of [4, 5, 5]) {
+      await u.client.rpc("record_review", { p_user_word_id: w, p_grade: g });
+    }
+    const { data: before } = await u.client
+      .from("user_words").select("confidence_rating").eq("user_word_id", w).single();
+
+    // Age the short-term clock by a day (3 half-lives) without touching the schedule.
+    const aged = await u.client
+      .from("user_words")
+      .update({ short_stability_at: new Date(Date.now() - 86_400_000).toISOString() })
+      .eq("user_word_id", w)
+      .select("user_word_id");
+    if ((aged.data ?? []).length === 0) return; // no write access → skip
+
+    const { data } = await u.client.rpc("review_queue", {
+      p_user_id: u.userId,
+      p_limit: 10,
+      p_user_word_ids: [w],
+    });
+    const live = (data as { confidence_rating: number }[])[0];
+    expect(live.confidence_rating).toBeLessThan(
+      (before as { confidence_rating: number }).confidence_rating
+    );
+  });
+
+  // ── an explicit id set means "quiz exactly these" (migration 20260736) ────
+  it("deals EVERY word in an explicit id set, due or not (the Retry quiz fix)", async () => {
+    // Reported 2026-07-22: "words disappear from retry quiz, less flash cards". Retry
+    // re-runs the set just finished — but every word in it was just graded, so it was
+    // fresh, so the DUE gate dropped it and the fill quotas admitted only a slice. The
+    // set shrank on every pass. An explicit id set now bypasses both phases.
+    const u = await makeUser();
+    const ids: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const id = await makeStandaloneWord(u, { input: `再${i}`, meaning: `retry-${i}` });
+      // Grade 5 → conf 5 AND fresh: previously the most-excluded combination there was.
+      await u.client.rpc("record_review", { p_user_word_id: id, p_grade: 5 });
+      ids.push(id);
+    }
+
+    // The general queue correctly deals nothing — everything is known and fresh.
+    const general = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 20 });
+    expect(general.data as unknown[]).toHaveLength(0);
+
+    // Retry the exact set: all six come back, twice in a row (it must not shrink).
+    for (let pass = 0; pass < 2; pass++) {
+      const { data, error } = await u.client.rpc("review_queue", {
+        p_user_id: u.userId,
+        p_limit: 20,
+        p_user_word_ids: ids,
+      });
+      expect(error).toBeNull();
+      const queue = data as { user_word_id: string }[];
+      expect(queue).toHaveLength(6);
+      expect(queue.map((q) => q.user_word_id).sort()).toEqual([...ids].sort());
+    }
+  });
+
+  it("still honours the limit on an explicit id set", async () => {
+    const u = await makeUser();
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      ids.push(await makeStandaloneWord(u, { input: `制限${i}`, meaning: `limit-${i}` }));
+    }
+    const { data } = await u.client.rpc("review_queue", {
+      p_user_id: u.userId,
+      p_limit: 3,
+      p_user_word_ids: ids,
+    });
+    expect(data as unknown[]).toHaveLength(3);
   });
 
   it("fills a quiet session with the tuned mix — 12–17 conf ≤3, 3–8 conf-4, a conf-5 cameo at most", async () => {
