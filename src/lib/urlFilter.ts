@@ -13,12 +13,14 @@
 // EVERY word in the paragraph rendered grey — a total failure that looks like a
 // dictionary-coverage problem. Prod's error_log shows it recurring since.
 //
-// Why budget by ENCODED BYTES rather than by item count (the older
-// ID_CHUNK_SIZE = 100 approach in userWords.ts): a UUID has a fixed encoded
-// length, but a dictionary term does not. Percent-encoded Japanese costs ~9 bytes
-// per CHARACTER (漢 → %E6%BC%A2), so 100 Japanese terms can be an order of
-// magnitude larger than 100 ASCII ones. Counting items silently gives a different
-// budget per language; counting bytes is what actually bounds the URL.
+// Why budget by ENCODED BYTES rather than by a fixed item count (the older
+// per-chunk-item approach this replaced): a UUID has a fixed encoded length, but a
+// dictionary term does not. Percent-encoded Japanese costs ~9 bytes per CHARACTER
+// (漢 → %E6%BC%A2), so 100 Japanese terms can be an order of magnitude larger than
+// 100 ASCII ones. Counting items silently gives a different budget per language;
+// counting bytes is what actually bounds the URL. This is now the SINGLE chunking
+// mechanism — both the dictionary read (repository.ts) and the per-user state read
+// (userWords.ts getUserWordStates) route through it.
 // =========================================================
 
 /**

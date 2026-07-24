@@ -13,6 +13,7 @@
 // recorded (it's a placement test, not a study session).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserProfile } from "../services/session";
+import { profileToLangs } from "./useLanguagePrefs";
 import {
   startBandSearch,
   advanceBandSearch,
@@ -263,10 +264,7 @@ export function useCalibration(userId: string) {
     let active = true;
     Promise.all([getUserProfile(userId), getUserProficiencyBand(userId), getUserLevel(userId)])
       .then(([p, band, level]) => {
-        langs.current = {
-          learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
-          native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
-        };
+        langs.current = profileToLangs(p);
         prior.current = { band, level };
       })
       .catch((e) => console.warn("useCalibration: failed to load prefs / prior level", e))

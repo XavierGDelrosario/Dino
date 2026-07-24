@@ -19,6 +19,7 @@
 import { supabase } from "../../config/supabaseClient";
 import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
+import { chunkForUrlFilter } from "../../lib/urlFilter";
 import { ServiceError, toServiceError } from "../errors";
 import { displayConfidence } from "../confidence";
 import type { Database } from "../../types/database.types";
@@ -89,6 +90,30 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
 const SELECT_WITH_DICTIONARY =
   "*, words(translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency)";
 
+/**
+ * The LIVE 0–5 confidence from a raw `user_words` row — decayed with time and
+ * carrying the short-term strength a study session earned (services/confidence.ts,
+ * mirroring migration 20260735), NOT the stored `confidence_rating` snapshot. Reads
+ * the six columns off the snake_case row so every read surface (a full row, the
+ * reader's state map) derives the same number the review queue shows. */
+function rowConfidence(row: {
+  stability?: number | null;
+  last_reviewed_date: string | null;
+  originally_translated_date: string;
+  short_stability?: number | null;
+  short_stability_at?: string | null;
+  peak_confidence?: number | null;
+}): number {
+  return displayConfidence({
+    stability: row.stability ?? null,
+    lastReviewedDate: row.last_reviewed_date,
+    originallyTranslatedDate: row.originally_translated_date,
+    shortStability: row.short_stability ?? null,
+    shortStabilityAt: row.short_stability_at ?? null,
+    peakConfidence: row.peak_confidence ?? null,
+  });
+}
+
 function toUserWord(row: UserWordRow): UserWord {
   return {
     userWordId: row.user_word_id,
@@ -108,19 +133,10 @@ function toUserWord(row: UserWordRow): UserWord {
       ? null
       : row.words?.translation_reading ?? null,
     stability: row.stability ?? null,
-    // LIVE, not the stored snapshot: the number decays with time and carries the
-    // short-term strength a study session earned (services/confidence.ts, mirroring
-    // migration 20260735). Reading row.confidence_rating here would show a value
-    // frozen at the last review — and would disagree with the review queue, which
-    // computes the same thing server-side.
-    confidenceRating: displayConfidence({
-      stability: row.stability ?? null,
-      lastReviewedDate: row.last_reviewed_date,
-      originallyTranslatedDate: row.originally_translated_date,
-      shortStability: row.short_stability ?? null,
-      shortStabilityAt: row.short_stability_at ?? null,
-      peakConfidence: row.peak_confidence ?? null,
-    }),
+    // LIVE, not the stored snapshot (see rowConfidence / services/confidence.ts):
+    // reading row.confidence_rating here would show a value frozen at the last
+    // review, disagreeing with the review queue's server-side computation.
+    confidenceRating: rowConfidence(row),
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
     // Dictionary attributes for the info panel (null for a standalone word).
@@ -449,9 +465,6 @@ export interface UserWordState {
  * OUTPUT: Map<dictionaryWordId, UserWordState>.
  * CONSTRAINTS: RLS-scoped to the caller's own rows.
  */
-// Max ids per `.in()` GET. A UUID is ~39 URL-encoded chars (36 + `%2C`), so 100
-// keeps a single query URL near ~4 KB — well under typical server/proxy limits.
-const ID_CHUNK_SIZE = 100;
 // A long EN→JA paragraph can produce many chunks; cap in-flight requests.
 const ID_CHUNK_CONCURRENCY = 6;
 
@@ -474,12 +487,10 @@ export async function getUserWordStates(params: {
   // word can carry HUNDREDS of senses (JMdict reverse-matches the English token in
   // every Japanese gloss: "the" → 400+), so a whole paragraph yields thousands of
   // ids. Inlining them all makes a PostgREST GET URL that exceeds the server limit
-  // (414 URI Too Long → the fetch throws → the reader never renders). One bounded
-  // GET per ID_CHUNK_SIZE ids keeps every URL small; results merge into `states`.
-  const chunks: string[][] = [];
-  for (let i = 0; i < uniqueIds.length; i += ID_CHUNK_SIZE) {
-    chunks.push(uniqueIds.slice(i, i + ID_CHUNK_SIZE));
-  }
+  // (414 URI Too Long → the fetch throws → the reader never renders). Budget by
+  // encoded bytes (the one URL-length-safety mechanism — see lib/urlFilter); results
+  // merge into `states`.
+  const chunks = chunkForUrlFilter(uniqueIds);
 
   const rowsPerChunk = await mapLimit(chunks, ID_CHUNK_CONCURRENCY, async (ids) => {
     const { data, error } = await supabase
@@ -502,14 +513,8 @@ export async function getUserWordStates(params: {
       states.set(r.dictionary_word_id, {
         tracked: true,
         userWordId: r.user_word_id,
-        confidenceRating: displayConfidence({
-          stability: r.stability ?? null,
-          lastReviewedDate: r.last_reviewed_date,
-          originallyTranslatedDate: r.originally_translated_date,
-          shortStability: r.short_stability ?? null,
-          shortStabilityAt: r.short_stability_at ?? null,
-          peakConfidence: r.peak_confidence ?? null,
-        }),
+        // Same live number Lists shows (see rowConfidence), not the row snapshot.
+        confidenceRating: rowConfidence(r),
         lastReviewedDate: r.last_reviewed_date,
       });
     }

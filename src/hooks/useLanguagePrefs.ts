@@ -24,6 +24,22 @@ export interface LanguagePrefs {
   native: LangCode;
 }
 
+/**
+ * Map a loaded profile (or null) to the language pair, applying the registry
+ * defaults for any pref the user hasn't set. The ONE place the `?? DEFAULT → cast`
+ * policy lives, so every surface that opens on a direction agrees — including the
+ * ones (calibration) that read the profile alongside other columns and can't use
+ * the hook verbatim.
+ */
+export function profileToLangs(
+  p: { learningLanguage: string | null; nativeLanguage: string | null } | null,
+): LanguagePrefs {
+  return {
+    learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
+    native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
+  };
+}
+
 export function useLanguagePrefs(userId: string): LanguagePrefs {
   const [prefs, setPrefs] = useState<LanguagePrefs>({
     learning: DEFAULT_LEARNING_LANGUAGE,
@@ -35,10 +51,7 @@ export function useLanguagePrefs(userId: string): LanguagePrefs {
     getUserProfile(userId)
       .then((p) => {
         if (!live) return; // a user switch superseded this load
-        setPrefs({
-          learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
-          native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
-        });
+        setPrefs(profileToLangs(p));
       })
       .catch((e) => console.warn("useLanguagePrefs: failed to load language prefs", e));
     return () => {
