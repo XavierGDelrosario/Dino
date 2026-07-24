@@ -17,11 +17,19 @@ import {
   type AnalyzedToken,
 } from "./language";
 import {
+  dictionaryCompoundCandidates,
+  mergeConfirmedCompounds,
+} from "./language/compounds";
+import {
   findWordTranslations,
   findWordTranslationsBatch,
   type Word,
 } from "./words/repository";
-import { setCachedSenses } from "./words/cache";
+import {
+  setCachedSenses,
+  isKnownDictionaryMiss,
+  markDictionaryMiss,
+} from "./words/cache";
 import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
 import { nfc, nfcTrim } from "../lib/text";
 import { translate, translateBatch } from "./translation";
@@ -150,6 +158,70 @@ export interface ParagraphTranslation {
 }
 
 /**
+ * Ask the dictionary which of kuromoji's adjacent-noun runs are actually ONE word,
+ * and merge those. This is the I/O half of the compound fix; the span logic is
+ * pure in language/compounds.ts.
+ *
+ * Probes are resolved cache-first and, for the rest, by a DICTIONARY-ONLY batch
+ * call: a probe is a guess ("could 柔軟剤 be a word?") and most guesses miss, so
+ * they must never reach the paid MT fallback — that would bill Google for wrong
+ * guesses and cache their output as verified words. Confirmed probes are memoized,
+ * so the merged compound is already cached when the main lookup runs and costs no
+ * second round-trip.
+ *
+ * A failure here is NON-FATAL: the tokens come back unmerged, which is exactly
+ * today's behaviour, so the reader degrades to fragments rather than breaking.
+ *
+ * OUTPUT: the token list, with confirmed compounds folded into single tokens.
+ */
+async function mergeDictionaryCompounds(
+  tokens: AnalyzedToken[],
+  sourceLang: LangCode,
+  targetLang: LangCode,
+): Promise<AnalyzedToken[]> {
+  const proposed = dictionaryCompoundCandidates(tokens);
+  // Drop guesses the dictionary already rejected this session. Re-analyzing the
+  // same text otherwise re-asks every wrong guess, and most guesses are wrong.
+  const candidates = proposed.filter((c) => !isKnownDictionaryMiss(c, sourceLang, targetLang));
+  if (candidates.length === 0) return tokens;
+
+  const confirmed = new Set<string>();
+  try {
+    const cached = await findWordTranslationsBatch({
+      inputs: candidates,
+      sourceLang,
+      targetLang,
+    });
+    for (const [surface, senses] of cached) {
+      if (senses.length > 0) confirmed.add(surface);
+    }
+    const unknown = candidates.filter((c) => !confirmed.has(c));
+    if (unknown.length > 0) {
+      const batch = await translateBatch({
+        inputs: unknown,
+        sourceLang,
+        targetLang,
+        dictionaryOnly: true, // probes never hit paid MT — see the note above
+      });
+      for (const surface of unknown) {
+        const senses = batch.get(surface) ?? [];
+        if (senses.length > 0) {
+          confirmed.add(surface);
+          setCachedSenses(surface, sourceLang, targetLang, senses);
+        } else {
+          // Authoritative "no such entry" — this call never falls through to MT,
+          // so the answer can't change this session. Remember it.
+          markDictionaryMiss(surface, sourceLang, targetLang);
+        }
+      }
+    }
+  } catch {
+    return tokens; // probe failed → leave segmentation as kuromoji had it
+  }
+  return mergeConfirmedCompounds(tokens, confirmed);
+}
+
+/**
  * Translates a paragraph two ways, the way a reader actually uses it:
  *   - the WHOLE paragraph in context, for display only — NOT persisted (we will
  *     not store thousands of unique paragraphs), and
@@ -199,7 +271,17 @@ export async function translateParagraph(params: {
   //    the text to route word-vs-sentence), else analyze here — avoids a duplicate
   //    kuromoji tokenize of the same string. Offsets stay pointed at the original
   //    paragraph; for JA this also yields per-token reading + lemma.
-  const tokens = params.tokens ?? (await analyze(input, resolvedSource));
+  let tokens = params.tokens ?? (await analyze(input, resolvedSource));
+
+  // 2b. Re-merge compounds kuromoji over-segmented, validated against the
+  //     DICTIONARY (柔軟 ＋ 剤 → 柔軟剤, which IS a JMdict entry). Without this the
+  //     reader looks up the fragments and the word's meaning is simply lost —
+  //     the top source of quality reports. The curated list in compounds.ts runs
+  //     first (inside analyze) and covers what it covers; this generalizes it to
+  //     every compound the dictionary actually has.
+  if (resolvedSource.toUpperCase() === "JA") {
+    tokens = await mergeDictionaryCompounds(tokens, resolvedSource, targetLang);
+  }
 
   // 3. Look each word up by its LEMMA when known (so a conjugated form like
   //    行った resolves via its dictionary entry 行く), falling back to the

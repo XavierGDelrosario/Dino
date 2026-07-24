@@ -26,6 +26,7 @@ import { translate, translateBatch } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
 import { lookupWord, lookupWordsBatch, translateParagraph } from "@/services/lookup";
+import { __clearWordsCache } from "@/services/words/cache";
 import type { Word } from "@/services/words/repository";
 
 const mockFind = vi.mocked(findWordTranslations);
@@ -325,5 +326,60 @@ describe("lookupWordsBatch (EN→JA fan-out stage 2)", () => {
     expect(map.size).toBe(0);
     expect(mockFindBatch).not.toHaveBeenCalled();
     expect(mockTranslateBatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("translateParagraph — dictionary-validated compound merge", () => {
+  const FRAGMENTS = [
+    { text: "柔軟", start: 0, end: 2, reading: "じゅうなん", lemma: "柔軟", pos: "名詞" },
+    { text: "剤", start: 2, end: 3, reading: "ざい", lemma: "剤", pos: "名詞" },
+  ];
+  const paragraph = () =>
+    translateParagraph({ input: "柔軟剤", sourceLang: "JA", targetLang: "EN" });
+
+  beforeEach(() => {
+    __clearWordsCache(); // the memo is module-global; misses would leak between tests
+    mockAnalyze.mockResolvedValue(structuredClone(FRAGMENTS));
+    mockFindBatch.mockResolvedValue(new Map<string, Word[]>());
+    mockTranslate.mockResolvedValue({
+      translated: true,
+      translation: "fabric softener",
+      word: null,
+    });
+  });
+
+  const probeCalls = () =>
+    mockTranslateBatch.mock.calls.filter((c) => c[0].dictionaryOnly === true);
+
+  it("asks the dictionary about the noun run — and asks DICTIONARY-ONLY, never paid MT", async () => {
+    await paragraph();
+    expect(probeCalls()).toHaveLength(1);
+    expect(probeCalls()[0][0].inputs).toContain("柔軟剤");
+  });
+
+  it("merges the compound when the dictionary confirms it", async () => {
+    const softener = makeWord({ input: "柔軟剤", translation: "fabric softener" });
+    mockTranslateBatch.mockImplementation(async (p) =>
+      p.dictionaryOnly ? new Map([["柔軟剤", [softener]]]) : new Map<string, Word[]>(),
+    );
+    const res = await paragraph();
+    expect(res.tokens.map((t) => t.text)).toEqual(["柔軟剤"]);
+  });
+
+  it("leaves the fragments split when the dictionary has no such word", async () => {
+    const res = await paragraph();
+    expect(res.tokens.map((t) => t.text)).toEqual(["柔軟", "剤"]);
+  });
+
+  it("does not re-probe a term the dictionary already rejected this session", async () => {
+    await paragraph();
+    await paragraph(); // same text again — the miss is already known
+    expect(probeCalls()).toHaveLength(1);
+  });
+
+  it("still renders the paragraph when the probe call fails", async () => {
+    mockTranslateBatch.mockRejectedValue(new Error("edge down"));
+    const res = await paragraph();
+    expect(res.tokens.map((t) => t.text)).toEqual(["柔軟", "剤"]);
   });
 });

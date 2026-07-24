@@ -4,7 +4,7 @@
 // Quickly access all supported languages
 // =========================================================
 
-import { SUPPORTED_LANGUAGES, type LanguageDefinition } from "./registry";
+import { SUPPORTED_LANGUAGES, type LangCode, type LanguageDefinition } from "./registry";
 import { AUTO_DETECT, type SourceSelection } from "./detect";
 
 /**
@@ -26,4 +26,26 @@ export function sourceOptions(): Array<{ code: SourceSelection; name: string }> 
     { code: AUTO_DETECT, name: "Detect language" },
     ...SUPPORTED_LANGUAGES.map((l) => ({ code: l.code, name: l.name })),
   ];
+}
+
+/**
+ * Flip a translate direction (the ⇄ button), shared by every surface that offers
+ * one so they can't drift. The (concrete) target becomes the source; the new
+ * target is the old source when it was concrete, else the other supported language
+ * — so we never land on source === target, and "Detect" (which the target slot has
+ * no option for) never ends up there.
+ *
+ * OUTPUT: the flipped pair. PURE.
+ */
+export function swapLanguages(
+  source: SourceSelection,
+  target: LangCode
+): { source: SourceSelection; target: LangCode } {
+  return {
+    source: target,
+    target:
+      source !== AUTO_DETECT
+        ? source
+        : SUPPORTED_LANGUAGES.find((l) => l.code !== target)?.code ?? target,
+  };
 }

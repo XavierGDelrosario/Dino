@@ -3,7 +3,7 @@
 // SAME user_words row, never a new one). "Add to list" tags it into a sub-list;
 // "Remove from list" only shows when viewing a sub-list (un-tags, keeps the word
 // in the vocabulary); the trash deletes it from the vocabulary entirely.
-import { useRef, useState } from "react";
+import { useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
 import { ListMenu } from "../common/ListMenu";
@@ -41,16 +41,24 @@ export function ListRow({
   onTag,
   onCreateList,
   onRemoveFromList,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   word: UserWord;
   lists: List[];
   onEdit: (translation: string) => void;
   onDelete: () => void;
   onTag: (listId: string) => void;
-  /** Create a sub-list and tag this word into it (the on-the-fly "New list…"). */
-  onCreateList: (name: string) => Promise<void>;
+  /** Create a sub-list and tag this word into it (the on-the-fly "New list…").
+   *  Only completion is used (the menu closes); the resolved value is ignored. */
+  onCreateList: (name: string) => Promise<unknown>;
   /** Present only when viewing a sub-list (enables un-tagging). */
   onRemoveFromList?: () => void;
+  /** Select mode (the Lists "Select" toggle): the row becomes a pickable option. */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [tagMenu, setTagMenu] = useState(false);
@@ -67,8 +75,42 @@ export function ListRow({
     .map((m) => m.trim())
     .filter(Boolean);
 
+  // In select mode the row itself IS the control (no checkbox) — but it still carries
+  // its own buttons (?, edit, tag, delete, and the edit field), so a click that lands
+  // on any of those is theirs, not a selection toggle.
+  const toggle = () => onToggleSelect?.();
+  const rowClick = (e: MouseEvent) => {
+    if (!selectable || !onToggleSelect) return;
+    if ((e.target as HTMLElement).closest("button, input, a, .listrow__editing")) return;
+    onToggleSelect();
+  };
+
+  // Selection is conveyed by role/aria (a listbox option), not a checkbox widget:
+  // the picked state still reaches a screen reader, and the row stays keyboard-
+  // operable now that there's no focusable box in it.
+  const selectProps = selectable
+    ? {
+        role: "option",
+        "aria-selected": selected,
+        tabIndex: 0,
+        onClick: rowClick,
+        onKeyDown: (e: KeyboardEvent) => {
+          if (e.target !== e.currentTarget) return; // let the row's own buttons be
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault(); // Space would scroll the page
+            toggle();
+          }
+        },
+      }
+    : {};
+
   return (
-    <li className="listrow">
+    <li
+      className={`listrow${selectable ? " listrow--selectable" : ""}${
+        selectable && selected ? " listrow--selected" : ""
+      }`}
+      {...selectProps}
+    >
       {/* Header: the word (+reading) and ALL the metadata/actions, so the meaning
           below gets the full row width. */}
       <div className="listrow__header">

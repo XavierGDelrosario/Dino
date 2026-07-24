@@ -67,11 +67,25 @@ export function estimateLevel(samples: CalibrationSample[]): LevelValue | null {
 
 // ── Adaptive placement quiz (#10, the "Find my level" flow) ────────────────
 // A DIFFERENT calibration path from estimateLevel above: instead of grading a
-// fixed paragraph, it BINARY-SEARCHES the proficiency bands. Each round shows a
-// batch of words at one band; the user marks the ones they DON'T know; if they
-// know ≥ CALIBRATION_TARGET of the batch the band is "passed" and we search
-// harder, else easier. The result is the HARDEST band passed — converging in
-// ~log2(bands) rounds (≤3 for JLPT's 5), which is the "focus on speed" goal.
+// fixed paragraph, it searches the proficiency bands. Each round shows a batch of
+// words at one band; the user marks the ones they DON'T know; if they know ≥
+// CALIBRATION_TARGET of the batch the band is "passed" and we search harder, else
+// easier. The result is the HARDEST band passed.
+//
+// STABILITY OVER REACH (the fix for "a retake swings me N2 → N4"). A band is
+// decided on a SMALL sample, so a single unlucky word used to flip it — and the
+// binary search then jumped two bands and OVERWROTE the stored level outright.
+// Three things now damp that, in increasing order of importance:
+//   1. A BORDERLINE batch (known-fraction within BORDERLINE_MARGIN of the cutoff —
+//      i.e. a coin-flip) is not decided: the band is re-tested once and the two
+//      batches are POOLED, so the call is made on double the evidence.
+//   2. With a PRIOR level, the search only spans prior ± 1 — a re-calibration is
+//      an adjustment, not a from-scratch guess, and it converges in ≤ 2 rounds.
+//   3. The result is CLAMPED to prior ± 1 regardless (resolveLevelMove), so even
+//      failing every band in range can only step you down one.
+// A user who genuinely jumped two levels reaches it by retaking again — the cost
+// of being wrong upward (words silently never surfacing) is far worse than the
+// cost of being wrong downward (a slightly-too-easy review).
 //
 // PURE state machine (unit-tested): the hook owns fetching/answers, this owns the
 // search. Bands are the framework ordinal (1 = easiest); the result is clamped to
@@ -80,46 +94,96 @@ export function estimateLevel(samples: CalibrationSample[]): LevelValue | null {
 /** Fraction of a batch the user must know for a band to count as "passed". */
 export const CALIBRATION_TARGET = 0.8;
 
-/** Binary-search cursor over the bands 1..maxBand. `band` is the one to test now;
- *  `best` is the hardest band passed so far (0 = none yet). */
+/** A known-fraction this close to CALIBRATION_TARGET is a coin-flip, not a verdict:
+ *  the band gets one confirming batch and is decided on the POOLED sample. (At a
+ *  12-word batch, 9/12 = .75 and 10/12 = .83 both land here — exactly the one-word
+ *  swings that used to move a whole band.) */
+export const BORDERLINE_MARGIN = 0.15;
+
+/** Search cursor over the bands 1..maxBand. `band` is the one to test now; `best`
+ *  is the hardest band passed so far (0 = none yet); `prior` is the user's stored
+ *  band, which bounds how far this calibration may move them (null = first time,
+ *  unbounded); `pooled` carries an inconclusive batch's counts into the confirming
+ *  round at the same band. */
 export interface BandSearch {
   lo: number;
   hi: number;
   best: number;
   band: number;
-}
-
-/** Begin an adaptive search over bands 1..maxBand, starting at the middle band. */
-export function startBandSearch(maxBand: number): BandSearch {
-  const lo = 1;
-  const hi = Math.max(1, maxBand);
-  return { lo, hi, best: 0, band: Math.floor((lo + hi) / 2) };
+  prior: number | null;
+  pooled?: { known: number; total: number };
 }
 
 /**
- * Fold one round's result (the fraction of the batch the user KNEW) into the
- * search. Returns either the next band to test, or the final level once the search
- * has converged (lo > hi). The final level is the hardest band passed, floored at
- * 1 and capped at 5 (the users.level range) — so even a user who fails the easiest
- * band records level 1 (seedStability then shades it to a cold start anyway).
+ * Begin a search over bands 1..maxBand. With no `prior` (first calibration) this is
+ * a plain binary search from the middle band. With a prior it searches ONLY
+ * prior ± 1 (starting AT the prior), so a re-calibration confirms-or-nudges instead
+ * of re-guessing from scratch — fewer rounds, and no room for a wild swing.
+ */
+export function startBandSearch(maxBand: number, prior: number | null = null): BandSearch {
+  const max = Math.max(1, maxBand);
+  const lo = prior == null ? 1 : Math.max(1, prior - 1);
+  const hi = prior == null ? max : Math.min(max, prior + 1);
+  const band = prior == null ? Math.floor((lo + hi) / 2) : Math.min(hi, Math.max(lo, prior));
+  return { lo, hi, best: 0, band, prior };
+}
+
+/**
+ * The level a calibration may actually record: the measured band, clamped to the 1..5
+ * users.level range AND to within one band of the `prior` (when there is one). A
+ * measured 0 (failed every band tested) means "below everything we tried" → one band
+ * below the prior, or level 1 for a first calibration.
+ */
+export function resolveLevelMove(measured: number, prior: number | null): LevelValue {
+  const target = measured > 0 ? measured : (prior ?? 1) - 1;
+  const lo = prior == null ? 1 : prior - 1;
+  const hi = prior == null ? 5 : prior + 1;
+  return Math.min(5, Math.max(1, Math.min(hi, Math.max(lo, target)))) as LevelValue;
+}
+
+/**
+ * Fold one round's result (how many of the batch's `total` words the user KNEW) into
+ * the search. Returns either the next band to test — which may be the SAME band, when
+ * the batch was too close to the cutoff to call (see BORDERLINE_MARGIN) — or the final
+ * level once the search has converged (lo > hi), clamped to within one band of the
+ * prior by resolveLevelMove.
  */
 export function advanceBandSearch(
   s: BandSearch,
-  knownFraction: number,
+  known: number,
+  total: number,
 ): { done: true; level: LevelValue } | { done: false; search: BandSearch } {
-  const passed = knownFraction >= CALIBRATION_TARGET;
+  const pooledKnown = (s.pooled?.known ?? 0) + known;
+  const pooledTotal = (s.pooled?.total ?? 0) + total;
+  const fraction = pooledTotal > 0 ? pooledKnown / pooledTotal : 0;
+
+  // Too close to call, and this band hasn't been confirmed yet → re-test it and
+  // decide on the pooled sample. Only ever ONE confirming round per band (`pooled`
+  // is already set the second time through), so the quiz can't loop.
+  if (s.pooled == null && Math.abs(fraction - CALIBRATION_TARGET) <= BORDERLINE_MARGIN) {
+    return { done: false, search: { ...s, pooled: { known: pooledKnown, total: pooledTotal } } };
+  }
+
+  const passed = fraction >= CALIBRATION_TARGET;
   const lo = passed ? s.band + 1 : s.lo;
   const hi = passed ? s.hi : s.band - 1;
   const best = passed ? s.band : s.best;
   if (lo > hi) {
-    return { done: true, level: Math.min(5, Math.max(1, best)) as LevelValue };
+    return { done: true, level: resolveLevelMove(best, s.prior) };
   }
-  return { done: false, search: { lo, hi, best, band: Math.floor((lo + hi) / 2) } };
+  // Fresh band → drop the pooled counts (they belong to the band just decided).
+  return { done: false, search: { lo, hi, best, band: Math.floor((lo + hi) / 2), prior: s.prior } };
 }
 
 /** Modest day-values for the initial memory strength of a pre-known word, indexed
  *  by how far BELOW the (shaded) user level the word sits. Kept small so an over-
- *  credit only lengthens the first interval slightly — never hides the word. */
+ *  credit only lengthens the first interval slightly — never hides the word.
+ *
+ *  NOTE: this is the ONLY place the user↔word level gap affects scheduling today.
+ *  The server fuzzes whatever seed it is given (save_dictionary_word), but it does
+ *  not yet scale it by level — that lands with the per-language leveling registry,
+ *  which is where the gap belongs (its accuracy is language-specific and, measured
+ *  against JLPT, only ~24% predictive from frequency alone). */
 const SEED_STABILITY_BY_GAP = [1.5, 3.5, 7.0] as const;
 
 /**
@@ -130,7 +194,7 @@ const SEED_STABILITY_BY_GAP = [1.5, 3.5, 7.0] as const;
  * words at/below that shaded level; anything at or above it cold-starts. So a wrong
  * estimate errs toward "review it a bit sooner," never "never review it."
  *
- * OUTPUT: a small positive day-count, or null (no seed → cold start).
+ * OUTPUT: a small positive day-count (the server fuzzes it), or null (cold start).
  */
 export function seedStability(
   difficulty: LevelValue | null,

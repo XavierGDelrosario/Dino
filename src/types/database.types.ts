@@ -416,6 +416,9 @@ export type Database = {
           input: string
           last_reviewed_date: string | null
           originally_translated_date: string
+          peak_confidence: number
+          short_stability: number | null
+          short_stability_at: string | null
           source_lang: string
           stability: number | null
           target_lang: string
@@ -429,6 +432,9 @@ export type Database = {
           input: string
           last_reviewed_date?: string | null
           originally_translated_date?: string
+          peak_confidence?: number
+          short_stability?: number | null
+          short_stability_at?: string | null
           source_lang: string
           stability?: number | null
           target_lang: string
@@ -442,6 +448,9 @@ export type Database = {
           input?: string
           last_reviewed_date?: string | null
           originally_translated_date?: string
+          peak_confidence?: number
+          short_stability?: number | null
+          short_stability_at?: string | null
           source_lang?: string
           stability?: number | null
           target_lang?: string
@@ -656,6 +665,26 @@ export type Database = {
           user_id: string | null
           input: string | null
           detail: string | null
+        }[]
+      }
+      admin_report_quality_issue: {
+        Args: { p_input: string; p_description: string }
+        Returns: {
+          id: number
+          reported_at: string
+          reported_by: string | null
+          input: string
+          description: string
+        }
+      }
+      admin_quality_reports: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: number
+          reported_at: string
+          reported_by: string | null
+          input: string
+          description: string
         }[]
       }
       admin_table_sizes: {

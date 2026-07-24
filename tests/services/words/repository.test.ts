@@ -12,7 +12,7 @@ import {
   findWordTranslationsBatch,
 } from "@/services/words/repository";
 import { __clearWordsCache } from "@/services/words/cache";
-import { FRESH_OR_MT } from "@/lib/projection";
+import { FRESH, CURRENT_PROJECTION_VERSION } from "@/lib/projection";
 
 let stub: SupabaseStub;
 beforeEach(() => {
@@ -200,15 +200,16 @@ describe("stale-projection gate", () => {
     ["findCachedWord", () => findCachedWord({ input: "猫", sourceLang: "JA", targetLang: "EN" })],
     ["findWordTranslations", () => findWordTranslations({ input: "猫", sourceLang: "JA", targetLang: "EN" })],
     ["findWordTranslationsBatch", () => findWordTranslationsBatch({ inputs: ["猫"], sourceLang: "JA", targetLang: "EN" })],
-  ])("%s only serves CURRENT projections (MT rows exempt)", async (_name, read) => {
+  ])("%s only serves CURRENT projections (MT rows included)", async (_name, read) => {
     stub.queueFrom("words", { data: [], error: null });
 
     await read();
 
     const or = stub.callsFor("words", "or")[0];
-    expect(or?.args[0]).toBe(FRESH_OR_MT);
-    // Exempting MT is the money-safety half: those rows project nothing, so treating
-    // them as stale would re-call the PAID provider on every version bump.
-    expect(FRESH_OR_MT).toContain("dictionary_ref.like.mt:*");
+    expect(or?.args[0]).toBe(FRESH);
+    expect(FRESH).toBe(`projection_version.gte.${CURRENT_PROJECTION_VERSION}`);
+    // MT rows are NOT exempt (v8): the client must miss a stale one so the edge gets to
+    // re-check the dictionary for free (it revives the paid row if nothing turns up).
+    expect(FRESH).not.toContain("mt:");
   });
 });

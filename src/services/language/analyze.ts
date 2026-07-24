@@ -77,6 +77,39 @@ export function isSingleWord(tokens: AnalyzedToken[], lang: LangCode): boolean {
   return tokens.length === 1;
 }
 
+/**
+ * The DICTIONARY-FORM lookup key for an already-analyzed single word: the LEMMA of
+ * its content token (行った → 行く), since the dictionary is keyed on dictionary
+ * forms and an inflected surface matches nothing. Falls back to the surface text.
+ *
+ * The same rule the paragraph reader applies per token (lookup.ts `keyOf`), factored
+ * out so every single-word surface (Translate, the Lists add form) resolves inflections
+ * identically instead of each re-deriving it.
+ *
+ * NOTE: only kuromoji (JA) produces lemmas — for a language analyzed by
+ * `Intl.Segmenter` every token's lemma is null, so an English "ran"/"running" comes
+ * back UNCHANGED. English inflection is not handled anywhere in the app today.
+ *
+ * OUTPUT: the lemma, or `fallback`. PURE.
+ */
+export function dictionaryFormOf(tokens: AnalyzedToken[], fallback: string): string {
+  const content = tokens.find((t) => t.pos !== null && isContentPos(t.pos));
+  return content?.lemma ?? content?.text ?? fallback;
+}
+
+/**
+ * `dictionaryFormOf` for raw text: analyze, then take the lemma when the text is a
+ * SINGLE word (a phrase is returned unchanged — it belongs in the paragraph reader,
+ * which lemmatizes per token itself).
+ *
+ * OUTPUT: the dictionary form to look up. Analyzes, so it may lazily load kuromoji.
+ */
+export async function dictionaryForm(text: string, lang: LangCode): Promise<string> {
+  const tokens = await analyze(text, lang);
+  if (!isSingleWord(tokens, lang)) return text;
+  return dictionaryFormOf(tokens, text);
+}
+
 /** Languages that get morphological analysis (reading + lemma) vs. plain segmentation. */
 function needsMorphology(lang: LangCode): boolean {
   return lang.toUpperCase() === "JA";

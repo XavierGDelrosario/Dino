@@ -20,6 +20,9 @@ vi.mock("@/services/calibration", () => ({
   startBandSearch: vi.fn(),
   advanceBandSearch: vi.fn(),
   estimateLevel: vi.fn(),
+  resolveLevelMove: vi.fn(),
+  getUserLevel: vi.fn(),
+  getUserProficiencyBand: vi.fn(),
   setUserLevel: vi.fn(),
   setUserProficiencyBand: vi.fn(),
 }));
@@ -35,6 +38,9 @@ import {
   startBandSearch,
   advanceBandSearch,
   estimateLevel,
+  resolveLevelMove,
+  getUserLevel,
+  getUserProficiencyBand,
   setUserLevel,
   setUserProficiencyBand,
 } from "@/services/calibration";
@@ -46,23 +52,39 @@ const mockDifficulty = vi.mocked(getDifficulty);
 const mockStart = vi.mocked(startBandSearch);
 const mockAdvance = vi.mocked(advanceBandSearch);
 const mockEstimate = vi.mocked(estimateLevel);
+const mockResolve = vi.mocked(resolveLevelMove);
+const mockPriorLevel = vi.mocked(getUserLevel);
+const mockPriorBand = vi.mocked(getUserProficiencyBand);
 const mockSetLevel = vi.mocked(setUserLevel);
 const mockSetBand = vi.mocked(setUserProficiencyBand);
 
 const A = makeWord({ wordId: "a", input: "赤", translation: "red", inputReading: "あか" });
 const B = makeWord({ wordId: "b", input: "青", translation: "blue", inputReading: "あお" });
 const C = makeWord({ wordId: "c", input: "白", translation: "white", inputReading: "しろ" });
-// fetchLearnWords returns cards (Word[][]); the hook takes each card's primary.
+const D = makeWord({ wordId: "d", input: "黒", translation: "black", inputReading: "くろ" });
+const E = makeWord({ wordId: "e", input: "緑", translation: "green", inputReading: "みどり" });
+const F = makeWord({ wordId: "f", input: "紫", translation: "purple", inputReading: "むらさき" });
+// fetchLearnWords returns cards (Word[][]); the hook takes each card's primary. Each
+// round draws DIFFERENT words (the server samples the band's pool at random), and the
+// hook drops any word it has already shown this session — so a mock that returned the
+// same three words every round would (correctly) come back empty on round 2.
 const BATCH = [[A], [B], [C]];
-const START = { lo: 1, hi: 5, best: 0, band: 3 };
+const BATCH_2 = [[D], [E], [F]];
+const START = { lo: 1, hi: 5, best: 0, band: 3, prior: null };
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockProfile.mockResolvedValue({ learningLanguage: "JA", nativeLanguage: "EN" } as never);
-  mockFetch.mockResolvedValue(BATCH as never);
+  let round = 0;
+  mockFetch.mockImplementation(() => Promise.resolve((round++ === 0 ? BATCH : BATCH_2) as never));
   mockStart.mockReturnValue(START as never);
   mockAdvance.mockReturnValue({ done: true, level: 3 } as never); // single-round converge by default
   mockEstimate.mockReturnValue(2 as never);
+  // No stored estimates by default (a first-time calibration); the ±1 clamp is unit-
+  // tested in services/calibration.test.ts, so here it just passes the measurement on.
+  mockPriorBand.mockResolvedValue(null as never);
+  mockPriorLevel.mockResolvedValue(null as never);
+  mockResolve.mockImplementation((measured) => measured as never);
   mockSetLevel.mockResolvedValue(undefined as never);
   mockSetBand.mockResolvedValue(undefined as never);
   mockDifficulty.mockReturnValue({ level: 2 } as never);
@@ -77,7 +99,7 @@ describe("useCalibration", () => {
     const { result } = renderHook(() => useCalibration("u"));
     await waitFor(() => expect(result.current.status).toBe("reviewing"));
 
-    expect(mockStart).toHaveBeenCalledWith(5); // JLPT max band
+    expect(mockStart).toHaveBeenCalledWith(5, null); // JLPT max band, no prior
     expect(mockFetch).toHaveBeenCalledWith({
       band: 3, source: "JA", target: "EN", limit: CALIBRATION_BATCH, excludeSeen: true,
     });
@@ -111,7 +133,10 @@ describe("useCalibration", () => {
   });
 
   it("submit adds KNOWN words at full-confidence seed, skips the unknown one, and advances", async () => {
-    mockAdvance.mockReturnValueOnce({ done: false, search: { lo: 4, hi: 5, best: 3, band: 4 } } as never);
+    mockAdvance.mockReturnValueOnce({
+      done: false,
+      search: { lo: 4, hi: 5, best: 3, band: 4, prior: null },
+    } as never);
     const { result } = renderHook(() => useCalibration("u"));
     await waitFor(() => expect(result.current.status).toBe("reviewing"));
 
@@ -124,8 +149,9 @@ describe("useCalibration", () => {
     expect(arg.userId).toBe("u");
     expect(arg.words).toEqual([A, C]);
     expect(arg.seedFor?.(A)).toBe(40); // initialStability 40 → confidence 5
-    // knownFraction = 2/3 folded into the search; advanced → round 2, next band fetched.
-    expect(mockAdvance).toHaveBeenCalledWith(START, 2 / 3);
+    // The round's COUNTS (2 known of 3) fold into the search — counts, not a fraction,
+    // so a borderline band can pool two batches; advanced → round 2, next band fetched.
+    expect(mockAdvance).toHaveBeenCalledWith(START, 2, 3);
     await waitFor(() => expect(result.current.round).toBe(2));
     expect(mockFetch).toHaveBeenLastCalledWith(
       expect.objectContaining({ band: 4, excludeSeen: true }),
@@ -135,7 +161,10 @@ describe("useCalibration", () => {
 
   it("on convergence persists BOTH axes and shows the JLPT label", async () => {
     mockAdvance
-      .mockReturnValueOnce({ done: false, search: { lo: 4, hi: 5, best: 3, band: 4 } } as never)
+      .mockReturnValueOnce({
+        done: false,
+        search: { lo: 4, hi: 5, best: 3, band: 4, prior: null },
+      } as never)
       .mockReturnValueOnce({ done: true, level: 4 } as never);
     const { result } = renderHook(() => useCalibration("u"));
     await waitFor(() => expect(result.current.status).toBe("reviewing"));
@@ -153,6 +182,39 @@ describe("useCalibration", () => {
     expect(mockSetLevel).toHaveBeenCalledWith("u", 2); // estimateLevel's return
     expect(result.current.levelLabel).toBe("N2"); // JLPT band 4 (1=N5 … 5=N1)
     await waitFor(() => expect(result.current.addedCount).toBe(6)); // 3 + 3 actual saves
+  });
+
+  // ── The stored estimate bounds a RE-calibration (the anti-swing path) ──────
+  it("seeds the search from the stored band and clamps BOTH axes to within one of it", async () => {
+    mockPriorBand.mockResolvedValue(3 as never); // already placed at N3
+    mockPriorLevel.mockResolvedValue(3 as never);
+    mockAdvance.mockReturnValue({ done: true, level: 5 } as never); // a wild measurement
+    mockEstimate.mockReturnValue(5 as never);
+    mockResolve.mockReturnValue(4 as never); // …which resolveLevelMove caps at prior + 1
+
+    const { result } = renderHook(() => useCalibration("u"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+    expect(mockStart).toHaveBeenCalledWith(5, 3); // search spans the prior, not 1..5
+
+    act(() => result.current.submit());
+    await waitFor(() => expect(result.current.status).toBe("done"));
+
+    // Every persisted value goes through the clamp, with the prior for THAT axis.
+    expect(mockResolve).toHaveBeenCalledWith(5, 3); // band: measured 5 vs prior band 3
+    expect(mockResolve).toHaveBeenCalledWith(5, 3); // level: estimate 5 vs prior level 3
+    expect(mockSetBand).toHaveBeenCalledWith("u", 4);
+    expect(mockSetLevel).toHaveBeenCalledWith("u", 4);
+  });
+
+  it("a first-time user who is credited nothing stays cold-start (level null)", async () => {
+    mockEstimate.mockReturnValue(null as never); // no level cleared the threshold
+    mockAdvance.mockReturnValue({ done: true, level: 1 } as never);
+    const { result } = renderHook(() => useCalibration("u"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    act(() => result.current.submit());
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(mockSetLevel).toHaveBeenCalledWith("u", null); // NOT clamped to 1
   });
 
   it("records an unknown word as grade 1 in the difficulty samples", async () => {

@@ -33,6 +33,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],
+    setupFiles: ["./tests/support/setup.ts"],
     retry: isIntegration ? 2 : 0,
     testTimeout: isIntegration ? 20000 : 5000,
     hookTimeout: isIntegration ? 20000 : 10000,

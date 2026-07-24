@@ -85,6 +85,25 @@ export function TrashIcon({ size }: { size?: number }) {
   );
 }
 
+/** Funnel — the conventional "filter" glyph. */
+export function FilterIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </Svg>
+  );
+}
+
+/** Magnifying glass — the conventional "search" glyph (Lists search bar). */
+export function SearchIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </Svg>
+  );
+}
+
 export function CameraIcon({ size }: { size?: number }) {
   return (
     <Svg size={size}>

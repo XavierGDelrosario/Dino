@@ -18,6 +18,7 @@ import {
   DEFAULT_LEARN_LIMIT,
   MAX_LEARN_LIMIT,
   resolvePerInputWithCandidates,
+  resolvePerInputFirstHit,
   projectMany,
   projectRows,
   resolveServiceKey,
@@ -401,14 +402,61 @@ describe("lemmaCandidates (EN morphy lemmatization seam)", () => {
     expect(has("leaves", "leaf")).toBe(true); // via the -ves rule
   });
 
-  it("is identity (surface only) for non-EN sources — JA arrives pre-lemmatized", () => {
+  it("is identity (surface only) for non-EN sources with nothing to lemmatize", () => {
     expect(lemmaCandidates("猫", "JA")).toEqual(["猫"]);
     expect(lemmaCandidates("perro", "ES")).toEqual(["perro"]);
+  });
+
+  // JA: kuromoji/IPADIC lemmatizes a する-verb stem to a 五段 〜す form JMdict has no
+  // headword for (接して → 接す, entry 接する) — without the fallback candidate the word
+  // misses the dictionary and drops to paid MT.
+  it("offers the する form for a JA 〜す lemma, surface first (接す→接する)", () => {
+    expect(lemmaCandidates("接す", "JA")).toEqual(["接す", "接する"]);
+    expect(lemmaCandidates("察す", "JA")).toEqual(["察す", "察する"]);
+  });
+
+  it("still leads with the surface, so genuine 五段 〜す verbs resolve to themselves (出す, 話す)", () => {
+    expect(lemmaCandidates("出す", "JA")[0]).toBe("出す");
+    expect(lemmaCandidates("話す", "JA")[0]).toBe("話す");
+  });
+
+  it("leaves non-す JA input and bare す alone", () => {
+    expect(lemmaCandidates("行く", "JA")).toEqual(["行く"]);
+    expect(lemmaCandidates("す", "JA")).toEqual(["す"]);
   });
 
   it("does not over-strip short words or -ss (is→be via map, not 'i'; class stays)", () => {
     expect(lemmaCandidates("class", "EN")).not.toContain("clas"); // -ss guarded
     expect(lemmaCandidates("is", "EN")).toContain("be"); // irregular, not a strip
+  });
+});
+
+describe("resolvePerInputFirstHit (single-provider candidate resolution: JA→EN)", () => {
+  const r = (translation: string, entryId: string): ProviderResult => ({ translation, entryId });
+  const cands = (m: Record<string, string[]>) => new Map(Object.entries(m));
+  const byCand = (m: Record<string, ProviderResult[]>) => new Map(Object.entries(m));
+
+  it("falls back to the する entry and re-keys it to the 〜す lemma the reader asked for", () => {
+    const out = resolvePerInputFirstHit(
+      ["接す"],
+      cands({ 接す: ["接す", "接する"] }),
+      byCand({ 接する: [r("to touch; to come in contact with", "1385350")] }),
+    );
+    expect(out.get("接す")?.[0].translation).toBe("to touch; to come in contact with");
+  });
+
+  it("prefers the SURFACE form over the fallback candidate (出す stays 出す)", () => {
+    const out = resolvePerInputFirstHit(
+      ["出す"],
+      cands({ 出す: ["出す", "出する"] }),
+      byCand({ 出す: [r("to take out", "1338180")], 出する: [r("bogus", "x")] }),
+    );
+    expect(out.get("出す")?.[0].translation).toBe("to take out");
+  });
+
+  it("omits an input no candidate resolves (so the caller still falls through to MT)", () => {
+    const out = resolvePerInputFirstHit(["唐揚げ"], cands({ 唐揚げ: ["唐揚げ"] }), byCand({}));
+    expect(out.has("唐揚げ")).toBe(false);
   });
 });
 

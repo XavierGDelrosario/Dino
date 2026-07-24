@@ -13,10 +13,14 @@
 // recorded (it's a placement test, not a study session).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserProfile } from "../services/session";
+import { profileToLangs } from "./useLanguagePrefs";
 import {
   startBandSearch,
   advanceBandSearch,
   estimateLevel,
+  resolveLevelMove,
+  getUserLevel,
+  getUserProficiencyBand,
   setUserLevel,
   setUserProficiencyBand,
   type BandSearch,
@@ -24,7 +28,7 @@ import {
 } from "../services/calibration";
 import { fetchLearnWords } from "../services/learn";
 import { saveDictionaryWord, saveDictionaryWords } from "../services/words/userWords";
-import { getDifficulty } from "../services/difficulty";
+import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { proficiencyFrameworkFor, labelForBand } from "../services/proficiency";
 import {
   DEFAULT_LEARNING_LANGUAGE,
@@ -41,25 +45,39 @@ export type CalibrationStatus =
   | "unavailable" // the learning language has no curated band data
   | "error";
 
-/** Words per round. Small + fixed so a round is a quick glance-and-tap. */
-export const CALIBRATION_BATCH = 8;
+/** Words per round. Small + fixed so a round is a quick glance-and-tap — but not so
+ *  small that one unlucky word decides a band: at 8 words a single miss moved the
+ *  known-fraction by 12.5 points, straight across the 80% cutoff. 12 halves that
+ *  swing, and the search now spans at most 3 bands (prior ± 1), so the quiz is no
+ *  longer than it was. */
+export const CALIBRATION_BATCH = 12;
 
-// Bound-morpheme JMdict POS codes — an entry whose PRIMARY sense is ONLY these is a
-// prefix/suffix/counter/auxiliary, not a standalone word a learner can self-rate
-// ("第", "化", "さん"). Mirrors learn_words_at_band's server-side c_affix_pos; kept as
-// a client backstop since that filter is inclusive (any non-affix sense passes) and
-// may not be deployed to every DB. n-suf/n-pref included (化/系/感 are noun-affixes).
-const AFFIX_POS = new Set([
-  "pref", "suf", "ctr", "aux", "aux-v", "aux-adj", "cop", "cop-da", "n-suf", "n-pref",
+// GRAMMATICAL / BOUND JMdict POS codes — an entry whose senses are ONLY these is a
+// particle, conjunction, interjection, determiner, set expression, or an affix, not a
+// standalone word a learner can self-rate ("は", "しかし", "もしもし", "第", "化", "さん").
+// Rating one tells us nothing about their LEVEL, which is all this quiz measures.
+// Mirrors learn_words_at_band's server-side c_excluded_pos (migration 20260730) — keep
+// the two lists in sync; kept as a client backstop since that filter is inclusive (any
+// non-grammatical sense passes) and may not be deployed to every DB.
+const GRAMMATICAL_POS = new Set([
+  "prt", "conj", "exp", "int", "adj-pn",
+  "pref", "suf", "n-suf", "n-pref",
+  "ctr", "aux", "aux-v", "aux-adj", "cop", "cop-da",
 ]);
 const isAffixOnly = (w: Word): boolean =>
-  !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => AFFIX_POS.has(p));
+  !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => GRAMMATICAL_POS.has(p));
 
-/** Initial memory strength (days) seeded for a word the user marks as KNOWN.
+/** BASE memory strength (days) seeded for a word the user marks as KNOWN.
  *  confidence_from_stability(40) = 5 (its ≥ 35 bucket), so a known word lands in
  *  the vocabulary at full confidence. Uses the #10 cold-start SEED path
  *  (saveDictionaryWord initialStability), which sets a NEW word's confidence but
- *  never clobbers a word already under review. */
+ *  never clobbers a word already under review.
+ *
+ *  The server scales this per word (srs_ease: a word well below the user's level
+ *  gets a longer seed) and FUZZES it by ±35% — without that, this one call seeds
+ *  hundreds of words with an identical strength at an identical instant, and they
+ *  all come due on the same day months later. That mass-review is exactly what the
+ *  fuzz exists to prevent; do not "clean up" the randomness. */
 const KNOWN_WORD_STABILITY = 40;
 
 export function useCalibration(userId: string) {
@@ -84,6 +102,13 @@ export function useCalibration(userId: string) {
   // level for users.level — the value the embeddings/domain filter (#12) and
   // seedStability consume (they compare against word frequency, not the JLPT band).
   const samples = useRef<CalibrationSample[]>([]);
+  // The user's STORED estimates before this quiz (null = never calibrated). They
+  // bound how far this run may move them — a re-calibration adjusts, it doesn't
+  // re-guess (see the BandSearch header: the N2→N4 swing came from a small sample
+  // being allowed to overwrite the estimate outright).
+  const prior = useRef<{ band: number | null; level: LevelValue | null }>({ band: null, level: null });
+  // Every word id shown this session, so a confirming round can't repeat one.
+  const shown = useRef<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Running count of KNOWN words added to the vocabulary this session (shown on the
@@ -114,6 +139,13 @@ export function useCalibration(userId: string) {
   // reflects the words the user hasn't already mastered. Empty result = no fresh
   // words for the band (proficiency not ingested, or all seen); the caller decides
   // whether that's "unavailable" (first round) or a reason to stop.
+  //
+  // `shown` also filters within the SESSION: a borderline band is re-tested (the
+  // confirming round), and the server samples that band's pool at random — with no
+  // exclude-ids param it could hand back a word from the first batch, which would
+  // pool the same answer twice. (excludeSeen can't cover it: the known words from
+  // the first batch are saved fire-and-forget, so they may not be in the vocabulary
+  // yet when the confirming round fetches.)
   const fetchBand = useCallback(async (band: number): Promise<Word[]> => {
     const cardLists = await fetchLearnWords({
       band,
@@ -124,10 +156,13 @@ export function useCalibration(userId: string) {
     });
     // One word per card (the primary sense) — know/don't-know needs no meanings.
     // Drop bare affixes (prefixes/suffixes/counters): a learner can't rate "第" alone.
-    return cardLists
+    const batch = cardLists
       .map((senses) => senses[0])
       .filter(Boolean)
-      .filter((w) => !isAffixOnly(w));
+      .filter((w) => !isAffixOnly(w))
+      .filter((w) => !shown.current.has(w.wordId));
+    batch.forEach((w) => shown.current.add(w.wordId));
+    return batch;
   }, []);
 
   // Converge: persist BOTH axes (each on its own column), then show the result.
@@ -136,15 +171,26 @@ export function useCalibration(userId: string) {
   //   · proficiency_band ← the JLPT search result (the "N3" the learner sees)
   //   · users.level      ← estimateLevel() over the tested words' FREQUENCY, the
   //                        difficulty-axis value the embeddings/seed consume.
+  //
+  // BOTH are clamped to within one band of the stored prior (resolveLevelMove) —
+  // the difficulty axis is estimated from the SAME small sample as the band, so it
+  // swings for the same reason and needs the same damping. `null` survives only for
+  // a never-calibrated user (a genuine cold start); once there IS a prior, a quiz
+  // that credits nothing steps down one band rather than wiping the estimate.
   const finalize = useCallback(
     (resultBand: number) => {
-      setBand(resultBand);
+      const band = resolveLevelMove(resultBand, prior.current.band);
+      setBand(band);
       setStatus("done");
-      void setUserProficiencyBand(userId, resultBand).catch((e) =>
+      void setUserProficiencyBand(userId, band).catch((e) =>
         console.warn("calibration: failed to persist proficiency band", e),
       );
-      const difficulty = estimateLevel(samples.current); // null → beginner / cold-start
-      void setUserLevel(userId, difficulty).catch((e) =>
+      const estimate = estimateLevel(samples.current); // null → nothing credited
+      const level =
+        estimate == null && prior.current.level == null
+          ? null // never calibrated + nothing credited → stay cold-start
+          : resolveLevelMove(estimate ?? 0, prior.current.level);
+      void setUserLevel(userId, level).catch((e) =>
         console.warn("calibration: failed to persist difficulty level", e),
       );
     },
@@ -157,19 +203,38 @@ export function useCalibration(userId: string) {
       setStatus("loading");
       setError(null);
       try {
-        const batch = await fetchBand(next.band);
-        if (batch.length === 0) {
+        // Loop rather than return on the first empty band: a CONFIRMING round that
+        // finds no fresh words still has its pooled evidence, so decide that band on
+        // it (a 0-of-0 fold, which advanceBandSearch resolves from `pooled` alone)
+        // and move on, instead of throwing the round away.
+        let cursor = next;
+        for (;;) {
+          const batch = await fetchBand(cursor.band);
+          if (batch.length > 0) {
+            setSearch(cursor);
+            setCards(batch);
+            setUnknown(new Set());
+            setRound(roundNo);
+            setStatus("reviewing");
+            return;
+          }
           // No words for this band. First round → the language/level data isn't
           // available at all; otherwise finish with the best band passed so far.
-          if (firstRound) setStatus("unavailable");
-          else finalize(next.best);
-          return;
+          if (firstRound) {
+            setStatus("unavailable");
+            return;
+          }
+          if (!cursor.pooled) {
+            finalize(cursor.best);
+            return;
+          }
+          const step = advanceBandSearch(cursor, 0, 0);
+          if (step.done) {
+            finalize(step.level);
+            return;
+          }
+          cursor = step.search;
         }
-        setSearch(next);
-        setCards(batch);
-        setUnknown(new Set());
-        setRound(roundNo);
-        setStatus("reviewing");
       } catch (e) {
         setError(message(e));
         setStatus("error");
@@ -178,6 +243,8 @@ export function useCalibration(userId: string) {
     [fetchBand, finalize],
   );
 
+  // Start the search. With a stored band it spans only prior ± 1 (an adjustment,
+  // not a fresh guess); with none it's the old middle-out binary search.
   const begin = useCallback(() => {
     const fw = proficiencyFrameworkFor(langs.current.learning);
     if (!fw) {
@@ -187,20 +254,20 @@ export function useCalibration(userId: string) {
     const maxBand = fw.bands[fw.bands.length - 1]?.value ?? 1;
     setBand(null);
     samples.current = [];
-    void loadRound(startBandSearch(maxBand), 1, true);
+    shown.current = new Set();
+    void loadRound(startBandSearch(maxBand, prior.current.band), 1, true);
   }, [loadRound]);
 
-  // Load prefs once, then start the first round.
+  // Load prefs + the stored estimates once, then start the first round. The priors
+  // must be in hand BEFORE the search starts — they set its range (prior ± 1).
   useEffect(() => {
     let active = true;
-    getUserProfile(userId)
-      .then((p) => {
-        langs.current = {
-          learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
-          native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
-        };
+    Promise.all([getUserProfile(userId), getUserProficiencyBand(userId), getUserLevel(userId)])
+      .then(([p, band, level]) => {
+        langs.current = profileToLangs(p);
+        prior.current = { band, level };
       })
-      .catch((e) => console.warn("useCalibration: failed to load language prefs", e))
+      .catch((e) => console.warn("useCalibration: failed to load prefs / prior level", e))
       .finally(() => {
         if (active) begin();
       });
@@ -250,8 +317,9 @@ export function useCalibration(userId: string) {
         .catch((e) => console.warn("calibration: failed to save known words", e));
     }
 
-    const knownFraction = known.length / cards.length;
-    const step = advanceBandSearch(search, knownFraction);
+    // Fold the round's COUNTS (not just the fraction) into the search: a borderline
+    // band is re-tested and the two batches are pooled, which needs both numbers.
+    const step = advanceBandSearch(search, known.length, cards.length);
     setSubmitting(false);
     if (step.done) finalize(step.level);
     else void loadRound(step.search, round + 1, false);

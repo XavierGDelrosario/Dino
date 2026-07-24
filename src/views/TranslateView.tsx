@@ -216,7 +216,7 @@ export function TranslateView({ userId }: { userId: string }) {
             </div>
           )}
         </div>
-        <div className="translate__box translate__out" aria-label={tr("translate.outputAria")}>
+        <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
           {t.status === "loading" ? (
             <span className="translate__placeholder">{tr("translate.translating")}</span>
           ) : t.output ? (

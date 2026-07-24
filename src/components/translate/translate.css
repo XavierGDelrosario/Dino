@@ -199,10 +199,6 @@
   margin-inline: auto;
 }
 
-.langbar__arrow {
-  color: var(--muted);
-}
-
 .langbar__swap {
   appearance: none;
   flex: 0 0 auto;
