@@ -217,18 +217,19 @@
   }
 }
 
-/* The language section (its band row can be long) and the footer run full width. */
+/* The language section (its band row can be long) and the clear-all header run full width. */
 .filtermenu__section--wide,
-.filtermenu__foot {
+.filtermenu__head {
   grid-column: 1 / -1;
 }
 
-/* "Clear all" — the panel's only chrome, and only when there IS something to clear. */
-.filtermenu__foot {
+/* "Clear all" — the panel's only chrome, a top header, and only when there IS
+   something to clear. */
+.filtermenu__head {
   display: flex;
   justify-content: flex-end;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--border);
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .filtermenu__clear {

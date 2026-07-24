@@ -35,6 +35,12 @@ type SortBy = "newest" | "oldest" | "conf-asc" | "conf-desc";
 // the filter/sort state.
 const PAGE_SIZE = 100;
 
+// A sub-list's "Review" quizzes at most this many of its (filtered) words per
+// session — the most-overdue first (the SQL explicit-set path ranks them). A
+// separate "Review all" button appears only when the list holds more, so the
+// whole set is still reachable in one go.
+const SUBLIST_REVIEW_CAP = 20;
+
 /** Order a set of words by the chosen sort. Shared by the filtered set and the
  *  pinned selection, so a pick keeps its place in the list's ordering. */
 function sortWords(ws: UserWord[], sort: SortBy): UserWord[] {
@@ -76,7 +82,12 @@ export function ListView({
   onReview,
 }: {
   userId: string;
-  onReview: (listId: string | null, name: string, userWordIds?: string[]) => void;
+  onReview: (
+    listId: string | null,
+    name: string,
+    userWordIds?: string[],
+    limit?: number,
+  ) => void;
 }) {
   const L = useLists(userId);
   const { t } = useI18n();
@@ -97,8 +108,10 @@ export function ListView({
 
   // Anything narrowing WHICH words show (sort doesn't change the set). The search query
   // counts: "Review" quizzes exactly what's on screen, and a search is how you'd pick the
-  // handful of words you want to drill.
-  const filtersActive = activeFilterCount(filters) > 0 || query.trim() !== "";
+  // handful of words you want to drill. Memoized on `filters` alone — ListView re-renders
+  // on every keystroke/page/select-toggle, and the count walks each language's bands.
+  const filtersActive =
+    useMemo(() => activeFilterCount(filters), [filters]) > 0 || query.trim() !== "";
 
   // The attribute values actually present in the current list — the filter menu only
   // offers a language/word class you could actually match.
@@ -209,21 +222,49 @@ export function ListView({
           <span className="lists__count">{rows.length}</span>
         </h2>
         {L.words.length > 0 && (
-          <button
-            className="btn btn--sm lists__reviewbtn"
-            onClick={() =>
-              onReview(
-                L.selectedListId,
-                selectedList ? selectedList.listName : "",
-                // With a filter active, quiz exactly the filtered words shown;
-                // otherwise review the whole list/vocabulary as before.
-                filtersActive ? visible.map((w) => w.userWordId) : undefined
-              )
-            }
-            title={t("lists.reviewTitle")}
-          >
-            {t("lists.reviewBtn")}
-          </button>
+          <>
+            <button
+              className="btn btn--sm lists__reviewbtn"
+              onClick={() =>
+                selectedList
+                  ? // A sub-list: quiz its (filtered) words as an explicit set, capped —
+                    // the SQL takes the most-overdue SUBLIST_REVIEW_CAP of them.
+                    onReview(
+                      L.selectedListId,
+                      selectedList.listName,
+                      visible.map((w) => w.userWordId),
+                      SUBLIST_REVIEW_CAP,
+                    )
+                  : // ALL: filter active → exactly the filtered words; otherwise the
+                    // scheduled queue (weakest N) as before.
+                    onReview(
+                      L.selectedListId,
+                      "",
+                      filtersActive ? visible.map((w) => w.userWordId) : undefined,
+                    )
+              }
+              title={selectedList ? t("lists.reviewCappedTitle") : t("lists.reviewTitle")}
+            >
+              {t("lists.reviewBtn")}
+            </button>
+            {/* Only a sub-list, and only when it holds more than one capped session —
+                otherwise "Review" already covers every word. Runs the whole set. */}
+            {selectedList && visible.length > SUBLIST_REVIEW_CAP && (
+              <button
+                className="btn btn--sm lists__reviewbtn"
+                onClick={() =>
+                  onReview(
+                    L.selectedListId,
+                    selectedList.listName,
+                    visible.map((w) => w.userWordId),
+                  )
+                }
+                title={t("lists.reviewAllTitle", { n: visible.length })}
+              >
+                {t("lists.reviewAll", { n: visible.length })}
+              </button>
+            )}
+          </>
         )}
         {selectedList && (
           <button

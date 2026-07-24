@@ -229,10 +229,22 @@ export function FilterPanel({
   }, [onClose]);
 
   // No title bar: the Filter button above the panel already names it and closes it,
-  // so a header would only repeat itself. "Clear all" lives in a footer, shown only
-  // when there is something to clear.
+  // so a header would only repeat itself. "Clear all" sits in a top header, shown
+  // only when there is something to clear.
   return (
     <div className="filtermenu__box" role="group" aria-label={t("lists.filterAria")}>
+      {active > 0 && (
+        <div className="filtermenu__head">
+          <button
+            type="button"
+            className="filtermenu__clear"
+            onClick={() => onChange(NO_FILTERS)}
+          >
+            {t("lists.filterClear")}
+          </button>
+        </div>
+      )}
+
       {langsPresent.length > 0 && (
         // Full width: a selected language unfurls its band row underneath, which a
         // half-width column would wrap badly.
@@ -365,17 +377,6 @@ export function FilterPanel({
         </div>
       </section>
 
-      {active > 0 && (
-        <div className="filtermenu__foot">
-          <button
-            type="button"
-            className="filtermenu__clear"
-            onClick={() => onChange(NO_FILTERS)}
-          >
-            {t("lists.filterClear")}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

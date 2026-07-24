@@ -16,14 +16,18 @@ export function FlashcardView({
   listId = null,
   listName,
   userWordIds,
+  limit,
 }: {
   userId: string;
   listId?: string | null;
   listName?: string;
   /** When set, quiz exactly these words (the Lists view's filtered subset). */
   userWordIds?: string[];
+  /** Hard cap on the session size (a sub-list "Review" passes 20). Undefined =
+   *  the hook's own default/subset ceiling. */
+  limit?: number;
 }) {
-  const r = useReview(userId, listId, undefined, userWordIds);
+  const r = useReview(userId, listId, limit, userWordIds);
   // Deferred to the card boundary — toggling never rewrites the card in front of the
   // user (r.position is the boundary; a restart resets it to 1).
   const flip = useQuizFlip(r.position);
