@@ -16,8 +16,10 @@ import {
   startBandSearch,
   advanceBandSearch,
   resolveLevelMove,
+  levelFromVocab,
   type BandSearch,
   type CalibrationSample,
+  type VocabRating,
 } from "@/services/calibration";
 import type { LevelValue } from "@/services/difficulty";
 import type { ReviewGrade } from "@/services/review";
@@ -261,5 +263,73 @@ describe("getUserProficiencyBand / setUserProficiencyBand (the SEPARATE proficie
     await setUserProficiencyBand("u", 4);
     const updates = stub.callsFor("users", "update");
     expect(updates[updates.length - 1]?.args[0]).toEqual({ proficiency_band: 4 });
+  });
+});
+
+describe("levelFromVocab", () => {
+  // N word ratings at a band, `known` of them at confidence 5 and the rest at 1.
+  const bandWords = (band: number, total: number, known: number): VocabRating[] =>
+    Array.from({ length: total }, (_, i) => ({ band, difficulty: null, confidence: i < known ? 5 : 1 }));
+
+  it("places the user at the highest band they clearly hold", () => {
+    // N4 (band 2) needs ~12 words to be trusted at maxBand 5.
+    const r = levelFromVocab([...bandWords(1, 10, 10), ...bandWords(2, 14, 13)], 5);
+    expect(r.band).toBe(2);
+    expect(r.sufficient).toBe(true);
+  });
+
+  it("is STABLE: 10 misses among 100 known N2 words don't demote you", () => {
+    // solidly know N5..N3, and 90 of 100 N2 words → N2 fraction 0.9 ≥ pass → placed N2
+    const r = levelFromVocab(
+      [...bandWords(1, 20, 20), ...bandWords(2, 20, 20), ...bandWords(3, 20, 20), ...bandWords(4, 100, 90)],
+      5,
+    );
+    expect(r.band).toBe(4); // N2 held despite 10 misses — the old small-sample quiz would swing to N3
+    expect(r.sufficient).toBe(true);
+  });
+
+  it("needs MUCH more evidence at hard bands (9 known N1 words ≠ N1)", () => {
+    // Trusted N5 + N4, plus 9 known N1 words. N1 needs ~45 to be trusted → skipped,
+    // so the placement stays at N4 (band 2), not N1.
+    const r = levelFromVocab([...bandWords(1, 10, 10), ...bandWords(2, 14, 14), ...bandWords(5, 9, 9)], 5);
+    expect(r.band).toBe(2);
+    expect(r.sufficient).toBe(true);
+  });
+
+  it("blocks a hard placement on shaky EASIER levels (0.80 at N3 < its 0.83 bar)", () => {
+    // Strong N5/N4 and a genuinely-known N2, but N3 is only 80% known → under the
+    // stricter easier-level bar N3 fails, so the climb stops at N4 (a flat 0.75 bar
+    // would have credited N2).
+    const r = levelFromVocab(
+      [...bandWords(1, 10, 10), ...bandWords(2, 14, 13), ...bandWords(3, 20, 16), ...bandWords(4, 30, 27)],
+      5,
+    );
+    expect(r.band).toBe(2);
+  });
+
+  it("N2 needs 70 words: 50 known N2 words is not enough to credit N2", () => {
+    const r = levelFromVocab(
+      [...bandWords(1, 10, 10), ...bandWords(2, 14, 14), ...bandWords(3, 20, 19), ...bandWords(4, 50, 48)],
+      5,
+    );
+    expect(r.band).toBe(3); // N3 credited; N2 skipped (50 < 70)
+  });
+
+  it("stops climbing at the first TRUSTED band that fails", () => {
+    // N5 held, N4 held, N3 trusted (20 words) but clearly not known (6/20) → placed N4.
+    const r = levelFromVocab([...bandWords(1, 10, 10), ...bandWords(2, 14, 13), ...bandWords(3, 20, 6)], 5);
+    expect(r.band).toBe(2);
+  });
+
+  it("does NOT commit a level until there's sufficient coverage", () => {
+    const r = levelFromVocab(bandWords(1, 4, 4), 5); // only 4 words
+    expect(r.sufficient).toBe(false);
+    expect(r.needMore).toBeGreaterThan(0);
+  });
+
+  it("ignores a thin band (below its trust threshold) rather than failing on it", () => {
+    // N4 has only 2 words → below its ~12 threshold → skipped, not a failure; climbs to N3.
+    const r = levelFromVocab([...bandWords(1, 10, 10), ...bandWords(2, 2, 0), ...bandWords(3, 20, 19)], 5);
+    expect(r.band).toBe(3);
   });
 });

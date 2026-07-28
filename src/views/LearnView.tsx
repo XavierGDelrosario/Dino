@@ -21,6 +21,7 @@ import { CalibrationView } from "./CalibrationView";
 import {
   DEFAULT_LEARNING_LANGUAGE,
   DEFAULT_NATIVE_LANGUAGE,
+  targetOptions,
   type LangCode,
 } from "../services/language";
 import { TextQuizView } from "./TextQuizView";
@@ -84,6 +85,7 @@ export function LearnView({ userId }: { userId: string }) {
     setBand(b);
     setStatus("loading");
     setError(null);
+    setCards([]);
     try {
       const fetched = await fetchLearnWords({ band: b, source: learning, target: native });
       if (fetched.length === 0) {
@@ -135,9 +137,6 @@ export function LearnView({ userId }: { userId: string }) {
   if (status === "quiz") {
     return (
       <section className="review">
-        {/* onGraded is omitted: there's no reader to sync, and re-fetching a band
-            after a session naturally excludes the just-added words (they're now
-            saved, so no longer "unseen"). */}
         <TextQuizView
           userId={userId}
           cards={cards}
@@ -145,9 +144,8 @@ export function LearnView({ userId }: { userId: string }) {
           mode="learn"
           onCreateList={createNamedList}
           onClose={reset}
-          // Pull a FRESH batch at the same band. The just-added words are now saved,
-          // so they're excluded as "unseen" — the next batch is genuinely new. The
-          // brief "loading" state remounts TextQuizView with the new cards.
+          // Pull a fresh batch at the same band (the just-added words are now saved,
+          // so they're excluded as "unseen").
           onNewQuiz={band != null ? () => void start(band) : undefined}
         />
       </section>
@@ -156,12 +154,26 @@ export function LearnView({ userId }: { userId: string }) {
 
   const bandLabel = band != null ? framework.bands.find((b) => b.value === band)?.label : null;
   const levelLabel = level != null ? labelForBand(framework, level) : null;
-  // The band to hint as "your level" — the calibrated one if we have it.
-  const suggestedBand = band ?? level;
 
   return (
     <section className="review learn">
-      <p className="review__scope">{t("learn.intro", { framework: framework.name })}</p>
+      <label className="learn__lang">
+        <span className="learn__langlabel">{t("learn.language")}</span>
+        <select
+          className="learn__langselect"
+          value={learning}
+          onChange={(e) => {
+            setLearning(e.target.value as LangCode);
+            reset();
+          }}
+        >
+          {targetOptions().map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {/* Placement-quiz launcher + the current calibrated level (if any). */}
       <div className="learn__level">
@@ -173,13 +185,12 @@ export function LearnView({ userId }: { userId: string }) {
         </button>
       </div>
 
+      <p className="learn__bandstitle">{t("learn.learnNewWords")}</p>
       <div className="tabs learn__bands" role="group" aria-label={t("learn.pickLevel")}>
         {framework.bands.map((b) => (
           <button
             key={b.value}
-            className={`tab${band === b.value ? " tab--active" : ""}${
-              band == null && suggestedBand === b.value ? " tab--suggested" : ""
-            }`}
+            className={`tab${band === b.value ? " tab--active" : ""}`}
             onClick={() => start(b.value)}
             disabled={status === "loading"}
           >
@@ -195,7 +206,6 @@ export function LearnView({ userId }: { userId: string }) {
         </div>
       )}
       {status === "error" && <ErrorText message={error} />}
-      {status === "idle" && <p className="review__msg">{t("learn.hint")}</p>}
     </section>
   );
 }

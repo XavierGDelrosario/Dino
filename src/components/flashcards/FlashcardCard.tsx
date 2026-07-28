@@ -7,7 +7,7 @@
 // stay on the REVEALED face in both directions: a reading on the front would hand
 // the user the answer in the reversed direction (furigana spells out the term) and
 // spoil the recall.
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { WordInfoButton } from "../common/WordInfo";
 import { useI18n } from "../../i18n";
 import type { LangCode } from "../../services/language";
@@ -72,6 +72,7 @@ export function FlashcardCard({
   onSwipeLeft,
   onSwipeRight,
   reversed = false,
+  action,
 }: {
   word: CardFace;
   flipped: boolean;
@@ -81,6 +82,8 @@ export function FlashcardCard({
   onSwipeRight?: () => void;
   /** Show the MEANING on the front and the term on the back (display only). */
   reversed?: boolean;
+  /** Optional node pinned to the card's top-right (e.g. an add-to-list button). */
+  action?: ReactNode;
 }) {
   const { t } = useI18n();
   // Track the touch start so touchend can classify it as a horizontal swipe.
@@ -123,6 +126,14 @@ export function FlashcardCard({
       <span className="flashcard__info" onClick={(e) => e.stopPropagation()}>
         <WordInfoButton word={word} align="left" />
       </span>
+
+      {/* Optional top-right action (e.g. add-to-list) — INSIDE the card. Stops
+          propagation so using it never flips the card. */}
+      {action && (
+        <span className="flashcard__action" onClick={(e) => e.stopPropagation()}>
+          {action}
+        </span>
+      )}
 
       {/* Both faces can hold either side's text (see `reversed`), and a meaning is
           usually far longer than a headword — so each is sized from what it renders. */}

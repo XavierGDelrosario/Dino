@@ -79,6 +79,34 @@
   word-break: break-word;
 }
 
+/* Summary infographic block above the reader (default collapsed). */
+.reader-summary {
+  margin: 0 0 0.9rem;
+}
+
+.reader-summary__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.reader-summary__toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.reader-summary .agx {
+  margin-top: 0.6rem;
+}
+
 /* "Add all" + "Quiz" actions above the reader */
 .reader__actions {
   display: flex;

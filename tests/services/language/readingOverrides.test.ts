@@ -39,6 +39,12 @@ describe("applyReadingOverride", () => {
     expect(applyReadingOverride("前", senses)).toBe(senses);
   });
 
+  it("prefers し over the archaic いち for 市 (city, not market — tied on frequency)", () => {
+    // 市 いち (market) and し (city) tie at f=567; the entry-id tiebreak picked いち.
+    const senses = [sense("いち", "ichi"), sense("し", "shi")];
+    expect(applyReadingOverride("市", senses).map((s) => s.id)).toEqual(["shi", "ichi"]);
+  });
+
   it("keeps the relative order within the matched and non-matched groups (stable)", () => {
     const senses = [
       sense("あれ", "are-0"),

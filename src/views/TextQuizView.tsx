@@ -112,17 +112,6 @@ export function TextQuizView({
           word has more than one sense. Keyed on the sense so cycling the meaning
           resets the button to add the newly-shown one. */}
       <div className="quizcard">
-        <AddToListButton
-          key={card.wordId}
-          className={`quizcard__add${q.isCurrentSaved ? " is-saved" : ""}`}
-          words={[card]}
-          lists={lists}
-          label={q.isCurrentSaved ? "✓" : "＋"}
-          alreadyAdded={q.isCurrentSaved}
-          onAdd={(words, listId) => q.addWord(words[0], listId)}
-          onCreateList={onCreateList}
-        />
-
         <FlashcardCard
           word={card}
           flipped={q.flipped}
@@ -132,6 +121,19 @@ export function TextQuizView({
           // Left = next, right = previous.
           onSwipeLeft={q.hasMultipleMeanings && q.flipped ? q.nextMeaning : undefined}
           onSwipeRight={q.hasMultipleMeanings && q.flipped ? q.prevMeaning : undefined}
+          // ＋ add-to-list INSIDE the card's top-right (adds the selected meaning).
+          action={
+            <AddToListButton
+              key={card.wordId}
+              className={`card-add${q.isCurrentSaved ? " is-saved" : ""}`}
+              words={[card]}
+              lists={lists}
+              label={q.isCurrentSaved ? "✓" : "＋"}
+              alreadyAdded={q.isCurrentSaved}
+              onAdd={(words, listId) => q.addWord(words[0], listId)}
+              onCreateList={onCreateList}
+            />
+          }
         />
 
         {/* Meaning-cycle arrows appear only once the meaning is REVEALED — before

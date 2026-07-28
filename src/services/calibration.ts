@@ -17,7 +17,11 @@
 
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
-import type { LevelValue } from "./difficulty";
+import { getDifficulty, type LevelValue } from "./difficulty";
+import { getAllUserWords } from "./words/userWords";
+import { proficiencyFrameworkFor } from "./proficiency";
+import type { LangCode } from "./language";
+import type { Word } from "./words/repository";
 import type { ReviewGrade } from "./review";
 
 /** One graded calibration item: a word's difficulty paired with how the user did. */
@@ -254,4 +258,182 @@ export async function getUserProficiencyBand(userId: string): Promise<number | n
 export async function setUserProficiencyBand(userId: string, band: number | null): Promise<void> {
   const { error } = await supabase.from("users").update({ proficiency_band: band }).eq("user_id", userId);
   if (error) throw toServiceError(error);
+}
+
+// ── Vocabulary-based level (the accurate, STABLE placement) ─────────────────
+// The old placement quiz decided a band from ONE small round, so a few unlucky
+// misses could swing a whole band. This derives the level from the user's WHOLE
+// rated vocabulary instead: per band, how many words they have and how many they
+// know (confidence ≥ RECALLED_GRADE). The large denominator is the point — missing
+// 10 of 100 known N2 words barely moves the fraction, so it can't demote you — and
+// it ACCUMULATES across sessions, so rating more words only sharpens (and speeds up)
+// the placement. A level is only DETERMINED once there's enough coverage; before
+// that the caller shows a provisional "keep rating" state.
+
+/** Words needed to TRUST (credit) a band. Harder bands need FAR more evidence —
+ *  knowing a handful of hard words doesn't make you that level (9 known N1 words ≠ N1).
+ *  JLPT (5 bands) uses an explicit table; other frameworks fall back to a geometric
+ *  ramp between its ends. */
+const TRUST_JLPT = [8, 12, 19, 70, 130]; // N5 · N4 · N3 · N2 · N1
+function minWordsForBand(band: number, maxBand: number): number {
+  if (maxBand === TRUST_JLPT.length) return TRUST_JLPT[band - 1] ?? TRUST_JLPT[TRUST_JLPT.length - 1];
+  if (maxBand <= 1) return TRUST_JLPT[0];
+  const lo = TRUST_JLPT[0];
+  const hi = TRUST_JLPT[TRUST_JLPT.length - 1];
+  const t = (band - 1) / (maxBand - 1); // 0 easiest … 1 hardest
+  return Math.round(lo * Math.pow(hi / lo, t));
+}
+
+/** The known-fraction a band must clear to be CREDITED — HIGHER for easier bands. So
+ *  climbing to a hard level requires near-complete mastery of the easy ones: to be
+ *  N1 you must know your N5/N4/N3 words nearly perfectly, not just some N1 words. */
+const PASS_EASIEST = 0.9;
+const PASS_HARDEST = 0.75;
+function passForBand(band: number, maxBand: number): number {
+  if (maxBand <= 1) return PASS_HARDEST;
+  const t = (band - 1) / (maxBand - 1); // 0 easiest … 1 hardest
+  return PASS_EASIEST + (PASS_HARDEST - PASS_EASIEST) * t;
+}
+// For JLPT (5 bands): N5:0.90 · N4:0.86 · N3:0.83 · N2:0.79 · N1:0.75.
+
+/** Rated words OVERALL before a level is DETERMINED. Total (not per-band) because
+ *  vocab is lopsided — most words are common — so a per-band gate stalls forever. */
+const MIN_TOTAL_WORDS = 15;
+
+export interface VocabBandStat {
+  band: number;
+  count: number;
+  known: number; // confidence ≥ RECALLED_GRADE
+  avgConfidence: number; // 0 when count is 0
+}
+
+export interface VocabLevel {
+  /** Per-band tallies, easiest → hardest. */
+  perBand: VocabBandStat[];
+  /** Placed band: the highest TRUSTED band whose known-fraction clears the bar
+   *  (0 = below all trusted bands). Provisional until `sufficient`. */
+  band: number;
+  /** Difficulty-axis level (users.level), via estimateLevel over the same vocab. */
+  level: LevelValue | null;
+  /** Enough coverage to commit a level (vs. show "keep rating"). */
+  sufficient: boolean;
+  /** Rough number of extra rated words to reach sufficiency (0 when sufficient). */
+  needMore: number;
+}
+
+/** One rated word reduced to what the level calc needs. */
+export interface VocabRating {
+  band: number | null; // proficiency band (framework ordinal), null if unbanded
+  difficulty: LevelValue | null; // frequency difficulty (getDifficulty), null if unknown
+  confidence: number; // 0..5 displayed confidence
+}
+
+/**
+ * Determine a level from the user's whole rated vocabulary. PURE + tested.
+ *
+ * Walks bands easiest→hardest: SKIPS a band with too few words (untested), CREDITS a
+ * trusted band whose known-fraction clears PASS_THRESHOLD, and STOPS at the first
+ * trusted band that fails — the highest level the user clearly holds. Stable by
+ * construction: the fraction is over ALL their words at that band, so a handful of
+ * misses can't demote them.
+ */
+export function levelFromVocab(ratings: VocabRating[], maxBand: number): VocabLevel {
+  const acc = new Map<number, { count: number; known: number; confSum: number }>();
+  for (const r of ratings) {
+    if (r.band == null) continue;
+    const a = acc.get(r.band) ?? { count: 0, known: 0, confSum: 0 };
+    a.count += 1;
+    if (r.confidence >= RECALLED_GRADE) a.known += 1;
+    a.confSum += r.confidence;
+    acc.set(r.band, a);
+  }
+
+  const perBand: VocabBandStat[] = [];
+  for (let b = 1; b <= maxBand; b++) {
+    const a = acc.get(b);
+    perBand.push({
+      band: b,
+      count: a?.count ?? 0,
+      known: a?.known ?? 0,
+      avgConfidence: a && a.count ? a.confSum / a.count : 0,
+    });
+  }
+
+  // Placement walk over TRUSTED bands only. Both bars rise appropriately: harder bands
+  // need MORE words (minWordsForBand), easier bands need a HIGHER known% (passForBand).
+  let band = 0;
+  for (const s of perBand) {
+    if (s.count < minWordsForBand(s.band, maxBand)) continue; // too little evidence → skip
+    if (s.known / s.count < passForBand(s.band, maxBand)) break; // not mastered enough → stop
+    band = s.band; // trusted + mastered → credit, keep going
+  }
+
+  // Sufficiency: enough rated words overall (existing vocab counts, so a returning
+  // user is placeable almost immediately).
+  const totalRated = perBand.reduce((n, s) => n + s.count, 0);
+  const needMore = Math.max(0, MIN_TOTAL_WORDS - totalRated);
+  const sufficient = needMore === 0;
+
+  const level = estimateLevel(
+    ratings
+      .filter((r): r is VocabRating & { difficulty: LevelValue } => r.difficulty != null)
+      .map((r) => ({
+        difficulty: r.difficulty,
+        grade: Math.max(1, Math.min(5, Math.round(r.confidence))) as ReviewGrade,
+      })),
+  );
+
+  return { perBand, band, level, sufficient, needMore };
+}
+
+/** getDifficulty over a saved word's fields (it only reads sourceLang + the three
+ *  difficulty inputs; the rest are placeholder). */
+function difficultyOf(w: { sourceLang: LangCode; frequency: number | null; proficiencyBand: number | null }): LevelValue | null {
+  return getDifficulty({
+    wordId: "",
+    input: "",
+    translation: "",
+    sourceLang: w.sourceLang,
+    targetLang: w.sourceLang,
+    inputReading: null,
+    translationReading: null,
+    partOfSpeech: null,
+    frequency: w.frequency,
+    difficultyOverride: null,
+    proficiencyBand: w.proficiencyBand,
+    jmdictEntryId: null,
+    jmdictSensePos: null,
+    isVerified: true,
+  } as Word).level;
+}
+
+/**
+ * The user's whole rated vocabulary reduced to level-calc inputs, for the language
+ * they're learning — or null when that language has no proficiency framework. The
+ * swipe placement fetches this ONCE as a baseline, then appends each swipe locally
+ * and re-runs levelFromVocab in memory (no per-swipe query).
+ * CONSTRAINTS: RLS-scoped (own vocabulary).
+ */
+export async function getVocabRatings(
+  userId: string,
+  learning: LangCode,
+): Promise<{ ratings: VocabRating[]; maxBand: number } | null> {
+  const fw = proficiencyFrameworkFor(learning);
+  if (!fw) return null;
+  const maxBand = fw.bands[fw.bands.length - 1]?.value ?? 1;
+  const words = await getAllUserWords({ userId });
+  const ratings: VocabRating[] = words
+    .filter((w) => w.sourceLang === learning)
+    .map((w) => ({ band: w.proficiencyBand, difficulty: difficultyOf(w), confidence: w.confidenceRating }));
+  return { ratings, maxBand };
+}
+
+/**
+ * The user's vocabulary-based level for the language they're learning, or null when
+ * that language has no proficiency framework. Folds the whole rated vocabulary through
+ * levelFromVocab (above).
+ */
+export async function getVocabLevel(userId: string, learning: LangCode): Promise<VocabLevel | null> {
+  const base = await getVocabRatings(userId, learning);
+  return base ? levelFromVocab(base.ratings, base.maxBand) : null;
 }

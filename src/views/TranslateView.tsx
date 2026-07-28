@@ -123,10 +123,12 @@ export function TranslateView({ userId }: { userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.status, t.mode, t.para]);
 
-  // Quiz/review = full takeover: the entire translate surface is hidden.
+  // Quiz/review = full takeover: the entire translate surface is hidden. Use the
+  // normal .review column (NOT the wide .translate breakout) so the card is the same
+  // size as Review / Learn / Calibration.
   if (quiz) {
     return (
-      <section className="translate">
+      <section className="review">
         <TextQuizView
           userId={userId}
           cards={quiz.cards}

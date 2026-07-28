@@ -9,8 +9,14 @@ import { isContentPos, type AnalyzedToken } from "../../services/language";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { AddToListButton } from "./AddToListButton";
+import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
+import { summarizeReader } from "../../services/analyze/summarize";
 import "./translate.css";
 import "../common/SenseText.css"; // shared .sense* row/action styles
+
+// Only offer the Summary infographic once the text is long enough for the
+// distributions to be meaningful (short outputs read fine as-is).
+const SUMMARY_MIN_WORDS = 12;
 
 function ParagraphReaderImpl({
   text,
@@ -33,6 +39,15 @@ function ParagraphReaderImpl({
   onCreateList: (name: string) => Promise<string>;
 }) {
   const [hover, setHover] = useState<{ word: string; reading: string | null; rect: DOMRect } | null>(null);
+  // Summary infographic (level / frequency / confidence + coverage donut), hidden
+  // by default and shown above the paragraph. Recomputes when a word is added or
+  // reviewed (saved/confidence change) so the charts stay live.
+  const [showSummary, setShowSummary] = useState(false);
+  const summary = useMemo(
+    () => summarizeReader({ tokens, meaningsByWord, saved, confidence }),
+    [tokens, meaningsByWord, saved, confidence],
+  );
+  const canSummarize = summary.total >= SUMMARY_MIN_WORDS;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // The word element the card is anchored to — kept so we can re-measure it while
   // the page scrolls/resizes (below), keeping the card glued to its word.
@@ -136,6 +151,19 @@ function ParagraphReaderImpl({
 
   return (
     <>
+      {canSummarize && (
+        <div className="reader-summary">
+          <button
+            type="button"
+            className="reader-summary__toggle"
+            onClick={() => setShowSummary((v) => !v)}
+            aria-expanded={showSummary}
+          >
+            {showSummary ? "▾" : "▸"} Quick summary
+          </button>
+          {showSummary && <AnalyzeInfographic data={summary.data} />}
+        </div>
+      )}
       <p className="reader">{parts}</p>
       {hover && placement && hoveredSenses.length > 0 && (
         <div

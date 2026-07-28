@@ -29,6 +29,7 @@
     "smoke:prod": "node scripts/preflight-smoke.mjs",
     "ios:build": "bash scripts/build-ios.sh",
     "ios:build:staging": "DINO_ENV=staging bash scripts/build-ios.sh",
+    "ios:build:prod": "DINO_ENV=prod bash scripts/build-ios.sh",
     "ios:sync": "cap sync ios",
     "ios:open": "cap open ios"
   },
