@@ -47,6 +47,13 @@ describe.skipIf(!ENABLED)("admin: quality reports are admin-only end to end", ()
     });
     expect(rpcErr?.code).toBe("42501");
 
+    // Completing a report is gated the same way (before the id/status validation).
+    const { error: statusErr } = await u.client.rpc("admin_set_quality_report_status", {
+      p_id: 1,
+      p_status: "resolved",
+    });
+    expect(statusErr?.code).toBe("42501");
+
     // …and the table itself is server-only (no policies, no grants).
     const { error: readErr } = await u.client.from("quality_reports").select("*");
     expect(readErr).not.toBeNull();

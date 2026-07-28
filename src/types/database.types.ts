@@ -675,17 +675,36 @@ export type Database = {
           reported_by: string | null
           input: string
           description: string
+          status: string
+          resolved_at: string | null
+          resolved_by: string | null
         }
       }
       admin_quality_reports: {
-        Args: { p_limit?: number }
+        Args: { p_limit?: number; p_status?: string }
         Returns: {
           id: number
           reported_at: string
           reported_by: string | null
           input: string
           description: string
+          status: string
+          resolved_at: string | null
+          resolved_by: string | null
         }[]
+      }
+      admin_set_quality_report_status: {
+        Args: { p_id: number; p_status: string }
+        Returns: {
+          id: number
+          reported_at: string
+          reported_by: string | null
+          input: string
+          description: string
+          status: string
+          resolved_at: string | null
+          resolved_by: string | null
+        }
       }
       admin_table_sizes: {
         Args: never
