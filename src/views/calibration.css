@@ -2,6 +2,14 @@
    card needs NO size overrides — it's the same reader as Review / Quiz / New-words,
    only the card SOURCE differs. Just two calibration-specific things below. */
 
+/* The rated card flies off past the edge of the stage — clip that horizontally so it
+   can't widen the page (a stray sideways scrollbar on desktop, a rubber-band on
+   phones). `clip` rather than `hidden`: hidden would make this a scroll container and
+   trap the vertical scroll with it. */
+.calib .swipe {
+  overflow-x: clip;
+}
+
 .calib__result {
   font-size: 1.2rem;
   font-weight: 600;

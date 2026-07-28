@@ -6,9 +6,10 @@
 // your rated vocabulary IS the saved progress. The level is DERIVED from that whole
 // vocabulary (stable — a few misses can't demote you) and is only COMMITTED once
 // there's enough coverage; before that it shows a provisional "keep rating" state.
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useCalibration } from "../hooks/useCalibration";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n } from "../i18n";
@@ -32,17 +33,25 @@ export function CalibrationView({
   const { t } = useI18n();
   const { status, current, revealed, reveal, rate } = c;
 
+  // The card MOVES for every rating path — drag, buttons, keys all go through
+  // fling(), so the rating lands only once the card has flown out.
+  const swipe = useSwipeCard({
+    onLeft: useCallback(() => rate(false), [rate]),
+    onRight: useCallback(() => rate(true), [rate]),
+  });
+  const { fling } = swipe;
+
   // Web: ← = don't know, → = know, Space/Enter = reveal.
   useEffect(() => {
     if (status !== "swiping") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") rate(false);
-      else if (e.key === "ArrowRight") rate(true);
+      if (e.key === "ArrowLeft") fling("left");
+      else if (e.key === "ArrowRight") fling("right");
       else if (e.key === " " || e.key === "Enter") reveal();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [status, rate, reveal]);
+  }, [status, fling, reveal]);
 
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
@@ -99,27 +108,29 @@ export function CalibrationView({
   return (
     <section className="review calib">
       <div className="swipe">
-        {/* Bigger fixed-size card; reveal by tapping it; ＋ add-to-list lives INSIDE. */}
-        <div className="quizcard">
-          <FlashcardCard
-            key={current.wordId}
-            word={current}
-            flipped={revealed}
-            onFlip={reveal}
-            onSwipeLeft={() => rate(false)}
-            onSwipeRight={() => rate(true)}
-            action={
-              <AddToListButton
-                className={`card-add${c.tagged.has(current.wordId) ? " is-saved" : ""}`}
-                words={[current]}
-                lists={lists}
-                label={c.tagged.has(current.wordId) ? "✓" : "＋"}
-                alreadyAdded={c.tagged.has(current.wordId)}
-                onAdd={(words, listId) => c.addToList(words[0], listId)}
-                onCreateList={onCreateList}
-              />
-            }
-          />
+        {/* Bigger fixed-size card; reveal by tapping it; ＋ add-to-list lives INSIDE.
+            The swipe wrapper owns the gesture (so FlashcardCard's own touch-swipe
+            props are deliberately NOT passed — both would rate the same release). */}
+        <div {...swipe.props}>
+          {/* Keyed on the word so the incoming card replays its settle-in. */}
+          <div className="quizcard swipecard__in" key={current.wordId}>
+            <FlashcardCard
+              word={current}
+              flipped={revealed}
+              onFlip={reveal}
+              action={
+                <AddToListButton
+                  className={`card-add${c.tagged.has(current.wordId) ? " is-saved" : ""}`}
+                  words={[current]}
+                  lists={lists}
+                  label={c.tagged.has(current.wordId) ? "✓" : "＋"}
+                  alreadyAdded={c.tagged.has(current.wordId)}
+                  onAdd={(words, listId) => c.addToList(words[0], listId)}
+                  onCreateList={onCreateList}
+                />
+              }
+            />
+          </div>
         </div>
 
         <ErrorText message={c.error} />
@@ -127,10 +138,10 @@ export function CalibrationView({
         {/* Web: buttons. App: swipe. They're alternatives, so the swipe hint sits
             right here with the buttons. */}
         <div className="swipe__controls">
-          <button className="btn btn--ghost swipe__no" onClick={() => rate(false)}>
+          <button className="btn btn--ghost swipe__no" onClick={() => fling("left")}>
             ← {t("calib.dontKnow")}
           </button>
-          <button className="btn btn--ghost swipe__yes" onClick={() => rate(true)}>
+          <button className="btn btn--ghost swipe__yes" onClick={() => fling("right")}>
             {t("calib.know")} →
           </button>
         </div>
