@@ -256,10 +256,12 @@ export function TranslateView({
               )}
             </div>
           )}
-          {/* Read-aloud sits BOTTOM-right, clear of the top-right modality tools.
+          {/* Read-aloud sits BOTTOM-right, clear of the top-right modality tools —
+              flush, matching the output box (the textarea's resize grip, which used
+              to own this corner, is gone; see .textarea in translate.css).
               The input is spoken in the source language — resolved the same way
               handwriting/speech resolve it, since "auto-detect" isn't a voice. */}
-          <div className="io__speak io__speak--input">
+          <div className="io__speak">
             <SpeakButton className="io__tool" text={t.input} lang={recognitionLang} />
           </div>
         </div>

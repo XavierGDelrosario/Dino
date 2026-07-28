@@ -46,7 +46,12 @@
 /* paragraph reader */
 .textarea {
   width: 100%;
-  resize: vertical;
+  /* No drag-resize: the browser draws its grip in the bottom-right corner, which is
+     where the read-aloud button lives (.io__speak) — the two fought over the same
+     20px, and an inset button no longer lined up with the output box's. The box
+     already caps its height and scrolls a long paste, and the output box never had
+     a grip, so dropping it also makes the pair symmetric. */
+  resize: none;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -596,14 +601,6 @@
   right: 0.4rem;
   bottom: 0.4rem;
   z-index: 2;
-}
-
-/* The input is a `resize: vertical` textarea, and the browser draws its drag grip
-   in the bottom-right corner — the button would sit on top of it and swallow the
-   resize. Shift it inward by roughly a grip's width; the output box has no grip,
-   so it stays flush. */
-.io__speak--input {
-  right: 1.35rem;
 }
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors
