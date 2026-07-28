@@ -181,6 +181,20 @@ Media features multiply **sentence-gloss** calls. Word-by-word = free (JMdict ca
 - **Takeaway:** individual media is trivial (KB/article, ~100 KB/episode). Concern only in the hundreds of MB — thousands of episodes / tens of thousands of articles. Text compresses.
 - ⚠️ Shares the 500 MB Free tier with JMdict (~243 MB) + embeddings → **Free→Pro trigger**. Non-issue on Pro (8 GB).
 - **Bounded + tunable:** LRU/TTL by `hit_count` · or cache only popular/curated (persist after N requests). A policy knob, not a runaway.
+- **MEASURED — ja.wikinews, the whole corpus (2026-07-28).** The Media tab's source is a *static, bounded* archive, so it's the one corpus we can cost exactly. Pulled every mainspace non-redirect page (`generator=allpages` + `rvprop=size`), calibrated wikitext-bytes → plaintext-chars on 25 full extracts (**ratio 0.19** — Wikinews prose is ~80% markup: source lists, categories, templates):
+
+  | | |
+  |---|---|
+  | Articles | **4,118** |
+  | Chars/article (JA plaintext) | mean **709** · median 629 · p90 1,068 · p99 2,074 · max 11,893 |
+  | Whole corpus | **~2.92M chars** (±15%) |
+  | Google v2 @ $20/M | **~$58** one-time · ~$48 net of the 500k/mo free tier · **$0** dripped over 6 months |
+  | Storage | ~8.8 MB JA + ~5–6 MB EN ≈ **~15 MB** raw (≈65k sentences ≈ 16 MB at the 250 B/row model above) |
+
+- **Decision: LAZY FILL, not bulk pre-translation.** On-demand costs 709 chars ≈ **$0.014/article-view**, so the $58 bulk run breaks even at ~4,100 views = *one view of every article*. Below that you pay for articles nobody opens; the lazy `sentence_cache` converges to the identical end state with zero upfront spend, and a bulk backfill stays available later for offline/no-first-view-latency. Storage was never the constraint here — 15 MB against JMdict's 243 MB.
+- ⚠️ **A bulk backfill must NOT go through the edge function** — 2.92M chars would blow the 2M/mo `GLOBAL_MONTHLY_CHAR_QUOTA` and 429 every real user mid-run. It'd be an offline service-role script (like `ingest-jmdict.ts`) calling Google direct, batching multiple `q` per request (~128 segments / 30k chars → ~150–250 requests). The lazy path is fine on the edge but wants its own meter, not the user's.
+- **Legal (Wikinews specifically):** CC BY 2.5 → storing the prose AND serving a derivative translation are both permitted with attribution + link-back (already rendered by `ArticleView`). No ShareAlike clause in 2.5. Contrast the NHK posture above (derived + link-out only).
+- **Checked, not worth special-casing:** only **323 / 4,118 (7.8%)** ja.wikinews articles have an English sister article via `langlinks`, and those are independently written, not aligned translations.
 
 </details>
 

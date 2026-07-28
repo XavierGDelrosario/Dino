@@ -11,6 +11,7 @@
 import {
   resolveSourceLanguage,
   analyze,
+  splitSentences,
   AUTO_DETECT,
   type LangCode,
   type SourceSelection,
@@ -32,7 +33,7 @@ import {
 } from "./words/cache";
 import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
 import { nfc, nfcTrim } from "../lib/text";
-import { translate, translateBatch } from "./translation";
+import { translateBatch, translateSegments } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
 /**
@@ -139,11 +140,26 @@ export async function lookupWordsBatch(params: {
   return byWord;
 }
 
+/** One sentence of the paragraph with its own gloss (null = not translated). */
+export interface SentenceGloss {
+  text: string;
+  /** Offsets into the paragraph, so the reader can group tokens per sentence. */
+  start: number;
+  end: number;
+  gloss: string | null;
+}
+
 export interface ParagraphTranslation {
   /** Contextual translation of the WHOLE paragraph, for display only. NOT saved. */
   translation: string;
   /** false when the paragraph couldn't be translated (translation = input). */
   translated: boolean;
+  /**
+   * The same translation, SENTENCE BY SENTENCE, for the reader's inline gloss —
+   * each sentence translated as its own unit so `sentences[i].gloss` provably
+   * belongs to `sentences[i].text`. Empty when the gloss was skipped.
+   */
+  sentences: SentenceGloss[];
   sourceLang: LangCode;
   targetLang: LangCode;
   /**
@@ -155,6 +171,22 @@ export interface ParagraphTranslation {
   tokens: AnalyzedToken[];
   /** Lookup from a word's text to all its known meanings (verified first). */
   meanings: Map<string, Word[]>;
+}
+
+/**
+ * Collapse the per-sentence glosses back into the ONE paragraph string the
+ * output box still shows. A sentence that failed to translate contributes its
+ * SOURCE text, so a partial failure reads as a paragraph with one untranslated
+ * line rather than a hole; `translated` is false only when nothing landed at
+ * all, which keeps the old contract (translation = input on failure).
+ */
+function joinGloss(
+  sentences: SentenceGloss[],
+  input: string,
+): { translation: string; translated: boolean } {
+  const any = sentences.some((s) => s.gloss);
+  if (!any) return { translation: input, translated: false };
+  return { translation: sentences.map((s) => s.gloss ?? s.text).join(" "), translated: true };
 }
 
 /**
@@ -250,22 +282,41 @@ export async function translateParagraph(params: {
    *  morphological analysis + per-word lookups — so the UI can show the
    *  translation immediately and stream the word-by-word reader in after. */
   onGloss?: (gloss: { translation: string; translated: boolean }) => void;
+  /** Skip the whole-paragraph gloss entirely — no Google MT call, no `translation`.
+   *  For surfaces that only need the per-word reader (e.g. the media summary page,
+   *  which never shows the sentence translation), so opening one costs zero MT. */
+  skipGloss?: boolean;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
   const input = nfc(params.input);
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
-  // 1. Kick off the whole-paragraph gloss (display only, persist = false) WITHOUT
-  //    awaiting: the colored reader below doesn't depend on it, so the gloss network
-  //    call (the slowest piece — Google MT) runs CONCURRENTLY with analysis + the
-  //    per-word lookups instead of in front of them. onGloss streams the translation
-  //    the moment it lands; a gloss failure is non-fatal (reader still renders).
-  const glossPromise = translate({ input, sourceLang: resolvedSource, targetLang, persist: false })
-    .then((g) => {
-      params.onGloss?.({ translation: g.translation ?? "", translated: g.translated });
-      return g;
-    })
-    .catch(() => ({ translation: null as string | null, translated: false }));
+  // 1. Kick off the gloss (display only, never persisted) WITHOUT awaiting: the
+  //    colored reader below doesn't depend on it, so the gloss network call (the
+  //    slowest piece — Google MT) runs CONCURRENTLY with analysis + the per-word
+  //    lookups instead of in front of them. onGloss streams the translation the
+  //    moment it lands; a gloss failure is non-fatal (reader still renders).
+  //    skipGloss short-circuits it — no paid call is made at all.
+  //
+  //    SENTENCE BY SENTENCE, not one blob: each sentence is its own translation
+  //    unit, so the reader can print the English under the Japanese it belongs to
+  //    (see services/language/sentences.ts). It is still ONE round-trip and the
+  //    same billed characters — the edge sends them as one multi-segment request.
+  const sentenceSpans = params.skipGloss ? [] : splitSentences(input);
+  const glossPromise: Promise<SentenceGloss[]> =
+    sentenceSpans.length === 0
+      ? Promise.resolve([])
+      : translateSegments({
+          segments: sentenceSpans.map((s) => s.text),
+          sourceLang: resolvedSource,
+          targetLang,
+        })
+          .then((glosses) => sentenceSpans.map((s, i) => ({ ...s, gloss: glosses[i] ?? null })))
+          .catch(() => sentenceSpans.map((s) => ({ ...s, gloss: null })))
+          .then((sentences) => {
+            params.onGloss?.(joinGloss(sentences, input));
+            return sentences;
+          });
 
   // 2. Tokens: reuse the caller's analysis when provided (submit already analyzed
   //    the text to route word-vs-sentence), else analyze here — avoids a duplicate
@@ -349,10 +400,12 @@ export async function translateParagraph(params: {
 
   // Fold in the gloss — awaited here, but by this point it has usually resolved in
   // parallel with the analysis + lookups above (no longer in front of them).
-  const para = await glossPromise;
+  const sentences = await glossPromise;
+  const joined = joinGloss(sentences, input);
   return {
-    translation: para.translated ? para.translation ?? input : input,
-    translated: para.translated,
+    translation: joined.translation,
+    translated: joined.translated,
+    sentences,
     sourceLang: resolvedSource,
     targetLang,
     tokens,

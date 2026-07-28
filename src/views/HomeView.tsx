@@ -1,5 +1,5 @@
-// The main app surface: tab nav over the three live views (Translate · Lists ·
-// Review). Owns the tab + review-scope state. Lazy-loads each view's chunk.
+// The main app surface: tab nav over the live views (Translate · Lists · Learn ·
+// Media · Review). Owns the tab + review-scope state. Lazy-loads each view's chunk.
 import { Suspense, lazy, useState } from "react";
 import { useI18n } from "../i18n";
 import { useStickyState } from "../hooks/useStickyState";
@@ -12,8 +12,10 @@ const FlashcardView = lazy(() =>
   import("./FlashcardView").then((m) => ({ default: m.FlashcardView })),
 );
 const LearnView = lazy(() => import("./LearnView").then((m) => ({ default: m.LearnView })));
+const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.MediaView })));
 
-type Tab = "translate" | "lists" | "learn" | "review";
+// In tab order: Translate · Lists · Learn · Media · Review.
+type Tab = "translate" | "lists" | "learn" | "media" | "review";
 
 export function HomeView({ userId }: { userId: string }) {
   const { t } = useI18n();
@@ -40,6 +42,9 @@ export function HomeView({ userId }: { userId: string }) {
         <button className={`tab${tab === "learn" ? " tab--active" : ""}`} onClick={() => setTab("learn")}>
           {t("tabs.learn")}
         </button>
+        <button className={`tab${tab === "media" ? " tab--active" : ""}`} onClick={() => setTab("media")}>
+          {t("tabs.media")}
+        </button>
         <button className={`tab${tab === "review" ? " tab--active" : ""}`} onClick={() => setTab("review")}>
           {t("tabs.review")}
         </button>
@@ -60,6 +65,7 @@ export function HomeView({ userId }: { userId: string }) {
           />
         )}
         {tab === "learn" && <LearnView key={userId} userId={userId} />}
+        {tab === "media" && <MediaView key={userId} userId={userId} />}
         {tab === "review" && (
           <FlashcardView
             key={userId}

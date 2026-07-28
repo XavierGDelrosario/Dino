@@ -94,6 +94,18 @@ export function FilterIcon({ size }: { size?: number }) {
   );
 }
 
+/** Two vertical arrows — a sort-direction toggle (least ⇅ most). */
+export function SwapVertIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="7 4 7 20" />
+      <polyline points="4 7 7 4 10 7" />
+      <polyline points="17 20 17 4" />
+      <polyline points="14 17 17 20 20 17" />
+    </Svg>
+  );
+}
+
 /** Magnifying glass — the conventional "search" glyph (Lists search bar). */
 export function SearchIcon({ size }: { size?: number }) {
   return (

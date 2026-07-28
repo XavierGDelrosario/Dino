@@ -79,8 +79,41 @@
   word-break: break-word;
 }
 
+/* INLINE TRANSLATION: each sentence followed by its own English, so reading a
+   line never means looking away to a separate block. One sentence per row —
+   the paragraph stops flowing on purpose, since a flowing paragraph has no
+   place to put a per-sentence gloss. */
+.reader--glossed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.reader__pair {
+  margin: 0;
+}
+
+.reader__source-line {
+  display: block;
+}
+
+/* Dimmer + smaller than the source, and indented, so the eye reads the
+   Japanese first and the English as an annotation of it. */
+.reader__gloss {
+  display: block;
+  margin-top: 0.15rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 /* Summary infographic block above the reader (default collapsed). */
 .reader-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   margin: 0 0 0.9rem;
 }
 
@@ -103,7 +136,10 @@
   border-color: var(--accent);
 }
 
+/* The infographic is a full-width row of its own under the toggles (which now
+   sit side by side in the flex row above). */
 .reader-summary .agx {
+  flex-basis: 100%;
   margin-top: 0.6rem;
 }
 
@@ -518,6 +554,22 @@
   color: var(--muted);
   font-size: 0.9rem;
   font-style: italic;
+}
+
+/* Source credit for media-loaded prose (CC BY-SA attribution + link-back). */
+.reader__source {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reader__source a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.reader__source a:hover {
+  text-decoration: underline;
 }
 
 /* Handwriting input (Tier-4, native ML Kit Digital Ink). A square "paper" pad

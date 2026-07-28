@@ -8,9 +8,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isContentPos, type AnalyzedToken } from "../../services/language";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
+import type { SentenceGloss } from "../../services/lookup";
 import { AddToListButton } from "./AddToListButton";
 import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { summarizeReader } from "../../services/analyze/summarize";
+import { useI18n } from "../../i18n";
 import "./translate.css";
 import "../common/SenseText.css"; // shared .sense* row/action styles
 
@@ -22,6 +24,9 @@ function ParagraphReaderImpl({
   text,
   tokens,
   meaningsByWord,
+  sentences = [],
+  onLoadGloss,
+  glossLoading = false,
   saved,
   confidence,
   lists,
@@ -31,6 +36,14 @@ function ParagraphReaderImpl({
   text: string;
   tokens: AnalyzedToken[];
   meaningsByWord: Map<string, Word[]>;
+  /** Per-sentence glosses (one per sentence, index-aligned by construction).
+   *  Empty when the gloss was skipped — the reader then renders text-only. */
+  sentences?: SentenceGloss[];
+  /** Fetch the sentence gloss on demand (the PAID call). When given, the toggle
+   *  is offered even before any translation exists and buys it on first press —
+   *  so a reader who never asks for English never spends. */
+  onLoadGloss?: () => void | Promise<void>;
+  glossLoading?: boolean;
   saved: Set<string>;
   confidence: Map<string, number>;
   lists: List[];
@@ -38,7 +51,12 @@ function ParagraphReaderImpl({
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
 }) {
+  const { t: tr } = useI18n();
   const [hover, setHover] = useState<{ word: string; reading: string | null; rect: DOMRect } | null>(null);
+  // Inline translation: OFF by default (the reader is for reading the Japanese).
+  // Toggling it on breaks the paragraph into sentences and prints each one's
+  // English directly beneath it, so the eye never leaves the line it's reading.
+  const [showGloss, setShowGloss] = useState(false);
   // Summary infographic (level / frequency / confidence + coverage donut), hidden
   // by default and shown above the paragraph. Recomputes when a word is added or
   // reviewed (saved/confidence change) so the charts stay live.
@@ -92,35 +110,61 @@ function ParagraphReaderImpl({
   // every span. A long paragraph is hundreds of tokens; this is the reader's main
   // source of jank. Knowledge class: grey (grammatical / no entry) · blue (addable) ·
   // red→green by the confidence of the best-known sense.
-  const parts = useMemo(() => {
-    const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
-      const senses = isContentPos(token.pos) ? meaningsByWord.get(token.text) ?? [] : [];
-      if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
-      const savedSenses = senses.filter((s) => saved.has(s.wordId));
-      if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
-      const best = Math.max(...savedSenses.map((s) => confidence.get(s.wordId) ?? 0));
-      return { cls: `tok tok--known tok--c${best}`, interactive: true };
-    };
-    const out: JSX.Element[] = [];
-    let cursor = 0;
-    tokens.forEach((t, i) => {
-      if (t.start > cursor) out.push(<span key={`gap-${i}`}>{text.slice(cursor, t.start)}</span>);
-      const { cls, interactive } = classFor(t);
-      out.push(
-        <span
-          key={`tok-${i}`}
-          className={cls}
-          onMouseEnter={interactive ? (e) => show(t.text, t.reading, e.currentTarget) : undefined}
-          onMouseLeave={interactive ? scheduleHide : undefined}
-        >
-          {t.text}
-        </span>
-      );
-      cursor = Math.max(cursor, t.end);
-    });
-    if (cursor < text.length) out.push(<span key="gap-end">{text.slice(cursor)}</span>);
-    return out;
-  }, [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide]);
+  //
+  // Built per RANGE so the same code serves both layouts: the whole text as one
+  // paragraph (gloss off) or one range per sentence (gloss on). The ranges come
+  // from the gloss's own offsets, so a rendered sentence and the English under
+  // it are the same span of text by construction.
+  const spans = useCallback(
+    (from: number, to: number, key: string): JSX.Element[] => {
+      const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
+        const senses = isContentPos(token.pos) ? meaningsByWord.get(token.text) ?? [] : [];
+        if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
+        const savedSenses = senses.filter((s) => saved.has(s.wordId));
+        if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
+        const best = Math.max(...savedSenses.map((s) => confidence.get(s.wordId) ?? 0));
+        return { cls: `tok tok--known tok--c${best}`, interactive: true };
+      };
+      const out: JSX.Element[] = [];
+      let cursor = from;
+      tokens.forEach((t, i) => {
+        if (t.start < from || t.end > to) return; // belongs to another sentence
+        if (t.start > cursor) out.push(<span key={`${key}-gap-${i}`}>{text.slice(cursor, t.start)}</span>);
+        const { cls, interactive } = classFor(t);
+        out.push(
+          <span
+            key={`${key}-tok-${i}`}
+            className={cls}
+            onMouseEnter={interactive ? (e) => show(t.text, t.reading, e.currentTarget) : undefined}
+            onMouseLeave={interactive ? scheduleHide : undefined}
+          >
+            {t.text}
+          </span>
+        );
+        cursor = Math.max(cursor, t.end);
+      });
+      if (cursor < to) out.push(<span key={`${key}-gap-end`}>{text.slice(cursor, to)}</span>);
+      return out;
+    },
+    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide],
+  );
+
+  // Gloss OFF: the whole text as one flowing paragraph — the full range, so the
+  // whitespace BETWEEN sentences is kept (the per-sentence ranges skip it).
+  const flat = useMemo(() => spans(0, text.length, "all"), [spans, text]);
+  // Gloss ON: one range per sentence, each with the English that belongs to it.
+  const blocks = useMemo(
+    () => sentences.map((s, i) => ({ gloss: s.gloss, parts: spans(s.start, s.end, `s${i}`) })),
+    [spans, sentences],
+  );
+  const hasGloss = sentences.some((s) => s.gloss);
+  // Offer the toggle when there's a translation to show OR a way to fetch one.
+  const canShowGloss = hasGloss || !!onLoadGloss;
+  // First press buys the translation; later presses just show/hide what we hold.
+  const toggleGloss = () => {
+    if (!hasGloss && onLoadGloss && !glossLoading) void onLoadGloss();
+    setShowGloss((v) => !v);
+  };
 
   // Cap the hovercard at 12 senses (matches WordResults' MAX_SHOWN). The hovercard
   // is transient, so there's no "show more" — just trim the noisy tail.
@@ -151,20 +195,51 @@ function ParagraphReaderImpl({
 
   return (
     <>
-      {canSummarize && (
+      {(canSummarize || canShowGloss) && (
         <div className="reader-summary">
-          <button
-            type="button"
-            className="reader-summary__toggle"
-            onClick={() => setShowSummary((v) => !v)}
-            aria-expanded={showSummary}
-          >
-            {showSummary ? "▾" : "▸"} Quick summary
-          </button>
-          {showSummary && <AnalyzeInfographic data={summary.data} />}
+          {canSummarize && (
+            <button
+              type="button"
+              className="reader-summary__toggle"
+              onClick={() => setShowSummary((v) => !v)}
+              aria-expanded={showSummary}
+            >
+              {showSummary ? "▾" : "▸"} Quick summary
+            </button>
+          )}
+          {/* One switch for the whole reader: Japanese-only ⇄ each sentence
+              followed by its own translation. */}
+          {canShowGloss && (
+            <button
+              type="button"
+              className="reader-summary__toggle"
+              onClick={toggleGloss}
+              aria-pressed={showGloss}
+              disabled={glossLoading}
+            >
+              {showGloss ? "▾" : "▸"}{" "}
+              {glossLoading ? tr("translate.glossPending") : tr("translate.showEnglish")}
+            </button>
+          )}
+          {canSummarize && showSummary && <AnalyzeInfographic data={summary.data} />}
         </div>
       )}
-      <p className="reader">{parts}</p>
+      {/* Falls back to the flowing paragraph while an on-demand gloss is still in
+          flight (no sentences yet) — the Japanese never disappears. */}
+      {showGloss && blocks.length > 0 ? (
+        <div className="reader reader--glossed">
+          {blocks.map((b, i) => (
+            <p className="reader__pair" key={`pair-${i}`}>
+              <span className="reader__source-line">{b.parts}</span>
+              {/* A sentence MT couldn't translate simply shows nothing here —
+                  the Japanese above it is still the real content. */}
+              {b.gloss && <span className="reader__gloss">{b.gloss}</span>}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="reader">{flat}</p>
+      )}
       {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"

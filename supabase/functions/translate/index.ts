@@ -42,7 +42,10 @@ import {
   applyInputAttributeOverride,
   corsHeaders,
   EN_JA_STOPWORDS,
+  expandSegmentResults,
   groupByInput,
+  MAX_SEGMENTS,
+  prepareSegments,
   lemmaCandidates,
   orderSensesForInput,
   parseAllowedOrigins,
@@ -446,21 +449,31 @@ const DEFAULT_TRANSLATION_API_URL =
 // MT never 500s the request or breaks the per-word paragraph fan-out. Readings
 // are JMdict-only, so an MT result carries none (the no-context furigana surface
 // simply has nothing to show for these).
-async function callTranslationProvider(
-  text: string,
+// MANY-SEGMENT form: Google v2 accepts REPEATED `q`, translating each one as its
+// own independent unit and returning them in request order. That index alignment
+// is the whole point of the inline reader gloss (see services/language/sentences.ts) —
+// one translation per sentence, so the English can sit under the Japanese it
+// renders. Same char billing as sending the text once; one round-trip either way.
+//
+// OUTPUT: one entry per input, in order (null where the provider returned nothing),
+// or null when MT is unconfigured / the whole call failed.
+async function callTranslationProviderMany(
+  texts: string[],
   sourceLang: string,
   targetLang: string,
-): Promise<ProviderResult | null> {
+): Promise<(string | null)[] | null> {
   const key = Deno.env.get("TRANSLATION_API_KEY");
   if (!key) return null; // not configured → behaves like the old no-MT stub
+  if (texts.length === 0) return [];
 
   const url = Deno.env.get("TRANSLATION_API_URL") ?? DEFAULT_TRANSLATION_API_URL;
+  const chars = texts.reduce((n, t) => n + t.length, 0);
   try {
     const res = await fetch(`${url}?key=${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        q: text,
+        q: texts,
         source: toGoogleLang(sourceLang),
         target: toGoogleLang(targetLang),
         format: "text", // plain text in/out — no HTML-entity escaping
@@ -471,22 +484,38 @@ async function callTranslationProvider(
       return null;
     }
     const body = await res.json();
-    const translated: string | undefined =
-      body?.data?.translations?.[0]?.translatedText;
+    const translations: unknown = body?.data?.translations;
+    const out = texts.map((_, i) => {
+      const t = Array.isArray(translations)
+        ? (translations[i] as { translatedText?: unknown } | undefined)?.translatedText
+        : undefined;
+      return typeof t === "string" && t ? t : null;
+    });
     // MT-SPEND METRIC (#8 observability): one structured line per PAID Google call,
     // so spend = sum(mt_chars) over these logs. Drives the MT-spend dashboard/alert.
     console.log(JSON.stringify({
       evt: "mt_spend",
-      mt_chars: text.length,
+      mt_chars: chars,
+      segments: texts.length,
       source: toGoogleLang(sourceLang),
       target: toGoogleLang(targetLang),
-      ok: Boolean(translated),
+      ok: out.some(Boolean),
     }));
-    return translated ? { translation: translated } : null;
+    return out;
   } catch (e) {
     console.error("MT provider request failed:", e);
     return null;
   }
+}
+
+async function callTranslationProvider(
+  text: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<ProviderResult | null> {
+  const out = await callTranslationProviderMany([text], sourceLang, targetLang);
+  const translated = out?.[0];
+  return translated ? { translation: translated } : null;
 }
 
 // ── Per-user RESTRICTIONS (the limits subsystem; see migration 20260620 +
@@ -858,8 +887,9 @@ interface BatchEntry {
  * BATCH resolve: many cacheable words (persist=true) in ONE request, so the
  * client's paragraph / add-many fan-out costs one round-trip instead of N. Same
  * per-word resolution as the single path (cache → JMdict → metered MT fallback),
- * just looped server-side with the cache read and the final upsert batched. The
- * whole-paragraph display gloss is NOT batched (it's a single persist=false call).
+ * just looped server-side with the cache read and the final upsert batched. This
+ * is the WORD path; the paragraph's display gloss has its own mode (`segments`),
+ * which caches nothing and returns one translation per sentence.
  *
  * `dictionaryOnly` = resolve from the CACHE + DICTIONARY only, never MT. This is
  * for callers that PROBE speculative terms ("is this string a real word?") rather
@@ -1154,6 +1184,82 @@ async function handleRequest(req: Request): Promise<Response> {
       });
       return reply({ error: "Could not load words" }, 500); // generic — no schema/SQL leak
     }
+  }
+
+  // SEGMENTS mode: { segments: string[], idempotencyKey? } → one gloss per segment,
+  // index-aligned, so the reader can print the English UNDER each Japanese sentence
+  // instead of in a separate block. Always DISPLAY-ONLY (never cached — these are
+  // sentences, and we don't store thousands of unique ones), so it skips the whole
+  // dictionary path and goes straight to the metered MT gate.
+  if (Array.isArray(body.segments)) {
+    // Bound the fan-out BEFORE walking the array.
+    if (body.segments.length > MAX_SEGMENTS) {
+      return reply(
+        { error: `Too many segments (max ${MAX_SEGMENTS})`, limit: MAX_SEGMENTS, count: body.segments.length },
+        413,
+      );
+    }
+    const prepared = prepareSegments(body.segments);
+    const idempotencyKey =
+      typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : null;
+    const blank = () => reply({ glosses: prepared.normalized.map(() => null) });
+
+    // Same unmetered-scan guard as SINGLE mode, applied to the whole request.
+    if (prepared.chars > MAX_INPUT_CHARS) {
+      return reply(
+        { error: `Input exceeds the ${MAX_INPUT_CHARS}-character limit`, limit: MAX_INPUT_CHARS, length: prepared.chars },
+        413,
+      );
+    }
+    if (prepared.unique.length === 0) return blank();
+
+    const userId = userIdFromAuth(req.headers.get("Authorization"));
+    // Unattributable or MT-off → no glosses, exactly like the single display path.
+    // Never spend on a request we can't meter.
+    if (!mtConfigured() || !userId) return blank();
+
+    const prior = await lookupIdempotent(supabase, idempotencyKey);
+    if (prior) return reply(prior.response, prior.status);
+
+    const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
+    // The segments ARE one paragraph, so the per-request cap applies to their sum —
+    // otherwise splitting a paragraph would be a way around the limit.
+    if (prepared.chars > paragraphCharLimit) {
+      return reply(
+        {
+          error: `Input exceeds the ${paragraphCharLimit}-character translation limit`,
+          limit: paragraphCharLimit,
+          length: prepared.chars,
+        },
+        413,
+      );
+    }
+    // Reserve the DEDUPED char count atomically before the paid call, per-user then
+    // global — a denied reservation costs nothing, same as every other paid path.
+    const { allowed, used, committed } = await reserveQuota(
+      supabase, userId, prepared.chars, monthlyCharQuota,
+    );
+    if (!allowed) {
+      return reply({ error: "Monthly translation quota reached", used, quota: monthlyCharQuota }, 429);
+    }
+    const gQuota = globalCharQuota();
+    if (!(await reserveGlobalQuota(supabase, prepared.chars, gQuota))) {
+      if (committed) await refundQuota(supabase, userId, prepared.chars);
+      console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
+      return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
+    }
+
+    const translated = await callTranslationProviderMany(prepared.unique, sourceLang, targetLang);
+    if (!translated) {
+      // Provider spent nothing (unconfigured / non-2xx / network) — refund both.
+      if (committed) await refundQuota(supabase, userId, prepared.chars);
+      await refundGlobalQuota(supabase, prepared.chars);
+    }
+    const resBody = { glosses: expandSegmentResults(prepared, translated) };
+    // The paid path ran, so store under the idempotency key: a client retry replays
+    // this instead of re-reserving quota and re-calling Google.
+    if (idempotencyKey && translated) await storeIdempotent(supabase, idempotencyKey, resBody, 200);
+    return reply(resBody);
   }
 
   // SINGLE mode: { input, persist?, idempotencyKey? }. NFC-normalize to match cache.

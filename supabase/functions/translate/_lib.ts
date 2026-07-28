@@ -148,6 +148,62 @@ export function parseLearnRequest(
   return { ok: true, band, limit, excludeSeen };
 }
 
+// ── SEGMENTS mode (the inline reader gloss) ────────────────────────────────
+// A paragraph arrives already split into SENTENCES, and each is translated as
+// its own unit so gloss[i] belongs to sentence[i]. Splitting one blob of
+// English back apart cannot guarantee that: MT merges and splits sentences.
+// See services/language/sentences.ts for the trade-off this buys.
+
+/** Upper bound on sentences per request — a guard on fan-out, not a UX limit. */
+export const MAX_SEGMENTS = 400;
+
+export interface PreparedSegments {
+  /** NFC-normalized text per REQUEST index; "" for a blank/non-string entry. */
+  normalized: string[];
+  /** The DISTINCT non-empty texts to translate, in first-appearance order. */
+  unique: string[];
+  /** For each request index, its position in `unique`, or -1 (nothing to send). */
+  uniqueIndex: number[];
+  /** Chars actually billed — the sum over `unique`, so repeats are free. */
+  chars: number;
+}
+
+/**
+ * Normalize + DEDUPE a segments request.
+ *
+ * Dedupe is why this is worth a helper: a transcript or subtitle track repeats
+ * the same line many times, and identical sentences translate identically, so
+ * only the distinct set is sent to the provider and billed. Blank entries are
+ * kept as positions (so indexes still line up with the caller's sentences) but
+ * are never sent.
+ *
+ * NFC-normalizes like every other input boundary — cache-key correctness, and
+ * it makes the dedupe see 2 spellings of the same Japanese string as one.
+ */
+export function prepareSegments(raw: unknown[]): PreparedSegments {
+  const normalized = raw.map((v) => (typeof v === "string" ? v.trim().normalize("NFC") : ""));
+  const unique: string[] = [];
+  const seen = new Map<string, number>();
+  const uniqueIndex = normalized.map((text) => {
+    if (!text) return -1;
+    const hit = seen.get(text);
+    if (hit !== undefined) return hit;
+    seen.set(text, unique.length);
+    unique.push(text);
+    return unique.length - 1;
+  });
+  return { normalized, unique, uniqueIndex, chars: unique.reduce((n, t) => n + t.length, 0) };
+}
+
+/** Scatter provider results (one per `unique`) back onto the REQUEST indexes. */
+export function expandSegmentResults(
+  prepared: PreparedSegments,
+  translated: (string | null)[] | null,
+): (string | null)[] {
+  if (!translated) return prepared.normalized.map(() => null);
+  return prepared.uniqueIndex.map((u) => (u >= 0 ? translated[u] ?? null : null));
+}
+
 /**
  * Resolve the service-role key the edge client authenticates with. Prefers an
  * explicit SERVICE_ROLE_SECRET (a new `sb_secret_…` key, set when legacy API keys

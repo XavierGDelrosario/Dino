@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStickyState } from "./useStickyState";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
-import { translate } from "../services/translation";
+import { translate, translateSegments } from "../services/translation";
 import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
@@ -24,6 +24,7 @@ import { mapLimit } from "../lib/concurrency";
 import { MAX_TRANSLATION_CONCURRENCY } from "../services/translation";
 import {
   analyze,
+  splitSentences,
   isSingleWord,
   isContentPos,
   dictionaryFormOf,
@@ -78,6 +79,8 @@ export function useTranslate(userId: string) {
   // UI display the translation immediately with a spinner below for the reader.
   const [readerLoading, setReaderLoading] = useState(false);
   const [analyzedInput, setAnalyzedInput] = useState("");
+  // True while the ON-DEMAND sentence gloss is in flight (see loadGloss).
+  const [glossLoading, setGlossLoading] = useState(false);
 
   // Per-SENSE state, keyed by dictionary wordId — shared by both modes so the
   // popover/results can add an exact sense (e.g. つらい without からい).
@@ -143,6 +146,8 @@ export function useTranslate(userId: string) {
     text?: string;
     source?: SourceSelection;
     target?: LangCode;
+    /** Skip the whole-paragraph MT gloss (media summary page — reader only). */
+    skipGloss?: boolean;
   }) => {
     const text = (override?.text ?? input).trim();
     if (!text || status === "loading" || readerLoading) return;
@@ -305,8 +310,10 @@ export function useTranslate(userId: string) {
       }
 
       // Sentence → reader. Enforce the per-user paragraph char limit (free-tier
-      // guard) up front; the edge function re-checks as the hard gate.
-      if (learningText.length > limits.paragraphCharLimit) {
+      // guard) up front; the edge function re-checks as the hard gate. This guards
+      // the PAID whole-paragraph gloss — so skip it when skipGloss is set (the media
+      // summary makes no gloss call, so a long article is free to analyze in full).
+      if (!override?.skipGloss && learningText.length > limits.paragraphCharLimit) {
         setError(
           `This text is ${learningText.length} characters; the limit is ${limits.paragraphCharLimit}. Please shorten it.`
         );
@@ -332,6 +339,7 @@ export function useTranslate(userId: string) {
         sourceLang: learning,
         targetLang: native,
         tokens, // reuse submit's analysis — skip a duplicate kuromoji tokenize
+        skipGloss: override?.skipGloss,
         onGloss: typedLearning
           ? (g) => { setOutput(g.translated ? g.translation : ""); revealReader(); }
           : undefined,
@@ -348,6 +356,51 @@ export function useTranslate(userId: string) {
       setReaderLoading(false);
     }
   }, [input, source, target, status, readerLoading, userId, limits, learning]);
+
+  /**
+   * Fetch the sentence-by-sentence translation for the paragraph ALREADY analyzed,
+   * and fold it into `para.sentences`.
+   *
+   * This exists so the reader's "Show translation" toggle can PAY ON DEMAND. A
+   * media article is analyzed with `skipGloss` (opening one must cost nothing —
+   * the summary never shows a translation), which used to mean an article could
+   * never show one at all. Now the first press of the toggle buys it, and only
+   * for a reader who actually asked; a reader who never toggles never spends.
+   *
+   * Idempotent + single-flight: a paragraph already glossed, or a request in
+   * flight, is a no-op — so double-clicking the toggle can't buy it twice.
+   * A failure is non-fatal: the reader keeps rendering, just without English.
+   */
+  const loadGloss = useCallback(async () => {
+    if (glossLoading) return;
+    const text = analyzedInput;
+    if (!text || !para || para.sentences.some((s) => s.gloss)) return;
+    // The gloss is the PAID path, so the per-user char limit applies here as it
+    // does in submit (the edge re-checks as the hard gate).
+    if (text.length > limits.paragraphCharLimit) {
+      setError(
+        `This text is ${text.length} characters; the limit is ${limits.paragraphCharLimit}.`
+      );
+      return;
+    }
+    setGlossLoading(true);
+    try {
+      const spans = splitSentences(text);
+      const glosses = await translateSegments({
+        segments: spans.map((s) => s.text),
+        sourceLang: learning,
+        targetLang: nativeLang, // resolved by submit — the explanation language
+      });
+      const sentences = spans.map((s, i) => ({ ...s, gloss: glosses[i] ?? null }));
+      // Guard against a late response landing on a DIFFERENT paragraph (the user
+      // navigated on): only apply while the analyzed text is still the same.
+      setPara((prev) => (prev && prev.tokens === para.tokens ? { ...prev, sentences } : prev));
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setGlossLoading(false);
+    }
+  }, [analyzedInput, para, glossLoading, limits, learning, nativeLang]);
 
   /** Swap source↔target, move the OUTPUT text into the input, and re-translate —
    *  the Google-Translate swap. Just swaps languages when there's nothing to move. */
@@ -540,6 +593,8 @@ export function useTranslate(userId: string) {
     headword, meanings,
     // paragraph mode
     para, analyzedInput, readerLoading,
+    // on-demand sentence gloss for the reader's "Show translation" toggle
+    loadGloss, glossLoading,
     // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
     // the state-sync callback the quiz uses after each grade.
     addablePrimaries, reviewablePrimaries, addableCards,

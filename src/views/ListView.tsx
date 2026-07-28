@@ -20,20 +20,21 @@ import {
 } from "../services/words/filters";
 import { makeSearchMatcher } from "../services/words/search";
 import { partOfSpeechCategory, POS_CATEGORIES, type PosCategory } from "../services/language";
+import { getDifficulty } from "../services/difficulty";
 import { useI18n } from "../i18n";
 import { SearchIcon, XIcon } from "../components/common/icons";
+import { SortControls, type SortDir } from "../components/common/SortControls";
+import { Pager } from "../components/common/Pager";
+import { PAGE_SIZE } from "../lib/pagination";
 import { ErrorText } from "../components/common/ErrorText";
 import type { UserWord } from "../services/words/userWords";
 import { useStickyState } from "../hooks/useStickyState";
 import "../components/lists/lists.css";
 
-type SortBy = "newest" | "oldest" | "conf-asc" | "conf-desc";
-
-// Max rows drawn per page. The whole list is cached (so filters/counts are
-// exact); rendering is split into fixed pages so the user isn't handed a wall of
-// hundreds of rows. Changing the page only moves the window — it never touches
-// the filter/sort state.
-const PAGE_SIZE = 100;
+// Sort AXIS (the four that transfer from the article summary + the vocab-history
+// "added" axis) crossed with a least/most DIRECTION. "added" bundles NEWEST with
+// "least" (a recent word is the "least aged"); the others read literally.
+type SortAxis = "added" | "common" | "confident" | "difficult";
 
 // A sub-list's "Review" quizzes at most this many of its (filtered) words per
 // session — the most-overdue first (the SQL explicit-set path ranks them). A
@@ -41,40 +42,42 @@ const PAGE_SIZE = 100;
 // whole set is still reachable in one go.
 const SUBLIST_REVIEW_CAP = 20;
 
-/** Order a set of words by the chosen sort. Shared by the filtered set and the
- *  pinned selection, so a pick keeps its place in the list's ordering. */
-function sortWords(ws: UserWord[], sort: SortBy): UserWord[] {
-  const byDate = (a: UserWord, b: UserWord) =>
-    Date.parse(a.originallyTranslatedDate) - Date.parse(b.originallyTranslatedDate);
-  const byConf = (a: UserWord, b: UserWord) => a.confidenceRating - b.confidenceRating;
-
+/** Order a set of words by the chosen axis + direction. Shared by the filtered set
+ *  and the pinned selection, so a pick keeps its place in the list's ordering. */
+function sortWords(ws: UserWord[], axis: SortAxis, dir: SortDir): UserWord[] {
+  const sign = dir === "most" ? -1 : 1; // ascending (least) by default
+  const date = (w: UserWord) => Date.parse(w.originallyTranslatedDate); // higher = newer
+  const recent = (a: UserWord, b: UserWord) => date(b) - date(a); // newest-first tiebreak
   const sorted = [...ws];
-  switch (sort) {
-    case "newest": sorted.sort((a, b) => byDate(b, a)); break;
-    case "oldest": sorted.sort(byDate); break;
-    // confidence ties break on most-recently-added
-    case "conf-asc": sorted.sort((a, b) => byConf(a, b) || byDate(b, a)); break;
-    case "conf-desc": sorted.sort((a, b) => byConf(b, a) || byDate(b, a)); break;
+
+  switch (axis) {
+    case "added":
+      // least = NEWEST, most = oldest.
+      sorted.sort((a, b) => (date(b) - date(a)) * sign);
+      break;
+    case "confident":
+      sorted.sort((a, b) => (a.confidenceRating - b.confidenceRating) * sign || recent(a, b));
+      break;
+    case "common":
+      sorted.sort(
+        (a, b) => ((a.frequency ?? -Infinity) - (b.frequency ?? -Infinity)) * sign || recent(a, b),
+      );
+      break;
+    case "difficult": {
+      // Precompute the 1..5 level once per word (getDifficulty is pure but a sort
+      // calls the comparator O(n log n) times). Unrated (null) sinks either way.
+      const lvl = new Map(ws.map((w) => [w, getDifficulty(w).level]));
+      sorted.sort((a, b) => {
+        const da = lvl.get(a) ?? null;
+        const db = lvl.get(b) ?? null;
+        if (da == null) return db == null ? recent(a, b) : 1;
+        if (db == null) return -1;
+        return (da - db) * sign || recent(a, b);
+      });
+      break;
+    }
   }
   return sorted;
-}
-
-// The page numbers to render in the pager: always the first and last, plus a
-// window around the current page, with "…" gaps collapsed. All 0-indexed.
-function pageWindow(current: number, count: number): (number | "gap")[] {
-  const keep = new Set<number>([0, count - 1]);
-  for (let p = current - 1; p <= current + 1; p++) {
-    if (p >= 0 && p < count) keep.add(p);
-  }
-  const sorted = [...keep].sort((a, b) => a - b);
-  const out: (number | "gap")[] = [];
-  let prev = -1;
-  for (const p of sorted) {
-    if (prev >= 0 && p - prev > 1) out.push("gap");
-    out.push(p);
-    prev = p;
-  }
-  return out;
 }
 
 export function ListView({
@@ -93,7 +96,8 @@ export function ListView({
   const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
-  const [sort, setSort] = useStickyState<SortBy>(userId, "lists.sort", "newest");
+  const [sortAxis, setSortAxis] = useStickyState<SortAxis>(userId, "lists.sortAxis", "added");
+  const [sortDir, setSortDir] = useStickyState<SortDir>(userId, "lists.sortDir", "least");
   // Free-text search (headword · meaning · reading — see services/words/search.ts). Kept
   // out of `filters`: that value is the funnel menu's, and a query isn't an axis you
   // toggle. It narrows the same way a filter does, though — see `visible`.
@@ -135,9 +139,10 @@ export function ListView({
     const matchesQuery = makeSearchMatcher(query);
     return sortWords(
       L.words.filter((w) => matchesFilter(w) && matchesQuery(w)),
-      sort
+      sortAxis,
+      sortDir
     );
-  }, [L.words, filters, query, sort]);
+  }, [L.words, filters, query, sortAxis, sortDir]);
 
   // ---- Multi-select -------------------------------------------------------
   // Selection is held as user_word IDs, NOT rows, and is deliberately NOT cleared
@@ -180,11 +185,12 @@ export function ListView({
     if (!selectMode || picked.size === 0) return visible;
     const pinned = sortWords(
       L.words.filter((w) => picked.has(w.userWordId)),
-      sort
+      sortAxis,
+      sortDir
     );
     const pinnedIds = new Set(pinned.map((w) => w.userWordId));
     return [...pinned, ...visible.filter((w) => !pinnedIds.has(w.userWordId))];
-  }, [selectMode, picked, visible, L.words, sort]);
+  }, [selectMode, picked, visible, L.words, sortAxis, sortDir]);
 
   // Paged rendering (pure client-side slicing — the whole list is already cached).
   // `page` is 0-indexed. Jump back to the first page whenever the list or a
@@ -194,7 +200,7 @@ export function ListView({
   const [page, setPage] = useState(0);
   useEffect(() => {
     setPage(0);
-  }, [L.selectedListId, sort, filters, query]);
+  }, [L.selectedListId, sortAxis, sortDir, filters, query]);
 
   // Paged over `rows` (filtered set + pinned picks), so the pinned block leads page 1.
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -386,17 +392,20 @@ export function ListView({
           list. */}
       {L.status === "ready" && L.words.length > 0 && (
         <div className="listrows__sort">
-          <select
-            className="select select--sm"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortBy)}
-            aria-label={t("lists.sortAria")}
-          >
-            <option value="newest">{t("lists.sortNewest")}</option>
-            <option value="oldest">{t("lists.sortOldest")}</option>
-            <option value="conf-asc">{t("lists.sortConfAsc")}</option>
-            <option value="conf-desc">{t("lists.sortConfDesc")}</option>
-          </select>
+          <SortControls
+            label={t("sort.label")}
+            flipLabel={t("sort.flip")}
+            options={[
+              { value: "added", least: t("lists.sortNewest"), most: t("lists.sortOldest") },
+              { value: "common", least: t("sort.leastCommon"), most: t("sort.mostCommon") },
+              { value: "confident", least: t("sort.leastConfident"), most: t("sort.mostConfident") },
+              { value: "difficult", least: t("sort.leastDifficult"), most: t("sort.mostDifficult") },
+            ]}
+            value={sortAxis}
+            dir={sortDir}
+            onValue={(v) => setSortAxis(v as SortAxis)}
+            onDir={setSortDir}
+          />
 
           <div className="listrows__search">
             {/* Decorative — the input already carries the label. */}
@@ -480,43 +489,7 @@ export function ListView({
       {/* Pager: switches the 100-row window over the already-cached rows (no fetch).
           Only shown when the matches span more than one page. Changing the page
           leaves every filter/sort control untouched. */}
-      {L.status === "ready" && pageCount > 1 && (
-        <nav className="listrows__pager" aria-label={t("lists.pagerAria")}>
-          <button
-            className="btn btn--sm listrows__pageredge"
-            onClick={() => setPage((p) => Math.max(0, Math.min(p, pageCount - 1) - 1))}
-            disabled={currentPage === 0}
-          >
-            {t("lists.prevPage")}
-          </button>
-          <div className="listrows__pagenums">
-            {pageWindow(currentPage, pageCount).map((p, i) =>
-              p === "gap" ? (
-                <span key={`gap-${i}`} className="listrows__pagegap">…</span>
-              ) : (
-                <button
-                  key={p}
-                  className={`btn btn--sm listrows__pagenum${
-                    p === currentPage ? " listrows__pagenum--active" : ""
-                  }`}
-                  onClick={() => setPage(p)}
-                  aria-current={p === currentPage ? "page" : undefined}
-                  aria-label={t("lists.gotoPage", { n: p + 1 })}
-                >
-                  {p + 1}
-                </button>
-              )
-            )}
-          </div>
-          <button
-            className="btn btn--sm listrows__pageredge"
-            onClick={() => setPage((p) => Math.min(pageCount - 1, Math.min(p, pageCount - 1) + 1))}
-            disabled={currentPage === pageCount - 1}
-          >
-            {t("lists.nextPage")}
-          </button>
-        </nav>
-      )}
+      {L.status === "ready" && <Pager page={currentPage} pageCount={pageCount} onPage={setPage} />}
 
       {/* Results footer: the whole list is cached (streamed in batches), so filters
           apply across every word. Reports the visible range / match / total, and

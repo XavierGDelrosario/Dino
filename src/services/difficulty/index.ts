@@ -6,9 +6,8 @@
 //   registry.ts          per-language resolver routing (getDifficultyJapanese)
 // =========================================================
 
-import type { Word } from "../words/repository";
 import type { Difficulty } from "./level";
-import { resolveDifficultyResolver } from "./registry";
+import { resolveDifficultyResolver, type DifficultyTarget } from "./registry";
 
 /**
  * The resolved difficulty of a dictionary word: a curated override (JLPT/HSK) if
@@ -20,7 +19,7 @@ import { resolveDifficultyResolver } from "./registry";
  * The heavy work (parsing nfXX) happens once upstream in the JMdict ingest; this is
  * only the thin read-time resolution, the same split as translate's backend facade.
  */
-export function getDifficulty(word: Word): Difficulty {
+export function getDifficulty(word: DifficultyTarget): Difficulty {
   return resolveDifficultyResolver(word.sourceLang)(word);
 }
 

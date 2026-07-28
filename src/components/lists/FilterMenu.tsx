@@ -29,6 +29,7 @@ import {
   toggleLang,
   CONF_MIN,
   CONF_MAX,
+  NO_BAND,
   NO_FILTERS,
   type WordFilters,
 } from "../../services/words/filters";
@@ -204,6 +205,7 @@ export function FilterPanel({
   onClose,
   langsPresent,
   posPresent,
+  showHistory = true,
 }: {
   filters: WordFilters;
   onChange: (next: WordFilters) => void;
@@ -212,6 +214,9 @@ export function FilterPanel({
   langsPresent: LangCode[];
   /** Coarse word classes actually present in the current list. */
   posPresent: PosCategory[];
+  /** Show the added/reviewed date axes. Off for surfaces without vocab history
+   *  (the article summary — its words aren't all saved, so dates don't apply). */
+  showHistory?: boolean;
 }) {
   const { t } = useI18n();
   const active = activeFilterCount(filters);
@@ -292,6 +297,19 @@ export function FilterPanel({
                       }
                     />
                   ))}
+                  {/* "—" = words with no curated level; checked by default so unlabelled
+                      words stay visible until the user deliberately hides them. */}
+                  <Check
+                    key="__none"
+                    label={t("lists.filterNoLevel")}
+                    checked={checked.includes(NO_BAND)}
+                    onChange={() =>
+                      onChange({
+                        ...filters,
+                        bands: { ...filters.bands, [code]: toggle(checked, NO_BAND) },
+                      })
+                    }
+                  />
                 </div>
               </div>
             );
@@ -325,21 +343,23 @@ export function FilterPanel({
       )}
 
       {/* The study-history axes (RANGES, wide open by default — see services/words/filters). */}
-      <section className="filtermenu__section">
-        <h4 className="filtermenu__label">{t("lists.filterWhen")}</h4>
-        <PeriodSelect
-          label={t("lists.added")}
-          value={filters.added}
-          onChange={(added) => onChange({ ...filters, added })}
-          ariaLabel={t("lists.addedAria")}
-        />
-        <PeriodSelect
-          label={t("lists.reviewed")}
-          value={filters.reviewed}
-          onChange={(reviewed) => onChange({ ...filters, reviewed })}
-          ariaLabel={t("lists.reviewedAria")}
-        />
-      </section>
+      {showHistory && (
+        <section className="filtermenu__section">
+          <h4 className="filtermenu__label">{t("lists.filterWhen")}</h4>
+          <PeriodSelect
+            label={t("lists.added")}
+            value={filters.added}
+            onChange={(added) => onChange({ ...filters, added })}
+            ariaLabel={t("lists.addedAria")}
+          />
+          <PeriodSelect
+            label={t("lists.reviewed")}
+            value={filters.reviewed}
+            onChange={(reviewed) => onChange({ ...filters, reviewed })}
+            ariaLabel={t("lists.reviewedAria")}
+          />
+        </section>
+      )}
 
       <section className="filtermenu__section">
         <h4 className="filtermenu__label">

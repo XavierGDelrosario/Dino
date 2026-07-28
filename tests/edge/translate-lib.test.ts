@@ -9,6 +9,8 @@ import {
   corsHeaders,
   dropOffScriptTranslations,
   EN_JA_STOPWORDS,
+  expandSegmentResults,
+  prepareSegments,
   groupByInput,
   lemmaCandidates,
   mergeProviderResults,
@@ -659,5 +661,64 @@ describe("EN_JA_STOPWORDS (skip the reverse-gloss for grammatical function words
     for (const w of ["cat", "run", "water", "this", "up", "spring", "volleyball"]) {
       expect(EN_JA_STOPWORDS.has(w)).toBe(false);
     }
+  });
+});
+
+// ── SEGMENTS mode (the inline reader gloss) ────────────────────────────────
+// Each sentence is its own translation unit, so gloss[i] belongs to sentence[i].
+// These two helpers are the whole contract: what gets SENT (and billed), and how
+// the provider's answers land back on the caller's indexes.
+describe("prepareSegments", () => {
+  it("NFC-normalizes and trims each segment", () => {
+    const decomposed = "が".normalize("NFD"); // か + combining dakuten
+    const { normalized } = prepareSegments(["  猫だ。 ", decomposed]);
+    expect(normalized[0]).toBe("猫だ。");
+    expect(normalized[1]).toBe("が");
+    expect(normalized[1]).toHaveLength(1);
+  });
+
+  it("bills a repeated sentence ONCE but keeps every request position", () => {
+    const p = prepareSegments(["同じ文。", "違う文。", "同じ文。"]);
+    expect(p.unique).toEqual(["同じ文。", "違う文。"]);
+    expect(p.uniqueIndex).toEqual([0, 1, 0]);
+    // chars counts the DEDUPED set — the repeat is free.
+    expect(p.chars).toBe("同じ文。".length + "違う文。".length);
+  });
+
+  it("keeps blank / non-string entries as positions but never sends them", () => {
+    const p = prepareSegments(["猫だ。", "   ", 42, null]);
+    expect(p.unique).toEqual(["猫だ。"]);
+    expect(p.uniqueIndex).toEqual([0, -1, -1, -1]);
+    expect(p.chars).toBe("猫だ。".length);
+  });
+
+  it("is empty-safe", () => {
+    expect(prepareSegments([])).toEqual({ normalized: [], unique: [], uniqueIndex: [], chars: 0 });
+  });
+});
+
+describe("expandSegmentResults", () => {
+  it("scatters results back onto request indexes, re-using deduped answers", () => {
+    const p = prepareSegments(["同じ文。", "違う文。", "同じ文。"]);
+    expect(expandSegmentResults(p, ["Same.", "Different."])).toEqual([
+      "Same.",
+      "Different.",
+      "Same.",
+    ]);
+  });
+
+  it("yields a null per segment when the provider failed entirely", () => {
+    const p = prepareSegments(["一。", "二。"]);
+    expect(expandSegmentResults(p, null)).toEqual([null, null]);
+  });
+
+  it("nulls the positions the provider left blank, and blank inputs", () => {
+    const p = prepareSegments(["一。", "  ", "二。"]);
+    expect(expandSegmentResults(p, ["One.", null])).toEqual(["One.", null, null]);
+  });
+
+  it("never returns fewer entries than were requested", () => {
+    const p = prepareSegments(["一。", "二。", "三。"]);
+    expect(expandSegmentResults(p, ["One."])).toHaveLength(3);
   });
 });

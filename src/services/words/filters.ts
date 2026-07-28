@@ -36,6 +36,12 @@ export type DatePeriod = "all" | "today" | "week" | "month" | "year";
 export const CONF_MIN = 0;
 export const CONF_MAX = 5;
 
+/** Pseudo-band for words with NO curated proficiency level (the "—" checkbox). Real
+ *  framework bands are ≥ 1, so 0 is a safe sentinel that participates in the band set
+ *  like any other — checked by default (so unlabelled words show), uncheckable to hide
+ *  them once you're narrowing by level. */
+export const NO_BAND = 0;
+
 /** The word-like shape the filters read (a UserWord satisfies it). */
 export interface FilterTarget {
   sourceLang: LangCode;
@@ -100,9 +106,11 @@ export function periodCutoff(period: DatePeriod): number {
   return d.getTime();
 }
 
-/** All band values of a language's framework (what a freshly-checked language gets). */
+/** All band values of a language's framework PLUS the "—" no-level band (what a
+ *  freshly-checked language gets — every band, incl. unlabelled words, checked). */
 export function allBandsOf(lang: LangCode): number[] {
-  return proficiencyFrameworkFor(lang)?.bands.map((b) => b.value) ?? [];
+  const bands = proficiencyFrameworkFor(lang)?.bands.map((b) => b.value);
+  return bands ? [...bands, NO_BAND] : [];
 }
 
 /** Add/remove `value` in `xs` (immutably) — the checkbox toggle. */
@@ -160,8 +168,9 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
 
     const bands = narrowingBands.get(word.sourceLang);
     if (bands) {
-      // Narrowing on level excludes words with no curated band — there is none to match.
-      if (word.proficiencyBand == null || !bands.has(word.proficiencyBand)) return false;
+      // A word with no curated band maps to the "—" pseudo-band, so it survives iff
+      // "—" is still checked (default) and drops only when the user unchecks it.
+      if (!bands.has(word.proficiencyBand ?? NO_BAND)) return false;
     }
 
     if (usage.size > 0) {

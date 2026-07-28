@@ -31,7 +31,8 @@
     "ios:build:staging": "DINO_ENV=staging bash scripts/build-ios.sh",
     "ios:build:prod": "DINO_ENV=prod bash scripts/build-ios.sh",
     "ios:sync": "cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "mt:usage": "tsx scripts/mt-usage.ts"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",

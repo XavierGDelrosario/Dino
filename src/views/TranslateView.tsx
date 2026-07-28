@@ -24,14 +24,46 @@ import { isSpeechAvailable, startSpeech, stopSpeech, SpeechPermissionError } fro
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import type { Word } from "../services/words/repository";
+import type { MediaSource } from "../services/media/mediawiki";
 import "../components/translate/translate.css";
 
-export function TranslateView({ userId }: { userId: string }) {
+export function TranslateView({
+  userId,
+  initialText,
+  initialSource,
+  onInitialConsumed,
+}: {
+  userId: string;
+  /** Text to load + translate on arrival (e.g. a media article from MediaView). */
+  initialText?: string;
+  /** Attribution for `initialText` (credit + link-back), shown alongside the prose. */
+  initialSource?: MediaSource;
+  onInitialConsumed?: () => void;
+}) {
   const t = useTranslate(userId);
   const { t: tr } = useI18n();
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ cards: Word[][]; mode: QuizMode } | null>(null);
   const [domainNote, setDomainNote] = useState<string | null>(null);
+  // Attribution for text loaded from Media — cleared the moment the user edits the
+  // input (the credit no longer describes what's shown).
+  const [credit, setCredit] = useState<MediaSource | null>(null);
+
+  // Load-and-translate a text handed in from another surface (the Media "Study"
+  // button). Runs once per distinct text, then tells the parent it's consumed.
+  useEffect(() => {
+    if (!initialText) return;
+    t.setInput(initialText);
+    setCredit(initialSource ?? null);
+    // A handed-in text can be a FULL article — skip the whole-paragraph gloss so a
+    // long one renders the reader instead of tripping the char limit. The reader's
+    // "Show translation" toggle buys the gloss on demand if it's wanted.
+    // (No caller today: Media reads in place, in ArticleView. Kept as the seam for
+    // the next source that hands text in — a share sheet, a paste, an extension.)
+    void t.submit({ text: initialText, skipGloss: true });
+    onInitialConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialText]);
 
   // Handwriting input (native on-device recognizer): show the draw affordance only
   // where a backend is usable (iOS ML Kit today; hidden on web/desktop). Recognize
@@ -165,7 +197,10 @@ export function TranslateView({ userId }: { userId: string }) {
           <textarea
             className="textarea translate__box"
             value={t.input}
-            onChange={(e) => t.setInput(e.target.value)}
+            onChange={(e) => {
+              t.setInput(e.target.value);
+              if (credit) setCredit(null);
+            }}
             placeholder={tr("translate.inputPlaceholder")}
             rows={4}
             aria-label={tr("translate.inputAria")}
@@ -175,7 +210,10 @@ export function TranslateView({ userId }: { userId: string }) {
               {t.input.trim() !== "" && (
                 <button
                   className="io__tool"
-                  onClick={() => t.setInput("")}
+                  onClick={() => {
+                    t.setInput("");
+                    setCredit(null);
+                  }}
                   aria-label={tr("translate.clearInput")}
                   title={tr("translate.clearInput")}
                 >
@@ -280,6 +318,16 @@ export function TranslateView({ userId }: { userId: string }) {
       {/* STUDY section: add/quiz/review controls + the hover-for-meaning reader. */}
       {(wordStudy || paraStudy) && (
         <div className="study">
+          {credit && (
+            <p className="reader__source">
+              {tr("media.creditPrefix")}{" "}
+              <a href={credit.url} target="_blank" rel="noopener noreferrer">
+                {credit.label} ↗
+              </a>
+              {" · "}
+              {credit.attribution}
+            </p>
+          )}
           {wordStudy && (
             <WordResults
               headword={t.headword}
@@ -337,6 +385,9 @@ export function TranslateView({ userId }: { userId: string }) {
                 text={t.analyzedInput}
                 tokens={t.para.tokens}
                 meaningsByWord={t.para.meanings}
+                sentences={t.para.sentences}
+                onLoadGloss={t.loadGloss}
+                glossLoading={t.glossLoading}
                 saved={t.saved}
                 confidence={t.confidence}
                 lists={t.lists}

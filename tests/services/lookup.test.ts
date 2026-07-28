@@ -11,6 +11,7 @@ vi.mock("@/services/words/repository", () => ({
 vi.mock("@/services/translation", () => ({
   translate: vi.fn(),
   translateBatch: vi.fn(),
+  translateSegments: vi.fn(),
 }));
 vi.mock("@/services/senses", () => ({ resolveSenseProvider: vi.fn() }));
 // Partial-mock language: keep the real resolveSourceLanguage / AUTO_DETECT, but
@@ -22,7 +23,7 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { findWordTranslations, findWordTranslationsBatch } from "@/services/words/repository";
-import { translate, translateBatch } from "@/services/translation";
+import { translate, translateBatch, translateSegments } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
 import { lookupWord, lookupWordsBatch, translateParagraph } from "@/services/lookup";
@@ -33,6 +34,7 @@ const mockFind = vi.mocked(findWordTranslations);
 const mockFindBatch = vi.mocked(findWordTranslationsBatch);
 const mockTranslate = vi.mocked(translate);
 const mockTranslateBatch = vi.mocked(translateBatch);
+const mockTranslateSegments = vi.mocked(translateSegments);
 const mockResolveProvider = vi.mocked(resolveSenseProvider);
 const mockAnalyze = vi.mocked(analyze);
 
@@ -41,6 +43,10 @@ beforeEach(() => {
   // Default: the batched edge call (used by translateParagraph for uncached
   // words) returns nothing; tests that seed a missing word override this.
   mockTranslateBatch.mockResolvedValue(new Map<string, Word[]>());
+  // Default: the display gloss echoes one translation per SENTENCE (that 1:1
+  // shape is the contract the reader's inline gloss depends on). Tests that
+  // care about the text override this.
+  mockTranslateSegments.mockImplementation(async (p) => p.segments.map((s) => `[EN] ${s}`));
 });
 
 describe("lookupWord", () => {
@@ -151,16 +157,11 @@ describe("lookupWord — single-word reading override", () => {
 });
 
 describe("translateParagraph", () => {
-  it("translates the whole paragraph display-only (persist:false) and maps each word to its meanings", async () => {
-    // The paragraph itself isn't a seeded single word, so give the display-only
-    // (persist:false) call a contextual translation; per-word seeding still uses
-    // the fixture-backed sense provider below.
-    mockTranslate.mockImplementation(async (p) => {
-      if (p.persist === false) {
-        return { translated: true, translation: "the cat and the dog", word: null };
-      }
-      return createMockTranslate(FIXTURE_WORDS)(p);
-    });
+  it("glosses the paragraph SENTENCE BY SENTENCE and maps each word to its meanings", async () => {
+    // The display gloss is a segments call (never persisted); per-word seeding
+    // still uses the fixture-backed sense provider below.
+    mockTranslate.mockImplementation(createMockTranslate(FIXTURE_WORDS));
+    mockTranslateSegments.mockResolvedValue(["the cat and the dog"]);
     // 猫 already cached; 犬 missing → seeded via the batched edge call.
     mockFindBatch.mockResolvedValue(
       new Map([["猫", [makeWord({ wordId: "ja-neko", input: "猫", translation: "cat" })]]])
@@ -176,11 +177,15 @@ describe("translateParagraph", () => {
 
     const res = await translateParagraph({ input: "猫 犬", targetLang: "EN" });
 
-    // The whole-paragraph call must be display-only.
-    expect(mockTranslate).toHaveBeenCalledWith(
-      expect.objectContaining({ input: "猫 犬", persist: false })
-    );
+    // The gloss goes through the SEGMENTS path (display-only by construction —
+    // it has no persist option and never touches the cache).
+    expect(mockTranslateSegments).toHaveBeenCalledWith({
+      segments: ["猫 犬"],
+      sourceLang: "JA",
+      targetLang: "EN",
+    });
     expect(res.translated).toBe(true);
+    expect(res.translation).toBe("the cat and the dog");
     expect(res.sourceLang).toBe("JA");
     expect(res.meanings.get("猫")?.[0].translation).toBe("cat");
     expect(res.meanings.get("犬")?.[0].translation).toBe("dog"); // seeded
@@ -276,13 +281,67 @@ describe("translateParagraph", () => {
   });
 
   it("falls back to showing the input when the paragraph can't be translated", async () => {
-    mockTranslate.mockResolvedValue({ translated: false, translation: null, word: null });
+    mockTranslateSegments.mockResolvedValue([null]); // MT off / provider empty
     mockFindBatch.mockResolvedValue(new Map());
     mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null }]);
 
     const res = await translateParagraph({ input: "猫", targetLang: "EN" });
     expect(res.translated).toBe(false);
     expect(res.translation).toBe("猫");
+    expect(res.sentences).toEqual([{ text: "猫", start: 0, end: 1, gloss: null }]);
+  });
+
+  // The inline reader gloss depends on this shape: one entry per sentence, each
+  // carrying the offsets that let the reader group its already-analyzed tokens.
+  it("returns one gloss per sentence, with offsets into the paragraph", async () => {
+    mockTranslateSegments.mockResolvedValue(["The cat ran.", "The dog slept."]);
+    mockFindBatch.mockResolvedValue(new Map());
+    mockAnalyze.mockResolvedValue([]);
+
+    const res = await translateParagraph({ input: "猫が走った。犬が寝た。", targetLang: "EN" });
+
+    expect(mockTranslateSegments).toHaveBeenCalledWith(
+      expect.objectContaining({ segments: ["猫が走った。", "犬が寝た。"] }),
+    );
+    expect(res.sentences).toEqual([
+      { text: "猫が走った。", start: 0, end: 6, gloss: "The cat ran." },
+      { text: "犬が寝た。", start: 6, end: 11, gloss: "The dog slept." },
+    ]);
+    // The output box still gets one paragraph string, stitched from the parts.
+    expect(res.translation).toBe("The cat ran. The dog slept.");
+  });
+
+  it("keeps a partially-failed gloss aligned — the failed sentence shows its source", async () => {
+    mockTranslateSegments.mockResolvedValue(["The cat ran.", null]);
+    mockFindBatch.mockResolvedValue(new Map());
+    mockAnalyze.mockResolvedValue([]);
+
+    const res = await translateParagraph({ input: "猫が走った。犬が寝た。", targetLang: "EN" });
+    expect(res.sentences.map((s) => s.gloss)).toEqual(["The cat ran.", null]);
+    expect(res.translated).toBe(true); // something landed
+    expect(res.translation).toBe("The cat ran. 犬が寝た。");
+  });
+
+  it("makes NO gloss call when skipGloss is set (the media summary path spends nothing)", async () => {
+    mockFindBatch.mockResolvedValue(new Map());
+    mockAnalyze.mockResolvedValue([]);
+
+    const res = await translateParagraph({ input: "猫が走った。", targetLang: "EN", skipGloss: true });
+    expect(mockTranslateSegments).not.toHaveBeenCalled();
+    expect(res.sentences).toEqual([]);
+    expect(res.translated).toBe(false);
+  });
+
+  it("survives a gloss failure — the reader still renders", async () => {
+    mockTranslateSegments.mockRejectedValue(new Error("edge down"));
+    mockFindBatch.mockResolvedValue(
+      new Map([["猫", [makeWord({ input: "猫", translation: "cat" })]]]),
+    );
+    mockAnalyze.mockResolvedValue([{ text: "猫", start: 0, end: 1, reading: "ねこ", lemma: "猫", pos: null }]);
+
+    const res = await translateParagraph({ input: "猫", targetLang: "EN" });
+    expect(res.translated).toBe(false);
+    expect(res.meanings.get("猫")?.[0].translation).toBe("cat"); // reader intact
   });
 });
 
