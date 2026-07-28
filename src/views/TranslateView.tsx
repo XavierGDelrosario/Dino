@@ -16,6 +16,7 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, captureText } from "../services/ocr";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
 import { targetOptions, AUTO_DETECT } from "../services/language";
@@ -255,15 +256,27 @@ export function TranslateView({
               )}
             </div>
           )}
+          {/* Read-aloud sits BOTTOM-right, clear of the top-right modality tools.
+              The input is spoken in the source language — resolved the same way
+              handwriting/speech resolve it, since "auto-detect" isn't a voice. */}
+          <div className="io__speak io__speak--input">
+            <SpeakButton className="io__tool" text={t.input} lang={recognitionLang} />
+          </div>
         </div>
-        <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
-          {t.status === "loading" ? (
-            <span className="translate__placeholder">{tr("translate.translating")}</span>
-          ) : t.output ? (
-            t.output
-          ) : (
-            <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
-          )}
+        <div className="translate__outwrap">
+          <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
+            {t.status === "loading" ? (
+              <span className="translate__placeholder">{tr("translate.translating")}</span>
+            ) : t.output ? (
+              t.output
+            ) : (
+              <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
+            )}
+          </div>
+          {/* The translation, in the TARGET language — the side it's written in. */}
+          <div className="io__speak">
+            <SpeakButton className="io__tool" text={t.output ?? ""} lang={t.target} />
+          </div>
         </div>
 
         {drawing && (

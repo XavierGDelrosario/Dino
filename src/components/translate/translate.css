@@ -587,6 +587,34 @@
   gap: 0.35rem;
 }
 
+/* Read-aloud, pinned BOTTOM-right of either box — deliberately the opposite corner
+   from .io__tools (input modalities), so output-side controls never mix with the
+   input ones. Anchored to the WRAPPER, not the box: the box scrolls its own
+   content, and a button inside it would scroll away with a long paragraph. */
+.io__speak {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  z-index: 2;
+}
+
+/* The input is a `resize: vertical` textarea, and the browser draws its drag grip
+   in the bottom-right corner — the button would sit on top of it and swallow the
+   resize. Shift it inward by roughly a grip's width; the output box has no grip,
+   so it stays flush. */
+.io__speak--input {
+  right: 1.35rem;
+}
+
+/* Wraps the output box so .io__speak has something to pin to (mirrors
+   .translate__inputwrap on the input side). */
+.translate__outwrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+}
+
 .io__tool {
   appearance: none;
   width: 2rem;

@@ -306,10 +306,36 @@
   left: 0.6rem;
 }
 
+/* Top-right tool cluster: read-aloud + the caller's action (add-to-list), in a row
+   so a card carrying both keeps one tidy corner. */
 .flashcard__action {
   position: absolute;
   top: 0.6rem;
   right: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Same round footprint as .card-add, but transparent — the listen button is a
+   secondary affordance next to the add button, not a peer of it. */
+.card-tool {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.card-tool:hover {
+  border-color: var(--border);
+  color: var(--text);
 }
 
 /* Round add-to-list button rendered INSIDE a card's top-right action slot. */

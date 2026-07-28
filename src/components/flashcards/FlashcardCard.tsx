@@ -9,6 +9,8 @@
 // spoil the recall.
 import { useRef, type ReactNode } from "react";
 import { WordInfoButton } from "../common/WordInfo";
+import { SpeakButton } from "../common/SpeakButton";
+import { pronounceableText } from "../../services/voice";
 import { useI18n } from "../../i18n";
 import type { LangCode } from "../../services/language";
 import "./flashcards.css";
@@ -89,6 +91,9 @@ export function FlashcardCard({
   // Track the touch start so touchend can classify it as a horizontal swipe.
   const start = useRef<{ x: number; y: number } | null>(null);
   const swipeable = Boolean(onSwipeLeft || onSwipeRight);
+  // Is the term (the word's own language) currently on screen? Normally yes — it's
+  // the front face. Reversed, it only appears after the flip.
+  const termVisible = !reversed || flipped;
 
   return (
     <div
@@ -127,10 +132,25 @@ export function FlashcardCard({
         <WordInfoButton word={word} align="left" />
       </span>
 
-      {/* Optional top-right action (e.g. add-to-list) — INSIDE the card. Stops
-          propagation so using it never flips the card. */}
-      {action && (
+      {/* Top-right tools — INSIDE the card: read-aloud, then the optional caller
+          action (e.g. add-to-list). Stops propagation so using either never flips
+          the card.
+
+          The listen button speaks the TERM, and only while the term is on screen:
+          on a `reversed` card the term IS the answer, so pronouncing it before the
+          flip would give it away — the same rule that keeps readings off the front
+          face. It speaks the sense's reading rather than the kanji where we have
+          one (pronounceableText), so a homograph is never mispronounced. */}
+      {(termVisible || action) && (
         <span className="flashcard__action" onClick={(e) => e.stopPropagation()}>
+          {termVisible && (
+            <SpeakButton
+              className="card-tool"
+              text={pronounceableText(word)}
+              lang={word.sourceLang}
+              size={18}
+            />
+          )}
           {action}
         </span>
       )}

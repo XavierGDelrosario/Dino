@@ -9,6 +9,8 @@ import type { List } from "../../services/lists";
 import { ListMenu } from "../common/ListMenu";
 import { PencilIcon, TrashIcon } from "../common/icons";
 import { WordInfoButton } from "../common/WordInfo";
+import { SpeakButton } from "../common/SpeakButton";
+import { pronounceableText } from "../../services/voice";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
 
@@ -120,6 +122,13 @@ export function ListRow({
         </span>
 
         <div className="listrow__meta">
+          {/* Read the WORD aloud — never the meaning (an English gloss spoken by a
+              Japanese voice is noise). Speaks the sense's reading where the headword
+              is kanji, so a homograph gets the meaning's own pronunciation. The
+              language is the row's own, so an English word in the EN-learner
+              direction is spoken by an English voice. */}
+          <SpeakButton text={pronounceableText(word)} lang={word.sourceLang} size={16} />
+
           {/* Word info as a floating OVERLAY (not inline text that reflows the row):
               Level (JLPT/CEFR) + Part of Speech, then the added/reviewed dates. The
               shared "?" affordance — same panel appears on the flashcard. */}
