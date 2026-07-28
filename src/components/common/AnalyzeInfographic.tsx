@@ -138,7 +138,11 @@ export function AnalyzeInfographic({ data, className }: { data: AnalyzeData; cla
   const [tab, setTab] = useState<string | null>(null);
   const [showKnowledge, setShowKnowledge] = useState(false);
   const active = data.bars.find((s) => s.title === tab) ?? data.bars[0];
-  const canKnowledge = active?.kind === "ordinal"; // Frequency / Difficulty
+  // Frequency / Difficulty — but only when the data HAS a knowledge split to
+  // overlay. A saved list is 100% known by construction and reports no `known`,
+  // so the toggle would draw a solid bar and say nothing.
+  const canKnowledge =
+    active?.kind === "ordinal" && active.buckets.some((b) => b.known != null && b.known < b.value);
 
   return (
     <div className={`agx${className ? ` ${className}` : ""}`}>

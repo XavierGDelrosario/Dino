@@ -25,6 +25,8 @@ import { useI18n } from "../i18n";
 import { SearchIcon, XIcon } from "../components/common/icons";
 import { SortControls, type SortDir } from "../components/common/SortControls";
 import { Pager } from "../components/common/Pager";
+import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
+import { summarizeUserWords } from "../services/analyze/summarize";
 import { PAGE_SIZE } from "../lib/pagination";
 import { ErrorText } from "../components/common/ErrorText";
 import type { UserWord } from "../services/words/userWords";
@@ -104,7 +106,7 @@ export function ListView({
   const [query, setQuery] = useStickyState(userId, "lists.query", "");
   // Which panel is open below the actions row. ONE at a time — both are big blocks
   // that push the rows down, so stacking them would bury the list.
-  const [panel, setPanel] = useState<"add" | "filter" | null>(null);
+  const [panel, setPanel] = useState<"add" | "filter" | "summary" | null>(null);
   // EVERY filter (language → its levels · usage · POS · added · reviewed ·
   // confidence) lives in this one value, owned by the funnel menu (which is
   // presentational). The resting value narrows nothing; the view only sorts + pages.
@@ -143,6 +145,15 @@ export function ListView({
       sortDir
     );
   }, [L.words, filters, query, sortAxis, sortDir]);
+
+  // The summary charts the words CURRENTLY ON SCREEN — the same set Review quizzes,
+  // so filtering to "N3 verbs I keep forgetting" and hitting Summary describes that
+  // slice, not the whole list. Built only while the panel is open (it walks every
+  // word, and the list re-renders on every keystroke and page turn).
+  const summary = useMemo(
+    () => (panel === "summary" ? summarizeUserWords(visible) : null),
+    [panel, visible]
+  );
 
   // ---- Multi-select -------------------------------------------------------
   // Selection is held as user_word IDs, NOT rows, and is deliberately NOT cleared
@@ -270,6 +281,15 @@ export function ListView({
                 {t("lists.reviewAll", { n: visible.length })}
               </button>
             )}
+            {/* Same set as Review, described instead of quizzed. */}
+            <button
+              className={`btn btn--sm lists__reviewbtn${panel === "summary" ? " btn--primary" : ""}`}
+              onClick={() => setPanel((p) => (p === "summary" ? null : "summary"))}
+              aria-expanded={panel === "summary"}
+              title={t("lists.summaryTitle")}
+            >
+              {t("lists.summaryBtn")}
+            </button>
           </>
         )}
         {selectedList && (
@@ -285,6 +305,18 @@ export function ListView({
           </button>
         )}
       </div>
+
+      {/* Charts for the filtered set, directly under the button that opens them (which
+          lives in the title bar) — so the summary sits ABOVE the add/select/filter row
+          rather than below everything those panels can open. No coverage pie: every word
+          here is already in the vocabulary, so known/new is 100/0 by construction — see
+          summarizeUserWords. No word count either: the title chip and the row count
+          already carry it. */}
+      {panel === "summary" && summary && (
+        <div className="lists__summary">
+          <AnalyzeInfographic data={summary.data} />
+        </div>
+      )}
 
       {/* The ACTIONS row: add · select · filter. The buttons STAY PUT — whichever
           panel they open renders below the whole row (in the page flow, pushing the

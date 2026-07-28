@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { summarizeReader } from "@/services/analyze/summarize";
+import { summarizeReader, summarizeUserWords } from "@/services/analyze/summarize";
 import type { AnalyzedToken } from "@/services/language";
-import { makeWord } from "@test/fixtures";
+import { makeUserWord, makeWord } from "@test/fixtures";
+import type { UserWord } from "@/services/words/userWords";
 
 // Minimal content token (名詞 = noun); 助詞 = particle is grammatical (ignored).
 const tok = (text: string, pos = "名詞"): AnalyzedToken => ({
@@ -127,5 +128,53 @@ describe("summarizeReader", () => {
     expect(data.bars.some((s) => s.title === "Difficulty")).toBe(false);
     // Confidence + Frequency still render, in that order
     expect(data.bars.map((s) => s.title)).toEqual(["Confidence", "Frequency"]);
+  });
+});
+
+describe("summarizeUserWords (a saved list)", () => {
+  const uw = (o: Partial<UserWord> = {}): UserWord =>
+    makeUserWord({ sourceLang: "JA", targetLang: "EN", ...o });
+
+  it("omits the coverage pie — a saved list is 100% known, so the split says nothing", () => {
+    const { total, data } = summarizeUserWords([uw({ confidenceRating: 3 }), uw({ confidenceRating: 5 })]);
+    expect(data.pie).toBeUndefined();
+    expect(total).toBe(2);
+  });
+
+  it("buckets live confidence 0..5 with NO 'New' row", () => {
+    const { data } = summarizeUserWords([
+      uw({ confidenceRating: 0 }),
+      uw({ confidenceRating: 4 }),
+      uw({ confidenceRating: 4 }),
+    ]);
+    const conf = data.bars.find((b) => b.title === "Confidence")!;
+    expect(conf.buckets.map((b) => b.key)).toEqual(["0", "1", "2", "3", "4", "5"]); // no "new"
+    expect(conf.buckets.find((b) => b.key === "4")!.value).toBe(2);
+    expect(conf.buckets.find((b) => b.key === "0")!.value).toBe(1);
+  });
+
+  it("reports no knowledge split on the ordinal bars (nothing to overlay)", () => {
+    const { data } = summarizeUserWords([uw({ frequency: 600 }), uw({ frequency: null })]);
+    const freq = data.bars.find((b) => b.title === "Frequency")!;
+    expect(freq.buckets.every((b) => b.known === undefined)).toBe(true);
+    expect(freq.buckets.find((b) => b.key === "vcommon")!.value).toBe(1);
+    expect(freq.buckets.find((b) => b.key === "—")!.value).toBe(1); // unranked
+  });
+
+  it("builds Difficulty for the DOMINANT language only — JLPT and CEFR are different rulers", () => {
+    const { data } = summarizeUserWords([
+      uw({ sourceLang: "JA", proficiencyBand: 1 }), // band 1 = N5 (easiest)
+      uw({ sourceLang: "JA", proficiencyBand: 1 }),
+      uw({ sourceLang: "EN", proficiencyBand: 1 }), // minority language — not on this axis
+    ]);
+    const level = data.bars.find((b) => b.title === "Difficulty")!;
+    const counted = level.buckets.reduce((n, b) => n + b.value, 0);
+    expect(counted).toBe(2); // only the two JA words
+    expect(level.buckets.some((b) => b.label === "N5" && b.value === 2)).toBe(true);
+  });
+
+  it("hides Difficulty when no word carries a band", () => {
+    const { data } = summarizeUserWords([uw({ proficiencyBand: null })]);
+    expect(data.bars.some((b) => b.title === "Difficulty")).toBe(false);
   });
 });

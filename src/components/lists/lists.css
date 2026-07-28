@@ -839,3 +839,15 @@
 .listrow__tag {
   appearance: none;
 }
+
+/* Summary panel — the same in-flow card the filter panel uses (page flow, pushing
+   the rows down, never a floating overlay), holding the shared analyze infographic.
+   Rendered ABOVE the actions row, under the button that opens it. */
+.lists__summary {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  text-align: left;
+}
