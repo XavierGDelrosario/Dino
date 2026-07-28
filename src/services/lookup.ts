@@ -32,7 +32,7 @@ import {
   markDictionaryMiss,
 } from "./words/cache";
 import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
-import { nfc, nfcTrim } from "../lib/text";
+import { isKatakanaOnly, nfc, nfcTrim } from "../lib/text";
 import { translateBatch, translateSegments } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
@@ -187,6 +187,39 @@ function joinGloss(
   const any = sentences.some((s) => s.gloss);
   if (!any) return { translation: input, translated: false };
   return { translation: sentences.map((s) => s.gloss ?? s.text).join(" "), translated: true };
+}
+
+/**
+ * A katakana surface the DICTIONARY doesn't have is a name, a brand, or a one-off
+ * transliteration — not vocabulary. Measured on 23 random ja.wikinews articles
+ * (2026-07-29): katakana is 8.1% of content tokens, and of 192 distinct katakana
+ * surfaces 35 had no JMdict entry — of those, ~32 were proper nouns (ノーリツ,
+ * セコム, ゼレンスキー, アフマダーバード, and the names of racehorses and pandas). The
+ * ~3 real ones (プレシーズン, チェアーマン) are transparent transliterations a learner
+ * reads at sight. Showing them as addable vocabulary is what floods an article's
+ * word list; the MT gloss they'd get ("ゼレンスキー" → "Zelensky") teaches nothing,
+ * costs a paid call, and leaves a POS-less row in the shared `words` cache forever.
+ *
+ * IDENTIFYING them: no part-of-speech. POS comes from the dictionary projection, so
+ * a sense without one came from the MT fallback — verified exact on all 6,715 prod
+ * `words` rows (empty `part_of_speech` ⟺ a `mt:` dictionary_ref, zero exceptions).
+ *
+ * The FREQUENCY-or-difficulty test alone would be WRONG here: ゼロ, フェロー and
+ * ニューヨーク・タイムズ are real JMdict entries carrying no wordfreq score, so a
+ * frequency-keyed rule deletes ゼロ. POS is the signal; frequency is not.
+ *
+ * SCOPED to katakana on purpose. The same rule over every script would gut dev and
+ * local, where the `-common-` JMdict subset leaves real words (唐揚げ) MT-covered.
+ * And it is scoped to the READER: typing a name into Translate still answers, since
+ * an explicit lookup is a question the user asked (cf. the person-name POS demotion
+ * in analyze.ts, which draws the same line).
+ */
+function isJunkKatakana(surface: string, senses: Word[]): boolean {
+  return (
+    senses.length > 0 &&
+    isKatakanaOnly(surface) &&
+    senses.every((s) => !s.partOfSpeech || s.partOfSpeech.length === 0)
+  );
 }
 
 /**
@@ -351,19 +384,33 @@ export async function translateParagraph(params: {
   });
   const missing = uniqueKeys.filter((k) => !meaningsByKey.has(k));
   if (missing.length > 0) {
-    // ONE batched edge call for every uncached word, instead of N per-word calls.
+    // ONE batched edge call for every uncached word, instead of N per-word calls —
+    // except katakana, which goes in a second DICTIONARY-ONLY batch (see the note on
+    // `isJunkKatakana`). Both fly in parallel, so the split costs no extra latency.
     // A failure here is non-fatal: those words just render uncolored (no meanings).
+    const katakana = missing.filter(isKatakanaOnly);
+    const rest = missing.filter((k) => !isKatakanaOnly(k));
     try {
-      const batch = await translateBatch({
-        inputs: missing,
-        sourceLang: resolvedSource,
-        targetLang,
-      });
-      for (const key of missing) {
-        const senses = batch.get(key) ?? [];
-        if (senses.length > 0) {
-          meaningsByKey.set(key, senses);
-          setCachedSenses(key, resolvedSource, targetLang, senses); // memoize for repeats
+      const batches = await Promise.all([
+        rest.length > 0
+          ? translateBatch({ inputs: rest, sourceLang: resolvedSource, targetLang })
+          : null,
+        katakana.length > 0
+          ? translateBatch({
+              inputs: katakana,
+              sourceLang: resolvedSource,
+              targetLang,
+              dictionaryOnly: true, // a katakana miss never reaches paid MT
+            })
+          : null,
+      ]);
+      for (const batch of batches) {
+        if (!batch) continue;
+        for (const [key, senses] of batch) {
+          if (senses.length > 0) {
+            meaningsByKey.set(key, senses);
+            setCachedSenses(key, resolvedSource, targetLang, senses); // memoize for repeats
+          }
         }
       }
     } catch {
@@ -394,7 +441,8 @@ export async function translateParagraph(params: {
   const meanings = new Map<string, Word[]>();
   for (const token of tokens) {
     if (!meanings.has(token.text)) {
-      meanings.set(token.text, meaningsByKey.get(keyOf(token)) ?? []);
+      const senses = meaningsByKey.get(keyOf(token)) ?? [];
+      meanings.set(token.text, isJunkKatakana(token.text, senses) ? [] : senses);
     }
   }
 

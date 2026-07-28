@@ -442,3 +442,91 @@ describe("translateParagraph — dictionary-validated compound merge", () => {
     expect(res.tokens.map((t) => t.text)).toEqual(["柔軟", "剤"]);
   });
 });
+
+describe("translateParagraph — katakana the dictionary doesn't have", () => {
+  // ゼレンスキー (a name, MT-only) next to リーグ (a real JMdict loanword).
+  const TOKENS = [
+    { text: "ゼレンスキー", start: 0, end: 6, reading: null, lemma: null, pos: "名詞" },
+    { text: "リーグ", start: 6, end: 9, reading: null, lemma: null, pos: "名詞" },
+  ];
+  // No POS ⇒ the row came from the MT fallback, not the dictionary projection.
+  const mtOnly = makeWord({ input: "ゼレンスキー", translation: "Zelensky", partOfSpeech: null });
+  const fromDictionary = makeWord({
+    input: "リーグ",
+    translation: "league",
+    partOfSpeech: ["n"],
+    frequency: 450,
+  });
+
+  beforeEach(() => {
+    __clearWordsCache();
+    mockAnalyze.mockResolvedValue(structuredClone(TOKENS));
+    mockTranslate.mockResolvedValue({ translated: true, translation: "", word: null });
+    mockTranslateBatch.mockResolvedValue(new Map<string, Word[]>());
+  });
+
+  const paragraph = () =>
+    translateParagraph({ input: "ゼレンスキーリーグ", sourceLang: "JA", targetLang: "EN" });
+
+  it("hides an MT-only katakana word, and keeps the one the dictionary has", async () => {
+    mockFindBatch.mockResolvedValue(
+      new Map([
+        ["ゼレンスキー", [mtOnly]],
+        ["リーグ", [fromDictionary]],
+      ]),
+    );
+    const res = await paragraph();
+    // The name is still a TOKEN (the reader shows the text) but has no meanings,
+    // so it renders grey: not addable, not in the word list, not in Add all.
+    expect(res.tokens.map((t) => t.text)).toContain("ゼレンスキー");
+    expect(res.meanings.get("ゼレンスキー")).toEqual([]);
+    expect(res.meanings.get("リーグ")?.[0].translation).toBe("league");
+  });
+
+  it("a dictionary-backed katakana word with NO frequency survives (ゼロ, not junk)", async () => {
+    // The signal is POS, never frequency: real JMdict entries can be unranked.
+    mockAnalyze.mockResolvedValue([
+      { text: "ゼロ", start: 0, end: 2, reading: null, lemma: null, pos: "名詞" },
+    ]);
+    mockFindBatch.mockResolvedValue(
+      new Map([
+        ["ゼロ", [makeWord({ input: "ゼロ", translation: "zero", partOfSpeech: ["n"], frequency: null })]],
+      ]),
+    );
+    const res = await translateParagraph({ input: "ゼロ", sourceLang: "JA", targetLang: "EN" });
+    expect(res.meanings.get("ゼロ")?.[0].translation).toBe("zero");
+  });
+
+  it("an MT-only KANJI word is untouched — the rule is katakana-scoped", async () => {
+    // On the -common- JMdict subset, real words like 唐揚げ are MT-covered.
+    mockAnalyze.mockResolvedValue([
+      { text: "唐揚げ", start: 0, end: 3, reading: null, lemma: null, pos: "名詞" },
+    ]);
+    mockFindBatch.mockResolvedValue(
+      new Map([["唐揚げ", [makeWord({ input: "唐揚げ", translation: "karaage", partOfSpeech: null })]]]),
+    );
+    const res = await translateParagraph({ input: "唐揚げ", sourceLang: "JA", targetLang: "EN" });
+    expect(res.meanings.get("唐揚げ")?.[0].translation).toBe("karaage");
+  });
+
+  it("uncached katakana is resolved DICTIONARY-ONLY; the rest still gets paid MT", async () => {
+    mockFindBatch.mockResolvedValue(new Map<string, Word[]>()); // nothing cached
+    await paragraph();
+    const calls = mockTranslateBatch.mock.calls.map((c) => c[0]);
+    const kana = calls.find((c) => c.inputs.includes("ゼレンスキー"));
+    expect(kana?.dictionaryOnly).toBe(true);
+    expect(kana?.inputs).toEqual(["ゼレンスキー", "リーグ"]); // both katakana
+  });
+
+  it("sends non-katakana misses to the normal (MT-eligible) batch", async () => {
+    mockAnalyze.mockResolvedValue([
+      { text: "ゼレンスキー", start: 0, end: 6, reading: null, lemma: null, pos: "名詞" },
+      { text: "猫", start: 6, end: 7, reading: null, lemma: null, pos: "名詞" },
+    ]);
+    mockFindBatch.mockResolvedValue(new Map<string, Word[]>());
+    await translateParagraph({ input: "ゼレンスキー猫", sourceLang: "JA", targetLang: "EN" });
+    const calls = mockTranslateBatch.mock.calls.map((c) => c[0]);
+    expect(calls.find((c) => c.inputs.includes("猫"))?.dictionaryOnly).toBeUndefined();
+    expect(calls.find((c) => c.inputs.includes("ゼレンスキー"))?.dictionaryOnly).toBe(true);
+  });
+});
