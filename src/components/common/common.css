@@ -431,21 +431,42 @@ body {
 }
 
 /* tab nav */
+/* Five tabs (Translate · Lists · Learn · Media · Review) don't fit a phone at the
+   desktop size — the row needs ~400px and an iPhone leaves the app ~358px, so it
+   spilled off-screen.
+
+   The tabs FILL the row rather than being sized by hand: `flex: 1 0 auto` gives
+   each one its content width plus an equal share of whatever is left over, so the
+   strip spans the full width at any screen size and no guessed font size leaves a
+   gap at the end. Type still scales with the viewport, but only as a floor — the
+   growing does the fitting.
+
+   `flex-shrink: 0` + overflow-x is the backstop: label widths vary by UI language,
+   and a row that genuinely cannot fit scrolls inside itself instead of squashing
+   the labels into each other or pushing the page sideways. */
 .tabs {
   display: flex;
-  gap: 0.4rem;
+  gap: clamp(0.15rem, 1vw, 0.4rem);
   margin-bottom: 1.25rem;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none; /* the row is short; a scrollbar would just be noise */
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
   appearance: none;
+  flex: 1 0 auto; /* grow to fill the row; never shrink below the label */
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--muted);
-  font-size: 1rem;
-  padding: 0.5rem 0.9rem;
+  font-size: clamp(0.9rem, 3.6vw, 1rem);
+  padding: 0.5rem clamp(0.3rem, 1.8vw, 0.9rem);
+  white-space: nowrap; /* never break "Translate" across two lines */
   cursor: pointer;
 }
 
