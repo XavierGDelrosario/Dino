@@ -46,7 +46,12 @@
 /* paragraph reader */
 .textarea {
   width: 100%;
-  resize: vertical;
+  /* No drag-resize: the browser draws its grip in the bottom-right corner, which is
+     where the read-aloud button lives (.io__speak) — the two fought over the same
+     20px, and an inset button no longer lined up with the output box's. The box
+     already caps its height and scrolls a long paste, and the output box never had
+     a grip, so dropping it also makes the pair symmetric. */
+  resize: none;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -77,6 +82,70 @@
   line-height: 2.1;
   margin: 0;
   word-break: break-word;
+}
+
+/* INLINE TRANSLATION: each sentence followed by its own English, so reading a
+   line never means looking away to a separate block. One sentence per row —
+   the paragraph stops flowing on purpose, since a flowing paragraph has no
+   place to put a per-sentence gloss. */
+.reader--glossed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.reader__pair {
+  margin: 0;
+}
+
+.reader__source-line {
+  display: block;
+}
+
+/* Dimmer + smaller than the source, and indented, so the eye reads the
+   Japanese first and the English as an annotation of it. */
+.reader__gloss {
+  display: block;
+  margin-top: 0.15rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Summary infographic block above the reader (default collapsed). */
+.reader-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+}
+
+.reader-summary__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.reader-summary__toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* The infographic is a full-width row of its own under the toggles (which now
+   sit side by side in the flex row above). */
+.reader-summary .agx {
+  flex-basis: 100%;
+  margin-top: 0.6rem;
 }
 
 /* "Add all" + "Quiz" actions above the reader */
@@ -197,10 +266,6 @@
   /* Stay compact + centered rather than stretching to the wide input/output boxes. */
   max-width: 28rem;
   margin-inline: auto;
-}
-
-.langbar__arrow {
-  color: var(--muted);
 }
 
 .langbar__swap {
@@ -496,6 +561,22 @@
   font-style: italic;
 }
 
+/* Source credit for media-loaded prose (CC BY-SA attribution + link-back). */
+.reader__source {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reader__source a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.reader__source a:hover {
+  text-decoration: underline;
+}
+
 /* Handwriting input (Tier-4, native ML Kit Digital Ink). A square "paper" pad
    whose recognized candidates fill the translate input. */
 
@@ -509,6 +590,26 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+/* Read-aloud, pinned BOTTOM-right of either box — deliberately the opposite corner
+   from .io__tools (input modalities), so output-side controls never mix with the
+   input ones. Anchored to the WRAPPER, not the box: the box scrolls its own
+   content, and a button inside it would scroll away with a long paragraph. */
+.io__speak {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  z-index: 2;
+}
+
+/* Wraps the output box so .io__speak has something to pin to (mirrors
+   .translate__inputwrap on the input side). */
+.translate__outwrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
 }
 
 .io__tool {

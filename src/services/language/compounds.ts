@@ -107,7 +107,7 @@ const FIRST_CHARS = new Set(JA_COMPOUNDS.map((c) => c[0]));
  * OUTPUT: a new AnalyzedToken[] (unchanged when nothing merges).
  */
 export function mergeJapaneseCompounds(tokens: AnalyzedToken[]): AnalyzedToken[] {
-  if (tokens.length < 2 || MAX_SPAN < 2) return tokens;
+  if (MAX_SPAN < 2) return tokens;
   // Fast path: if NO token starts a listed compound, there's nothing to merge —
   // return the input untouched with zero allocation (the common case for text
   // without any of these compounds). Tokens are already NFC (input is normalized
@@ -117,19 +117,139 @@ export function mergeJapaneseCompounds(tokens: AnalyzedToken[]): AnalyzedToken[]
     if (FIRST_CHARS.has(tokens[i].text[0])) { couldMatch = true; break; }
   }
   if (!couldMatch) return tokens;
+  return mergeSpans(tokens, {
+    maxSpan: MAX_SPAN,
+    isCompound: (surface) => COMPOUND_SET.has(surface),
+    canStart: (t) => FIRST_CHARS.has(t.text[0]),
+  });
+}
 
+// ---------------------------------------------------------------------------
+// Dictionary-validated merge: the general fix the curated list above can't be.
+//
+// The curated list only covers compounds someone thought to add, and it was
+// seeded by a scan over WORDFREQ words — which structurally cannot rank
+// multi-kanji compounds (its tokenizer splits them), so this exact class of word
+// was invisible to the scan that built it. Hence the recurring reports (柔軟剤,
+// 電子レンジ, and every 医薬品-packaging noun): both ARE full-JMdict entries that
+// kuromoji splits, neither could ever have been found by that scan.
+//
+// So instead of guessing which compounds exist, ASK the dictionary. We propose
+// candidate merges from adjacent NOUN runs and merge only the ones the dictionary
+// confirms are real entries. The caller owns the lookup (it's I/O; this module
+// stays pure) — see `dictionaryCompoundCandidates` + `mergeConfirmedCompounds`.
+//
+// TRADE-OFF, accepted deliberately: two nouns that merely CAN form a word will be
+// merged even when the writer meant them separately (大学 ＋ 生活 → 大学生活, itself
+// a JMdict entry). We take that because the failure is mild and symmetric — the
+// reader shows one real word's real meaning either way — whereas the bug it fixes
+// (a word the dictionary HAS, shown as meaningless fragments) is a dead end for
+// the learner. Capping the span at 3 keeps a wrong join short.
+// ---------------------------------------------------------------------------
+
+/** Longest compound, in TOKENS, we will propose to the dictionary. */
+const PROBE_MAX_SPAN = 3;
+
+/**
+ * Upper bound on candidates proposed per analysis — a backstop against
+ * pathological input, NOT a working limit. Hitting it silently stops merging
+ * compounds in the tail of the text, so it must sit above anything a legal paste
+ * can produce.
+ *
+ * Sized from a measurement, not a guess: the worst real sample we have (the
+ * medicine-packaging text from quality report #3 — dense technical nouns, far
+ * above normal prose) yields 54 candidates from 712 chars, i.e. ~0.08 per char.
+ * The paragraph translate is capped upstream at 2000 chars
+ * (DEFAULT_PARAGRAPH_CHAR_LIMIT / user_limits.paragraph_char_limit), so the
+ * realistic ceiling is ~150. 256 keeps ~1.7x headroom over that.
+ *
+ * If the paragraph char limit is ever raised, re-derive this — otherwise long
+ * pastes start losing compound merges with no error to notice.
+ */
+const MAX_CANDIDATES = 256;
+
+/** Can this token take part in a proposed compound? Nouns only, and never a
+ *  number+counter composite (三本 is already one merged token, not a fragment). */
+function isMergeableNoun(t: AnalyzedToken): boolean {
+  return t.pos === "名詞" && !t.composite;
+}
+
+/**
+ * Surfaces to ask the dictionary about: every 2..PROBE_MAX_SPAN run of ADJACENT
+ * noun tokens. Adjacency is checked on OFFSETS (`end === start`), so tokens
+ * separated by whitespace/punctuation in the source are never joined.
+ *
+ * OUTPUT: deduped surfaces, longest-first within each start position. Pure.
+ */
+export function dictionaryCompoundCandidates(tokens: AnalyzedToken[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < tokens.length && out.length < MAX_CANDIDATES; i++) {
+    if (!isMergeableNoun(tokens[i])) continue;
+    let surface = tokens[i].text;
+    const maxEnd = Math.min(tokens.length, i + PROBE_MAX_SPAN);
+    for (let end = i + 1; end < maxEnd; end++) {
+      // Stop extending at the first non-noun or non-adjacent token: a compound
+      // cannot span a gap, and everything past it is a different run.
+      if (!isMergeableNoun(tokens[end]) || tokens[end - 1].end !== tokens[end].start) break;
+      surface += tokens[end].text;
+      if (!seen.has(surface)) { seen.add(surface); out.push(surface); }
+    }
+  }
+  return out;
+}
+
+/**
+ * Merge the candidate spans the dictionary CONFIRMED (`confirmed` holds the
+ * surfaces that resolved to real senses). Longest match wins, left to right.
+ *
+ * OUTPUT: a new AnalyzedToken[] (unchanged when nothing merges). Pure.
+ */
+export function mergeConfirmedCompounds(
+  tokens: AnalyzedToken[],
+  confirmed: ReadonlySet<string>,
+): AnalyzedToken[] {
+  if (confirmed.size === 0) return tokens;
+  return mergeSpans(tokens, {
+    maxSpan: PROBE_MAX_SPAN,
+    isCompound: (surface) => confirmed.has(surface),
+    canStart: isMergeableNoun,
+    eligible: isMergeableNoun,
+  });
+}
+
+/**
+ * Shared span-merge: fold consecutive tokens whose concatenated surfaces satisfy
+ * `isCompound` into ONE token (longest match first, left to right). Both the
+ * curated and the dictionary-validated passes are this same fold under different
+ * membership tests — the merged-token construction below is the part that must
+ * not drift between them.
+ */
+function mergeSpans(
+  tokens: AnalyzedToken[],
+  opts: {
+    maxSpan: number;
+    isCompound: (surface: string) => boolean;
+    canStart: (t: AnalyzedToken) => boolean;
+    /** Extra per-token gate applied to the REST of a span (default: any token). */
+    eligible?: (t: AnalyzedToken) => boolean;
+  },
+): AnalyzedToken[] {
+  if (tokens.length < 2) return tokens;
+  const eligible = opts.eligible ?? (() => true);
   const out: AnalyzedToken[] = [];
   let i = 0;
   while (i < tokens.length) {
-    let bestEnd = -1; // exclusive end of the LONGEST listed compound starting at i
-    if (FIRST_CHARS.has(tokens[i].text[0])) {
-      const maxEnd = Math.min(tokens.length, i + MAX_SPAN);
+    let bestEnd = -1; // exclusive end of the LONGEST matching compound starting at i
+    if (opts.canStart(tokens[i])) {
+      const maxEnd = Math.min(tokens.length, i + opts.maxSpan);
       // Extend the surface one token at a time (no slice/map/join), recording the
-      // longest span that IS a listed compound — longest-match wins.
+      // longest span that IS a compound — longest-match wins.
       let surface = tokens[i].text;
       for (let end = i + 1; end < maxEnd; end++) {
+        if (!eligible(tokens[end])) break;
         surface += tokens[end].text;
-        if (COMPOUND_SET.has(surface)) bestEnd = end + 1;
+        if (opts.isCompound(surface)) bestEnd = end + 1;
       }
     }
     if (bestEnd >= i + 2) {

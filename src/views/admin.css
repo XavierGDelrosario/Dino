@@ -158,6 +158,18 @@
   margin: 0.5rem 0 0.5rem;
 }
 .admin__form .admin__input { flex: 0 1 auto; }
+/* A vertical form: full-width fields stacked, the action button left-aligned below. */
+.admin__form--stack {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 40rem;
+}
+.admin__form--stack .admin__seg-btn { align-self: flex-start; }
+.admin__textarea {
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+}
 .admin__field {
   display: inline-flex;
   align-items: center;

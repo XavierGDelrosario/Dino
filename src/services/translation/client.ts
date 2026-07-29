@@ -121,15 +121,51 @@ interface BatchEntry {
  * under that kana even though the stored headword is the kanji).
  * CONSTRAINTS: persist is implied true (batch is for cacheable words); the
  * whole-paragraph display gloss stays a separate persist:false `translate` call.
+ *
+ * `dictionaryOnly` restricts resolution to the cache + dictionary, never the paid
+ * MT fallback. Use it when PROBING whether a string is a real word (the reader's
+ * compound merge) rather than translating something the user asked for: probes are
+ * expected to miss, and billing MT for each wrong guess — then caching its output
+ * as a verified word — is exactly the wrong answer. See the edge-side note.
  */
 export async function translateBatch(params: {
   inputs: string[];
   sourceLang: LangCode;
   targetLang: LangCode;
+  dictionaryOnly?: boolean;
 }): Promise<Map<string, Word[]>> {
   const map = new Map<string, Word[]>();
   if (params.inputs.length === 0) return map;
   const data = await invokeTranslate<{ results?: BatchEntry[] }>(params);
   for (const r of data.results ?? []) map.set(r.input, r.words ?? []);
   return map;
+}
+
+/**
+ * SEGMENTS translate: one display gloss PER SEGMENT, index-aligned with the
+ * input, in ONE round-trip.
+ *
+ * This is what lets the reader print the English under each Japanese sentence
+ * instead of in a separate block: each segment is its own translation unit, so
+ * `glosses[i]` is the translation of `segments[i]`. Splitting one blob of
+ * translated text back into sentences cannot promise that — MT merges and
+ * splits sentences freely.
+ *
+ * Display-only, exactly like the whole-paragraph gloss: nothing is cached, the
+ * dictionary path is skipped entirely, and it is metered as ONE paid request
+ * (the edge dedupes repeats before billing). A `null` entry means that segment
+ * came back empty (or MT is unconfigured) — render the source for it.
+ *
+ * OUTPUT: (string|null)[], always the same length as `segments`.
+ */
+export async function translateSegments(params: {
+  segments: string[];
+  sourceLang: LangCode;
+  targetLang: LangCode;
+}): Promise<(string | null)[]> {
+  if (params.segments.length === 0) return [];
+  const data = await invokeTranslate<{ glosses?: (string | null)[] }>(params);
+  const glosses = data.glosses ?? [];
+  // Never let a short/garbled response shift the alignment — pad to the request.
+  return params.segments.map((_, i) => glosses[i] ?? null);
 }

@@ -1,7 +1,8 @@
-// The main app surface: tab nav over the three live views (Translate · Lists ·
-// Review). Owns the tab + review-scope state. Lazy-loads each view's chunk.
+// The main app surface: tab nav over the live views (Translate · Lists · Learn ·
+// Media · Review). Owns the tab + review-scope state. Lazy-loads each view's chunk.
 import { Suspense, lazy, useState } from "react";
 import { useI18n } from "../i18n";
+import { useStickyState } from "../hooks/useStickyState";
 
 const TranslateView = lazy(() =>
   import("./TranslateView").then((m) => ({ default: m.TranslateView })),
@@ -11,18 +12,22 @@ const FlashcardView = lazy(() =>
   import("./FlashcardView").then((m) => ({ default: m.FlashcardView })),
 );
 const LearnView = lazy(() => import("./LearnView").then((m) => ({ default: m.LearnView })));
+const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.MediaView })));
 
-type Tab = "translate" | "lists" | "learn" | "review";
+// In tab order: Translate · Lists · Learn · Media · Review.
+type Tab = "translate" | "lists" | "learn" | "media" | "review";
 
 export function HomeView({ userId }: { userId: string }) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<Tab>("translate");
+  const [tab, setTab] = useStickyState<Tab>(userId, "home.tab", "translate");
   // which vocabulary the Review tab quizzes (null = ALL; name "" = the virtual ALL
   // list, which FlashcardView localizes). Set by a list's "Review" button.
   const [reviewScope, setReviewScope] = useState<{
     listId: string | null;
     name: string;
     userWordIds?: string[];
+    /** Cap on the session (a sub-list "Review" caps at 20; "Review all" leaves it open). */
+    limit?: number;
   }>({ listId: null, name: "" });
 
   return (
@@ -37,6 +42,9 @@ export function HomeView({ userId }: { userId: string }) {
         <button className={`tab${tab === "learn" ? " tab--active" : ""}`} onClick={() => setTab("learn")}>
           {t("tabs.learn")}
         </button>
+        <button className={`tab${tab === "media" ? " tab--active" : ""}`} onClick={() => setTab("media")}>
+          {t("tabs.media")}
+        </button>
         <button className={`tab${tab === "review" ? " tab--active" : ""}`} onClick={() => setTab("review")}>
           {t("tabs.review")}
         </button>
@@ -50,13 +58,14 @@ export function HomeView({ userId }: { userId: string }) {
           <ListView
             key={userId}
             userId={userId}
-            onReview={(listId, name, userWordIds) => {
-              setReviewScope({ listId, name, userWordIds });
+            onReview={(listId, name, userWordIds, limit) => {
+              setReviewScope({ listId, name, userWordIds, limit });
               setTab("review");
             }}
           />
         )}
         {tab === "learn" && <LearnView key={userId} userId={userId} />}
+        {tab === "media" && <MediaView key={userId} userId={userId} />}
         {tab === "review" && (
           <FlashcardView
             key={userId}
@@ -64,6 +73,7 @@ export function HomeView({ userId }: { userId: string }) {
             listId={reviewScope.listId}
             listName={reviewScope.name}
             userWordIds={reviewScope.userWordIds}
+            limit={reviewScope.limit}
           />
         )}
       </Suspense>

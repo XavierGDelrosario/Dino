@@ -1,0 +1,233 @@
+/* AnalyzeInfographic — abstract text-analysis charts (filled pie + tabbed bars).
+   Theme-aware via the app's CSS vars (--text/--muted/--border/--accent/--card/--bg)
+   with fallbacks so it renders standalone too. */
+
+.agx {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border, #2a2e37);
+  border-radius: 12px;
+  background: var(--card, color-mix(in srgb, var(--bg, #16181d) 60%, transparent));
+}
+
+/* ── Tabs + knowledge toggle ──────────────────────────────────────── */
+.agx-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.agx-tabs__btns {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border, #2a2e37);
+  border-radius: 9px;
+}
+
+.agx-tab {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.28rem 0.65rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted, #8a91a0);
+  cursor: pointer;
+}
+
+.agx-tab:hover {
+  color: var(--text, #e7e9ee);
+}
+
+.agx-tab.is-active {
+  background: color-mix(in srgb, var(--accent, #4f8cff) 20%, transparent);
+  color: var(--text, #e7e9ee);
+}
+
+.agx-know {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--border, #2a2e37);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #8a91a0);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.agx-know.is-on,
+.agx-know:hover {
+  color: var(--text, #e7e9ee);
+  border-color: var(--accent, #4f8cff);
+}
+
+/* ── Body: pie beside the (tabs + selected chart) column ──────────── */
+.agx-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.25rem;
+}
+
+/* right column: the tab selector sits above the bars (only the bars change) */
+.agx-main {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* ── Pie (filled) + total + legend ────────────────────────────────── */
+.agx-pie {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex: 0 0 auto;
+}
+
+.agx-pie__svg {
+  width: 96px;
+  height: 96px;
+  flex: 0 0 auto;
+}
+
+/* percentage labels inside the slices (white with a dark outline for legibility
+   on both the green and blue slice colors) */
+.agx-pie__pct {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 0.9px;
+}
+
+.agx-pie__meta {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.agx-pie__total {
+  font-size: 0.82rem;
+  color: var(--muted, #8a91a0);
+}
+
+.agx-pie__total strong {
+  font-size: 1.15rem;
+  color: var(--text, #e7e9ee);
+  font-variant-numeric: tabular-nums;
+}
+
+.agx-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.agx-legend li {
+  display: grid;
+  grid-template-columns: 0.7rem auto max-content;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+}
+
+.agx-legend__sw {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+}
+
+.agx-legend__lbl {
+  color: var(--text, #e7e9ee);
+  white-space: nowrap;
+}
+
+.agx-legend__val {
+  color: var(--muted, #8a91a0);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Bars (the selected series) ───────────────────────────────────── */
+.agx-bars {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.agx-bar {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr) 2.6rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.agx-bar__label {
+  font-size: 0.78rem;
+  color: var(--text, #e7e9ee);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agx-bar__track {
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--muted, #8a91a0) 18%, transparent);
+  overflow: hidden;
+}
+
+.agx-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 6px;
+  transition: width 0.25s ease;
+}
+
+/* the KNOWN portion: the SAME hue as the bar, mixed toward black (backgroundColor set
+   inline), with a diagonal stripe texture over it and a crisp light divider at the
+   known|unknown boundary. */
+.agx-bar__known {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 6px 0 0 6px;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.28) 0 2.5px,
+    rgba(255, 255, 255, 0) 2.5px 6px
+  );
+  border-right: 2px solid rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transition: width 0.25s ease;
+}
+
+.agx-bar__val {
+  font-size: 0.74rem;
+  color: var(--muted, #8a91a0);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.agx-empty {
+  flex: 1 1 200px;
+  margin: 0;
+  color: var(--muted, #8a91a0);
+  font-size: 0.82rem;
+}

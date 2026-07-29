@@ -4,9 +4,11 @@
 # project. Run `npx cap add ios` ONCE first (needs Xcode + CocoaPods).
 #
 # Target backend (which .env.deploy* file supplies the Supabase ref + token):
-#   default            → .env.deploy          (PROD)
-#   DINO_ENV=staging   → .env.deploy.staging  (isolated staging DB for dev devices)
+#   default            → .env.deploy.staging  (isolated staging DB — SAFE for dev devices)
+#   DINO_ENV=prod      → .env.deploy          (PROD — real users/saves/paid MT)
+#   ./scripts/build-ios.sh --prod      (same as DINO_ENV=prod)
 #   ./scripts/build-ios.sh --staging   (same as DINO_ENV=staging)
+# Default is STAGING so an absent-minded device build never writes to prod.
 #
 # The publishable key is public; pulled from the chosen env file. No secrets are
 # baked beyond that public key.
@@ -14,9 +16,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Resolve the target env file from --staging / DINO_ENV (default prod).
+# Resolve the target env file from --staging / --prod / DINO_ENV (default STAGING).
 [[ "${1:-}" == "--staging" ]] && DINO_ENV="staging"
-case "${DINO_ENV:-prod}" in
+[[ "${1:-}" == "--prod" ]] && DINO_ENV="prod"
+case "${DINO_ENV:-staging}" in
   staging) ENV_FILE=".env.deploy.staging"; TARGET="STAGING" ;;
   prod)    ENV_FILE=".env.deploy";         TARGET="PROD" ;;
   *) echo "✗ unknown DINO_ENV='$DINO_ENV' (use 'prod' or 'staging')" >&2; exit 1 ;;

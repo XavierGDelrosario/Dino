@@ -1,0 +1,21 @@
+/* The listen button. It borrows whatever button class its host passes (.iconbtn in
+   a list row, .io__tool in translate, .card-tool on a flashcard) — these rules only
+   add the PLAYING state, so it stays visually native to each surface. */
+.speakbtn--on {
+  color: var(--accent);
+}
+
+/* Pulse while speaking: the button is the only feedback that playback started,
+   and a short word can finish before you'd notice a static change. */
+.speakbtn--on svg {
+  animation: speak-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes speak-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speakbtn--on svg { animation: none; }
+}

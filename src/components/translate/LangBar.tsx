@@ -2,14 +2,12 @@
 // Shared by the word and paragraph translate panels.
 //
 // Source may be the AUTO_DETECT sentinel; target is always a concrete language.
-// On swap the (concrete) target becomes the new source; the new target is the
-// old source if it was concrete, else the other supported language (so we never
-// land on source === target, and never put "Detect" in the target slot).
+// The flip itself is `swapLanguages` (services/language) — shared with the Lists
+// add-word form so both surfaces flip identically.
 import {
   sourceOptions,
   targetOptions,
-  AUTO_DETECT,
-  SUPPORTED_LANGUAGES,
+  swapLanguages,
   type LangCode,
   type SourceSelection,
 } from "../../services/language";
@@ -37,13 +35,9 @@ export function LangBar({
       onSwap();
       return;
     }
-    const newSource: SourceSelection = target;
-    const newTarget: LangCode =
-      source !== AUTO_DETECT
-        ? source
-        : SUPPORTED_LANGUAGES.find((l) => l.code !== target)?.code ?? target;
-    onSource(newSource);
-    onTarget(newTarget);
+    const flipped = swapLanguages(source, target);
+    onSource(flipped.source);
+    onTarget(flipped.target);
   };
 
   return (

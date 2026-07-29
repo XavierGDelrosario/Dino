@@ -5,7 +5,9 @@
 //              handles both with the same save-then-record path.
 // Reuses the flashcard card/progress/grade UI from the review surface.
 import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
+import { useQuizFlip } from "../hooks/useQuizFlip";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { AddToListButton } from "../components/translate/AddToListButton";
@@ -47,6 +49,9 @@ export function TextQuizView({
   // mode "learn" = NEW words (first-encounter recall), the right signal to
   // calibrate the user's level on — done silently in the hook (no UI here).
   const q = useTextQuiz(userId, cards, { onGraded, calibrate: mode === "learn" });
+  // Keyed on the card position, NOT the shown sense — cycling meanings mid-card must
+  // not be treated as a card boundary (it would flip the card under the user).
+  const flip = useQuizFlip(q.position);
   const { t } = useI18n();
   const noun = (n: number) => plural(t, n, "common.word", "common.words");
 
@@ -93,9 +98,12 @@ export function TextQuizView({
   const card = q.current!;
   return (
     <section className="review">
-      <p className="review__scope">
-        {mode === "review" ? t("quiz.scopeReview") : t("quiz.scopeLearn")}
-      </p>
+      <div className="review__head">
+        <p className="review__scope">
+          {mode === "review" ? t("quiz.scopeReview") : t("quiz.scopeLearn")}
+        </p>
+        <FlipButton flip={flip} />
+      </div>
       <ProgressBar position={q.position} total={q.total} />
 
       {/* The card + a top-right ＋ add-to-list button (adds the SELECTED meaning,
@@ -104,25 +112,28 @@ export function TextQuizView({
           word has more than one sense. Keyed on the sense so cycling the meaning
           resets the button to add the newly-shown one. */}
       <div className="quizcard">
-        <AddToListButton
-          key={card.wordId}
-          className={`quizcard__add${q.isCurrentSaved ? " is-saved" : ""}`}
-          words={[card]}
-          lists={lists}
-          label={q.isCurrentSaved ? "✓" : "＋"}
-          alreadyAdded={q.isCurrentSaved}
-          onAdd={(words, listId) => q.addWord(words[0], listId)}
-          onCreateList={onCreateList}
-        />
-
         <FlashcardCard
           word={card}
           flipped={q.flipped}
           onFlip={q.flip}
+          reversed={flip.reversed}
           // Swipe to cycle meanings — same gate as the arrows (revealed + >1 sense).
           // Left = next, right = previous.
           onSwipeLeft={q.hasMultipleMeanings && q.flipped ? q.nextMeaning : undefined}
           onSwipeRight={q.hasMultipleMeanings && q.flipped ? q.prevMeaning : undefined}
+          // ＋ add-to-list INSIDE the card's top-right (adds the selected meaning).
+          action={
+            <AddToListButton
+              key={card.wordId}
+              className={`card-add${q.isCurrentSaved ? " is-saved" : ""}`}
+              words={[card]}
+              lists={lists}
+              label={q.isCurrentSaved ? "✓" : "＋"}
+              alreadyAdded={q.isCurrentSaved}
+              onAdd={(words, listId) => q.addWord(words[0], listId)}
+              onCreateList={onCreateList}
+            />
+          }
         />
 
         {/* Meaning-cycle arrows appear only once the meaning is REVEALED — before

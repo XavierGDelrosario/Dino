@@ -14,6 +14,7 @@ import { UsagePanel } from "../components/admin/UsagePanel";
 import { ProviderHealthPanel } from "../components/admin/ProviderHealthPanel";
 import { GrantsPanel } from "../components/admin/GrantsPanel";
 import { ErrorLogPanel } from "../components/admin/ErrorLogPanel";
+import { QualityPanel } from "../components/admin/QualityPanel";
 import { TableSizesPanel } from "../components/admin/TableSizesPanel";
 import { ErrorText } from "../components/common/ErrorText";
 import "./admin.css";
@@ -25,6 +26,7 @@ const TABS = [
   { key: "providers", label: "API health", render: () => <ProviderHealthPanel /> },
   { key: "grants", label: "Grants", render: () => <GrantsPanel /> },
   { key: "errors", label: "Errors", render: () => <ErrorLogPanel /> },
+  { key: "quality", label: "Quality", render: () => <QualityPanel /> },
   { key: "tables", label: "DB size", render: () => <TableSizesPanel /> },
 ] as const;
 

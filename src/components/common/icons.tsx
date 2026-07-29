@@ -85,11 +85,54 @@ export function TrashIcon({ size }: { size?: number }) {
   );
 }
 
+/** Funnel — the conventional "filter" glyph. */
+export function FilterIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </Svg>
+  );
+}
+
+/** Two vertical arrows — a sort-direction toggle (least ⇅ most). */
+export function SwapVertIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="7 4 7 20" />
+      <polyline points="4 7 7 4 10 7" />
+      <polyline points="17 20 17 4" />
+      <polyline points="14 17 17 20 20 17" />
+    </Svg>
+  );
+}
+
+/** Magnifying glass — the conventional "search" glyph (Lists search bar). */
+export function SearchIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </Svg>
+  );
+}
+
 export function CameraIcon({ size }: { size?: number }) {
   return (
     <Svg size={size}>
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
       <circle cx="12" cy="13" r="4" />
+    </Svg>
+  );
+}
+
+/** Read aloud (text-to-speech). The waves are separate paths so a "speaking"
+ *  state can animate them without touching the cone. */
+export function SpeakerIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <path d="M11 5 6 9H2v6h4l5 4z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
     </Svg>
   );
 }

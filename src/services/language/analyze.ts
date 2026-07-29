@@ -77,6 +77,39 @@ export function isSingleWord(tokens: AnalyzedToken[], lang: LangCode): boolean {
   return tokens.length === 1;
 }
 
+/**
+ * The DICTIONARY-FORM lookup key for an already-analyzed single word: the LEMMA of
+ * its content token (行った → 行く), since the dictionary is keyed on dictionary
+ * forms and an inflected surface matches nothing. Falls back to the surface text.
+ *
+ * The same rule the paragraph reader applies per token (lookup.ts `keyOf`), factored
+ * out so every single-word surface (Translate, the Lists add form) resolves inflections
+ * identically instead of each re-deriving it.
+ *
+ * NOTE: only kuromoji (JA) produces lemmas — for a language analyzed by
+ * `Intl.Segmenter` every token's lemma is null, so an English "ran"/"running" comes
+ * back UNCHANGED. English inflection is not handled anywhere in the app today.
+ *
+ * OUTPUT: the lemma, or `fallback`. PURE.
+ */
+export function dictionaryFormOf(tokens: AnalyzedToken[], fallback: string): string {
+  const content = tokens.find((t) => t.pos !== null && isContentPos(t.pos));
+  return content?.lemma ?? content?.text ?? fallback;
+}
+
+/**
+ * `dictionaryFormOf` for raw text: analyze, then take the lemma when the text is a
+ * SINGLE word (a phrase is returned unchanged — it belongs in the paragraph reader,
+ * which lemmatizes per token itself).
+ *
+ * OUTPUT: the dictionary form to look up. Analyzes, so it may lazily load kuromoji.
+ */
+export async function dictionaryForm(text: string, lang: LangCode): Promise<string> {
+  const tokens = await analyze(text, lang);
+  if (!isSingleWord(tokens, lang)) return text;
+  return dictionaryFormOf(tokens, text);
+}
+
 /** Languages that get morphological analysis (reading + lemma) vs. plain segmentation. */
 function needsMorphology(lang: LangCode): boolean {
   return lang.toUpperCase() === "JA";
@@ -104,6 +137,23 @@ const UNKNOWN = "*"; // kuromoji's placeholder for "no value" on a feature
 // unaffected; this only catches tokens with NO kana/kanji.
 const FOREIGN_POS = "外国語";
 const HAS_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
+
+// A SYNTHETIC pos for PERSON names (kuromoji 名詞-固有名詞-人名: 佐野, 田中, 太郎). A
+// name is not vocabulary — nobody studies 佐野 — so a text full of them shouldn't
+// fill the reader with addable blue words or pad the article word list. Like
+// FOREIGN_POS they stay VISIBLE as plain text; only their vocabulary-ness is
+// dropped. Typing a name into Translate still looks it up (isSingleWord counts
+// content tokens, and zero passes its `<= 1` test), which is the right split:
+// explicit lookup is a question the user asked, a name inside a paste is not.
+//
+// ONLY 人名. The sibling 固有名詞 subcategories must keep their content POS:
+//   * 地域 (東京, 日本, アメリカ) — real vocabulary a learner wants.
+//   * 一般 (富士山) — likewise, plus IPADIC's catch-all for unknown kanji words.
+//   * 組織 — NOT an organization tag in practice: it's where IPADIC dumps unknown
+//     KATAKANA (スマホ, サブスク, コロナ all land here). Demoting it would silently
+//     hide loanwords, which are exactly the words a learner needs. So a company
+//     name (トヨタ) stays addable — accepted, since the alternative costs far more.
+const PERSON_NAME_POS = "人名";
 
 function jaDicPath(): string {
   // Browser: served static assets under /dict/. Node (tests/SSR): the package.
@@ -176,6 +226,10 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     // Standalone いる ("to exist") is 動詞 自立 and is unaffected.
     if (pos === "動詞" && (t.pos_detail_1 === "非自立" || t.pos_detail_1 === "接尾")) {
       pos = "助動詞";
+    }
+    // Person names (佐野, 山田太郎) → plain text, not vocabulary. See PERSON_NAME_POS.
+    if (pos === "名詞" && t.pos_detail_1 === "固有名詞" && t.pos_detail_2 === "人名") {
+      pos = PERSON_NAME_POS;
     }
     // Embedded non-Japanese tokens (QR, URL, bare digits) → plain text, not vocabulary.
     if (pos !== null && !HAS_JAPANESE.test(t.surface_form)) {

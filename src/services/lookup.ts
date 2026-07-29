@@ -11,20 +11,29 @@
 import {
   resolveSourceLanguage,
   analyze,
+  splitSentences,
   AUTO_DETECT,
   type LangCode,
   type SourceSelection,
   type AnalyzedToken,
 } from "./language";
 import {
+  dictionaryCompoundCandidates,
+  mergeConfirmedCompounds,
+} from "./language/compounds";
+import {
   findWordTranslations,
   findWordTranslationsBatch,
   type Word,
 } from "./words/repository";
-import { setCachedSenses } from "./words/cache";
+import {
+  setCachedSenses,
+  isKnownDictionaryMiss,
+  markDictionaryMiss,
+} from "./words/cache";
 import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
-import { nfc, nfcTrim } from "../lib/text";
-import { translate, translateBatch } from "./translation";
+import { isKatakanaOnly, nfc, nfcTrim } from "../lib/text";
+import { translateBatch, translateSegments } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
 /**
@@ -131,11 +140,26 @@ export async function lookupWordsBatch(params: {
   return byWord;
 }
 
+/** One sentence of the paragraph with its own gloss (null = not translated). */
+export interface SentenceGloss {
+  text: string;
+  /** Offsets into the paragraph, so the reader can group tokens per sentence. */
+  start: number;
+  end: number;
+  gloss: string | null;
+}
+
 export interface ParagraphTranslation {
   /** Contextual translation of the WHOLE paragraph, for display only. NOT saved. */
   translation: string;
   /** false when the paragraph couldn't be translated (translation = input). */
   translated: boolean;
+  /**
+   * The same translation, SENTENCE BY SENTENCE, for the reader's inline gloss —
+   * each sentence translated as its own unit so `sentences[i].gloss` provably
+   * belongs to `sentences[i].text`. Empty when the gloss was skipped.
+   */
+  sentences: SentenceGloss[];
   sourceLang: LangCode;
   targetLang: LangCode;
   /**
@@ -147,6 +171,119 @@ export interface ParagraphTranslation {
   tokens: AnalyzedToken[];
   /** Lookup from a word's text to all its known meanings (verified first). */
   meanings: Map<string, Word[]>;
+}
+
+/**
+ * Collapse the per-sentence glosses back into the ONE paragraph string the
+ * output box still shows. A sentence that failed to translate contributes its
+ * SOURCE text, so a partial failure reads as a paragraph with one untranslated
+ * line rather than a hole; `translated` is false only when nothing landed at
+ * all, which keeps the old contract (translation = input on failure).
+ */
+function joinGloss(
+  sentences: SentenceGloss[],
+  input: string,
+): { translation: string; translated: boolean } {
+  const any = sentences.some((s) => s.gloss);
+  if (!any) return { translation: input, translated: false };
+  return { translation: sentences.map((s) => s.gloss ?? s.text).join(" "), translated: true };
+}
+
+/**
+ * A katakana surface the DICTIONARY doesn't have is a name, a brand, or a one-off
+ * transliteration — not vocabulary. Measured on 23 random ja.wikinews articles
+ * (2026-07-29): katakana is 8.1% of content tokens, and of 192 distinct katakana
+ * surfaces 35 had no JMdict entry — of those, ~32 were proper nouns (ノーリツ,
+ * セコム, ゼレンスキー, アフマダーバード, and the names of racehorses and pandas). The
+ * ~3 real ones (プレシーズン, チェアーマン) are transparent transliterations a learner
+ * reads at sight. Showing them as addable vocabulary is what floods an article's
+ * word list; the MT gloss they'd get ("ゼレンスキー" → "Zelensky") teaches nothing,
+ * costs a paid call, and leaves a POS-less row in the shared `words` cache forever.
+ *
+ * IDENTIFYING them: no part-of-speech. POS comes from the dictionary projection, so
+ * a sense without one came from the MT fallback — verified exact on all 6,715 prod
+ * `words` rows (empty `part_of_speech` ⟺ a `mt:` dictionary_ref, zero exceptions).
+ *
+ * The FREQUENCY-or-difficulty test alone would be WRONG here: ゼロ, フェロー and
+ * ニューヨーク・タイムズ are real JMdict entries carrying no wordfreq score, so a
+ * frequency-keyed rule deletes ゼロ. POS is the signal; frequency is not.
+ *
+ * SCOPED to katakana on purpose. The same rule over every script would gut dev and
+ * local, where the `-common-` JMdict subset leaves real words (唐揚げ) MT-covered.
+ * And it is scoped to the READER: typing a name into Translate still answers, since
+ * an explicit lookup is a question the user asked (cf. the person-name POS demotion
+ * in analyze.ts, which draws the same line).
+ */
+function isJunkKatakana(surface: string, senses: Word[]): boolean {
+  return (
+    senses.length > 0 &&
+    isKatakanaOnly(surface) &&
+    senses.every((s) => !s.partOfSpeech || s.partOfSpeech.length === 0)
+  );
+}
+
+/**
+ * Ask the dictionary which of kuromoji's adjacent-noun runs are actually ONE word,
+ * and merge those. This is the I/O half of the compound fix; the span logic is
+ * pure in language/compounds.ts.
+ *
+ * Probes are resolved cache-first and, for the rest, by a DICTIONARY-ONLY batch
+ * call: a probe is a guess ("could 柔軟剤 be a word?") and most guesses miss, so
+ * they must never reach the paid MT fallback — that would bill Google for wrong
+ * guesses and cache their output as verified words. Confirmed probes are memoized,
+ * so the merged compound is already cached when the main lookup runs and costs no
+ * second round-trip.
+ *
+ * A failure here is NON-FATAL: the tokens come back unmerged, which is exactly
+ * today's behaviour, so the reader degrades to fragments rather than breaking.
+ *
+ * OUTPUT: the token list, with confirmed compounds folded into single tokens.
+ */
+async function mergeDictionaryCompounds(
+  tokens: AnalyzedToken[],
+  sourceLang: LangCode,
+  targetLang: LangCode,
+): Promise<AnalyzedToken[]> {
+  const proposed = dictionaryCompoundCandidates(tokens);
+  // Drop guesses the dictionary already rejected this session. Re-analyzing the
+  // same text otherwise re-asks every wrong guess, and most guesses are wrong.
+  const candidates = proposed.filter((c) => !isKnownDictionaryMiss(c, sourceLang, targetLang));
+  if (candidates.length === 0) return tokens;
+
+  const confirmed = new Set<string>();
+  try {
+    const cached = await findWordTranslationsBatch({
+      inputs: candidates,
+      sourceLang,
+      targetLang,
+    });
+    for (const [surface, senses] of cached) {
+      if (senses.length > 0) confirmed.add(surface);
+    }
+    const unknown = candidates.filter((c) => !confirmed.has(c));
+    if (unknown.length > 0) {
+      const batch = await translateBatch({
+        inputs: unknown,
+        sourceLang,
+        targetLang,
+        dictionaryOnly: true, // probes never hit paid MT — see the note above
+      });
+      for (const surface of unknown) {
+        const senses = batch.get(surface) ?? [];
+        if (senses.length > 0) {
+          confirmed.add(surface);
+          setCachedSenses(surface, sourceLang, targetLang, senses);
+        } else {
+          // Authoritative "no such entry" — this call never falls through to MT,
+          // so the answer can't change this session. Remember it.
+          markDictionaryMiss(surface, sourceLang, targetLang);
+        }
+      }
+    }
+  } catch {
+    return tokens; // probe failed → leave segmentation as kuromoji had it
+  }
+  return mergeConfirmedCompounds(tokens, confirmed);
 }
 
 /**
@@ -178,28 +315,57 @@ export async function translateParagraph(params: {
    *  morphological analysis + per-word lookups — so the UI can show the
    *  translation immediately and stream the word-by-word reader in after. */
   onGloss?: (gloss: { translation: string; translated: boolean }) => void;
+  /** Skip the whole-paragraph gloss entirely — no Google MT call, no `translation`.
+   *  For surfaces that only need the per-word reader (e.g. the media summary page,
+   *  which never shows the sentence translation), so opening one costs zero MT. */
+  skipGloss?: boolean;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
   const input = nfc(params.input);
   const resolvedSource = resolveSourceLanguage(input, sourceLang);
 
-  // 1. Kick off the whole-paragraph gloss (display only, persist = false) WITHOUT
-  //    awaiting: the colored reader below doesn't depend on it, so the gloss network
-  //    call (the slowest piece — Google MT) runs CONCURRENTLY with analysis + the
-  //    per-word lookups instead of in front of them. onGloss streams the translation
-  //    the moment it lands; a gloss failure is non-fatal (reader still renders).
-  const glossPromise = translate({ input, sourceLang: resolvedSource, targetLang, persist: false })
-    .then((g) => {
-      params.onGloss?.({ translation: g.translation ?? "", translated: g.translated });
-      return g;
-    })
-    .catch(() => ({ translation: null as string | null, translated: false }));
+  // 1. Kick off the gloss (display only, never persisted) WITHOUT awaiting: the
+  //    colored reader below doesn't depend on it, so the gloss network call (the
+  //    slowest piece — Google MT) runs CONCURRENTLY with analysis + the per-word
+  //    lookups instead of in front of them. onGloss streams the translation the
+  //    moment it lands; a gloss failure is non-fatal (reader still renders).
+  //    skipGloss short-circuits it — no paid call is made at all.
+  //
+  //    SENTENCE BY SENTENCE, not one blob: each sentence is its own translation
+  //    unit, so the reader can print the English under the Japanese it belongs to
+  //    (see services/language/sentences.ts). It is still ONE round-trip and the
+  //    same billed characters — the edge sends them as one multi-segment request.
+  const sentenceSpans = params.skipGloss ? [] : splitSentences(input);
+  const glossPromise: Promise<SentenceGloss[]> =
+    sentenceSpans.length === 0
+      ? Promise.resolve([])
+      : translateSegments({
+          segments: sentenceSpans.map((s) => s.text),
+          sourceLang: resolvedSource,
+          targetLang,
+        })
+          .then((glosses) => sentenceSpans.map((s, i) => ({ ...s, gloss: glosses[i] ?? null })))
+          .catch(() => sentenceSpans.map((s) => ({ ...s, gloss: null })))
+          .then((sentences) => {
+            params.onGloss?.(joinGloss(sentences, input));
+            return sentences;
+          });
 
   // 2. Tokens: reuse the caller's analysis when provided (submit already analyzed
   //    the text to route word-vs-sentence), else analyze here — avoids a duplicate
   //    kuromoji tokenize of the same string. Offsets stay pointed at the original
   //    paragraph; for JA this also yields per-token reading + lemma.
-  const tokens = params.tokens ?? (await analyze(input, resolvedSource));
+  let tokens = params.tokens ?? (await analyze(input, resolvedSource));
+
+  // 2b. Re-merge compounds kuromoji over-segmented, validated against the
+  //     DICTIONARY (柔軟 ＋ 剤 → 柔軟剤, which IS a JMdict entry). Without this the
+  //     reader looks up the fragments and the word's meaning is simply lost —
+  //     the top source of quality reports. The curated list in compounds.ts runs
+  //     first (inside analyze) and covers what it covers; this generalizes it to
+  //     every compound the dictionary actually has.
+  if (resolvedSource.toUpperCase() === "JA") {
+    tokens = await mergeDictionaryCompounds(tokens, resolvedSource, targetLang);
+  }
 
   // 3. Look each word up by its LEMMA when known (so a conjugated form like
   //    行った resolves via its dictionary entry 行く), falling back to the
@@ -218,19 +384,33 @@ export async function translateParagraph(params: {
   });
   const missing = uniqueKeys.filter((k) => !meaningsByKey.has(k));
   if (missing.length > 0) {
-    // ONE batched edge call for every uncached word, instead of N per-word calls.
+    // ONE batched edge call for every uncached word, instead of N per-word calls —
+    // except katakana, which goes in a second DICTIONARY-ONLY batch (see the note on
+    // `isJunkKatakana`). Both fly in parallel, so the split costs no extra latency.
     // A failure here is non-fatal: those words just render uncolored (no meanings).
+    const katakana = missing.filter(isKatakanaOnly);
+    const rest = missing.filter((k) => !isKatakanaOnly(k));
     try {
-      const batch = await translateBatch({
-        inputs: missing,
-        sourceLang: resolvedSource,
-        targetLang,
-      });
-      for (const key of missing) {
-        const senses = batch.get(key) ?? [];
-        if (senses.length > 0) {
-          meaningsByKey.set(key, senses);
-          setCachedSenses(key, resolvedSource, targetLang, senses); // memoize for repeats
+      const batches = await Promise.all([
+        rest.length > 0
+          ? translateBatch({ inputs: rest, sourceLang: resolvedSource, targetLang })
+          : null,
+        katakana.length > 0
+          ? translateBatch({
+              inputs: katakana,
+              sourceLang: resolvedSource,
+              targetLang,
+              dictionaryOnly: true, // a katakana miss never reaches paid MT
+            })
+          : null,
+      ]);
+      for (const batch of batches) {
+        if (!batch) continue;
+        for (const [key, senses] of batch) {
+          if (senses.length > 0) {
+            meaningsByKey.set(key, senses);
+            setCachedSenses(key, resolvedSource, targetLang, senses); // memoize for repeats
+          }
         }
       }
     } catch {
@@ -261,16 +441,19 @@ export async function translateParagraph(params: {
   const meanings = new Map<string, Word[]>();
   for (const token of tokens) {
     if (!meanings.has(token.text)) {
-      meanings.set(token.text, meaningsByKey.get(keyOf(token)) ?? []);
+      const senses = meaningsByKey.get(keyOf(token)) ?? [];
+      meanings.set(token.text, isJunkKatakana(token.text, senses) ? [] : senses);
     }
   }
 
   // Fold in the gloss — awaited here, but by this point it has usually resolved in
   // parallel with the analysis + lookups above (no longer in front of them).
-  const para = await glossPromise;
+  const sentences = await glossPromise;
+  const joined = joinGloss(sentences, input);
   return {
-    translation: para.translated ? para.translation ?? input : input,
-    translated: para.translated,
+    translation: joined.translation,
+    translated: joined.translated,
+    sentences,
     sourceLang: resolvedSource,
     targetLang,
     tokens,

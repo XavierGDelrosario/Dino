@@ -1,296 +1,232 @@
-// Drives the adaptive placement quiz (#10, "Find my level"). Each round shows a
-// batch of words at ONE proficiency band; the user taps the ones they DON'T know;
-// submitting folds the known-fraction into a binary search over the bands
-// (services/calibration) that converges — in ~log2(bands) rounds — on the hardest
-// band the user knows ≥ 80% of. That band is persisted as users.level, which then
-// seeds the SRS for words added later (seedStability), so a known vocabulary
-// doesn't all cold-start at 0.
+// Drives the "Find my level" placement quiz — now a one-word-at-a-time SWIPE test
+// whose level is DERIVED FROM VOCABULARY (services/calibration.levelFromVocab), not
+// from one small quiz round. Each swipe saves the word (know → full-confidence seed,
+// don't-know → cold start) so your growing rated vocabulary IS the saved progress,
+// and the placement is a fraction over ALL your words at a band — stable (a few
+// misses can't demote you) and it sharpens as you rate more.
 //
-// Side effects, per round: every word the user does NOT mark "don't know" is added
-// to their vocabulary (ALL) at FULL confidence — they just told us they know it —
-// via the non-clobbering #10 cold-start seed (so a word already under review keeps
-// its real strength). Unknown words are left untouched, and NO per-word reviews are
-// recorded (it's a placement test, not a study session).
+// The level is only DETERMINED once there's enough coverage (VocabLevel.sufficient);
+// before that the UI shows a provisional "keep rating" state. Word selection is
+// adaptive: it draws around your current provisional band (±1), so it spends swipes
+// where they sharpen the placement.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserProfile } from "../services/session";
+import { profileToLangs } from "./useLanguagePrefs";
 import {
-  startBandSearch,
-  advanceBandSearch,
-  estimateLevel,
+  getVocabRatings,
+  levelFromVocab,
   setUserLevel,
   setUserProficiencyBand,
-  type BandSearch,
-  type CalibrationSample,
+  type VocabLevel,
+  type VocabRating,
 } from "../services/calibration";
 import { fetchLearnWords } from "../services/learn";
-import { saveDictionaryWord, saveDictionaryWords } from "../services/words/userWords";
+import { saveDictionaryWord } from "../services/words/userWords";
 import { getDifficulty } from "../services/difficulty";
 import { proficiencyFrameworkFor, labelForBand } from "../services/proficiency";
-import {
-  DEFAULT_LEARNING_LANGUAGE,
-  DEFAULT_NATIVE_LANGUAGE,
-  type LangCode,
-} from "../services/language";
+import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE, type LangCode } from "../services/language";
 import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 
-export type CalibrationStatus =
-  | "loading" // fetching the next batch
-  | "reviewing" // a batch is on screen
-  | "done" // converged; level persisted
-  | "unavailable" // the learning language has no curated band data
-  | "error";
+export type CalibrationStatus = "loading" | "swiping" | "done" | "unavailable" | "error";
 
-/** Words per round. Small + fixed so a round is a quick glance-and-tap. */
-export const CALIBRATION_BATCH = 8;
+/** confidence_from_stability(40) = 5 → a word marked KNOWN lands at full confidence. */
+const KNOWN_WORD_STABILITY = 40;
+const PER_BAND_FETCH = 5; // words per band per fetch
+const DECK_LOW = 3; // refill when this few cards remain
 
-// Bound-morpheme JMdict POS codes — an entry whose PRIMARY sense is ONLY these is a
-// prefix/suffix/counter/auxiliary, not a standalone word a learner can self-rate
-// ("第", "化", "さん"). Mirrors learn_words_at_band's server-side c_affix_pos; kept as
-// a client backstop since that filter is inclusive (any non-affix sense passes) and
-// may not be deployed to every DB. n-suf/n-pref included (化/系/感 are noun-affixes).
-const AFFIX_POS = new Set([
-  "pref", "suf", "ctr", "aux", "aux-v", "aux-adj", "cop", "cop-da", "n-suf", "n-pref",
+// GRAMMATICAL / BOUND JMdict POS — an entry whose senses are ONLY these ("は", "第")
+// isn't a standalone word a learner can self-rate. Mirrors learn_words_at_band's
+// server-side c_excluded_pos (migration 20260730).
+const GRAMMATICAL_POS = new Set([
+  "prt", "conj", "exp", "int", "adj-pn",
+  "pref", "suf", "n-suf", "n-pref",
+  "ctr", "aux", "aux-v", "aux-adj", "cop", "cop-da",
 ]);
 const isAffixOnly = (w: Word): boolean =>
-  !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => AFFIX_POS.has(p));
-
-/** Initial memory strength (days) seeded for a word the user marks as KNOWN.
- *  confidence_from_stability(40) = 5 (its ≥ 35 bucket), so a known word lands in
- *  the vocabulary at full confidence. Uses the #10 cold-start SEED path
- *  (saveDictionaryWord initialStability), which sets a NEW word's confidence but
- *  never clobbers a word already under review. */
-const KNOWN_WORD_STABILITY = 40;
+  !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => GRAMMATICAL_POS.has(p));
 
 export function useCalibration(userId: string) {
-  // Directions from the profile (learning = the tested language, native = meaning
-  // language, though calibration shows no meanings). Loaded once.
   const langs = useRef<{ learning: LangCode; native: LangCode }>({
     learning: DEFAULT_LEARNING_LANGUAGE,
     native: DEFAULT_NATIVE_LANGUAGE,
   });
+  const maxBand = useRef(1);
+  const baseline = useRef<VocabRating[]>([]); // rated vocabulary before this session
+  const session = useRef<VocabRating[]>([]); // this session's swipes
+  const shown = useRef<Set<string>>(new Set()); // word ids offered this session
+  const fetching = useRef(false);
 
   const [status, setStatus] = useState<CalibrationStatus>("loading");
-  const [search, setSearch] = useState<BandSearch | null>(null);
-  const [cards, setCards] = useState<Word[]>([]);
-  const [unknown, setUnknown] = useState<Set<number>>(new Set());
-  const [round, setRound] = useState(0);
-  // The PROFICIENCY band the search converged on (1 = easiest) — the result the
-  // learner sees ("N3"). Stored to users.proficiency_band. DISTINCT from the
-  // difficulty level (users.level) estimated below.
-  const [band, setBand] = useState<number | null>(null);
-  // Per-word DIFFICULTY samples ({frequency-difficulty, known→grade5/unknown→grade1})
-  // accumulated across rounds. estimateLevel() folds them into a difficulty-axis
-  // level for users.level — the value the embeddings/domain filter (#12) and
-  // seedStability consume (they compare against word frequency, not the JLPT band).
-  const samples = useRef<CalibrationSample[]>([]);
+  const [deck, setDeck] = useState<Word[]>([]);
+  const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [live, setLive] = useState<VocabLevel | null>(null);
+  const [known, setKnown] = useState(0);
+  const [unknown, setUnknown] = useState(0);
+  const [tagged, setTagged] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  // Running count of KNOWN words added to the vocabulary this session (shown on the
-  // result screen). Bands don't overlap, so a word is offered in at most one round.
-  const [addedCount, setAddedCount] = useState(0);
-  // The words the user marked "don't know", accumulated ACROSS rounds (each round's
-  // cards/unknown reset), to list on the result screen so they can study them.
-  const [missed, setMissed] = useState<Word[]>([]);
-  // Missed words the user chose to ADD from the result list (for the ✓ state).
-  const [savedMissedIds, setSavedMissedIds] = useState<Set<string>>(new Set());
 
-  // Add a missed word from the result list. COLD start (no seed) — the user said
-  // they DON'T know it, so it enters the SRS as new, unlike the known-word seed.
-  const addMissedWord = useCallback(
+  const recompute = useCallback((): VocabLevel => {
+    const l = levelFromVocab([...baseline.current, ...session.current], maxBand.current);
+    setLive(l);
+    return l;
+  }, []);
+
+  // Draw words around `band` (band ± 1), interleaved, affix-filtered, deduped.
+  const fetchAround = useCallback(async (band: number): Promise<Word[]> => {
+    const bands = [band, band - 1, band + 1].filter((b) => b >= 1 && b <= maxBand.current);
+    const batches = await Promise.all(
+      bands.map((b) =>
+        fetchLearnWords({
+          band: b,
+          source: langs.current.learning,
+          target: langs.current.native,
+          limit: PER_BAND_FETCH,
+          excludeSeen: true,
+        }),
+      ),
+    );
+    const cols = batches.map((b) => b.map((senses) => senses[0]).filter(Boolean));
+    const out: Word[] = [];
+    for (let i = 0; i < PER_BAND_FETCH; i++) for (const col of cols) if (col[i]) out.push(col[i]);
+    return out.filter((w) => !isAffixOnly(w)).filter((w) => !shown.current.has(w.wordId));
+  }, []);
+
+  const refill = useCallback(
+    async (band: number) => {
+      if (fetching.current) return;
+      fetching.current = true;
+      try {
+        const batch = await fetchAround(band);
+        batch.forEach((w) => shown.current.add(w.wordId));
+        if (batch.length) setDeck((d) => [...d, ...batch]);
+      } catch (e) {
+        console.warn("calibration: refill failed", e);
+      } finally {
+        fetching.current = false;
+      }
+    },
+    [fetchAround],
+  );
+
+  const load = useCallback(async () => {
+    setStatus("loading");
+    setError(null);
+    try {
+      const p = await getUserProfile(userId).catch(() => null);
+      langs.current = profileToLangs(p);
+      if (!proficiencyFrameworkFor(langs.current.learning)) {
+        setStatus("unavailable");
+        return;
+      }
+      const base = await getVocabRatings(userId, langs.current.learning);
+      if (!base) {
+        setStatus("unavailable");
+        return;
+      }
+      baseline.current = base.ratings;
+      maxBand.current = base.maxBand;
+      session.current = [];
+      shown.current = new Set();
+      setKnown(0);
+      setUnknown(0);
+      setTagged(new Set());
+      const l = levelFromVocab(base.ratings, base.maxBand);
+      setLive(l);
+      const start = l.band > 0 ? l.band : Math.ceil(base.maxBand / 2);
+      const batch = await fetchAround(start);
+      batch.forEach((w) => shown.current.add(w.wordId));
+      if (batch.length === 0) {
+        setStatus("unavailable");
+        return;
+      }
+      setDeck(batch);
+      setIndex(0);
+      setRevealed(false);
+      setStatus("swiping");
+    } catch (e) {
+      setError(message(e));
+      setStatus("error");
+    }
+  }, [userId, fetchAround]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const rate = useCallback(
+    (didKnow: boolean) => {
+      const word = deck[index];
+      if (!word) return;
+      // Both verdicts save to the vocabulary (ALL): known → full-confidence seed,
+      // don't-know → cold start. Saving the misses too is what makes the per-band
+      // percent (known / seen) persist correctly across sessions — the denominator
+      // includes the words you've seen-but-don't-know, not just the ones you know.
+      void saveDictionaryWord({
+        userId,
+        word,
+        initialStability: didKnow ? KNOWN_WORD_STABILITY : undefined,
+      }).catch((e) => console.warn("calibration: save failed", e));
+      session.current.push({
+        band: word.proficiencyBand,
+        difficulty: getDifficulty(word).level,
+        confidence: didKnow ? 5 : 0,
+      });
+      if (didKnow) setKnown((n) => n + 1);
+      else setUnknown((n) => n + 1);
+      const l = recompute();
+      setRevealed(false);
+      setIndex((i) => i + 1);
+      // Refill around the (possibly shifted) provisional band when the deck runs low.
+      if (deck.length - (index + 1) <= DECK_LOW) {
+        void refill(l.band > 0 ? l.band : Math.ceil(maxBand.current / 2));
+      }
+    },
+    [deck, index, userId, recompute, refill],
+  );
+
+  const addToList = useCallback(
     async (word: Word, listId?: string) => {
       await saveDictionaryWord({ userId, word, listId });
-      setSavedMissedIds((s) => new Set(s).add(word.wordId));
+      setTagged((s) => new Set(s).add(word.wordId));
     },
     [userId],
   );
+
+  const finish = useCallback(() => {
+    const l = live ?? recompute();
+    setStatus("done");
+    void setUserProficiencyBand(userId, l.band > 0 ? l.band : null).catch((e) =>
+      console.warn("calibration: persist band failed", e),
+    );
+    void setUserLevel(userId, l.level).catch((e) => console.warn("calibration: persist level failed", e));
+  }, [userId, live, recompute]);
 
   const framework = proficiencyFrameworkFor(langs.current.learning);
-
-  // Fetch one band's batch. excludeSeen:true so words already in the user's
-  // vocabulary — including ones an earlier round/retake just added at full
-  // confidence — don't reappear (the fix for "repeats on retry"). A first-time
-  // calibration (empty vocab) is unaffected; on a retake the known-fraction then
-  // reflects the words the user hasn't already mastered. Empty result = no fresh
-  // words for the band (proficiency not ingested, or all seen); the caller decides
-  // whether that's "unavailable" (first round) or a reason to stop.
-  const fetchBand = useCallback(async (band: number): Promise<Word[]> => {
-    const cardLists = await fetchLearnWords({
-      band,
-      source: langs.current.learning,
-      target: langs.current.native,
-      limit: CALIBRATION_BATCH,
-      excludeSeen: true,
-    });
-    // One word per card (the primary sense) — know/don't-know needs no meanings.
-    // Drop bare affixes (prefixes/suffixes/counters): a learner can't rate "第" alone.
-    return cardLists
-      .map((senses) => senses[0])
-      .filter(Boolean)
-      .filter((w) => !isAffixOnly(w));
-  }, []);
-
-  // Converge: persist BOTH axes (each on its own column), then show the result.
-  // Fire-and-forget — a failed write just means that value isn't stored; the result
-  // still shows. The two axes are deliberately NOT collapsed into one number:
-  //   · proficiency_band ← the JLPT search result (the "N3" the learner sees)
-  //   · users.level      ← estimateLevel() over the tested words' FREQUENCY, the
-  //                        difficulty-axis value the embeddings/seed consume.
-  const finalize = useCallback(
-    (resultBand: number) => {
-      setBand(resultBand);
-      setStatus("done");
-      void setUserProficiencyBand(userId, resultBand).catch((e) =>
-        console.warn("calibration: failed to persist proficiency band", e),
-      );
-      const difficulty = estimateLevel(samples.current); // null → beginner / cold-start
-      void setUserLevel(userId, difficulty).catch((e) =>
-        console.warn("calibration: failed to persist difficulty level", e),
-      );
-    },
-    [userId],
-  );
-
-  // Load a band into a fresh round, or finish if the band is empty mid-search.
-  const loadRound = useCallback(
-    async (next: BandSearch, roundNo: number, firstRound: boolean) => {
-      setStatus("loading");
-      setError(null);
-      try {
-        const batch = await fetchBand(next.band);
-        if (batch.length === 0) {
-          // No words for this band. First round → the language/level data isn't
-          // available at all; otherwise finish with the best band passed so far.
-          if (firstRound) setStatus("unavailable");
-          else finalize(next.best);
-          return;
-        }
-        setSearch(next);
-        setCards(batch);
-        setUnknown(new Set());
-        setRound(roundNo);
-        setStatus("reviewing");
-      } catch (e) {
-        setError(message(e));
-        setStatus("error");
-      }
-    },
-    [fetchBand, finalize],
-  );
-
-  const begin = useCallback(() => {
-    const fw = proficiencyFrameworkFor(langs.current.learning);
-    if (!fw) {
-      setStatus("unavailable");
-      return;
-    }
-    const maxBand = fw.bands[fw.bands.length - 1]?.value ?? 1;
-    setBand(null);
-    samples.current = [];
-    void loadRound(startBandSearch(maxBand), 1, true);
-  }, [loadRound]);
-
-  // Load prefs once, then start the first round.
-  useEffect(() => {
-    let active = true;
-    getUserProfile(userId)
-      .then((p) => {
-        langs.current = {
-          learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
-          native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
-        };
-      })
-      .catch((e) => console.warn("useCalibration: failed to load language prefs", e))
-      .finally(() => {
-        if (active) begin();
-      });
-    return () => {
-      active = false;
-    };
-    // begin/langs are stable for the life of the hook (keyed on userId upstream).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  const toggle = useCallback((i: number) => {
-    setUnknown((s) => {
-      const next = new Set(s);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
-  }, []);
-
-  const submit = useCallback(() => {
-    if (!search || submitting || status !== "reviewing") return;
-    setSubmitting(true);
-
-    // Record a DIFFICULTY sample per shown word (frequency-difficulty × known?5:1),
-    // for the users.level estimate at the end. Words with no frequency are skipped.
-    cards.forEach((word, i) => {
-      const difficulty = getDifficulty(word).level;
-      if (difficulty != null) {
-        samples.current.push({ difficulty, grade: unknown.has(i) ? 1 : 5 });
-      }
-    });
-
-    // Remember the words marked "don't know" (accumulated across rounds) to list on
-    // the result screen. Bands don't overlap, so no dedupe needed.
-    const missedThisRound = cards.filter((_, i) => unknown.has(i));
-    if (missedThisRound.length > 0) setMissed((m) => [...m, ...missedThisRound]);
-
-    // Add every word NOT marked "don't know" to the vocabulary (ALL) at full
-    // confidence — the user just told us they know it — in ONE transaction.
-    // saveDictionaryWords returns the rows ACTUALLY written, so addedCount reflects
-    // real saves (not an optimistic guess) and a failure surfaces here instead of
-    // being swallowed per word. Doesn't block the round advance (kept snappy).
-    const known = cards.filter((_, i) => !unknown.has(i));
-    if (known.length > 0) {
-      void saveDictionaryWords({ userId, words: known, seedFor: () => KNOWN_WORD_STABILITY })
-        .then((saved) => setAddedCount((n) => n + saved.length))
-        .catch((e) => console.warn("calibration: failed to save known words", e));
-    }
-
-    const knownFraction = known.length / cards.length;
-    const step = advanceBandSearch(search, knownFraction);
-    setSubmitting(false);
-    if (step.done) finalize(step.level);
-    else void loadRound(step.search, round + 1, false);
-  }, [search, submitting, status, cards, unknown, userId, round, finalize, loadRound]);
-
-  const restart = useCallback(() => {
-    setSearch(null);
-    setCards([]);
-    setUnknown(new Set());
-    setBand(null);
-    setAddedCount(0);
-    setMissed([]);
-    setSavedMissedIds(new Set());
-    samples.current = [];
-    begin();
-  }, [begin]);
+  const bandLabel = live && live.band > 0 && framework ? labelForBand(framework, live.band) : null;
 
   return {
     status,
-    cards,
-    unknown,
-    toggle,
-    submit,
-    submitting,
-    round,
     error,
-    restart,
-    /** Learner-facing label of the final PROFICIENCY band ("N3"), or null. */
-    levelLabel: band != null && framework ? labelForBand(framework, band) : null,
-    /** Known words added to the vocabulary (ALL) at full confidence this session. */
-    addedCount,
-    /** Words the user marked "don't know" across all rounds (for the result list). */
-    missed,
-    /** Add a missed word to the vocabulary (cold start), optionally to a sub-list. */
-    addMissedWord,
-    /** Missed-word ids already added from the result list (for the ✓ state). */
-    savedMissedIds,
-    /** Count marked "don't know" this round (for the submit affordance). */
-    unknownCount: unknown.size,
-    batchSize: cards.length,
+    /** The word on screen (undefined while a refill is in flight). */
+    current: deck[index] as Word | undefined,
+    revealed,
+    reveal: () => setRevealed(true),
+    /** Swipe/keyboard verdict. */
+    rate,
+    /** Tag the current word into a sub-list (independent of the swipe). */
+    addToList,
+    tagged,
+    /** Commit the current level and finish. */
+    finish,
+    /** Retake from scratch. */
+    restart: load,
+    /** The live vocabulary-based level (perBand / band / sufficient / needMore). */
+    live,
+    /** Learner-facing label of the provisional/determined band ("N3"), or null. */
+    bandLabel,
+    known,
+    unknown,
   };
 }

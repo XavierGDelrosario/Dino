@@ -42,7 +42,10 @@ import {
   applyInputAttributeOverride,
   corsHeaders,
   EN_JA_STOPWORDS,
+  expandSegmentResults,
   groupByInput,
+  MAX_SEGMENTS,
+  prepareSegments,
   lemmaCandidates,
   orderSensesForInput,
   parseAllowedOrigins,
@@ -50,10 +53,12 @@ import {
   projectMany,
   projectRows,
   resolvePerInputWithCandidates,
+  resolvePerInputFirstHit,
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
   type ProviderResult,
+  chunkForUrlFilter,
 } from "./_lib.ts";
 
 // Stamp written onto every projected `words` row (projection_version). BUMP this
@@ -76,7 +81,10 @@ import {
 //       gloss head-match order), fixing common-but-wrong primaries (cat→猫 not やつ).
 //       Only the EN→JA sensePos ORDER changed; cached rows keep the old order until
 //       re-translated (the deferred #5 sweep flags version < 7).
-const CURRENT_PROJECTION_VERSION = 7;
+//   8 = JA 〜す→〜する lemma fallback (kuromoji's 接す resolves to JMdict's 接する instead
+//       of falling through to MT) + MT rows are no longer exempt from the gate below, so
+//       a word MT once answered gets one FREE dictionary re-check (reviveMtRows).
+const CURRENT_PROJECTION_VERSION = 9;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up
@@ -86,13 +94,17 @@ const CURRENT_PROJECTION_VERSION = 7;
 // and `user_words.dictionary_word_id` never dangles. Nothing is deleted; the cache
 // heals as words are used.
 //
-// MT rows (`dictionary_ref` = `mt:<input>`) are EXEMPT — they project nothing, so
-// "re-projecting" one would just re-call the PAID Google endpoint for the same text. A
-// version bump must never become a spend event.
+// MT rows (`dictionary_ref` = `mt:<input>`) are gated TOO, as of v8. They used to be
+// exempt — nothing to re-project, and redoing one costs money — but that froze an MT
+// answer forever: 接す stayed Google's "Contact" even after the dictionary learned to
+// resolve it, because the MT row was always a hit so the dictionary was never asked
+// again. The spend concern is handled by reviveMtRows instead: a stale MT row is a MISS,
+// which buys a FREE dictionary re-check, and if the dictionary still has nothing we
+// serve the MT text we ALREADY paid for and re-stamp it current. Google is never
+// re-called, so a version bump still costs nothing.
 //
 // MIRRORS src/lib/projection.ts (separate runtime; tests fail if the two drift).
-const FRESH_OR_MT =
-  `projection_version.gte.${CURRENT_PROJECTION_VERSION},dictionary_ref.like.mt:*`;
+const FRESH = `projection_version.gte.${CURRENT_PROJECTION_VERSION}`;
 
 // Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
 // `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
@@ -252,7 +264,14 @@ async function resolveDictionary(
     );
     return resolved.get(input) ?? [];
   }
-  return lookupJMdict(supabase, input, sourceLang, targetLang);
+  // JA→EN (and every other pair): one provider, but the input may still need a lemma
+  // candidate — kuromoji hands us IPADIC's 〜す lemma for a する-verb stem (接して → 接す)
+  // and JMdict only carries 接する. Surface first, so 出す/話す are untouched; the extra
+  // candidate costs one batched RPC instead of a paid MT call.
+  const cands = lemmaCandidates(input, sourceLang);
+  if (cands.length === 1) return lookupJMdict(supabase, input, sourceLang, targetLang);
+  const byCand = groupProviderByInput(await lookupJMdictMany(supabase, cands, sourceLang, targetLang));
+  return resolvePerInputFirstHit([input], new Map([[input, cands]]), byCand).get(input) ?? [];
 }
 
 // One DB row from a (single or _many) lookup function → a ProviderResult. Shared by
@@ -346,10 +365,14 @@ async function resolveDictionaryMany(
       out.set(input, results);
     }
   } else {
-    const by = groupProviderByInput(await lookupJMdictMany(supabase, inputs, sourceLang, targetLang));
-    for (const input of inputs) {
-      const r = by.get(input) ?? [];
-      if (r.length > 0) out.set(input, r);
+    // Same first-hit-wins candidate resolution as the single-word path, over the UNION
+    // of every token's candidates — so a paragraph's 接して (lemma 接す) reads from the
+    // 接する entry instead of dropping to MT, still in ONE round-trip.
+    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    const allCands = [...new Set([...candsByInput.values()].flat())];
+    const byCand = groupProviderByInput(await lookupJMdictMany(supabase, allCands, sourceLang, targetLang));
+    for (const [input, results] of resolvePerInputFirstHit(inputs, candsByInput, byCand)) {
+      out.set(input, results);
     }
   }
   return out;
@@ -426,21 +449,31 @@ const DEFAULT_TRANSLATION_API_URL =
 // MT never 500s the request or breaks the per-word paragraph fan-out. Readings
 // are JMdict-only, so an MT result carries none (the no-context furigana surface
 // simply has nothing to show for these).
-async function callTranslationProvider(
-  text: string,
+// MANY-SEGMENT form: Google v2 accepts REPEATED `q`, translating each one as its
+// own independent unit and returning them in request order. That index alignment
+// is the whole point of the inline reader gloss (see services/language/sentences.ts) —
+// one translation per sentence, so the English can sit under the Japanese it
+// renders. Same char billing as sending the text once; one round-trip either way.
+//
+// OUTPUT: one entry per input, in order (null where the provider returned nothing),
+// or null when MT is unconfigured / the whole call failed.
+async function callTranslationProviderMany(
+  texts: string[],
   sourceLang: string,
   targetLang: string,
-): Promise<ProviderResult | null> {
+): Promise<(string | null)[] | null> {
   const key = Deno.env.get("TRANSLATION_API_KEY");
   if (!key) return null; // not configured → behaves like the old no-MT stub
+  if (texts.length === 0) return [];
 
   const url = Deno.env.get("TRANSLATION_API_URL") ?? DEFAULT_TRANSLATION_API_URL;
+  const chars = texts.reduce((n, t) => n + t.length, 0);
   try {
     const res = await fetch(`${url}?key=${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        q: text,
+        q: texts,
         source: toGoogleLang(sourceLang),
         target: toGoogleLang(targetLang),
         format: "text", // plain text in/out — no HTML-entity escaping
@@ -451,22 +484,38 @@ async function callTranslationProvider(
       return null;
     }
     const body = await res.json();
-    const translated: string | undefined =
-      body?.data?.translations?.[0]?.translatedText;
+    const translations: unknown = body?.data?.translations;
+    const out = texts.map((_, i) => {
+      const t = Array.isArray(translations)
+        ? (translations[i] as { translatedText?: unknown } | undefined)?.translatedText
+        : undefined;
+      return typeof t === "string" && t ? t : null;
+    });
     // MT-SPEND METRIC (#8 observability): one structured line per PAID Google call,
     // so spend = sum(mt_chars) over these logs. Drives the MT-spend dashboard/alert.
     console.log(JSON.stringify({
       evt: "mt_spend",
-      mt_chars: text.length,
+      mt_chars: chars,
+      segments: texts.length,
       source: toGoogleLang(sourceLang),
       target: toGoogleLang(targetLang),
-      ok: Boolean(translated),
+      ok: out.some(Boolean),
     }));
-    return translated ? { translation: translated } : null;
+    return out;
   } catch (e) {
     console.error("MT provider request failed:", e);
     return null;
   }
+}
+
+async function callTranslationProvider(
+  text: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<ProviderResult | null> {
+  const out = await callTranslationProviderMany([text], sourceLang, targetLang);
+  const translated = out?.[0];
+  return translated ? { translation: translated } : null;
 }
 
 // ── Per-user RESTRICTIONS (the limits subsystem; see migration 20260620 +
@@ -626,7 +675,7 @@ async function fetchVerified(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.eq.${q},input_reading.eq.${q}`)
-    .or(FRESH_OR_MT); // a stale projection is a MISS → re-projected in place
+    .or(FRESH); // a stale projection is a MISS → re-projected in place
   if (isReverseIntoJa(sourceLang, targetLang)) {
     // EN→JA: uniform input-frequency → order by the projected sense rank.
     query = query
@@ -686,22 +735,92 @@ async function fetchVerifiedMany(
   // Quote each term: the PostgREST or()/in() grammar uses comma/parens/quote as
   // syntax, so a raw term would corrupt the filter (see fetchVerified).
   const quote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  const list = inputs.map(quote).join(",");
-  const { data, error } = await supabase
-    .from("words")
-    .select("*")
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    .eq("is_verified", true)
-    .or(`input.in.(${list}),input_reading.in.(${list})`)
-    .or(FRESH_OR_MT) // a stale projection is a MISS → re-projected in place
-    // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
-    // words keep the lookup's primary on the cache read.
-    .order("frequency", { ascending: false, nullsFirst: false })
-    .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as WordRow[];
+  // CHUNK by encoded size. Inlining every term put the whole list in the query
+  // string TWICE (input + input_reading); at ~9 bytes per encoded Japanese char a
+  // long paste built a URL the runtime refused to send ("TypeError: error sending
+  // request"), the batch threw, and the reader rendered every word grey. That is
+  // quality report #3, and prod's error_log shows it recurring. `repeats: 2`
+  // accounts for the doubled list — see src/lib/urlFilter.ts (hand-mirrored here;
+  // separate Deno runtime).
+  const chunks = chunkForUrlFilter(inputs, { repeats: 2 });
+  const perChunk = await Promise.all(chunks.map(async (chunk) => {
+    const list = chunk.map(quote).join(",");
+    const { data, error } = await supabase
+      .from("words")
+      .select("*")
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("is_verified", true)
+      .or(`input.in.(${list}),input_reading.in.(${list})`)
+      .or(FRESH) // a stale projection is a MISS → re-projected in place
+      // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
+      // words keep the lookup's primary on the cache read. Each term lands in ONE
+      // chunk, so a word's senses are always ordered within their own query.
+      .order("frequency", { ascending: false, nullsFirst: false })
+      .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
+      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as WordRow[];
+  }));
+  // DEDUPE across chunks. The filter matches a row by `input` OR `input_reading`,
+  // so one row can be returned by two different chunks — e.g. a text using both
+  // 行く and its reading いく as separate lookup keys: chunk A matches the row by
+  // its headword, chunk B by its reading. groupByInput then assigns that row to
+  // its term once PER copy, and every sense of the word renders twice.
+  // (Measured: 行く came back 24 rows / 12 unique before this.) The single-query
+  // version could not hit this, so the dedupe belongs with the chunking.
+  const seen = new Set<string>();
+  return perChunk.flat().filter((row) => {
+    if (seen.has(row.word_id)) return false;
+    seen.add(row.word_id);
+    return true;
+  });
+}
+
+/**
+ * REVIVE the MT rows for inputs the dictionary just failed to resolve — the piece that
+ * lets MT rows be version-gated without a bump ever costing money (see FRESH above).
+ *
+ * A stale MT row is a cache miss, so the caller has already re-asked the dictionary for
+ * free. If the dictionary answered, we never get here and the stale MT row simply stops
+ * being served (it stays below the current version, so it can never win a cache read
+ * again — dead storage, but nothing is deleted, so a `user_words` row still pointing at
+ * it keeps resolving). If the dictionary still has nothing, THIS runs: re-stamp the row
+ * we already paid Google for to the current version and serve it, so the word is a plain
+ * cache hit again until the next bump — and Google is not called.
+ *
+ * Returns the revived rows (UPDATE … RETURNING, so it re-stamps and reads in one trip).
+ * Fails OPEN: on error we return none and the caller proceeds to the normal paid path,
+ * which is correct-but-costly rather than wrong.
+ */
+async function reviveMtRows(
+  supabase: Supa,
+  inputs: string[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<WordRow[]> {
+  if (inputs.length === 0) return [];
+  // Chunked for the same URL-length reason as fetchVerifiedMany — and here the
+  // stakes are money, not just display: this call is what avoids re-paying Google
+  // for words already translated, so a whole-list failure would silently re-spend.
+  const chunks = chunkForUrlFilter(inputs.map((i) => `mt:${i}`));
+  const perChunk = await Promise.all(chunks.map(async (refs) => {
+    const { data, error } = await supabase
+      .from("words")
+      .update({ projection_version: CURRENT_PROJECTION_VERSION })
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("is_verified", true)
+      .in("dictionary_ref", refs)
+      .lt("projection_version", CURRENT_PROJECTION_VERSION)
+      .select("*");
+    if (error) {
+      console.error("MT revive failed:", error.message);
+      return []; // fails OPEN per chunk: the rest still revive
+    }
+    return (data ?? []) as WordRow[];
+  }));
+  return perChunk.flat();
 }
 
 // ── Idempotency (see migration 20260626) ───────────────────────────────────
@@ -768,8 +887,19 @@ interface BatchEntry {
  * BATCH resolve: many cacheable words (persist=true) in ONE request, so the
  * client's paragraph / add-many fan-out costs one round-trip instead of N. Same
  * per-word resolution as the single path (cache → JMdict → metered MT fallback),
- * just looped server-side with the cache read and the final upsert batched. The
- * whole-paragraph display gloss is NOT batched (it's a single persist=false call).
+ * just looped server-side with the cache read and the final upsert batched. This
+ * is the WORD path; the paragraph's display gloss has its own mode (`segments`),
+ * which caches nothing and returns one translation per sentence.
+ *
+ * `dictionaryOnly` = resolve from the CACHE + DICTIONARY only, never MT. This is
+ * for callers that PROBE speculative terms ("is this string a real word?") rather
+ * than translating terms a user actually asked for — today the reader's
+ * compound-merge check (柔軟 ＋ 剤 → is 柔軟剤 a word?). Those probes are mostly
+ * expected to MISS, and a miss is the answer, not a failure: sending them down the
+ * MT fallback would bill Google for every wrong guess and cache the junk it
+ * returned as a verified word. So this flag is a COST + CORRECTNESS boundary, not
+ * an optimization. It also skips the MT-row revive, so a probe can never be
+ * validated by a leftover MT row (that would resurrect the same junk for free).
  */
 async function resolveBatch(
   supabase: Supa,
@@ -777,6 +907,7 @@ async function resolveBatch(
   sourceLang: string,
   targetLang: string,
   authHeader: string | null,
+  dictionaryOnly = false,
 ): Promise<BatchEntry[]> {
   // IDEMPOTENCY: unlike the single path, batch has no idempotency_keys entry — it
   // relies on the `words` cache instead. On success each MT word is upserted, so a
@@ -815,13 +946,24 @@ async function resolveBatch(
   //    word, so the app-wide global-quota lock + hot row is touched once per request
   //    instead of once per MT word (the global-quota serialization fix). Then call
   //    MT per word and refund the reserved-but-unspent remainder.
-  const canMT = mtConfigured() && !!userId;
+  const canMT = mtConfigured() && !!userId && !dictionaryOnly;
   const stillMissing = missing.filter((i) => !dictByInput.has(i));
-  if (canMT && stillMissing.length > 0) {
+
+  // 3a. Revive before spending: a word the dictionary still lacks may already have a
+  //     PAID MT row that the version gate marked stale. Re-stamp + reuse it (free); only
+  //     what has no MT row at all goes to Google. Same rule as the single path.
+  //     Skipped for probes — see `dictionaryOnly` above.
+  const revivedRows = dictionaryOnly
+    ? []
+    : await reviveMtRows(supabase, stillMissing, sourceLang, targetLang);
+  const revived = new Set(revivedRows.map((r) => r.input));
+
+  const needMT = stillMissing.filter((i) => !revived.has(i));
+  if (canMT && needMT.length > 0) {
     const limits = await resolveLimits(supabase, userId!);
     // (#2) over-cap entries are never sent to paid MT (the per-request paragraph cap
     // holds on the batch path too).
-    const mtWords = stillMissing.filter((i) => i.length <= limits.paragraphCharLimit);
+    const mtWords = needMT.filter((i) => i.length <= limits.paragraphCharLimit);
     const totalChars = mtWords.reduce((n, w) => n + w.length, 0);
     if (totalChars > 0) {
       const reserve = await reserveQuota(supabase, userId!, totalChars, limits.monthlyCharQuota);
@@ -869,7 +1011,8 @@ async function resolveBatch(
   //      writing of はやい, stored under headword 早い, so neither its headword (早い)
   //      nor its reading (はやい) equals the search term 速い — groupByInput alone
   //      drops it (the single path doesn't, hence the single/batch discrepancy).
-  const cachedByTerm = groupByInput(cachedRows, inputs);
+  //    - Revived MT rows (3a) are cache hits too — their `input` IS the search term.
+  const cachedByTerm = groupByInput([...cachedRows, ...revivedRows], inputs);
   const refToTerms = new Map<string, string[]>();
   for (const { input, results } of perInput) {
     for (const r of projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION)) {
@@ -993,6 +1136,7 @@ async function handleRequest(req: Request): Promise<Response> {
     try {
       const results = await resolveBatch(
         supabase, body.inputs, sourceLang, targetLang, req.headers.get("Authorization"),
+        body.dictionaryOnly === true,
       );
       return reply({ results });
     } catch (e) {
@@ -1040,6 +1184,82 @@ async function handleRequest(req: Request): Promise<Response> {
       });
       return reply({ error: "Could not load words" }, 500); // generic — no schema/SQL leak
     }
+  }
+
+  // SEGMENTS mode: { segments: string[], idempotencyKey? } → one gloss per segment,
+  // index-aligned, so the reader can print the English UNDER each Japanese sentence
+  // instead of in a separate block. Always DISPLAY-ONLY (never cached — these are
+  // sentences, and we don't store thousands of unique ones), so it skips the whole
+  // dictionary path and goes straight to the metered MT gate.
+  if (Array.isArray(body.segments)) {
+    // Bound the fan-out BEFORE walking the array.
+    if (body.segments.length > MAX_SEGMENTS) {
+      return reply(
+        { error: `Too many segments (max ${MAX_SEGMENTS})`, limit: MAX_SEGMENTS, count: body.segments.length },
+        413,
+      );
+    }
+    const prepared = prepareSegments(body.segments);
+    const idempotencyKey =
+      typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : null;
+    const blank = () => reply({ glosses: prepared.normalized.map(() => null) });
+
+    // Same unmetered-scan guard as SINGLE mode, applied to the whole request.
+    if (prepared.chars > MAX_INPUT_CHARS) {
+      return reply(
+        { error: `Input exceeds the ${MAX_INPUT_CHARS}-character limit`, limit: MAX_INPUT_CHARS, length: prepared.chars },
+        413,
+      );
+    }
+    if (prepared.unique.length === 0) return blank();
+
+    const userId = userIdFromAuth(req.headers.get("Authorization"));
+    // Unattributable or MT-off → no glosses, exactly like the single display path.
+    // Never spend on a request we can't meter.
+    if (!mtConfigured() || !userId) return blank();
+
+    const prior = await lookupIdempotent(supabase, idempotencyKey);
+    if (prior) return reply(prior.response, prior.status);
+
+    const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
+    // The segments ARE one paragraph, so the per-request cap applies to their sum —
+    // otherwise splitting a paragraph would be a way around the limit.
+    if (prepared.chars > paragraphCharLimit) {
+      return reply(
+        {
+          error: `Input exceeds the ${paragraphCharLimit}-character translation limit`,
+          limit: paragraphCharLimit,
+          length: prepared.chars,
+        },
+        413,
+      );
+    }
+    // Reserve the DEDUPED char count atomically before the paid call, per-user then
+    // global — a denied reservation costs nothing, same as every other paid path.
+    const { allowed, used, committed } = await reserveQuota(
+      supabase, userId, prepared.chars, monthlyCharQuota,
+    );
+    if (!allowed) {
+      return reply({ error: "Monthly translation quota reached", used, quota: monthlyCharQuota }, 429);
+    }
+    const gQuota = globalCharQuota();
+    if (!(await reserveGlobalQuota(supabase, prepared.chars, gQuota))) {
+      if (committed) await refundQuota(supabase, userId, prepared.chars);
+      console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
+      return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
+    }
+
+    const translated = await callTranslationProviderMany(prepared.unique, sourceLang, targetLang);
+    if (!translated) {
+      // Provider spent nothing (unconfigured / non-2xx / network) — refund both.
+      if (committed) await refundQuota(supabase, userId, prepared.chars);
+      await refundGlobalQuota(supabase, prepared.chars);
+    }
+    const resBody = { glosses: expandSegmentResults(prepared, translated) };
+    // The paid path ran, so store under the idempotency key: a client retry replays
+    // this instead of re-reserving quota and re-calling Google.
+    if (idempotencyKey && translated) await storeIdempotent(supabase, idempotencyKey, resBody, 200);
+    return reply(resBody);
   }
 
   // SINGLE mode: { input, persist?, idempotencyKey? }. NFC-normalize to match cache.
@@ -1095,6 +1315,15 @@ async function handleRequest(req: Request): Promise<Response> {
   //    (The app's guests are real anonymous-auth users, so they always have a sub.)
   const userId = userIdFromAuth(req.headers.get("Authorization"));
   let results = await resolveDictionary(supabase, input, sourceLang, targetLang);
+
+  // 2a. The dictionary has nothing — but this word may already have a PAID MT row that
+  //     the version gate just treated as stale. Serve that (re-stamped) instead of
+  //     buying the same text again; only a word with no MT row at all reaches Google.
+  if (persist && results.length === 0) {
+    const revived = await reviveMtRows(supabase, [input], sourceLang, targetLang);
+    if (revived.length > 0) return reply(respondWords(input, revived));
+  }
+
   if (results.length === 0 && mtConfigured() && userId) {
     // MT is the only PAID path → enforce the caller's limits here, the hard
     // server-side gate (the client also pre-checks for UX). Both checks happen

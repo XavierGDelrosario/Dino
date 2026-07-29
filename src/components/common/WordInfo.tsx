@@ -8,8 +8,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getProficiency } from "../../services/proficiency";
 import { frequencyCommonness } from "../../services/difficulty";
-import { partOfSpeechCategory, type PosCategory, type LangCode } from "../../services/language";
-import { useI18n, type MessageKey } from "../../i18n";
+import { partOfSpeechCategory, type LangCode } from "../../services/language";
+import { COMMONNESS_LABEL_KEY, POS_LABEL_KEY } from "./wordLabels";
+import { useI18n } from "../../i18n";
 import "./wordinfo.css";
 
 /** The word-like shape the panel needs (both a Word and a UserWord satisfy it). */
@@ -20,34 +21,6 @@ export interface WordInfoTarget {
   /** Corpus frequency (Zipf ×100) → a plain-language "Commonness" band. */
   frequency: number | null;
 }
-
-/** Commonness band 1..5 (1 = most common) → its i18n label key. */
-const COMMONNESS_LABEL_KEY: Record<number, MessageKey> = {
-  1: "commonness.veryCommon",
-  2: "commonness.common",
-  3: "commonness.fairlyCommon",
-  4: "commonness.uncommon",
-  5: "commonness.rare",
-};
-
-/** Coarse POS category → its i18n label key (statically typed so `t` stays checked). */
-const POS_LABEL_KEY: Record<PosCategory, MessageKey> = {
-  noun: "pos.noun",
-  pronoun: "pos.pronoun",
-  verb: "pos.verb",
-  adjective: "pos.adjective",
-  adverb: "pos.adverb",
-  particle: "pos.particle",
-  conjunction: "pos.conjunction",
-  interjection: "pos.interjection",
-  auxiliary: "pos.auxiliary",
-  counter: "pos.counter",
-  prefix: "pos.prefix",
-  suffix: "pos.suffix",
-  numeric: "pos.numeric",
-  determiner: "pos.determiner",
-  expression: "pos.expression",
-};
 
 /** The Level + Commonness + Part-of-Speech rows — the shared panel CONTENT. */
 export function WordInfo({ word }: { word: WordInfoTarget }) {

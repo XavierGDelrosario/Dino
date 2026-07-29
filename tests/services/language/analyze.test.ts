@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyze, isContentPos, isSingleWord } from "@/services/language/analyze";
+import { analyze, dictionaryForm, isContentPos, isSingleWord } from "@/services/language/analyze";
 
 // These exercise the REAL kuromoji engine (no mock): building the tokenizer
 // loads the IPADIC dictionary on first use, hence the generous timeout. This is
@@ -72,6 +72,46 @@ describe("analyze — Japanese (kuromoji)", () => {
       expect(isContentPos(byText("URL")!.pos)).toBe(false);
       // A katakana loanword in the same sentence stays real vocabulary.
       expect(isContentPos(byText("コード")!.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+  it(
+    "person names are kept but marked non-content (quality report: 佐野 listed as a word)",
+    async () => {
+      const toks = await analyze("昨日、新宿で佐藤さんに会った", "JA");
+      const byText = (s: string) => toks.find((t) => t.text === s);
+      // The name survives as a token — the reader still SHOWS it, as plain text…
+      expect(byText("佐藤")).toBeDefined();
+      // …but it is not vocabulary, so it is neither addable nor in the word list.
+      expect(isContentPos(byText("佐藤")!.pos)).toBe(false);
+      // Real words in the same sentence are unaffected.
+      expect(isContentPos(byText("会っ")!.pos)).toBe(true);
+      expect(isContentPos(byText("昨日")!.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+  it(
+    "only 人名 is demoted — place names and unknown katakana stay vocabulary",
+    async () => {
+      const toks = await analyze("田中はスマホで東京の写真を見た", "JA");
+      const posOf = (s: string) => toks.find((t) => t.text === s)?.pos ?? null;
+      expect(isContentPos(posOf("田中"))).toBe(false); // 固有名詞-人名 → not vocabulary
+      expect(isContentPos(posOf("東京"))).toBe(true); // 固有名詞-地域 → a real word
+      // 固有名詞-組織 is IPADIC's unknown-KATAKANA bucket, not just companies — demoting
+      // it would hide loanwords like スマホ, which are exactly what a learner needs.
+      expect(isContentPos(posOf("スマホ"))).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+  it(
+    "a name typed on its own still routes to single-word lookup",
+    async () => {
+      const toks = await analyze("佐野", "JA");
+      expect(toks.map((t) => t.text)).toEqual(["佐野"]);
+      expect(isContentPos(toks[0].pos)).toBe(false);
+      // Asking for a name explicitly is a real question — Translate must still answer it.
+      expect(isSingleWord(toks, "JA")).toBe(true);
+      expect(await dictionaryForm("佐野", "JA")).toBe("佐野");
     },
     KUROMOJI_TIMEOUT,
   );
@@ -174,5 +214,41 @@ describe("analyze — non-Japanese falls back to segmentation only", () => {
     const toks = await analyze("hello world", "EN");
     expect(toks.map((t) => t.text)).toEqual(["hello", "world"]);
     expect(toks.every((t) => t.reading === null && t.lemma === null)).toBe(true);
+  });
+});
+
+// The dictionary-form rule the paragraph reader, Translate, and the Lists add form
+// all share: look an inflected surface up under its LEMMA, because the dictionary
+// is keyed on dictionary forms.
+describe("dictionaryForm", () => {
+  it(
+    "resolves an inflected Japanese word to its dictionary form",
+    async () => {
+      expect(await dictionaryForm("行った", "JA")).toBe("行く");
+      expect(await dictionaryForm("食べました", "JA")).toBe("食べる");
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "leaves a word already in dictionary form alone",
+    async () => {
+      expect(await dictionaryForm("行く", "JA")).toBe("行く");
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "leaves a PHRASE alone (it belongs to the reader, which lemmatizes per token)",
+    async () => {
+      const phrase = "日本に行った";
+      expect(await dictionaryForm(phrase, "JA")).toBe(phrase);
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it("returns English UNCHANGED — no engine gives English lemmas (a known gap)", async () => {
+    expect(await dictionaryForm("ran", "EN")).toBe("ran");
+    expect(await dictionaryForm("running", "EN")).toBe("running");
   });
 });

@@ -98,3 +98,38 @@ export function serviceClient(): SupabaseClient | null {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
+
+/**
+ * Simulate the PASSAGE OF TIME: move a word's last review `days` into the past, so the
+ * scheduler sees it as decayed (R = exp(-Δ/S)). The only way to test what the review
+ * queue does with a MATURE word — spaced repetition is a function of elapsed time, and a
+ * test can't wait 60 days.
+ *
+ * Goes straight to Postgres as the owner, deliberately: `service_role` has NO write grant
+ * on `user_words` (privilege hardening — only the caller, through RLS, and the definer
+ * RPCs may touch a user's vocabulary), so even the service client cannot do this. Returns
+ * false when the DB isn't reachable, so the calling test can self-skip rather than fail.
+ */
+export async function backdateReview(userWordId: string, days: number): Promise<boolean> {
+  const { Client } = await import("pg");
+  const pg = new Client({
+    connectionString:
+      process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+  });
+  try {
+    await pg.connect();
+  } catch {
+    return false; // no direct DB access in this environment → skip
+  }
+  try {
+    await pg.query(
+      `UPDATE user_words
+          SET last_reviewed_date = now() - make_interval(days => $2::int)
+        WHERE user_word_id = $1`,
+      [userWordId, days],
+    );
+    return true;
+  } finally {
+    await pg.end();
+  }
+}
