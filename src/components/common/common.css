@@ -40,6 +40,30 @@ html {
   }
 }
 
+/* ---- Page scrollbar, touch only -------------------------------------------
+   A touch device has no cursor to aim at a scrollbar, so the track down the side
+   is decoration: you scroll by dragging, and the platform already flashes its own
+   indicator while you do. Hidden on coarse pointers only — a mouse user reads the
+   bar for position and grabs it to jump, so desktop keeps it.
+
+   Scrolling itself is untouched (`overflow-y: auto` on body stays); only the
+   indicator is hidden. On the iOS shell the main-frame indicator is drawn NATIVELY
+   by WKWebView and ignores this rule — see MainViewController.swift, which turns it
+   off on the scroll view. Both are needed to cover both surfaces. */
+@media (pointer: coarse) {
+  html,
+  body {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge */
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
 /* ---- iOS text selection (do not remove) -----------------------------------
    On touch, the app is tapped, not read-and-copied: tapping a reader token, a
    list chip, or a grade button makes iOS start a text selection instead, so the
