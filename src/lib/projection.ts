@@ -26,13 +26,19 @@
 // the dictionary STILL has nothing the edge serves the MT text it already paid for and
 // re-stamps it current (reviveMtRows). A version bump therefore costs zero Google calls.
 //
+// v9 (20260740): the proficiency band falls back to the entry's KANJI writing when
+// the shown writing has none, so a "usually kana" headword (こと, いる, ため) stops
+// reading as unlevelled. That migration also backfills the cached NULLs directly —
+// the bump alone would only heal words somebody happens to look up again, and Lists
+// reads a saved word's band off `words` without ever consulting the dictionary.
+//
 // MIRRORED in supabase/functions/translate/index.ts (separate Deno runtime — it can't
 // import this file). tests/services/projection-version.test.ts fails if the two drift.
 // Bump BOTH whenever the projection changes; the bump is what makes old rows stale.
 // =========================================================
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 8;
+export const CURRENT_PROJECTION_VERSION = 9;
 
 /**
  * PostgREST filter for "this row is safe to serve from cache" — a projection at the
