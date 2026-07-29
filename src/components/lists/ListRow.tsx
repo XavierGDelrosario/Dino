@@ -3,7 +3,7 @@
 // SAME user_words row, never a new one). "Add to list" tags it into a sub-list;
 // "Remove from list" only shows when viewing a sub-list (un-tags, keeps the word
 // in the vocabulary); the trash deletes it from the vocabulary entirely.
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
 import { ListMenu } from "../common/ListMenu";
@@ -66,9 +66,21 @@ export function ListRow({
   const [tagMenu, setTagMenu] = useState(false);
   const tagBtnRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState(word.translation);
+  const editRef = useRef<HTMLTextAreaElement>(null);
   const { t, locale } = useI18n();
   const added = fmtDate(word.originallyTranslatedDate, locale, t("lists.never"));
   const reviewed = fmtDate(word.lastReviewedDate, locale, t("lists.never"));
+
+  // Grow the edit field to its content — the whole point of the textarea is that a
+  // long meaning is READABLE while editing. Height must be reset to auto first, or
+  // scrollHeight only ever ratchets up as the text shrinks. Runs on open and on every
+  // keystroke; jsdom reports scrollHeight 0, which the guard turns into a no-op.
+  useEffect(() => {
+    const el = editRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
+  }, [draft, editing]);
 
   // Split a multi-sense translation ("cat; feline; puss") so each meaning gets its
   // own line below the header instead of one squished run.
@@ -83,7 +95,7 @@ export function ListRow({
   const toggle = () => onToggleSelect?.();
   const rowClick = (e: MouseEvent) => {
     if (!selectable || !onToggleSelect) return;
-    if ((e.target as HTMLElement).closest("button, input, a, .listrow__editing")) return;
+    if ((e.target as HTMLElement).closest("button, input, textarea, a, .listrow__editing")) return;
     onToggleSelect();
   };
 
@@ -122,13 +134,6 @@ export function ListRow({
         </span>
 
         <div className="listrow__meta">
-          {/* Read the WORD aloud — never the meaning (an English gloss spoken by a
-              Japanese voice is noise). Speaks the sense's reading where the headword
-              is kanji, so a homograph gets the meaning's own pronunciation. The
-              language is the row's own, so an English word in the EN-learner
-              direction is spoken by an English voice. */}
-          <SpeakButton text={pronounceableText(word)} lang={word.sourceLang} size={16} />
-
           {/* Word info as a floating OVERLAY (not inline text that reflows the row):
               Level (JLPT/CEFR) + Part of Speech, then the added/reviewed dates. The
               shared "?" affordance — same panel appears on the flashcard. */}
@@ -212,49 +217,73 @@ export function ListRow({
         </div>
       </div>
 
-      {/* Meaning(s) on their own line(s) below the header. */}
-      {editing ? (
-        <span className="listrow__editing">
-          <input
-            className="input input--sm"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label={t("lists.editMeaningAria")}
-          />
-          <button
-            className="iconbtn"
-            onClick={() => {
-              const v = draft.trim();
-              if (v) onEdit(v);
-              setEditing(false);
-            }}
-            title={t("common.save")}
-          >
-            ✓
-          </button>
-          <button
-            className="iconbtn"
-            onClick={() => {
-              setDraft(word.translation);
-              setEditing(false);
-            }}
-            title={t("common.cancel")}
-          >
-            ✕
-          </button>
-        </span>
-      ) : (
-        <div className="listrow__meaning">
-          {meanings.map((m, i) => (
-            <span key={i} className="listrow__meaning-line">
-              {m}
-              {i === 0 && word.translationReading && (
-                <em className="listrow__reading">{word.translationReading}</em>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Bottom row: the meaning(s) on the left, the speak button pinned bottom-RIGHT
+          — the row's one audio affordance, kept away from the cluster of edit/tag/
+          delete actions in the header so it reads as "play this", not another action.
+          It wraps BOTH branches, so it stays put while the meaning is being edited. */}
+      <div className="listrow__foot">
+        {editing ? (
+          <span className="listrow__editing">
+            {/* A TEXTAREA, not a single-line input: a multi-sense meaning ("nightclub;
+                club (weapon); playing-card suit") ran off the end of the field with
+                the row's full width sitting unused, so the text being edited couldn't
+                be read. It grows to fit its content (see the effect above) instead of
+                scrolling sideways. Enter inserts a newline and never saves — a
+                Japanese IME uses Enter to confirm kanji, so saving on it would commit
+                mid-conversion (same rule as the translate box); ✓ commits. */}
+            <textarea
+              ref={editRef}
+              className="input input--sm listrow__editfield"
+              rows={1}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              aria-label={t("lists.editMeaningAria")}
+            />
+            <button
+              className="iconbtn"
+              onClick={() => {
+                // Collapse the newlines the textarea now allows: a meaning renders as
+                // one line per SENSE (split on ";"), so a stored line break would show
+                // up as a stray space anyway. Nothing about the stored shape changes.
+                const v = draft.replace(/\s+/g, " ").trim();
+                if (v) onEdit(v);
+                setEditing(false);
+              }}
+              title={t("common.save")}
+            >
+              ✓
+            </button>
+            <button
+              className="iconbtn"
+              onClick={() => {
+                setDraft(word.translation);
+                setEditing(false);
+              }}
+              title={t("common.cancel")}
+            >
+              ✕
+            </button>
+          </span>
+        ) : (
+          <div className="listrow__meaning">
+            {meanings.map((m, i) => (
+              <span key={i} className="listrow__meaning-line">
+                {m}
+                {i === 0 && word.translationReading && (
+                  <em className="listrow__reading">{word.translationReading}</em>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Read the WORD aloud — never the meaning (an English gloss spoken by a
+            Japanese voice is noise). Speaks the sense's reading where the headword is
+            kanji, so a homograph gets the meaning's own pronunciation. The language is
+            the row's own, so an English word in the EN-learner direction is spoken by
+            an English voice. */}
+        <SpeakButton text={pronounceableText(word)} lang={word.sourceLang} size={16} />
+      </div>
     </li>
   );
 }

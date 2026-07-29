@@ -766,18 +766,57 @@
 }
 
 /* Meanings stack one per line (split on ';') across the full row width. */
+/* Bottom row: meaning(s) on the left, the speak button pinned bottom-right. Aligned
+   to flex-end so the button sits on the LAST meaning line of a multi-sense word,
+   not floating beside the first. */
+.listrow__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .listrow__meaning {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
   font-size: 0.95rem;
   color: var(--muted);
+  /* Take the row minus the button, and let long meanings wrap instead of pushing
+     the button off the edge. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The edit field is the meaning's stand-in, so it claims the same space. */
+.listrow__foot .listrow__editing {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.listrow__foot .speakbtn {
+  flex: 0 0 auto;
 }
 
 .listrow__editing {
   display: flex;
-  align-items: center;
+  /* Top-aligned, not centred: the field now grows with its content, and the ✓/✕
+     belong beside the first line rather than drifting down the middle of a tall box. */
+  align-items: flex-start;
   gap: 0.3rem;
+}
+
+/* The meaning editor. Auto-grown in JS (see ListRow), so scrollbars and the manual
+   resize grip are both off — the box is always exactly as tall as its text. Inherits
+   the row's font so what you edit looks like what you were reading. */
+.listrow__editfield {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  overflow: hidden;
 }
 
 .listrow__meta {
