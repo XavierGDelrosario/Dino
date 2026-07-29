@@ -297,9 +297,15 @@ Full ledger: `docs/QualityLimitations.md`.
   - Only common ∪ freq≥250 (~41k) eligible; live vectors still common-only ~22.6k.
   - Miss: rare words get **no word-map at all**. Full-dict = Pro storage.
 - **Per-sense granularity**
-  - Proficiency / frequency / embeddings all per-surface.
+  - Frequency + embeddings per-surface; proficiency per-ENTRY since `20260740`. Never per-sense.
   - Miss: a homograph (辛い からい/つらい) gets **one blended** band/freq/vector. Sense precision lost.
   - Unlock: engineering, not money.
+- **JLPT list coverage** (measured on prod 2026-07-29)
+  - **1,656 of 6,604** JA rows carry no band — down from 3,100 after `20260740` recovered 1,444
+    (1,178 stale-cached + 266 lost to the shown-writing rule).
+  - Miss: ~25% of rows still read "—". This remainder is the real ceiling — those entries are
+    absent from the Waller list entirely, and every free JLPT list traces back to it.
+  - Unlock: a licensed independent list. See `docs/QualityLimitations.md` §2.
 - **Furigana**
   - Group ruby only; per-kanji align (`alignFurigana`) deferred.
   - Miss: reading over the whole term, not per kanji (学校 = one ruby).

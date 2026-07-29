@@ -1,6 +1,6 @@
 # Quality limitations — free tier, free sources, free options
 
-Status **2026-07-09**. An honest audit of where DINO's *content/data quality* is
+Status **2026-07-29**. An honest audit of where DINO's *content/data quality* is
 currently capped, grouped by the three constraints that drive it: **Supabase free-tier
 storage**, **quality of the free/open source data**, and **choosing free tiers of paid
 services**. Each item notes the fix / upgrade that removes it.
@@ -14,9 +14,10 @@ services**. Each item notes the fix / upgrade that removes it.
 
 ## 1. Supabase free tier (500 MB DB) — storage-driven
 
-- **The word-map (embeddings, #11/#12) is trimmed to ~45k words.** The full dictionary is
-  ~217k entries, but `build-embeddings.py` embeds only the "fat common" set (frequency
-  floor 250 → ~41–45k). Rare/long-tail words have **no embedding** → no "related words"
+- **The word-map (embeddings, #11/#12) is trimmed.** The full dictionary is ~217k entries,
+  but `build-embeddings.py` is limited to the "fat common" set (frequency floor 250 →
+  ~41–45k ELIGIBLE), and the vectors live today cover only the editorial common set
+  (~22.6k) — the eligible ceiling is not what is loaded. Rare/long-tail words have **no embedding** → no "related words"
   and no domain expansion for them. Pure storage decision: full dict (~243 MB) + 384-dim
   embeddings (~165 MB) already sits near the 500 MB ceiling.
   **Fix:** Supabase Pro (8 GB) → embed the full dict.
@@ -42,6 +43,23 @@ services**. Each item notes the fix / upgrade that removes it.
   so consensus-voting buys ~nothing for Japanese (see the leveling note in `TODO.md`). No
   official post-2010 list exists to validate against. **Fix:** license an independent list
   (prep-book-derived); otherwise this is a hard ceiling.
+  - **How far the list reaches, measured on prod 2026-07-29:** of 6,604 JA `words` rows,
+    **1,656 (25%) carry no band** — down from 3,100 (47%) before migration `20260740`.
+    That migration recovered 1,444 of them, and the split matters for knowing what is
+    left: **1,178** were levels the dictionary already had, lost to a stale cache;
+    **266** were lost to the shown-writing rule (below); only the remaining ~1,217 are
+    genuinely absent from the source. So the *hard* ceiling is ~19% of rows, not 47% —
+    the rest was ours to fix.
+- **A band is per-ENTRY; frequency stays per-SURFACE (`20260740`).** These two axes look
+  alike and must not be resolved alike. Frequency belongs to the SPELLING — `20260720`
+  stopped a rare kanji borrowing its common kana's count (亡い reading ない's 704). JLPT
+  levels the WORD, so when the shown writing has no band it now falls back to the entry's
+  kanji writing; without that, every "usually kana" entry (こと 事 · いる 居る · ため 為 ·
+  よう 様 · ご 御) read as unlevelled. The fallback is **kanji-only on purpose**: falling
+  back to the entry's kana re-creates the borrowing bug in the proficiency axis, since a
+  kana surface is where unrelated words collide (疎雨 "drizzle" would take N4 off the
+  adverb そう; 犯る would be labelled N5 off やる). ~171 kana-only rows stay unlevelled as
+  the price of that.
 - **Frequency measures COMMONNESS, not LEVEL.** wordfreq is adult/written-text-skewed (的 is
   ~12th-most-frequent kanji yet N3), and its tokenizer **can't rank multi-kanji compounds**
   (唐揚げ splits → no whole-word frequency → NULL). The **borrowed-kana** issue (a rare kanji
@@ -58,9 +76,10 @@ services**. Each item notes the fix / upgrade that removes it.
   **no example sentences, no register/formality labels** beyond POS/misc tags. **Fix:** a
   commercial dictionary layer / curated sense re-ranking / example-sentence corpus (Tatoeba,
   jreibun — licensing TBD).
-- **Everything is per-SURFACE, not per-SENSE.** Proficiency band, frequency, AND embeddings
-  are one-per-headword — so a homograph (辛い → からい/つらい) or any polysemous word gets **one
-  band, one frequency, one vector for all meanings**. A real granularity ceiling across all
+- **Everything is per-SURFACE or per-ENTRY, never per-SENSE.** Frequency and embeddings are
+  one-per-headword; the proficiency band is one-per-entry since `20260740`. Either way a
+  homograph (辛い → からい/つらい) or any polysemous word gets **one band, one frequency, one
+  vector for all meanings**. A real granularity ceiling across all
   three derived axes. **Fix:** engineering (per-sense schema + ingest), not money — arguably
   the single biggest *content-model* limitation.
 - **English leveling — frequency DONE, proficiency + embeddings remain.** EN difficulty used
@@ -103,8 +122,10 @@ services**. Each item notes the fix / upgrade that removes it.
    the word-map to rare words. **Unlock: Supabase Pro** (storage).
 2. **Per-SENSE granularity** for proficiency / frequency / embeddings — fixes homograph
    mis-leveling; the biggest *content-model* ceiling. **Unlock: engineering**, not money.
-3. **English CEFR data + EN frequency** — the secondary market is currently almost unleveled.
-   **Unlock: the CEFR research + a licensable list** (CEFR-J likely free).
+3. **English embeddings** — no EN word-map, so "Explore related words" and #12's domain quiz
+   stay JA-only. **Unlock: Supabase Pro** (~80 MB+ — the real Free→Pro trigger for English).
+   *(This slot used to read "English CEFR data + EN frequency". Both shipped 2026-07-09 —
+   see §2 — so the secondary market is no longer unleveled; embeddings are what it lacks.)*
 
 ## What is NOT a shortcoming (solid on free tier)
 
