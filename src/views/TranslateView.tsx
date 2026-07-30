@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
+import { useLiveReader } from "../hooks/useLiveReader";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
@@ -42,6 +43,23 @@ export function TranslateView({
   onInitialConsumed?: () => void;
 }) {
   const t = useTranslate(userId);
+
+  // EXPERIMENT: the reader, live under the input. Free by construction
+  // (dictionaryOnly + skipGloss) and limited to sentences the user has finished —
+  // see useLiveReader. It YIELDS to a submitted result: once Translate has run,
+  // that paragraph is what's on screen, and the live one would be a duplicate.
+  const live = useLiveReader({
+    text: t.input,
+    source: t.source,
+    learning: t.learning,
+    // Off while a submit is in flight, and off once a submitted paragraph is on
+    // screen — that result is authoritative (it may carry a gloss the live one
+    // never buys), so a second reader under it would just be a stale duplicate.
+    enabled:
+      t.status !== "loading" &&
+      !(t.status === "done" && t.mode === "paragraph" && t.para !== null),
+  });
+
   const { t: tr } = useI18n();
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ cards: Word[][]; mode: QuizMode } | null>(null);
@@ -202,6 +220,12 @@ export function TranslateView({
               t.setInput(e.target.value);
               if (credit) setCredit(null);
             }}
+            // A Japanese IME holds intermediate romaji/kana in the field while
+            // converting, so live analysis pauses for the duration — tokenizing a
+            // half-converted string produces garbage that flickers as you pick the
+            // kanji. Same reason submit is a button and never Enter.
+            onCompositionStart={() => live.setComposing(true)}
+            onCompositionEnd={() => live.setComposing(false)}
             placeholder={tr("translate.inputPlaceholder")}
             rows={4}
             aria-label={tr("translate.inputAria")}
@@ -328,6 +352,26 @@ export function TranslateView({
           (kuromoji + lookups) streams in after — spinner while it loads. */}
       {t.mode === "paragraph" && t.readerLoading && !t.para && (
         <p className="reader__loading">{tr("translate.readerLoading")}</p>
+      )}
+
+      {/* EXPERIMENT — the live reader. Sits between the input and the study section:
+          it is what you get for free while typing, and it disappears the moment a
+          submitted result takes over. No gloss is fetched here, so the "Show
+          translation" toggle inside it is the first thing that ever costs money. */}
+      {!paraStudy && live.para && live.analyzed && (
+        <div className="study study--live">
+          <ParagraphReader
+            text={live.analyzed}
+            tokens={live.para.tokens}
+            meaningsByWord={live.para.meanings}
+            sentences={live.para.sentences}
+            saved={t.saved}
+            confidence={t.confidence}
+            lists={t.lists}
+            onAdd={t.addWords}
+            onCreateList={t.createNamedList}
+          />
+        </div>
       )}
 
       {/* STUDY section: add/quiz/review controls + the hover-for-meaning reader. */}

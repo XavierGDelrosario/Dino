@@ -319,6 +319,14 @@ export async function translateParagraph(params: {
    *  For surfaces that only need the per-word reader (e.g. the media summary page,
    *  which never shows the sentence translation), so opening one costs zero MT. */
   skipGloss?: boolean;
+  /** Resolve words from the CACHE + DICTIONARY only — a word JMdict lacks comes back
+   *  with no meanings instead of falling through to paid MT.
+   *
+   *  For analysis of text the user has not asked to translate: the LIVE reader runs
+   *  on every pause while typing, so a half-typed word (唐, 唐揚, 唐揚げ) would
+   *  otherwise bill Google for two fragments on the way to one real word. Same
+   *  seam, and the same reasoning, as the compound probes above. */
+  dictionaryOnly?: boolean;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
   const input = nfc(params.input);
@@ -393,7 +401,12 @@ export async function translateParagraph(params: {
     try {
       const batches = await Promise.all([
         rest.length > 0
-          ? translateBatch({ inputs: rest, sourceLang: resolvedSource, targetLang })
+          ? translateBatch({
+              inputs: rest,
+              sourceLang: resolvedSource,
+              targetLang,
+              dictionaryOnly: params.dictionaryOnly,
+            })
           : null,
         katakana.length > 0
           ? translateBatch({
