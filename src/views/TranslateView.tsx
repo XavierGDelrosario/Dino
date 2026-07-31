@@ -13,8 +13,7 @@ import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { useLiveReader } from "../hooks/useLiveReader";
-import { LiveTranscriptView } from "./LiveTranscriptView";
-import { isSpeechStreamAvailable } from "../services/speech";
+import { useDictation } from "../hooks/useDictation";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
@@ -100,17 +99,18 @@ export function TranslateView({
     void isHandwritingAvailable(recognitionLang).then(setHwAvailable);
   }, [recognitionLang]);
 
-  // Voice input (native on-device speech): record → wait for finish → append the
-  // transcript to the input. The mic button toggles start/stop; a tap while
-  // listening calls stopSpeech(), which makes the pending startSpeech resolve.
-  // EXPERIMENT — the live listener, opened from the input's tool bar. A takeover
-  // (like the text quiz) rather than another panel: reading a conversation as it is
-  // spoken is a whole screen's job, not a strip under a text box.
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const [canListen, setCanListen] = useState(false);
-  useEffect(() => {
-    void isSpeechStreamAvailable(t.learning).then(setCanListen);
-  }, [t.learning]);
+  // Voice input: the mic dictates STRAIGHT INTO the box above, one utterance at a
+  // time, and `live` (the reader under the input) colours it as it lands — so
+  // speech reuses the whole typing surface instead of a parallel transcript screen.
+  // The speaker's pause becomes a sentence break; see services/speech/dictation.
+  const dictation = useDictation({
+    lang: t.learning,
+    value: t.input,
+    onChange: (next) => {
+      t.setInput(next);
+      if (credit) setCredit(null);
+    },
+  });
 
   // Camera OCR (Mode A): photo → recognized text in reading order → translate it
   // (straight into the paragraph reader). Native-only; hidden where unavailable.
@@ -183,22 +183,6 @@ export function TranslateView({
   // Quiz/review = full takeover: the entire translate surface is hidden. Use the
   // normal .review column (NOT the wide .translate breakout) so the card is the same
   // size as Review / Learn / Calibration.
-  if (transcriptOpen) {
-    return (
-      <LiveTranscriptView
-        userId={userId}
-        learning={t.learning}
-        saved={t.saved}
-        confidence={t.confidence}
-        lists={t.lists}
-        onAdd={t.addWords}
-        onCreateList={t.createNamedList}
-        onGraded={t.applyReview}
-        onClose={() => setTranscriptOpen(false)}
-      />
-    );
-  }
-
   if (quiz) {
     return (
       <section className="review">
@@ -252,7 +236,7 @@ export function TranslateView({
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || canListen || import.meta.env.DEV) && (
+          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
             <div className="io__tools">
               {/* Order, top to bottom: clear · draw · mic · picture. Clear first
                   because it acts on what is already in the box; then the three ways
@@ -282,17 +266,19 @@ export function TranslateView({
                   <PencilIcon />
                 </button>
               )}
-              {/* The mic opens the LIVE transcript — one continuous session read as
-                  it is spoken. It replaces record-then-fill entirely. Streaming is
-                  implemented on BOTH backends now (native on-device, and Web Speech
-                  in Chrome), so `canListen` is what gates it; the DEV clause only
-                  keeps it reachable in a browser that has neither. */}
-              {(canListen || import.meta.env.DEV) && (
+              {/* The mic DICTATES into the box above — press once to start, again to
+                  stop — rather than opening a screen of its own. Each pause commits an
+                  utterance, and the reader under the input colours it as it lands.
+                  Streaming is implemented on BOTH backends (native on-device, and Web
+                  Speech in Chrome), so `available` is what gates it; the DEV clause
+                  keeps it reachable in a browser that has neither, via the mock. */}
+              {(dictation.available || import.meta.env.DEV) && (
                 <button
                   className="io__tool"
-                  onClick={() => setTranscriptOpen(true)}
-                  aria-label={tr("listen.tool")}
-                  title={tr("listen.tool")}
+                  onClick={dictation.available ? dictation.toggle : dictation.startMock}
+                  aria-pressed={dictation.listening}
+                  aria-label={dictation.listening ? tr("listen.stop") : tr("listen.tool")}
+                  title={dictation.listening ? tr("listen.stop") : tr("listen.tool")}
                 >
                   <MicIcon />
                 </button>
@@ -390,6 +376,8 @@ export function TranslateView({
 
       <ErrorText message={t.error} />
       <ErrorText message={ocrError} />
+      {/* A failed recognizer must not read as a failed translation — its own line. */}
+      <ErrorText message={dictation.error} />
 
       {/* The translation shows above as soon as it's ready; the word-by-word reader
           (kuromoji + lookups) streams in after — spinner while it loads. */}
