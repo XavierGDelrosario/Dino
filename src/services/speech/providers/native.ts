@@ -17,9 +17,14 @@ import type { SpeechRecognizer, SpeechStreamHandle, SpeechStreamOptions } from "
  * that a finished line appears while it is still worth reading.
  */
 const SILENCE_MS = 1400;
-/** Recycle a session that has heard nothing at all — iOS ends the recognition task
- *  by itself after roughly a minute and raises no event to hang the restart on. */
-const IDLE_MS = 25_000;
+/** How often to check that the recognizer is still alive. iOS ends the task by
+ *  itself after roughly a minute and raises no event to hang a restart on, so the
+ *  STATE is polled — cheap, and it never disturbs a healthy session. */
+const HEALTH_MS = 5_000;
+/** Breathing room between stopping and starting the recognizer. Doing the two
+ *  back-to-back rebuilds AVAudioEngine under a task that is still finishing, and
+ *  the native exception takes the whole app down. */
+const RESTART_DELAY_MS = 400;
 
 /** App LangCode → BCP-47 speech locale, or null if we don't support it. */
 function toSpeechTag(lang: LangCode): string | null {
@@ -98,7 +103,9 @@ export const nativeRecognizer: SpeechRecognizer = {
     if (!tag) return { stop: () => {} };
 
     let stopped = false;
-    let forming = ""; // the most recent partial = the utterance currently being said
+    let forming = ""; // the utterance being said right now (not yet a line)
+    let heard = ""; // the engine's FULL hypothesis for the current session
+    let committed = ""; // the part of `heard` already promoted to lines
     const handles: PluginListenerHandle[] = [];
 
     // Promote whatever is on the hypothesis into a committed line. Called at the
@@ -107,7 +114,13 @@ export const nativeRecognizer: SpeechRecognizer = {
       const text = forming.trim();
       forming = "";
       onPartial("");
-      if (text) onFinal(text);
+      if (!text) return;
+      onFinal(text);
+      // Everything the engine has produced so far is now a line. iOS keeps ONE
+      // hypothesis running across a pause rather than starting a new one, so the
+      // next partial arrives with all of this still prefixed to it — without this
+      // mark, every committed sentence would be re-emitted inside the next.
+      committed = heard;
     };
 
     const run = async () => {
@@ -123,64 +136,99 @@ export const nativeRecognizer: SpeechRecognizer = {
       }
     };
 
-    // THE BOUNDARY IS SELF-DETECTED, not event-driven. The original design waited
-    // for `listeningState: "stopped"`, but iOS does not reliably raise it when a
-    // dictation session ends on its own — the plugin emits it around explicit
-    // start/stop calls, so on device the partials just kept overwriting each other
-    // and no line was ever committed. Silence is measured here instead: no new
-    // partial for SILENCE_MS means the speaker finished the utterance.
+    // THE BOUNDARY IS SELF-DETECTED, AND IT DOES NOT TOUCH THE SESSION.
+    //
+    // Two things were learned on device, in this order. First, `listeningState:
+    // "stopped"` is not raised when iOS ends a dictation session on silence (the
+    // plugin emits it around explicit start/stop calls), so waiting for it meant
+    // partials overwrote each other and no line was ever committed. Silence is
+    // therefore measured here, from the gap between partials.
+    //
+    // Second — and this is why the boundary only COMMITS — stopping and restarting
+    // the recognizer at each pause CRASHED THE APP: `stop()` immediately followed by
+    // `start()` tears down and rebuilds AVAudioEngine underneath a task that is
+    // still finishing, and the native exception kills the process. That path had
+    // never actually run before, because the event that triggered it never fired.
+    //
+    // So a pause now ends the LINE, not the session: the recognizer keeps running,
+    // its hypothesis keeps growing, and `committed` marks how much of it is already
+    // on screen. Restarting is reserved for a session that is genuinely dead, and
+    // even then it is done gently (see `restart`).
     let cycling = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let silence: ReturnType<typeof setTimeout> | null = null;
+    let health: ReturnType<typeof setInterval> | null = null;
 
-    const arm = (ms: number) => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void boundary(), ms);
+    const armSilence = () => {
+      if (silence) clearTimeout(silence);
+      silence = setTimeout(commit, SILENCE_MS);
     };
 
-    /** End the utterance: commit what's formed, then start a fresh session. Both
-     *  triggers (the silence timer and the listeningState event, where it does
-     *  fire) funnel through here, and `cycling` keeps them from restarting twice. */
-    const boundary = async () => {
+    /** Bring a DEAD session back. Never called for an ordinary pause. */
+    const restart = async () => {
       if (stopped || cycling) return;
       cycling = true;
-      if (timer) clearTimeout(timer);
-      commit();
-      // Our own stop() re-enters the listeningState listener; `cycling` absorbs it.
+      if (silence) clearTimeout(silence);
+      commit(); // don't lose the line in flight
+      heard = "";
+      committed = ""; // a new session starts a new hypothesis
       try {
-        await SpeechRecognition.stop();
+        // Only stop something that is actually listening, and give the audio
+        // session time to tear down before starting again — doing the two
+        // back-to-back is what crashed the app.
+        if ((await SpeechRecognition.isListening()).listening) {
+          await SpeechRecognition.stop();
+          await new Promise((r) => setTimeout(r, RESTART_DELAY_MS));
+        }
       } catch {
-        /* already ended — restarting is what matters */
+        /* already gone — starting again is what matters */
       }
       if (!stopped) await run();
       cycling = false;
-      arm(IDLE_MS);
     };
 
     handles.push(
       await SpeechRecognition.addListener("partialResults", ({ matches }) => {
-        const text = matches?.[0] ?? "";
-        if (!text) return;
-        forming = text;
-        onPartial(text);
-        arm(SILENCE_MS); // each syllable pushes the boundary out
+        const full = matches?.[0] ?? "";
+        if (!full) return;
+        heard = full;
+        // Strip what is already on screen: iOS extends ONE hypothesis across a
+        // pause, so without this every committed sentence would reappear inside
+        // the next one.
+        const rest = (full.startsWith(committed) ? full.slice(committed.length) : full).trim();
+        if (!rest) return;
+        forming = rest;
+        onPartial(rest);
+        armSilence(); // each syllable pushes the line boundary out
       }),
     );
     handles.push(
       await SpeechRecognition.addListener("listeningState", ({ status }) => {
-        if (status !== "stopped") return;
-        void boundary(); // still honoured on platforms that do raise it
+        // Where a platform DOES raise this, the session really has ended.
+        if (status === "stopped" && !cycling) void restart();
       }),
     );
 
     await run();
-    // A session that never hears anything still has to be recycled: iOS ends the
-    // task on its own after about a minute, and nothing would signal that.
-    arm(IDLE_MS);
+
+    // The only other way a session dies is quietly: iOS ends the task on its own
+    // after about a minute, and after an error. Poll for that rather than assuming
+    // an event — but poll the STATE, so a healthy session is never disturbed.
+    health = setInterval(() => {
+      if (stopped || cycling) return;
+      void SpeechRecognition.isListening()
+        .then(({ listening }) => {
+          if (!listening) void restart();
+        })
+        .catch(() => {
+          /* the check itself failing is not worth killing the session over */
+        });
+    }, HEALTH_MS);
 
     return {
       stop: () => {
         stopped = true;
-        if (timer) clearTimeout(timer);
+        if (silence) clearTimeout(silence);
+        if (health) clearInterval(health);
         commit(); // keep the half-said line rather than dropping it
         void SpeechRecognition.stop().catch(() => {});
         // remove OUR handles, not removeAllListeners() — that would also tear down

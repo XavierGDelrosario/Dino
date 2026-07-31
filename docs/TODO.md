@@ -39,10 +39,26 @@ Post-launch: media study · input modalities · AI.
 #### AI agents — generative study aids `[extends #12]`
 - **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota. Same reserve-before-call seam.
 - **Discipline:** hard `max_tokens` · cache outputs (like `words`) · prompt-cache the system prompt.
-- **Features:** sample sentence from a saved word · domain paragraph quiz ("paragraph at level X from these seeds").
+- **Features:** domain paragraph quiz ("paragraph at level X from these seeds"). *Sample sentences moved out — pre-generated at ingest, see below.*
 - **Fork:** an LLM can collapse #11/#12 into one call. Less infra; per-use cost + less determinism.
 - **Hybrid (rec):** embeddings for free level-aware selection; LLM only for generation. ~$0.0017 Haiku / $0.005 Sonnet per call.
 - ⚠️ **Billing — build monetization in parallel.** Every item here is per-use paid. Free stops being free. `user_limits` + reserve exist; Stripe/plan half doesn't. Set free-vs-paid limits **before launch**.
+
+#### Sense enrichment — example sentence + JA definition per meaning `[ingest-time · zero runtime cost]`
+- **Feature:** each SENSE gets (a) a Japanese example sentence + English gloss, (b) a Japanese-language definition. Surfaces in the reader's hover card (per sense, beside its `＋`), the flashcard back, and Lists detail.
+- **Why per-sense:** a gloss list can't separate 辛い からい/つらい — a sentence can. Sense precision without needing per-sense frequency (cf. Quality → *Per-sense granularity*).
+- **Generated at INGEST, not runtime** — the opposite of "AI agents" above: a committed data file, so no per-user cost, no quota, no `ANTHROPIC_API_KEY` edge secret, and the output is reviewable in a diff. Removes a planned paid feature instead of adding one.
+- **Storage:** server-only `jmdict_sense_example (jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja)`; edge projects onto new nullable `words.*` columns — same shape as `english_frequency` → `words.frequency`. Data file `data/sense_examples/ja.tsv` + `scripts/ingest-sense-examples.ts` (usual `DATABASE_URL` convention). Bump `CURRENT_PROJECTION_VERSION` so cached rows re-project — #34's read-side gate is what makes a regeneration actually reach users.
+  - Dictionary-scoped by (entry, sense) on purpose: `words` is a LAZY cache, so a word nobody has looked up has no row to write into.
+- **Scale** (measured on prod 2026-08-01) — senses by headword frequency: ≥500 **4,534** · ≥450 9,283 · ≥400 16,880 · all 251,734. First pass = multi-sense entries in the top band, where an example earns its place.
+- **Generation rules:** demonstrate THAT sense, not the word generally · **every other word more common than the target** (checkable — we have `frequency` per surface — and it's what stops the example being harder than the word it explains) · natural JA, not English word order · short enough for a hover card.
+- **Renders through `ParagraphReader`:** the example is JA text, so every word in it is tappable and knowledge-coloured with kuromoji furigana. No new rendering code.
+- **JA definitions — JMdict CANNOT supply these.** Its glosses are target-language only (`jmdict_glosses.lang` = eng/ger/fre/…, never jpn — the headword *is* the Japanese).
+  - **Japanese WordNet can, partially, and it's already in our pipeline:** `wnjpn.db`'s `synset_def` carries non-English defs, but `scripts/ingest-wordnet.ts:92` filters `d.lang = 'eng'` and `wordnet_synsets` only has `definition_en`. Widening that filter + a `definition_ja` column is a small change — but **verify coverage first**: they're translations of Princeton glosses (so they read like translated English), and only synset-linked words are covered at all.
+  - Free monolingual JA alternatives are thin: ja.wiktionary (CC BY-SA, uneven coverage). 大辞泉 / 大辞林 / 広辞苑 are commercial.
+  - Plan: WordNet where it exists, LLM-generate the rest, both into the same table.
+- **Serves both markets:** JA-native users (the ~40%) get meanings in their own language; advanced JA learners get monolingual definitions (a standard immersion technique).
+- **Throughput:** hand-written in-session ≈100–150 senses/turn — free, ~30 turns for the ≥500 band. Batch API covers ≥400 (16,880) in one job for a few dollars. Hybrid: hand-write the top band, script the tail.
 
 #### Article library — headlines → analysis → link-out `[extends #9 · legal-clean media]`
 - **Shape:** RSS/API headlines on our side → click → server-side fetch + analyze → **derived data only** → link out.
