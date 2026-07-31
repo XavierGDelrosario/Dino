@@ -257,6 +257,21 @@ describe("ParagraphReader — tapping a sentence's punctuation", () => {
     expect(container.querySelectorAll(".reader__gloss")).toHaveLength(2);
   });
 
+  it("the toggle puts away tapped lines too — off means OFF", () => {
+    // Tapping a sentence and then switching the toggle on and off used to leave
+    // that line's English on screen, so the toggle looked like it had failed.
+    const { container } = renderTappable();
+    fireEvent.click(marks(container)[0]);
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+
+    const toggle = screen.getByRole("button", { name: /Show translation/ });
+    fireEvent.click(toggle); // on — everything shows
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(2);
+
+    fireEvent.click(toggle); // off — nothing shows, including the tapped line
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(0);
+  });
+
   it("hides again when the SAME control is pressed twice", () => {
     const { container } = renderTappable();
     fireEvent.click(marks(container)[0]);

@@ -343,10 +343,16 @@ export async function translateParagraph(params: {
   //    unit, so the reader can print the English under the Japanese it belongs to
   //    (see services/language/sentences.ts). It is still ONE round-trip and the
   //    same billed characters — the edge sends them as one multi-segment request.
-  const sentenceSpans = params.skipGloss ? [] : splitSentences(input);
+  //    SPLITTING IS FREE; only the gloss costs. `skipGloss` used to return no
+  //    spans at all, which silently removed the reader's per-sentence affordance:
+  //    the punctuation controls are drawn from these spans, so on a skipGloss
+  //    surface (the live reader, the article page) there was nothing to click
+  //    until a whole-text gloss had been bought and re-split the text. The spans
+  //    now always come back — with null glosses when nothing was purchased.
+  const sentenceSpans = splitSentences(input);
   const glossPromise: Promise<SentenceGloss[]> =
-    sentenceSpans.length === 0
-      ? Promise.resolve([])
+    params.skipGloss || sentenceSpans.length === 0
+      ? Promise.resolve(sentenceSpans.map((s) => ({ ...s, gloss: null })))
       : // Through the CACHE, not the raw client: this is the same content the
         // reader's per-sentence taps buy. Going direct meant a paragraph glossed by
         // Translate seeded nothing, so tapping any of its sentences afterwards paid

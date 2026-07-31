@@ -214,21 +214,6 @@
   transition: none;
 }
 
-/* Swipe hint for Review / the text quiz. Hidden on pointer devices, where the 1–5
-   grade buttons are right there and swiping is neither possible nor needed; shown on
-   touch, where the gesture would otherwise be invisible. (The placement quiz has its
-   own copy of this rule in calibration.css, for its own hint.) */
-.swipe__hint--touch {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-  text-align: center;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .swipe__hint--touch { display: none; }
-}
-
 /* The incoming card settles in, so a rated card is visibly REPLACED rather than
    silently swapped. Keyed on the word id by the caller, so it replays per card. */
 .swipecard__in {

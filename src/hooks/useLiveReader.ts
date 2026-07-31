@@ -28,9 +28,10 @@
 // The explicit Translate button is untouched: this is ambient reading, that is
 // the deliberate act (single-word senses, or a gloss of everything).
 // =========================================================
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { splitSentences, SUPPORTED_LANGUAGES, resolveSourceLanguage } from "../services/language";
+import { glossSentences, getCachedGloss } from "../services/translation";
 import type { LangCode } from "../services/language";
 import type { SourceSelection } from "../services/language/detect";
 import { nfc } from "../lib/text";
@@ -76,6 +77,12 @@ export function useLiveReader({
   /** The exact text `para` describes (the reader needs it to slice spans). */
   analyzed: string;
   loading: boolean;
+  /** Buy the English for ONE sentence (the reader's punctuation affordance). */
+  translateSentence: (index: number) => Promise<void>;
+  /** Buy it for the whole analyzed text — cache-aware, so lines already tapped
+   *  are free. Wire to the reader's "Show translation" toggle. */
+  translateAll: () => Promise<void>;
+  glossLoading: boolean;
   /** Wire to the input's compositionstart/end — analysis pauses mid-conversion. */
   setComposing: (composing: boolean) => void;
 } {
@@ -144,10 +151,63 @@ export function useLiveReader({
     }
   }, [text]);
 
+  // ── Buying the English ────────────────────────────────────────────────────
+  // Same two affordances as the conversation listener, over the same content-
+  // addressed cache: tap one sentence, or take the lot. Buying either way makes
+  // the other free, in either order — a paragraph press after three taps pays for
+  // what is left, never for all of it again.
+  //
+  // The gloss is read STRAIGHT FROM THE CACHE rather than held in state, because
+  // this text is still being typed: the sentence spans are re-split on every
+  // keystroke, so anything keyed by index would smear onto the wrong line. The
+  // cache is keyed by the sentence text itself, so re-splitting is harmless.
+  // `bought` exists only to re-render after a purchase.
+  const [bought, setBought] = useState(0);
+  const [glossLoading, setGlossLoading] = useState(false);
+
+  const withGlosses = useMemo(() => {
+    if (!para) return null;
+    void bought; // re-read the cache after a purchase
+    const sentences = para.sentences.map((s) => ({
+      ...s,
+      gloss: s.gloss ?? getCachedGloss(s.text, learning, native) ?? null,
+    }));
+    return { ...para, sentences };
+  }, [para, bought, learning, native]);
+
+  const translateSentence = useCallback(
+    async (index: number) => {
+      const span = para?.sentences[index];
+      if (!span || getCachedGloss(span.text, learning, native)) return;
+      await glossSentences({ segments: [span.text], sourceLang: learning, targetLang: native });
+      setBought((n) => n + 1);
+    },
+    [para, learning, native],
+  );
+
+  const translateAll = useCallback(async () => {
+    const spans = para?.sentences ?? [];
+    if (glossLoading || spans.length === 0) return;
+    setGlossLoading(true);
+    try {
+      await glossSentences({
+        segments: spans.map((s) => s.text),
+        sourceLang: learning,
+        targetLang: native,
+      });
+      setBought((n) => n + 1);
+    } finally {
+      setGlossLoading(false);
+    }
+  }, [para, glossLoading, learning, native]);
+
   return {
-    para,
+    para: withGlosses,
     analyzed,
     loading,
+    translateSentence,
+    translateAll,
+    glossLoading,
     setComposing: useCallback((v: boolean) => setComposing(v), []),
   };
 }

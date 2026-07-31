@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLiveTranscript } from "../hooks/useLiveTranscript";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { ErrorText } from "../components/common/ErrorText";
+import { errorMessage } from "../lib/errorMessage";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { BackIcon, MicIcon, StopIcon } from "../components/common/icons";
 import { splitSentences } from "../services/language";
@@ -50,6 +51,9 @@ export function LiveTranscriptView({
   // Glosses bought for individual lines. Held here (not in the hook) because they
   // are a display concern: the transcript is the same with or without them.
   const [glosses, setGlosses] = useState<Record<number, string>>({});
+  // Why the English did not appear. Distinct from live.error (the recognizer):
+  // a failed translation must not read as a failed transcript.
+  const [glossError, setGlossError] = useState<string | null>(null);
 
   const native: Lang = SUPPORTED_LANGUAGES.find((l) => l.code !== learning)?.code ?? learning;
 
@@ -66,14 +70,23 @@ export function LiveTranscriptView({
     async (index: number) => {
       const span = sentences[index];
       if (!span || span.gloss) return;
-      const [gloss] = await glossSentences({
-        segments: [span.text],
-        sourceLang: learning,
-        targetLang: native,
-      });
-      if (gloss) setGlosses((prev) => ({ ...prev, [index]: gloss }));
+      setGlossError(null);
+      try {
+        const [gloss] = await glossSentences({
+          segments: [span.text],
+          sourceLang: learning,
+          targetLang: native,
+        });
+        // A null gloss is not an exception — the provider ran and returned
+        // nothing (quota, an MT kill-switch, an unsupported pair). Silence here
+        // is what made this look like "translation just doesn't work".
+        if (gloss) setGlosses((prev) => ({ ...prev, [index]: gloss }));
+        else setGlossError(t("listen.glossEmpty"));
+      } catch (e) {
+        setGlossError(errorMessage(e));
+      }
     },
-    [sentences, learning, native],
+    [sentences, learning, native, t],
   );
 
   // "Show translation" for the WHOLE transcript. Without this the toggle had
@@ -83,6 +96,7 @@ export function LiveTranscriptView({
   const translateAll = useCallback(async () => {
     if (glossLoading || sentences.length === 0) return;
     setGlossLoading(true);
+    setGlossError(null);
     try {
       const fetched = await glossSentences({
         segments: sentences.map((s) => s.text),
@@ -96,6 +110,9 @@ export function LiveTranscriptView({
         });
         return next;
       });
+      if (fetched.every((g) => !g)) setGlossError(t("listen.glossEmpty"));
+    } catch (e) {
+      setGlossError(errorMessage(e));
     } finally {
       setGlossLoading(false);
     }
@@ -177,6 +194,7 @@ export function LiveTranscriptView({
 
       {live.status === "unavailable" && <p className="review__msg">{t("listen.unavailable")}</p>}
       <ErrorText message={live.error} />
+      <ErrorText message={glossError} />
 
       {live.lines.length === 0 && live.status !== "unavailable" && (
         <p className="review__msg">{live.listening ? t("listen.waiting") : t("listen.idle")}</p>

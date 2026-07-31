@@ -311,6 +311,20 @@ Full ledger: `docs/QualityLimitations.md`.
   - Effect: prod 434 → 354 MB, staging 428 → 348 MB; the Free→Pro pressure is gone.
   - Reversible: `build-embeddings.py` + the creating migration remain; client half is in
     git history. Reconsider the LLM route first (one call collapses #11+#12, no vectors).
+- **Unused JMdict primary keys — DROPPED 2026-08-01** (`20260743`)
+  - Surrogate `id` PKs on `jmdict_glosses`/`kana`/`kanji`: **0 scans** vs ~390k on the
+    sibling `_text` indexes over the same tables — never used, not merely rare.
+  - Effect: prod 354 → 334 MB, staging 348 → 328 MB. No feature loss, no rewrite.
+  - `jmdict_senses`'s PK **stays** (`jmdict_glosses.sense_id` FKs onto it).
+  - Considered and **kept**: `idx_jmdict_glosses_trgm` (25 MB, only 333 scans since
+    WordNet took over EN→JA). Measured — dropping it turns the EN→JA gloss fill from a
+    ~5 ms bitmap scan into a ~175 ms parallel seq scan over 438k rows (~35×) on a path
+    the user waits on. Revisit only under storage pressure.
+- **EN→JA `jmdict_lookup` is SLOW — ~0.8 s warm, ~3.1 s cold** (measured prod 2026-08-01)
+  - Not the gloss scan (5 ms with the trigram index) — the cost is elsewhere in the
+    function; plpgsql is opaque to `EXPLAIN`, so it needs decomposing by hand.
+  - Miss: any EN→JA lookup WordNet doesn't fully cover stalls ~1 s. Rare (333 calls
+    lifetime) but user-visible when it fires. Not yet investigated.
 - **Per-sense granularity**
   - Frequency is per-surface; proficiency per-ENTRY since `20260740`. Never per-sense.
   - Miss: a homograph (辛い からい/つらい) gets **one blended** band/freq/vector. Sense precision lost.
@@ -472,6 +486,17 @@ Not a to-do — standing rules + hosted toggles for the live instance. Items 2�
 **8. Confirm pg_cron jobs registered on prod/staging**
 - Guest sweep (`20260727`, weekly) + `idempotency_keys` prune (`20260712`).
 - Both silently **no-op** without pg_cron. Do a `dry_run` pass first.
+
+**9. Staging schema is BEHIND prod — 3 migrations** (found 2026-08-01)
+- Missing on staging (`jfcb…`): `20260739` quality_report_status · `20260740`
+  proficiency_band_entry_fallback · `20260742` en_ja_headline_rank.
+- Verified by function body, not just the ledger: staging's `jmdict_lookup` has **no**
+  `headline_rank`, so staging still serves the OLD (wrong-primary) EN→JA order.
+- Miss: staging stops being a faithful rehearsal for iOS dev — a lookup bug reproduced
+  there may already be fixed on prod, and vice versa.
+- All three are applied + verified on prod; applying them to staging is a re-run, not
+  new work. `20260740` must keep its `public.`-qualified references (it failed on
+  staging once without them).
 
 </details>
 

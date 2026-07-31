@@ -7,11 +7,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
 vi.mock("@/services/lookup", () => ({ translateParagraph: vi.fn() }));
+vi.mock("@/services/translation/client", () => ({ translateSegments: vi.fn() }));
 
 import { translateParagraph } from "@/services/lookup";
+import { translateSegments } from "@/services/translation/client";
+import { __clearGlossCache } from "@/services/translation/sentenceCache";
 import { useLiveReader, completedPrefix } from "@/hooks/useLiveReader";
 
 const mockAnalyze = vi.mocked(translateParagraph);
+const mockSegments = vi.mocked(translateSegments);
 const result = (tokens: unknown[] = []) => ({
   translation: "",
   translated: false,
@@ -101,5 +105,82 @@ describe("useLiveReader", () => {
     rerender({ t: "" });
     expect(hook.current.para).toBeNull();
     expect(hook.current.analyzed).toBe("");
+  });
+
+  // The reader buys English the same two ways the conversation listener does, over
+  // the same content-addressed cache. The property that matters is that the two
+  // paths are ONE purchase: tapping sentences and then pressing the toggle must pay
+  // only for what is left, in either order.
+  describe("buying the English", () => {
+    const SENTENCES = [
+      { text: "猫が好き。", start: 0, end: 5, gloss: null },
+      { text: "犬も好き。", start: 5, end: 10, gloss: null },
+    ];
+
+    const withSentences = () => {
+      mockAnalyze.mockResolvedValue({ ...result(), sentences: SENTENCES } as never);
+      return render("猫が好き。犬も好き。");
+    };
+
+    beforeEach(() => {
+      __clearGlossCache();
+      mockSegments.mockReset();
+      mockSegments.mockImplementation(async ({ segments }: { segments: string[] }) =>
+        segments.map((s) => `EN(${s})`),
+      );
+    });
+
+    it("buys ONE sentence on a tap, and shows it on that line", async () => {
+      const { result: hook } = withSentences();
+      await act(async () => void vi.advanceTimersByTime(600));
+      await act(async () => void (await hook.current.translateSentence(0)));
+
+      expect(mockSegments).toHaveBeenCalledTimes(1);
+      expect(mockSegments.mock.calls[0][0].segments).toEqual(["猫が好き。"]);
+      expect(hook.current.para?.sentences[0].gloss).toBe("EN(猫が好き。)");
+      expect(hook.current.para?.sentences[1].gloss).toBeNull(); // untouched
+    });
+
+    it("a whole-text press after a tap pays ONLY for what is left — no duplicate", async () => {
+      const { result: hook } = withSentences();
+      await act(async () => void vi.advanceTimersByTime(600));
+      await act(async () => void (await hook.current.translateSentence(0)));
+      mockSegments.mockClear();
+
+      await act(async () => void (await hook.current.translateAll()));
+      expect(mockSegments).toHaveBeenCalledTimes(1);
+      // The already-bought sentence is NOT on the wire again.
+      expect(mockSegments.mock.calls[0][0].segments).toEqual(["犬も好き。"]);
+      expect(hook.current.para?.sentences.map((s) => s.gloss)).toEqual([
+        "EN(猫が好き。)",
+        "EN(犬も好き。)",
+      ]);
+    });
+
+    it("a tap after a whole-text press costs nothing — the same purchase, either order", async () => {
+      const { result: hook } = withSentences();
+      await act(async () => void vi.advanceTimersByTime(600));
+      await act(async () => void (await hook.current.translateAll()));
+      mockSegments.mockClear();
+
+      await act(async () => void (await hook.current.translateSentence(1)));
+      expect(mockSegments).not.toHaveBeenCalled();
+    });
+
+    it("re-tapping a bought sentence spends nothing", async () => {
+      const { result: hook } = withSentences();
+      await act(async () => void vi.advanceTimersByTime(600));
+      await act(async () => void (await hook.current.translateSentence(0)));
+      mockSegments.mockClear();
+
+      await act(async () => void (await hook.current.translateSentence(0)));
+      expect(mockSegments).not.toHaveBeenCalled();
+    });
+
+    it("buys nothing on its own — the live reader still never spends unasked", async () => {
+      withSentences();
+      await act(async () => void vi.advanceTimersByTime(600));
+      expect(mockSegments).not.toHaveBeenCalled();
+    });
   });
 });

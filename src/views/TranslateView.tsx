@@ -402,7 +402,15 @@ export function TranslateView({
             tokens={live.para.tokens}
             meaningsByWord={live.para.meanings}
             sentences={live.para.sentences}
-            onTranslateSentence={t.loadSentenceGloss}
+            // The live reader buys its OWN English, exactly like the conversation
+            // listener: tap one sentence, or take the lot. These used to point at
+            // t.loadSentenceGloss, which works on the SUBMITTED paragraph — so with
+            // nothing submitted it returned immediately and no line could ever be
+            // bought here. Both paths share the sentence cache, so tapping a few
+            // and then pressing the toggle pays only for what's left.
+            onTranslateSentence={live.translateSentence}
+            onLoadGloss={live.translateAll}
+            glossLoading={live.glossLoading}
             saved={t.saved}
             confidence={t.confidence}
             lists={t.lists}

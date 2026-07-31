@@ -109,8 +109,6 @@ export function FlashcardView({
         </div>
       </div>
 
-      {/* Touch only: on a pointer device the grade buttons are right there. */}
-      <p className="swipe__hint swipe__hint--touch">{t("review.swipeHint")}</p>
 
       <ErrorText message={r.error} />
 

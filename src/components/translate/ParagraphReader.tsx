@@ -303,7 +303,13 @@ function ParagraphReaderImpl({
   // First press buys the translation; later presses just show/hide what we hold.
   const toggleGloss = () => {
     if (!hasGloss && onLoadGloss && !glossLoading) void onLoadGloss();
-    setShowGloss((v) => !v);
+    setShowGloss((v) => {
+      // Turning it OFF clears the individually-tapped lines too. They are the same
+      // answer arrived at a different way, so leaving them behind made the toggle
+      // look broken: press it off and some English stays on screen.
+      if (v) setTapped(new Set());
+      return !v;
+    });
   };
 
   // Cap the hovercard at 12 senses (matches WordResults' MAX_SHOWN). The hovercard
