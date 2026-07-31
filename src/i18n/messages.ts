@@ -70,10 +70,6 @@ export const en = {
   "translate.addAll": "+ Add all {n} new {noun}",
   "translate.quizNew": "Quiz {n} new {noun}",
   "translate.reviewSaved": "Review {n} saved {noun}",
-  "translate.explore": "Explore related words",
-  "translate.exploreLoading": "Finding related words…",
-  "translate.noDomain":
-    "No related words at your level — try a longer or more common passage.",
 
   "translate.clearInput": "Clear input",
 
@@ -102,6 +98,10 @@ export const en = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "Scan text from a photo",
+  "ocr.cropHint": "Drag to select just the text you want.",
+  "ocr.cropAria": "Crop selection",
+  "ocr.photoAria": "Captured photo",
+  "ocr.recognize": "Recognize",
   "ocr.noText": "No text found in the photo.",
   "ocr.error": "Couldn’t read the photo. Try again.",
 
@@ -124,6 +124,16 @@ export const en = {
   "lists.reviewCappedTitle": "Review up to 20 of these words with flashcards",
   "lists.reviewAll": "▶ Review All ({n})",
   "lists.reviewAllTitle": "Review every one of these {n} words (no 20-word cap)",
+  "common.back": "Back",
+  "reader.translateSentence": "Translate this sentence",
+  "listen.start": "● Listen",
+  "listen.stop": "■ Stop",
+  "listen.clear": "Clear",
+  "listen.idle": "Press Listen and the conversation appears here, word by word.",
+  "listen.waiting": "Listening…",
+  "listen.unavailable": "Live listening needs Chrome on desktop, or the iOS app.",
+  "listen.tool": "Listen to a conversation",
+  "listen.addAll": "＋ Add {n} new {noun}",
   "lists.summaryBtn": "◔ Summary",
   "lists.summaryTitle": "Confidence, frequency and level across these words",
   "lists.deleteConfirm": "Delete the list \"{name}\"? Words stay in your vocabulary.",
@@ -231,6 +241,7 @@ export const en = {
   "review.emptyAll": "Nothing to review yet — add some words to your vocabulary first.",
   "review.done": "Done — reviewed {n} {noun}. 🎉",
   "review.again": "Review again",
+  "review.swipeHint": "Swipe → if you knew it, ← if you didn’t. Tap the card to reveal.",
   "review.retrySame": "Retry quiz",
   "review.newQuiz": "New quiz",
   "review.recallAria": "How well did you recall it?",
@@ -376,6 +387,7 @@ export const en = {
   "auth.toSignIn": "Already have an account? Sign in",
   "auth.toSignUp": "No account? Create one",
   "auth.google": "Continue with Google",
+  "auth.apple": "Continue with Apple",
   "auth.confirmEmail": "Check your email to confirm your address, then you're all set.",
   "auth.agreePre": "I agree to the ",
   "auth.termsLink": "Terms of Service",
@@ -403,6 +415,7 @@ export const en = {
   // legal
   "legal.privacy": "Privacy",
   "legal.terms": "Terms",
+  "legal.support": "Support",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -463,10 +476,6 @@ export const ja: Record<MessageKey, string> = {
   "translate.addAll": "新しい{noun}{n}個をすべて追加",
   "translate.quizNew": "新しい{noun}{n}個をクイズ",
   "translate.reviewSaved": "保存済みの{noun}{n}個を復習",
-  "translate.explore": "関連語を探す",
-  "translate.exploreLoading": "関連語を検索中…",
-  "translate.noDomain":
-    "あなたのレベルに合う関連語が見つかりません。より長い、または一般的な文章をお試しください。",
 
   "translate.clearInput": "入力を消去",
 
@@ -495,6 +504,10 @@ export const ja: Record<MessageKey, string> = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "写真から文字を読み取る",
+  "ocr.cropHint": "読み取りたい部分をドラッグして選んでください。",
+  "ocr.cropAria": "切り取り範囲",
+  "ocr.photoAria": "撮影した写真",
+  "ocr.recognize": "読み取る",
   "ocr.noText": "写真から文字が見つかりませんでした。",
   "ocr.error": "写真を読み取れませんでした。もう一度お試しください。",
 
@@ -515,6 +528,16 @@ export const ja: Record<MessageKey, string> = {
   "lists.reviewCappedTitle": "これらの単語を最大20語までフラッシュカードで復習",
   "lists.reviewAll": "▶ すべて復習 ({n})",
   "lists.reviewAllTitle": "これら{n}語すべてを復習（20語の上限なし）",
+  "common.back": "戻る",
+  "reader.translateSentence": "この文を翻訳",
+  "listen.start": "● 聞き取り",
+  "listen.stop": "■ 停止",
+  "listen.clear": "クリア",
+  "listen.idle": "「聞き取り」を押すと、会話がここに単語ごとに表示されます。",
+  "listen.waiting": "聞き取り中…",
+  "listen.unavailable": "ライブ聞き取りはデスクトップのChrome、またはiOSアプリが必要です。",
+  "listen.tool": "会話を聞き取る",
+  "listen.addAll": "＋ 新出{n}{noun}を追加",
   "lists.summaryBtn": "◔ サマリー",
   "lists.summaryTitle": "これらの単語の自信度・頻度・レベルの内訳",
   "lists.deleteConfirm": "リスト「{name}」を削除しますか？単語は語彙に残ります。",
@@ -613,6 +636,7 @@ export const ja: Record<MessageKey, string> = {
   "review.emptyAll": "まだ復習するものがありません — まず語彙に単語を追加してください。",
   "review.done": "完了 — {n}{noun}を復習しました。🎉",
   "review.again": "もう一度復習",
+  "review.swipeHint": "わかれば右へ、わからなければ左へスワイプ。タップで答えを表示。",
   "review.retrySame": "同じクイズをやり直す",
   "review.newQuiz": "新しいクイズ",
   "review.recallAria": "どれくらい思い出せましたか？",
@@ -751,6 +775,7 @@ export const ja: Record<MessageKey, string> = {
   "auth.toSignIn": "すでにアカウントをお持ちですか？ログイン",
   "auth.toSignUp": "アカウントがありませんか？作成する",
   "auth.google": "Google で続ける",
+  "auth.apple": "Apple で続ける",
   "auth.confirmEmail": "メールを確認してアドレスを認証してください。それで完了です。",
   "auth.agreePre": "",
   "auth.termsLink": "利用規約",
@@ -776,6 +801,7 @@ export const ja: Record<MessageKey, string> = {
 
   "legal.privacy": "プライバシー",
   "legal.terms": "利用規約",
+  "legal.support": "サポート",
 };
 
 export const LOCALES = [

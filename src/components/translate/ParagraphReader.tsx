@@ -26,6 +26,7 @@ function ParagraphReaderImpl({
   meaningsByWord,
   sentences = [],
   onLoadGloss,
+  onTranslateSentence,
   glossLoading = false,
   saved,
   confidence,
@@ -43,6 +44,10 @@ function ParagraphReaderImpl({
    *  is offered even before any translation exists and buys it on first press —
    *  so a reader who never asks for English never spends. */
   onLoadGloss?: () => void | Promise<void>;
+  /** Buy the English for ONE sentence, by index into `sentences`. Wired to that
+   *  sentence's closing punctuation — the 。 is the affordance, so a reader can pay
+   *  for the one line they didn't catch instead of the whole text. */
+  onTranslateSentence?: (index: number) => void | Promise<void>;
   glossLoading?: boolean;
   saved: Set<string>;
   confidence: Map<string, number>;
@@ -57,6 +62,20 @@ function ParagraphReaderImpl({
   // Toggling it on breaks the paragraph into sentences and prints each one's
   // English directly beneath it, so the eye never leaves the line it's reading.
   const [showGloss, setShowGloss] = useState(false);
+  // Sentences whose control was pressed. Their English shows directly beneath them,
+  // in the flow of the text — pressing again hides it. The toggle is the same thing
+  // for every sentence at once.
+  const [tapped, setTapped] = useState<ReadonlySet<number>>(new Set());
+
+  const visibleGloss = useCallback(
+    (index: number): string | null => {
+      const gloss = sentences[index]?.gloss;
+      if (!gloss) return null;
+      return showGloss || tapped.has(index) ? gloss : null;
+    },
+    [sentences, showGloss, tapped],
+  );
+
   // Summary infographic (level / frequency / confidence + coverage donut), hidden
   // by default and shown above the paragraph. Recomputes when a word is added or
   // reviewed (saved/confidence change) so the charts stay live.
@@ -125,11 +144,103 @@ function ParagraphReaderImpl({
         const best = Math.max(...savedSenses.map((s) => confidence.get(s.wordId) ?? 0));
         return { cls: `tok tok--known tok--c${best}`, interactive: true };
       };
+      // Punctuation between tokens is where the per-sentence translate lives: the
+      // terminator that ENDS a sentence becomes a button for that sentence. It reads
+      // as punctuation until you hover it, so the reader gains an action without
+      // gaining any chrome.
+      const buySentence = onTranslateSentence;
+      // Show this sentence's English under it; pressing the same control again
+      // hides it, so the control that asked the question also puts it away.
+      const openFor = (idx: number) => () => {
+        setTapped((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(idx)) next.add(idx);
+          return next;
+        });
+        void buySentence?.(idx);
+      };
+      // The text between tokens carries the sentence boundaries: a closing 。, a
+      // line break, or nothing at all. A gap can also SPAN a boundary (the sentence
+      // ended mid-gap, e.g. on characters kuromoji didn't tokenize), so it is split
+      // at each end rather than rendered whole — emitting the control after the
+      // whole gap put it past the line break, next to the FOLLOWING sentence.
+      const gap = (raw: string, at: number, key: string): JSX.Element => {
+        const parts: JSX.Element[] = [];
+        let local = 0; // position within `raw`
+        for (let idx = 0; idx < sentences.length; idx++) {
+          const end = sentences[idx].end;
+          if (end <= at || end > at + raw.length) continue; // boundary isn't in here
+          const cut = end - at;
+          const chunk = raw.slice(local, cut);
+          const mark = chunk.slice(-1);
+          const isTerminator = /[。．！？!?…]/u.test(mark);
+          // Only an actual terminator becomes the control; a sentence ending on
+          // ordinary text gets the implicit marker, or a kana would look pressable.
+          parts.push(<span key={`${key}-txt-${idx}`}>{isTerminator ? chunk.slice(0, -1) : chunk}</span>);
+          if (buySentence) {
+            parts.push(
+              <button
+                key={`${key}-mark-${idx}`}
+                type="button"
+                className={`reader__punct${isTerminator ? "" : " reader__punct--implicit"}${
+                  sentences[idx]?.gloss ? " is-bought" : ""
+                }`}
+                // Clicking the OPEN sentence's mark closes it — the same control
+                // that asked the question dismisses the answer.
+                onClick={openFor(idx)}
+                title={tr("reader.translateSentence")}
+                aria-label={tr("reader.translateSentence")}
+              >
+                {isTerminator ? mark : null}
+              </button>,
+            );
+            marked.add(idx);
+          } else if (isTerminator) {
+            parts.push(<span key={`${key}-mark-${idx}`}>{mark}</span>);
+          }
+          const gloss = visibleGloss(idx);
+          if (gloss)
+            parts.push(
+              <span className="reader__gloss" key={`${key}-gloss-${idx}`}>
+                {gloss}
+              </span>,
+            );
+          local = cut;
+        }
+        if (local < raw.length) parts.push(<span key={`${key}-tail`}>{raw.slice(local)}</span>);
+        return <span key={key}>{parts}</span>;
+      };
+
       const out: JSX.Element[] = [];
       let cursor = from;
+      // Sentences whose control was already drawn as a clickable TERMINATOR by
+      // `gap` — they must not also get an implicit marker.
+      const marked = new Set<number>();
+      let nextSentence = 0;
+      // Emit a control for every sentence the cursor has now passed. Positional, not
+      // exact-match: a sentence can end on a token (speech, headlines), inside a
+      // longer gap, or on punctuation — only the last of those is `gap`'s case, and
+      // requiring an exact hit is what left some sentences with no control at all.
+      const closePassedSentences = (key2: string) => {
+        if (!buySentence) return;
+        while (nextSentence < sentences.length && sentences[nextSentence].end <= cursor) {
+          const idx = nextSentence++;
+          if (marked.has(idx) || sentences[idx].end <= from) continue;
+          out.push(
+            <button
+              key={`${key2}-end-${idx}`}
+              type="button"
+              className={`reader__punct reader__punct--implicit${sentences[idx]?.gloss ? " is-bought" : ""}`}
+              onClick={openFor(idx)}
+              title={tr("reader.translateSentence")}
+              aria-label={tr("reader.translateSentence")}
+            />,
+          );
+        }
+      };
       tokens.forEach((t, i) => {
         if (t.start < from || t.end > to) return; // belongs to another sentence
-        if (t.start > cursor) out.push(<span key={`${key}-gap-${i}`}>{text.slice(cursor, t.start)}</span>);
+        if (t.start > cursor) out.push(gap(text.slice(cursor, t.start), cursor, `${key}-gap-${i}`));
         const { cls, interactive } = classFor(t);
         out.push(
           <span
@@ -142,21 +253,50 @@ function ParagraphReaderImpl({
           </span>
         );
         cursor = Math.max(cursor, t.end);
+        closePassedSentences(`${key}-t${i}`);
       });
-      if (cursor < to) out.push(<span key={`${key}-gap-end`}>{text.slice(cursor, to)}</span>);
+      if (cursor < to) {
+        out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
+        cursor = to;
+      }
+      closePassedSentences(`${key}-tail`);
       return out;
     },
-    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide],
+    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, sentences, onTranslateSentence, visibleGloss, tr],
   );
 
-  // Gloss OFF: the whole text as one flowing paragraph — the full range, so the
-  // whitespace BETWEEN sentences is kept (the per-sentence ranges skip it).
-  const flat = useMemo(() => spans(0, text.length, "all"), [spans, text]);
-  // Gloss ON: one range per sentence, each with the English that belongs to it.
-  const blocks = useMemo(
-    () => sentences.map((s, i) => ({ gloss: s.gloss, parts: spans(s.start, s.end, `s${i}`) })),
-    [spans, sentences],
-  );
+  // The paragraph flows as one block — EXCEPT that a sentence showing its English
+  // is lifted onto its own line, together with that English.
+  //
+  // This is what fixes the alignment, and it needs no measurement: a sentence that
+  // starts mid-line put its translation under whatever happened to be to the left,
+  // which read as belonging to the wrong text. Given its own line, the sentence
+  // starts at the block's edge and the English underneath starts at the same edge —
+  // aligned by construction. Sentences with no translation showing are untouched and
+  // keep flowing, so the paragraph is not chopped into rows.
+  const flat = useMemo(() => {
+    if (sentences.length === 0) return spans(0, text.length, "all");
+    const out: JSX.Element[] = [];
+    let cursor = 0;
+    sentences.forEach((s, i) => {
+      // Whatever sits between sentences (whitespace, stray punctuation) stays in
+      // the flow rather than being absorbed into either neighbour.
+      if (s.start > cursor) out.push(<span key={`between-${i}`}>{text.slice(cursor, s.start)}</span>);
+      const parts = spans(s.start, s.end, `s${i}`);
+      out.push(
+        visibleGloss(i) ? (
+          <span className="reader__sentence" key={`sent-${i}`}>
+            {parts}
+          </span>
+        ) : (
+          <span key={`sent-${i}`}>{parts}</span>
+        ),
+      );
+      cursor = s.end;
+    });
+    if (cursor < text.length) out.push(<span key="tail">{text.slice(cursor)}</span>);
+    return out;
+  }, [spans, sentences, text, visibleGloss]);
   const hasGloss = sentences.some((s) => s.gloss);
   // Offer the toggle when there's a translation to show OR a way to fetch one.
   const canShowGloss = hasGloss || !!onLoadGloss;
@@ -224,22 +364,10 @@ function ParagraphReaderImpl({
           {canSummarize && showSummary && <AnalyzeInfographic data={summary.data} />}
         </div>
       )}
-      {/* Falls back to the flowing paragraph while an on-demand gloss is still in
-          flight (no sentences yet) — the Japanese never disappears. */}
-      {showGloss && blocks.length > 0 ? (
-        <div className="reader reader--glossed">
-          {blocks.map((b, i) => (
-            <p className="reader__pair" key={`pair-${i}`}>
-              <span className="reader__source-line">{b.parts}</span>
-              {/* A sentence MT couldn't translate simply shows nothing here —
-                  the Japanese above it is still the real content. */}
-              {b.gloss && <span className="reader__gloss">{b.gloss}</span>}
-            </p>
-          ))}
-        </div>
-      ) : (
-        <p className="reader">{flat}</p>
-      )}
+      {/* ONE flowing paragraph, always. The text is never re-laid-out into a row per
+          sentence; each translation is injected under the sentence it belongs to
+          (see `gap`), so only glossed lines break and the rest keeps flowing. */}
+      <p className="reader">{flat}</p>
       {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"

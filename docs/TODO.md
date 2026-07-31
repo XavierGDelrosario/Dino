@@ -179,7 +179,7 @@ Media features multiply **sentence-gloss** calls. Word-by-word = free (JMdict ca
   | 1M unique sentences | 1M | ~250 MB |
 
 - **Takeaway:** individual media is trivial (KB/article, ~100 KB/episode). Concern only in the hundreds of MB — thousands of episodes / tens of thousands of articles. Text compresses.
-- ⚠️ Shares the 500 MB Free tier with JMdict (~243 MB) + embeddings → **Free→Pro trigger**. Non-issue on Pro (8 GB).
+- ⚠️ Shares the 500 MB Free tier with JMdict (~214 MB). After the word-map removal there is ~146 MB free — enough for media caching for a long while, but it is the same budget the `words` cache grows into.
 - **Bounded + tunable:** LRU/TTL by `hit_count` · or cache only popular/curated (persist after N requests). A policy knob, not a runaway.
 - **MEASURED — ja.wikinews, the whole corpus (2026-07-28).** The Media tab's source is a *static, bounded* archive, so it's the one corpus we can cost exactly. Pulled every mainspace non-redirect page (`generator=allpages` + `rvprop=size`), calibrated wikitext-bytes → plaintext-chars on 25 full extracts (**ratio 0.19** — Wikinews prose is ~80% markup: source lists, categories, templates):
 
@@ -289,15 +289,14 @@ Full ledger: `docs/QualityLimitations.md`.
   - wordfreq is per-surface; no per-reading count.
   - Miss: can't pick the learner-default reading for homographs (市→いち/し · 主→おも/しゅ · 角→かく/かど). Only `readingOverrides.ts` patches known cases.
   - Fix: build our own (MeCab+UniDic over JA Wikipedia).
-- **Word-map model** ⬛
-  - Live vectors = `multilingual-e5-small` (384-dim).
-  - Miss: katakana loanwords cluster by **spelling, not meaning** (ストライカー→streaker/stripper; real match ピッチャー ranks last).
-  - Fix: e5-large (1024-dim). Needs ~2 GB model + full re-embed + ~415 MB vectors → over Free cap.
-- **Embedding coverage floor** ⬛
-  - Only common ∪ freq≥250 (~41k) eligible; live vectors still common-only ~22.6k.
-  - Miss: rare words get **no word-map at all**. Full-dict = Pro storage.
+- **Word-map (embeddings) — REMOVED 2026-07-31** (`20260741`)
+  - Dropped from prod + staging: 80 MB of a 500 MB tier for one feature ("Explore related
+    words" + the #12 domain quiz), whose loanword clustering went by spelling not meaning.
+  - Effect: prod 434 → 354 MB, staging 428 → 348 MB; the Free→Pro pressure is gone.
+  - Reversible: `build-embeddings.py` + the creating migration remain; client half is in
+    git history. Reconsider the LLM route first (one call collapses #11+#12, no vectors).
 - **Per-sense granularity**
-  - Frequency + embeddings per-surface; proficiency per-ENTRY since `20260740`. Never per-sense.
+  - Frequency is per-surface; proficiency per-ENTRY since `20260740`. Never per-sense.
   - Miss: a homograph (辛い からい/つらい) gets **one blended** band/freq/vector. Sense precision lost.
   - Unlock: engineering, not money.
 - **JLPT list coverage** (measured on prod 2026-07-29)
@@ -323,10 +322,6 @@ Full ledger: `docs/QualityLimitations.md`.
 - **Frequency source**
   - EN uses generic wordfreq, not **SUBTLEX-US** (better learner/spoken fit; CC-BY-SA + commercial).
   - Miss: difficulty axis less aligned to real exposure.
-- **English embeddings absent** ⬛
-  - No EN word-map (JA-only).
-  - Miss: "Explore related words" **hidden** for EN learners; #12 domain-quiz can't run for EN.
-  - Storage hog (~80 MB+) → the real **Free→Pro trigger** for English.
 - **Reader-side lemmatizer**
   - EN→JA lookup lemmatizes (edge `lemmaCandidates`); reader side doesn't.
   - Miss: inflected EN in a paste (ran/running) may not resolve to lemma.
@@ -339,8 +334,8 @@ Full ledger: `docs/QualityLimitations.md`.
 
 ### Cross-cutting
 - **Per-sense axis** (JA+EN) — biggest lever that costs engineering, not money.
-- **Prod embedding regen at deploy · HNSW tuning under load · KO/ZH word-maps.** New lang = own dict source + `<source>_lookup()` + `related_words`.
-- **Top-3 money levers** (`docs/QualityLimitations.md`): bigger model + full-dict embeddings (→Pro) · per-sense (→engineering) · English embeddings (→Pro).
+- **KO/ZH support.** A new language = its own dictionary source + `<source>_lookup()`.
+- **Top levers** (`docs/QualityLimitations.md`): EN→JA sense quality (→verification, not money) · per-sense granularity (→engineering) · an independent JLPT list (→licensing).
 
 </details>
 
@@ -378,7 +373,6 @@ Pipeline, ingest, projection, resolver, learn/calibration: **DONE + LIVE** (prod
 Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE. Left, cheap-first:
 - **SUBTLEX-US** frequency upgrade (above).
 - **English lemmatizer** (`ran/running → run`) for the **reader** side. Lookup already lemmatizes via edge `lemmaCandidates`; reader-side lemma is absent.
-- **English embeddings / word-map** (#11) — storage hog (~80 MB+), the real Free→Pro trigger. "Explore related words" stays hidden for non-JA learning langs until then.
 
 ### Legal — Privacy/ToS counsel review `[§10]`
 - `/privacy` + `/terms` drafted + footer-linked. Remaining: **counsel review before going truly public.**
@@ -388,6 +382,41 @@ Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE
 - **Gates the captcha rollout** (see Security).
 - TODO: collision messaging ("this email signs in with Google — use that") · claim/merge story · guest-carry decision for sign-in-Google · verify auto-link live.
 - Cases: `linkIdentity` needs `security_manual_linking_enabled` · email + later-Google auto-links only if email CONFIRMED · Google-first then email/password has no set-password UI · guest → sign-in-Google switches uid, so guest words don't carry.
+
+### Live listener — language handling `[listener · design call]`
+The transcript recognizes the **learning** language, not the input/source selector.
+That is deliberate — you listen to the language you study, so following `source`
+would stop it hearing Japanese the moment someone set source to English — but three
+things are unfinished:
+- **The "native" side is GUESSED.** `useLiveTranscript` picks
+  `SUPPORTED_LANGUAGES.find(l => l.code !== learning)`, so it is positional: right
+  for JA↔EN only because JA is first and EN second. `useTranslate` resolves native
+  properly from what the user typed + the target selector; thread that through
+  instead. **Do before a third language ships.**
+- **No language control inside the transcript** — it follows the Translate tab's
+  learning selector, so switching means backing out. Fine at two languages.
+- **One language per session.** A bilingual conversation (the actual case in Japan)
+  is recognized entirely as the learning language, so the other speaker's turns come
+  out as garbage. On-device recognizers do no language identification, so the honest
+  options are a manual toggle or accepting it — not a quick fix.
+
+### App Store submission `[iOS release]`
+Code-side items are done: Sign in with Apple (`session.ts` linkApple/signInWithApple
+— needs a Services ID + a .p8-signed secret that EXPIRES ≤6 months, then flip
+`config.toml [auth.external.apple].enabled`), complete account deletion (the
+`delete-account` edge function removes the auth row too), EDRDG attribution (footer),
+and `ios/App/App/PrivacyInfo.xcprivacy` (wired into the target; **keep it in sync
+with the App Store Connect privacy labels — Apple compares them**).
+Support page shipped (`/support`, footer-linked, writes to the Brevo sender address
+until the custom domain lands). Remaining is account/console work, not code — the
+answers are prepared in `docs/checklist/App_Store_Submission.md` (privacy labels
+matching the privacy manifest, age-rating questionnaire, listing fields, review
+notes); what is left there is signing + TestFlight, screenshots, the app record, and
+the Apple credentials.
+⚠ The native live transcript is **untested on a device** — it compiles and is
+unit-covered, but nobody has spoken at a phone yet. Also unresolved: whether it
+should keep listening while another app is foreground, which needs the `audio`
+background mode and a review justification.
 
 ### Source-language mismatch robustness `[translate UX]`
 - Concrete source mismatching the script (source=JA, Latin input) → garbage.

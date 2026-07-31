@@ -33,7 +33,7 @@ import {
 } from "./words/cache";
 import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
 import { isKatakanaOnly, nfc, nfcTrim } from "../lib/text";
-import { translateBatch, translateSegments } from "./translation";
+import { translateBatch, glossSentences } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
 /**
@@ -347,7 +347,12 @@ export async function translateParagraph(params: {
   const glossPromise: Promise<SentenceGloss[]> =
     sentenceSpans.length === 0
       ? Promise.resolve([])
-      : translateSegments({
+      : // Through the CACHE, not the raw client: this is the same content the
+        // reader's per-sentence taps buy. Going direct meant a paragraph glossed by
+        // Translate seeded nothing, so tapping any of its sentences afterwards paid
+        // for the same text twice — and a sentence already tapped was re-sent when
+        // the paragraph was glossed.
+        glossSentences({
           segments: sentenceSpans.map((s) => s.text),
           sourceLang: resolvedSource,
           targetLang,

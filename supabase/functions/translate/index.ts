@@ -84,7 +84,7 @@ import {
 //   8 = JA 〜す→〜する lemma fallback (kuromoji's 接す resolves to JMdict's 接する instead
 //       of falling through to MT) + MT rows are no longer exempt from the gate below, so
 //       a word MT once answered gets one FREE dictionary re-check (reviveMtRows).
-const CURRENT_PROJECTION_VERSION = 9;
+const CURRENT_PROJECTION_VERSION = 10;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up

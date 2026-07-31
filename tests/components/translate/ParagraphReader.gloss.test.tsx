@@ -67,30 +67,43 @@ describe("ParagraphReader — inline translation", () => {
     expect(screen.getByText("The dog slept.")).toBeTruthy();
   });
 
-  it("puts each gloss with the sentence it translates, not the other one", () => {
+  it("keeps the Japanese in ONE paragraph — English never re-lays-out the text", () => {
     const { container } = renderReader();
+    expect(container.querySelectorAll(".reader")).toHaveLength(1);
+
     fireEvent.click(toggle());
 
-    const pairs = container.querySelectorAll(".reader__pair");
-    expect(pairs).toHaveLength(2);
-    // Each row holds exactly one sentence and exactly its own translation.
-    expect(within(pairs[0] as HTMLElement).getByText("The cat ran.")).toBeTruthy();
-    expect((pairs[0] as HTMLElement).textContent).toContain("猫が走った。");
-    expect((pairs[0] as HTMLElement).textContent).not.toContain("犬が寝た。");
-    expect(within(pairs[1] as HTMLElement).getByText("The dog slept.")).toBeTruthy();
-    expect((pairs[1] as HTMLElement).textContent).toContain("犬が寝た。");
+    // Still a single paragraph: the reader must not split into a row per sentence,
+    // which is what used to re-wrap the Japanese the moment English appeared.
+    expect(container.querySelectorAll(".reader")).toHaveLength(1);
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(2);
   });
 
-  it("renders every character of the source in both layouts", () => {
+  it("puts each gloss DIRECTLY under its own sentence, in order", () => {
     const { container } = renderReader();
-    const japaneseOnly = (el: HTMLElement) =>
-      (el.textContent ?? "").replace("The cat ran.", "").replace("The dog slept.", "");
-
-    const flat = japaneseOnly(container.querySelector(".reader") as HTMLElement);
     fireEvent.click(toggle());
-    const glossed = japaneseOnly(container.querySelector(".reader--glossed") as HTMLElement);
-    expect(glossed).toBe(flat);
-    expect(glossed).toBe(TEXT);
+
+    const paragraph = container.querySelector(".reader") as HTMLElement;
+    const lines = [...paragraph.querySelectorAll(".reader__gloss")].map((n) => n.textContent);
+    expect(lines).toEqual(["The cat ran.", "The dog slept."]);
+    // Position, not just order: each gloss follows the sentence it translates, so
+    // the source reads 猫… → its English → 犬… → its English.
+    expect(paragraph.textContent).toBe("猫が走った。The cat ran.犬が寝た。The dog slept.");
+  });
+
+  it("renders every character of the source, translation on or off", () => {
+    // The guard that injecting English never drops or duplicates Japanese: strip
+    // the gloss nodes and what remains must be exactly the source text.
+    const { container } = renderReader();
+    const source = () => {
+      const clone = (container.querySelector(".reader") as HTMLElement).cloneNode(true) as HTMLElement;
+      clone.querySelectorAll(".reader__gloss").forEach((n) => n.remove());
+      return clone.textContent;
+    };
+
+    expect(source()).toBe(TEXT);
+    fireEvent.click(toggle());
+    expect(source()).toBe(TEXT);
   });
 
   it("keeps words interactive (hover targets survive the sentence split)", () => {
@@ -100,17 +113,16 @@ describe("ParagraphReader — inline translation", () => {
     expect(container.querySelectorAll(".tok--new")).toHaveLength(2);
   });
 
-  it("shows the sentence alone when its translation failed, keeping the rest aligned", () => {
+  it("skips a sentence MT couldn't translate, and keeps the Japanese intact", () => {
     const { container } = renderReader([
       SENTENCES[0],
       { ...SENTENCES[1], gloss: null },
     ]);
     fireEvent.click(toggle());
 
-    const pairs = container.querySelectorAll(".reader__pair");
-    expect(pairs).toHaveLength(2);
-    expect(pairs[1].querySelector(".reader__gloss")).toBeNull();
-    expect(pairs[1].textContent).toContain("犬が寝た。"); // source still readable
+    const lines = [...container.querySelectorAll(".reader__gloss")].map((n) => n.textContent);
+    expect(lines).toEqual(["The cat ran."]); // only the one that resolved
+    expect((container.querySelector(".reader") as HTMLElement).textContent).toContain("犬が寝た。");
   });
 
   it("offers no toggle at all when there is no translation to show", () => {
@@ -188,5 +200,196 @@ describe("ParagraphReader — on-demand gloss", () => {
       </LocaleProvider>,
     );
     expect(screen.queryByRole("button", { name: /Show translation/ })).toBeNull();
+  });
+});
+
+describe("ParagraphReader — tapping a sentence's punctuation", () => {
+  // Tapping 。 is a request to read THAT line now, so it must not also require the
+  // toggle; but a paragraph that merely arrives with glosses still keeps them
+  // hidden, because the reader is for reading the Japanese.
+  const renderTappable = (onTranslateSentence = vi.fn()) =>
+    render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={TEXT}
+          tokens={TOKENS}
+          meaningsByWord={MEANINGS}
+          sentences={SENTENCES}
+          onTranslateSentence={onTranslateSentence}
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+
+  const marks = (c: HTMLElement) => c.querySelectorAll(".reader__punct");
+
+  it("turns each sentence's closing mark into its own control", () => {
+    const { container } = renderTappable();
+    expect(marks(container)).toHaveLength(2); // one per sentence, not per token
+    expect(marks(container)[0].textContent).toBe("。");
+  });
+
+  it("asks for THAT sentence, and shows it without the toggle", () => {
+    const onTranslate = vi.fn();
+    const { container } = renderTappable(onTranslate);
+    expect(screen.queryByText("The cat ran.")).toBeNull();
+
+    fireEvent.click(marks(container)[0]);
+    expect(onTranslate).toHaveBeenCalledWith(0);
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+    // The line NOT asked for stays Japanese-only.
+    expect(screen.queryByText("The dog slept.")).toBeNull();
+  });
+
+  it("each tapped sentence keeps its own English — they don't replace each other", () => {
+    const { container } = renderTappable();
+    fireEvent.click(marks(container)[0]);
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+
+    fireEvent.click(marks(container)[1]);
+    // Both stay: the translations are part of the text now, not one transient card.
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+    expect(screen.getByText("The dog slept.")).toBeTruthy();
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(2);
+  });
+
+  it("hides again when the SAME control is pressed twice", () => {
+    const { container } = renderTappable();
+    fireEvent.click(marks(container)[0]);
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+    fireEvent.click(marks(container)[0]);
+    expect(screen.queryByText("The cat ran.")).toBeNull();
+  });
+
+  it("puts the English under the sentence it belongs to, and only that one", () => {
+    const { container } = renderTappable();
+    fireEvent.click(marks(container)[0]);
+
+    const paragraph = container.querySelector(".reader") as HTMLElement;
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(1);
+    // Position: the English follows the sentence it translates, and the second
+    // sentence is still untouched Japanese.
+    expect(paragraph.textContent).toBe("猫が走った。The cat ran.犬が寝た。");
+  });
+
+  it("gives a sentence that ends WITHOUT punctuation its own control", () => {
+    // Recognized speech rarely punctuates, and headlines/list items never do — those
+    // sentences had no control at all, so they could not be translated.
+    const TWO_LINES = "猫が走った\n犬が寝た";
+    const { container } = render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={TWO_LINES}
+          tokens={[
+            { text: "猫", start: 0, end: 1, reading: null, lemma: null, pos: "名詞" },
+            { text: "走っ", start: 2, end: 4, reading: null, lemma: null, pos: "動詞" },
+            { text: "犬", start: 6, end: 7, reading: null, lemma: null, pos: "名詞" },
+            { text: "寝", start: 8, end: 9, reading: null, lemma: null, pos: "動詞" },
+          ]}
+          meaningsByWord={MEANINGS}
+          sentences={[
+            { text: "猫が走った", start: 0, end: 5, gloss: "The cat ran." },
+            { text: "犬が寝た", start: 6, end: 10, gloss: "The dog slept." },
+          ]}
+          onTranslateSentence={vi.fn()}
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+
+    const implicit = container.querySelectorAll(".reader__punct--implicit");
+    expect(implicit).toHaveLength(2); // one per unpunctuated sentence
+    // The marker's glyph lives in CSS, so the text still reads exactly as the source.
+    expect((container.querySelector(".reader") as HTMLElement).textContent).toBe(TWO_LINES);
+
+    fireEvent.click(implicit[1]);
+    expect(screen.getByText("The dog slept.")).toBeTruthy();
+  });
+
+  it("puts the control at its OWN sentence's end, not past the line break", () => {
+    // The regression: when a sentence ended before its gap did (untokenized trailing
+    // text, then a newline), the control was emitted after the WHOLE gap — landing
+    // beside the next sentence instead of closing its own.
+    const TEXT2 = "猫が走った\n犬が寝た。";
+    const { container } = render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={TEXT2}
+          tokens={[
+            { text: "猫", start: 0, end: 1, reading: null, lemma: null, pos: "名詞" },
+            { text: "走っ", start: 2, end: 4, reading: null, lemma: null, pos: "動詞" },
+            { text: "犬", start: 6, end: 7, reading: null, lemma: null, pos: "名詞" },
+            { text: "寝", start: 8, end: 9, reading: null, lemma: null, pos: "動詞" },
+          ]}
+          meaningsByWord={MEANINGS}
+          sentences={[
+            { text: "猫が走った", start: 0, end: 5, gloss: "The cat ran." },
+            { text: "犬が寝た。", start: 6, end: 11, gloss: "The dog slept." },
+          ]}
+          onTranslateSentence={vi.fn()}
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+
+    const paragraph = container.querySelector(".reader") as HTMLElement;
+    const controls = [...paragraph.querySelectorAll(".reader__punct")];
+    expect(controls).toHaveLength(2);
+    // First control closes the FIRST sentence: everything before it is that
+    // sentence's text, and the line break has not happened yet.
+    const before = (paragraph.textContent ?? "").indexOf("犬");
+    const rendered = paragraph.innerHTML.indexOf(controls[0].outerHTML);
+    expect(rendered).toBeGreaterThan(-1);
+    expect(paragraph.innerHTML.slice(0, rendered)).not.toContain("犬");
+    expect(before).toBeGreaterThan(0);
+    // …and the second is the real terminator of the second sentence.
+    expect(controls[1].textContent).toBe("。");
+  });
+
+  it("lifts a translated sentence onto its own line, alongside its English", () => {
+    // The alignment fix: a sentence starting mid-line put its translation under
+    // whatever happened to be to its left. Given its own block, sentence and English
+    // start at the same edge with nothing measured.
+    const { container } = renderTappable();
+    expect(container.querySelectorAll(".reader__sentence")).toHaveLength(0);
+
+    fireEvent.click(marks(container)[0]);
+
+    const blocks = container.querySelectorAll(".reader__sentence");
+    expect(blocks).toHaveLength(1); // only the translated one is lifted out
+    expect(blocks[0].textContent).toBe("猫が走った。The cat ran.");
+    // The untranslated sentence keeps flowing in the paragraph.
+    expect((container.querySelector(".reader") as HTMLElement).textContent).toContain("犬が寝た。");
+  });
+
+  it("has no marks when no per-sentence handler is given", () => {
+    const { container } = render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={TEXT}
+          tokens={TOKENS}
+          meaningsByWord={MEANINGS}
+          sentences={SENTENCES}
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+    expect(marks(container)).toHaveLength(0);
   });
 });

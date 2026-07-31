@@ -11,17 +11,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStickyState } from "./useStickyState";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
-import { translate, translateSegments } from "../services/translation";
+import { translate, glossSentences, getCachedGloss } from "../services/translation";
 import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
-import { expandDomain } from "../services/domain";
-import { isExplicitSuggestion } from "../services/contentSafety";
-import { mapLimit } from "../lib/concurrency";
-import { MAX_TRANSLATION_CONCURRENCY } from "../services/translation";
 import {
   analyze,
   splitSentences,
@@ -127,7 +123,6 @@ export function useTranslate(userId: string) {
   // The explanation language the reader's words were studied in (set by submit);
   // domain expansion looks related words up in the same learning→native direction.
   const [nativeLang, setNativeLang] = useState<LangCode>("EN");
-  const [domainLoading, setDomainLoading] = useState(false);
 
   /** Create a sub-list and return its id (the add buttons then tag into it). */
   const createNamedList = useCallback(
@@ -386,7 +381,10 @@ export function useTranslate(userId: string) {
     setGlossLoading(true);
     try {
       const spans = splitSentences(text);
-      const glosses = await translateSegments({
+      // Through the CACHE: sentences already bought one at a time (by tapping their
+      // punctuation) are free here, so pressing the toggle after tapping a few costs
+      // only what is left. Never the reverse.
+      const glosses = await glossSentences({
         segments: spans.map((s) => s.text),
         sourceLang: learning,
         targetLang: nativeLang, // resolved by submit — the explanation language
@@ -401,6 +399,48 @@ export function useTranslate(userId: string) {
       setGlossLoading(false);
     }
   }, [analyzedInput, para, glossLoading, limits, learning, nativeLang]);
+
+  /**
+   * Buy the English for ONE sentence — the reader's punctuation affordance. Folds
+   * it into `para.sentences` so it shows under that line alone.
+   *
+   * The cheap half of loadGloss: one sentence, and free if it was already bought
+   * (here or by a whole-paragraph press). Idempotent — a sentence that already has
+   * a gloss is a no-op, so a second tap costs nothing.
+   */
+  const loadSentenceGloss = useCallback(
+    async (index: number) => {
+      const text = analyzedInput;
+      if (!text || !para) return;
+      const spans = splitSentences(text);
+      const span = spans[index];
+      if (!span || para.sentences[index]?.gloss) return;
+      try {
+        const [gloss] = await glossSentences({
+          segments: [span.text],
+          sourceLang: learning,
+          targetLang: nativeLang,
+        });
+        if (!gloss) return;
+        setPara((prev) => {
+          if (!prev || prev.tokens !== para.tokens) return prev; // moved on
+          // Seed every sentence from the cache while we're here: earlier taps and
+          // this one all show at once, without another request.
+          const sentences = spans.map((s, i) => ({
+            ...s,
+            gloss:
+              prev.sentences[i]?.gloss ??
+              getCachedGloss(s.text, learning, nativeLang) ??
+              null,
+          }));
+          return { ...prev, sentences };
+        });
+      } catch (e) {
+        setError(message(e));
+      }
+    },
+    [analyzedInput, para, learning, nativeLang],
+  );
 
   /** Swap source↔target, move the OUTPUT text into the input, and re-translate —
    *  the Google-Translate swap. Just swaps languages when there's nothing to move. */
@@ -478,47 +518,6 @@ export function useTranslate(userId: string) {
    *  quizzable Words (dropping ones already in the vocabulary). The caller opens a
    *  quiz over the result. Returns [] when there's nothing (un-embedded seeds, or
    *  all already known). */
-  const exploreDomain = useCallback(async (): Promise<Word[]> => {
-    if (!para || domainLoading) return [];
-    setDomainLoading(true);
-    setError(null);
-    try {
-      // Seeds = each distinct content word's primary JMdict entry (non-MT only).
-      const seedEntryIds: string[] = [];
-      const seenE = new Set<string>();
-      for (const tok of para.tokens) {
-        if (!isContentPos(tok.pos)) continue;
-        const eid = para.meanings.get(tok.text)?.[0]?.jmdictEntryId;
-        if (eid && !seenE.has(eid)) { seenE.add(eid); seedEntryIds.push(eid); }
-      }
-      const candidates = await expandDomain({ seedEntryIds, userLevel: level, limit: 18 });
-      // Resolve each candidate to a quizzable Word (learning→native). Prefer the
-      // sense whose STABLE entry id matches the embedded candidate (lookupWord
-      // matches by surface, so a homograph would otherwise resolve to the most
-      // frequent entry, not the one the word map clustered — see #1 identity).
-      const looked = await mapLimit(candidates, MAX_TRANSLATION_CONCURRENCY, (c) =>
-        lookupWord({ input: c.writing, sourceLang: learning, targetLang: nativeLang })
-          .then((r) => r.meanings.find((m) => m.jmdictEntryId === c.entryId) ?? r.meanings[0] ?? null)
-          .catch(() => null),
-      );
-      const words: Word[] = [];
-      const seenW = new Set<string>();
-      for (const w of looked) {
-        if (!w || saved.has(w.wordId) || seenW.has(w.wordId)) continue;
-        // CONTENT SAFETY (defense in depth): re-check the EXACT gloss the quiz will
-        // show — the resolved Word can differ from the vetted related_words gloss.
-        if (isExplicitSuggestion(w.input, w.translation)) continue;
-        seenW.add(w.wordId);
-        words.push(w);
-      }
-      return words;
-    } catch (e) {
-      setError(message(e));
-      return [];
-    } finally {
-      setDomainLoading(false);
-    }
-  }, [para, level, learning, nativeLang, saved, domainLoading]);
 
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
   const markUnknown = useCallback(
@@ -594,14 +593,12 @@ export function useTranslate(userId: string) {
     // paragraph mode
     para, analyzedInput, readerLoading,
     // on-demand sentence gloss for the reader's "Show translation" toggle
-    loadGloss, glossLoading,
+    loadGloss, glossLoading, loadSentenceGloss,
     // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
     // the state-sync callback the quiz uses after each grade.
     addablePrimaries, reviewablePrimaries, addableCards,
     addableCount: addablePrimaries.length,
     reviewableCount: reviewablePrimaries.length, applyReview,
-    // #12 domain expansion: study related domain words at your level.
-    exploreDomain, domainLoading,
     // add buttons: tag to ALL / a sub-list (idempotent) + create-and-tag.
     lists, addWords, createNamedList,
     submit,

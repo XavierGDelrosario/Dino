@@ -67,6 +67,15 @@ describe("voice facade", () => {
     expect(await isVoiceAvailable("EN")).toBe(true);
   });
 
+  it("treats an EMPTY voice list as unknown, not unsupported", async () => {
+    // The iOS WKWebView can report zero voices while speaking the language fine.
+    // Saying "unsupported" there hides the listen button across the whole platform.
+    installSynth([]);
+    const { isVoiceAvailable } = await import("@/services/voice");
+    expect(await isVoiceAvailable("JA")).toBe(true);
+    expect(await isVoiceAvailable("XX")).toBe(false); // still no for an unmapped lang
+  });
+
   it("speaks with the language's voice, and CANCELS first so taps replace rather than queue", async () => {
     const { synth, spoken } = installSynth(voices("ja-JP", "en-US"));
     const { speak } = await import("@/services/voice");

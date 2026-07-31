@@ -12,7 +12,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import type { LangCode } from "../../language";
-import type { OcrRecognizer, OcrResult } from "../types";
+import type { OcrImage, OcrRecognizer, OcrResult } from "../types";
 
 interface TextOcrPlugin {
   recognize(opts: { image: string; lang: string }): Promise<OcrResult>;
@@ -47,10 +47,7 @@ export const nativeRecognizer: OcrRecognizer = {
     return toVisionLanguage(lang) !== null;
   },
 
-  async capture({ lang }): Promise<OcrResult | null> {
-    const tag = toVisionLanguage(lang);
-    if (!tag) return null;
-    let base64: string | undefined;
+  async captureImage(): Promise<OcrImage | null> {
     try {
       const photo = await Camera.getPhoto({
         resultType: CameraResultType.Base64,
@@ -58,7 +55,9 @@ export const nativeRecognizer: OcrRecognizer = {
         correctOrientation: true,
         quality: 85,
       });
-      base64 = photo.base64String;
+      // No allowEditing: iOS's built-in editor crops to a SQUARE, which truncates a
+      // line of text. The in-app cropper (ImageCropper) is free-form instead.
+      return photo.base64String ? { base64: photo.base64String, format: photo.format || "jpeg" } : null;
     } catch (err) {
       // Backing out of the camera is a no-op → null. But a denied permission or
       // a device with no camera (e.g. the iOS simulator) is a REAL failure: don't
@@ -66,8 +65,19 @@ export const nativeRecognizer: OcrRecognizer = {
       if (isUserCancellation(err)) return null;
       throw err;
     }
-    if (!base64) return null;
+  },
+
+  async recognizeImage({ base64, lang }): Promise<OcrResult | null> {
+    const tag = toVisionLanguage(lang);
+    if (!tag) return null;
     return TextOcr.recognize({ image: base64, lang: tag });
+  },
+
+  async capture({ lang }): Promise<OcrResult | null> {
+    if (!toVisionLanguage(lang)) return null;
+    const image = await this.captureImage();
+    if (!image) return null;
+    return this.recognizeImage({ base64: image.base64, lang });
   },
 };
 

@@ -334,31 +334,41 @@ export function applyInputAttributeOverride(
  * ('<input>:<entry>'), so renumbering doesn't change a row's identity.
  */
 export function mergeProviderResults(
-  primary: ProviderResult[],
-  fallback: ProviderResult[],
+  semantic: ProviderResult[],
+  gloss: ProviderResult[],
   limit: number,
 ): ProviderResult[] {
-  // INTERSECTION-BOOST. An entry BOTH providers return is high-confidence: WordNet
-  // asserts a semantic link AND the JA word's own gloss leads with the English input
-  // (the gloss path ranks head-matches first). Lead with those, ordered by the GLOSS
-  // rank — because WordNet's own order is frequency-polluted and can float a
-  // common-but-wrong word to the top (cat→やつ over 猫: both synsets tie at sense_rank
-  // 0, so JA frequency wins it, and やつ "guy" > 猫). Keep the PRIMARY (WordNet) row
-  // for shared entries (same JMdict entry → same projection). Then WordNet-only, then
-  // gloss-only. Falls back to the old WordNet-first order when there's no overlap.
-  const fallbackRank = new Map<string, number>();
-  fallback.forEach((r, i) => { if (r.entryId != null && !fallbackRank.has(r.entryId)) fallbackRank.set(r.entryId, i); });
-  const primaryIds = new Set(primary.map((r) => r.entryId).filter((k): k is string => k != null));
+  // INTERSECTION-BOOST, then GLOSS, then WordNet.
+  //
+  // An entry BOTH providers return is high-confidence: WordNet asserts a semantic
+  // link AND the JA word's own gloss leads with the English input. Those lead,
+  // ordered by the GLOSS rank.
+  //
+  // WordNet-only rows now come LAST, where they used to come second. Measured on
+  // prod 2026-07-31: `wordnet_en_ja_lookup('run')` returns 言う · 機能 · 運転 … with
+  // 走る nowhere in the top eight, and 'light' leads with 好き. Two reasons, both
+  // structural — Japanese WordNet ships acknowledged errors in ~5% of entries, and
+  // it orders by PRINCETON sense rank, which ranks ENGLISH senses and says nothing
+  // about which Japanese lemma of a synset is the right translation. The same
+  // frequency pollution was already noted for cat→やつ over 猫.
+  //
+  // The gloss search, by contrast, now ranks by how PRIMARY the match is inside the
+  // entry (migration 20260742's headline_rank), which is a direct answer to "does
+  // this Japanese word MEAN this English word". So it leads, and WordNet does what
+  // it is actually good at: covering words the gloss search misses entirely.
+  const glossRank = new Map<string, number>();
+  gloss.forEach((r, i) => { if (r.entryId != null && !glossRank.has(r.entryId)) glossRank.set(r.entryId, i); });
+  const semanticIds = new Set(semantic.map((r) => r.entryId).filter((k): k is string => k != null));
 
-  const shared = primary
-    .filter((r) => r.entryId != null && fallbackRank.has(r.entryId))
-    .sort((a, b) => fallbackRank.get(a.entryId!)! - fallbackRank.get(b.entryId!)!);
-  const primaryOnly = primary.filter((r) => r.entryId == null || !fallbackRank.has(r.entryId));
-  const fallbackOnly = fallback.filter((r) => r.entryId == null || !primaryIds.has(r.entryId));
+  const shared = semantic
+    .filter((r) => r.entryId != null && glossRank.has(r.entryId))
+    .sort((a, b) => glossRank.get(a.entryId!)! - glossRank.get(b.entryId!)!);
+  const semanticOnly = semantic.filter((r) => r.entryId == null || !glossRank.has(r.entryId));
+  const glossOnly = gloss.filter((r) => r.entryId == null || !semanticIds.has(r.entryId));
 
   const seen = new Set<string>();
   const merged: ProviderResult[] = [];
-  for (const r of [...shared, ...primaryOnly, ...fallbackOnly]) {
+  for (const r of [...shared, ...glossOnly, ...semanticOnly]) {
     if (merged.length >= limit) break;
     const key = r.entryId ?? null;
     if (key != null) {

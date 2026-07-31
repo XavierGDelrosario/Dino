@@ -11,7 +11,9 @@ vi.mock("@/services/words/repository", () => ({
 vi.mock("@/services/translation", () => ({
   translate: vi.fn(),
   translateBatch: vi.fn(),
-  translateSegments: vi.fn(),
+  // The paragraph gloss goes through the CACHE (glossSentences), not the raw
+  // client — so a sentence bought by a reader tap isn't paid for twice.
+  glossSentences: vi.fn(),
 }));
 vi.mock("@/services/senses", () => ({ resolveSenseProvider: vi.fn() }));
 // Partial-mock language: keep the real resolveSourceLanguage / AUTO_DETECT, but
@@ -23,7 +25,7 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { findWordTranslations, findWordTranslationsBatch } from "@/services/words/repository";
-import { translate, translateBatch, translateSegments } from "@/services/translation";
+import { translate, translateBatch, glossSentences } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
 import { lookupWord, lookupWordsBatch, translateParagraph } from "@/services/lookup";
@@ -34,7 +36,7 @@ const mockFind = vi.mocked(findWordTranslations);
 const mockFindBatch = vi.mocked(findWordTranslationsBatch);
 const mockTranslate = vi.mocked(translate);
 const mockTranslateBatch = vi.mocked(translateBatch);
-const mockTranslateSegments = vi.mocked(translateSegments);
+const mockTranslateSegments = vi.mocked(glossSentences);
 const mockResolveProvider = vi.mocked(resolveSenseProvider);
 const mockAnalyze = vi.mocked(analyze);
 

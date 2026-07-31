@@ -13,16 +13,18 @@ import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { useLiveReader } from "../hooks/useLiveReader";
+import { LiveTranscriptView } from "./LiveTranscriptView";
+import { isSpeechStreamAvailable } from "../services/speech";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
-import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, XIcon, CameraIcon } from "../components/common/icons";
 import { SpeakButton } from "../components/common/SpeakButton";
-import { isOcrAvailable, captureText } from "../services/ocr";
+import { isOcrAvailable, capturePhoto, recognizeText } from "../services/ocr";
+import { ImageCropper } from "../components/translate/ImageCropper";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
 import { targetOptions, AUTO_DETECT } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
-import { isSpeechAvailable, startSpeech, stopSpeech, SpeechPermissionError } from "../services/speech";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import type { Word } from "../services/words/repository";
@@ -44,6 +46,10 @@ export function TranslateView({
 }) {
   const t = useTranslate(userId);
 
+  // Placed before the other early returns so the mic session is torn down with the
+  // view (the hook's cleanup stops it) rather than being left open behind a tab.
+  // (Rendered below — see the `listening` branch.)
+
   // EXPERIMENT: the reader, live under the input. Free by construction
   // (dictionaryOnly + skipGloss) and limited to sentences the user has finished —
   // see useLiveReader. It YIELDS to a submitted result: once Translate has run,
@@ -63,7 +69,6 @@ export function TranslateView({
   const { t: tr } = useI18n();
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ cards: Word[][]; mode: QuizMode } | null>(null);
-  const [domainNote, setDomainNote] = useState<string | null>(null);
   // Attribution for text loaded from Media — cleared the moment the user edits the
   // input (the credit no longer describes what's shown).
   const [credit, setCredit] = useState<MediaSource | null>(null);
@@ -98,30 +103,14 @@ export function TranslateView({
   // Voice input (native on-device speech): record → wait for finish → append the
   // transcript to the input. The mic button toggles start/stop; a tap while
   // listening calls stopSpeech(), which makes the pending startSpeech resolve.
-  const [speechAvailable, setSpeechAvailable] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [speechError, setSpeechError] = useState<string | null>(null);
+  // EXPERIMENT — the live listener, opened from the input's tool bar. A takeover
+  // (like the text quiz) rather than another panel: reading a conversation as it is
+  // spoken is a whole screen's job, not a strip under a text box.
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [canListen, setCanListen] = useState(false);
   useEffect(() => {
-    void isSpeechAvailable(recognitionLang).then(setSpeechAvailable);
-  }, [recognitionLang]);
-  const onMic = async () => {
-    if (listening) {
-      await stopSpeech();
-      return;
-    }
-    setSpeechError(null);
-    setListening(true);
-    try {
-      const [transcript] = await startSpeech({ lang: recognitionLang });
-      if (transcript) t.setInput((prev) => (prev ? `${prev}${transcript}` : transcript));
-    } catch (e) {
-      setSpeechError(
-        e instanceof SpeechPermissionError ? tr("speech.denied") : tr("speech.error"),
-      );
-    } finally {
-      setListening(false);
-    }
-  };
+    void isSpeechStreamAvailable(t.learning).then(setCanListen);
+  }, [t.learning]);
 
   // Camera OCR (Mode A): photo → recognized text in reading order → translate it
   // (straight into the paragraph reader). Native-only; hidden where unavailable.
@@ -131,16 +120,19 @@ export function TranslateView({
   useEffect(() => {
     void isOcrAvailable(recognitionLang).then(setOcrAvailable);
   }, [recognitionLang]);
+  // The photo waiting to be cropped (data: URL for display + the original bytes, so
+  // an uncropped confirm can skip the canvas round-trip entirely).
+  const [photo, setPhoto] = useState<{ url: string; base64: string } | null>(null);
+
   const onCamera = async () => {
     setOcrError(null);
     setOcrBusy(true);
     try {
-      const text = await captureText({ lang: recognitionLang });
-      if (text.trim()) {
-        t.setInput(text);
-        await t.submit({ text });
-      } else {
-        setOcrError(tr("ocr.noText"));
+      // Photo FIRST, recognition after the crop — Vision reads everything in frame,
+      // so the facing page and the header would otherwise land in the input too.
+      const image = await capturePhoto();
+      if (image) {
+        setPhoto({ url: `data:image/${image.format};base64,${image.base64}`, base64: image.base64 });
       }
     } catch (err) {
       // Surface the real reason (denied permission, no camera on a simulator, …)
@@ -152,14 +144,28 @@ export function TranslateView({
     }
   };
 
-  // #12 — expand the paragraph into related domain words at the user's level, then
-  // quiz them (a learn session, so they're added + feed SRS + refine the level).
-  const onExplore = async () => {
-    setDomainNote(null);
-    const words = await t.exploreDomain();
-    // Domain words are one chosen sense each → singleton cards (no cycling).
-    if (words.length > 0) setQuiz({ cards: words.map((w) => [w]), mode: "learn" });
-    else setDomainNote(tr("translate.noDomain"));
+  /** Cropper confirmed: `cropped` is the selected region, or null for the whole photo. */
+  const onCropped = async (cropped: string | null) => {
+    if (!photo) return;
+    setOcrError(null);
+    setOcrBusy(true);
+    try {
+      const text = await recognizeText({ base64: cropped ?? photo.base64, lang: recognitionLang });
+      setPhoto(null);
+      if (text.trim()) {
+        t.setInput(text);
+        await t.submit({ text });
+      } else {
+        // Keep the photo on screen? No — a failed read usually means the crop was
+        // wrong, and the message is more useful next to the camera button.
+        setOcrError(tr("ocr.noText"));
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "";
+      setOcrError(detail ? `${tr("ocr.error")} (${detail})` : tr("ocr.error"));
+    } finally {
+      setOcrBusy(false);
+    }
   };
 
   // Snapshot a paragraph's NEW words ONCE when its result arrives. The live
@@ -177,6 +183,20 @@ export function TranslateView({
   // Quiz/review = full takeover: the entire translate surface is hidden. Use the
   // normal .review column (NOT the wide .translate breakout) so the card is the same
   // size as Review / Learn / Calibration.
+  if (transcriptOpen) {
+    return (
+      <LiveTranscriptView
+        learning={t.learning}
+        saved={t.saved}
+        confidence={t.confidence}
+        lists={t.lists}
+        onAdd={t.addWords}
+        onCreateList={t.createNamedList}
+        onClose={() => setTranscriptOpen(false)}
+      />
+    );
+  }
+
   if (quiz) {
     return (
       <section className="review">
@@ -230,8 +250,23 @@ export function TranslateView({
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(t.input.trim() !== "" || speechAvailable || hwAvailable || ocrAvailable) && (
+          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || canListen || import.meta.env.DEV) && (
             <div className="io__tools">
+              {/* The mic opens the LIVE transcript — one continuous session read as
+                  it is spoken. It replaces record-then-fill entirely. Streaming is
+                  implemented on BOTH backends now (native on-device, and Web Speech
+                  in Chrome), so `canListen` is what gates it; the DEV clause only
+                  keeps it reachable in a browser that has neither. */}
+              {(canListen || import.meta.env.DEV) && (
+                <button
+                  className="io__tool"
+                  onClick={() => setTranscriptOpen(true)}
+                  aria-label={tr("listen.tool")}
+                  title={tr("listen.tool")}
+                >
+                  <MicIcon />
+                </button>
+              )}
               {t.input.trim() !== "" && (
                 <button
                   className="io__tool"
@@ -254,17 +289,6 @@ export function TranslateView({
                   title={tr("handwriting.draw")}
                 >
                   <PencilIcon />
-                </button>
-              )}
-              {speechAvailable && (
-                <button
-                  className={`io__tool${listening ? " io__tool--rec" : ""}`}
-                  onClick={onMic}
-                  aria-pressed={listening}
-                  aria-label={tr(listening ? "speech.stop" : "speech.start")}
-                  title={tr(listening ? "speech.stop" : "speech.start")}
-                >
-                  {listening ? <StopIcon /> : <MicIcon />}
                 </button>
               )}
               {ocrAvailable && (
@@ -314,6 +338,20 @@ export function TranslateView({
             />
           </div>
         )}
+
+        {/* Crop the photo before recognizing it — same overlay slot as handwriting,
+            so the page never grows. Cancel drops the photo (the camera can be
+            reopened); confirm sends just the selection to OCR. */}
+        {photo && (
+          <div className="translate__overlay">
+            <ImageCropper
+              src={photo.url}
+              busy={ocrBusy}
+              onCancel={() => setPhoto(null)}
+              onCrop={onCropped}
+            />
+          </div>
+        )}
       </div>
 
       <div className="translate__submit">
@@ -345,7 +383,6 @@ export function TranslateView({
       </label>
 
       <ErrorText message={t.error} />
-      <ErrorText message={speechError} />
       <ErrorText message={ocrError} />
 
       {/* The translation shows above as soon as it's ready; the word-by-word reader
@@ -365,6 +402,7 @@ export function TranslateView({
             tokens={live.para.tokens}
             meaningsByWord={live.para.meanings}
             sentences={live.para.sentences}
+            onTranslateSentence={t.loadSentenceGloss}
             saved={t.saved}
             confidence={t.confidence}
             lists={t.lists}
@@ -429,23 +467,15 @@ export function TranslateView({
                       {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
                     </button>
                   )}
-                  {/* "Explore related words" needs the word-map (pgvector embeddings),
-                      which currently exists only for Japanese. Hide it for other
-                      learning languages until their embeddings ship. */}
-                  {t.learning === "JA" && (
-                    <button className="btn btn--ghost" disabled={t.domainLoading} onClick={onExplore}>
-                      {t.domainLoading ? tr("translate.exploreLoading") : tr("translate.explore")}
-                    </button>
-                  )}
                 </div>
               )}
-              {domainNote && <p className="review__scope">{domainNote}</p>}
               <ParagraphReader
                 text={t.analyzedInput}
                 tokens={t.para.tokens}
                 meaningsByWord={t.para.meanings}
                 sentences={t.para.sentences}
                 onLoadGloss={t.loadGloss}
+                onTranslateSentence={t.loadSentenceGloss}
                 glossLoading={t.glossLoading}
                 saved={t.saved}
                 confidence={t.confidence}
