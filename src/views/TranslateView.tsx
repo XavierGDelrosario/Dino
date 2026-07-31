@@ -254,21 +254,10 @@ export function TranslateView({
           />
           {(t.input.trim() !== "" || hwAvailable || ocrAvailable || canListen || import.meta.env.DEV) && (
             <div className="io__tools">
-              {/* The mic opens the LIVE transcript — one continuous session read as
-                  it is spoken. It replaces record-then-fill entirely. Streaming is
-                  implemented on BOTH backends now (native on-device, and Web Speech
-                  in Chrome), so `canListen` is what gates it; the DEV clause only
-                  keeps it reachable in a browser that has neither. */}
-              {(canListen || import.meta.env.DEV) && (
-                <button
-                  className="io__tool"
-                  onClick={() => setTranscriptOpen(true)}
-                  aria-label={tr("listen.tool")}
-                  title={tr("listen.tool")}
-                >
-                  <MicIcon />
-                </button>
-              )}
+              {/* Order, top to bottom: clear · draw · mic · picture. Clear first
+                  because it acts on what is already in the box; then the three ways
+                  to PUT something in it, in ascending order of how much they take
+                  over the screen (a pad, a listening session, the camera). */}
               {t.input.trim() !== "" && (
                 <button
                   className="io__tool"
@@ -291,6 +280,21 @@ export function TranslateView({
                   title={tr("handwriting.draw")}
                 >
                   <PencilIcon />
+                </button>
+              )}
+              {/* The mic opens the LIVE transcript — one continuous session read as
+                  it is spoken. It replaces record-then-fill entirely. Streaming is
+                  implemented on BOTH backends now (native on-device, and Web Speech
+                  in Chrome), so `canListen` is what gates it; the DEV clause only
+                  keeps it reachable in a browser that has neither. */}
+              {(canListen || import.meta.env.DEV) && (
+                <button
+                  className="io__tool"
+                  onClick={() => setTranscriptOpen(true)}
+                  aria-label={tr("listen.tool")}
+                  title={tr("listen.tool")}
+                >
+                  <MicIcon />
                 </button>
               )}
               {ocrAvailable && (
