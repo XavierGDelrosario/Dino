@@ -15,6 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLiveTranscript } from "../hooks/useLiveTranscript";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { ErrorText } from "../components/common/ErrorText";
+import { TextQuizView } from "./TextQuizView";
+import type { OnGraded } from "../hooks/useTextQuiz";
 import { errorMessage } from "../lib/errorMessage";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { BackIcon, MicIcon, StopIcon } from "../components/common/icons";
@@ -29,6 +31,7 @@ import type { Word } from "../services/words/repository";
 import "../components/translate/translate.css";
 
 export function LiveTranscriptView({
+  userId,
   learning,
   saved,
   confidence,
@@ -36,7 +39,9 @@ export function LiveTranscriptView({
   onAdd,
   onCreateList,
   onClose,
+  onGraded,
 }: {
+  userId: string;
   learning: LangCode;
   saved: Set<string>;
   confidence: Map<string, number>;
@@ -44,6 +49,8 @@ export function LiveTranscriptView({
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
   onClose: () => void;
+  /** Sync the caller's saved/confidence state as each word is learned. */
+  onGraded?: OnGraded;
 }) {
   const live = useLiveTranscript(learning);
   const { t } = useI18n();
@@ -116,27 +123,54 @@ export function LiveTranscriptView({
     } finally {
       setGlossLoading(false);
     }
-  }, [sentences, learning, native, glossLoading]);
+  }, [sentences, learning, native, glossLoading, t]);
 
-  // Every word in the transcript the user hasn't saved yet — the "add these" set.
-  const newWords = useMemo(() => {
-    const out: Word[] = [];
+  // Every word in the transcript the user hasn't saved yet. `newWords` is the
+  // primary sense of each (the "add these" set); `newCards` carries ALL senses of
+  // the same words, primary first, so the quiz can cycle meanings and add the one
+  // that was actually meant — same shape as the reader's addableCards.
+  const { newWords, newCards } = useMemo(() => {
+    const words: Word[] = [];
+    const cards: Word[][] = [];
     const seen = new Set<string>();
     for (const token of live.merged.tokens) {
       if (!isContentPos(token.pos)) continue;
-      const primary = live.merged.meanings.get(token.text)?.[0];
+      const senses = live.merged.meanings.get(token.text) ?? [];
+      const primary = senses[0];
       if (!primary || saved.has(primary.wordId) || seen.has(primary.wordId)) continue;
       seen.add(primary.wordId);
-      out.push(primary);
+      words.push(primary);
+      cards.push(senses);
     }
-    return out;
+    return { newWords: words, newCards: cards };
   }, [live.merged, saved]);
+
+  // Quizzing is a FULL takeover, like it is from the reader: a flashcard session
+  // over the words this conversation just taught. Rendered below, before the
+  // transcript, so nothing of the listener is on screen behind it.
+  const [quizzing, setQuizzing] = useState(false);
 
   // Follow the speaker. Only while listening: once stopped, the user is reading
   // back and yanking them to the bottom would fight them.
   useEffect(() => {
     if (live.listening) endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [live.lines.length, live.partial, live.listening]);
+
+  if (quizzing) {
+    return (
+      <section className="review">
+        <TextQuizView
+          userId={userId}
+          cards={newCards}
+          lists={lists}
+          mode="learn"
+          onGraded={onGraded}
+          onCreateList={onCreateList}
+          onClose={() => setQuizzing(false)}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="review listen">
@@ -175,6 +209,14 @@ export function LiveTranscriptView({
         {import.meta.env.DEV && !live.listening && (
           <button className="btn btn--sm" onClick={() => void live.startMock()}>
             ▶ Mock
+          </button>
+        )}
+        {newWords.length > 0 && (
+          <button className="btn btn--sm" onClick={() => setQuizzing(true)}>
+            {t("listen.quizNew", {
+              n: newWords.length,
+              noun: plural(t, newWords.length, "common.word", "common.words"),
+            })}
           </button>
         )}
         {newWords.length > 0 && (

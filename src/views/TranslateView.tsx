@@ -186,12 +186,14 @@ export function TranslateView({
   if (transcriptOpen) {
     return (
       <LiveTranscriptView
+        userId={userId}
         learning={t.learning}
         saved={t.saved}
         confidence={t.confidence}
         lists={t.lists}
         onAdd={t.addWords}
         onCreateList={t.createNamedList}
+        onGraded={t.applyReview}
         onClose={() => setTranscriptOpen(false)}
       />
     );
