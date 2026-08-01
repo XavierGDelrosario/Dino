@@ -42,6 +42,10 @@ import {
   applyInputAttributeOverride,
   corsHeaders,
   EN_JA_STOPWORDS,
+  isEnglishFunctionWord,
+  isMultiWord,
+  inflectedVerbSurface,
+  preferVerbSenses,
   expandSegmentResults,
   groupByInput,
   MAX_SEGMENTS,
@@ -84,7 +88,15 @@ import {
 //   8 = JA 〜す→〜する lemma fallback (kuromoji's 接す resolves to JMdict's 接する instead
 //       of falling through to MT) + MT rows are no longer exempt from the gate below, so
 //       a word MT once answered gets one FREE dictionary re-check (reviveMtRows).
-const CURRENT_PROJECTION_VERSION = 9;
+//  11 = wordnet_en_ja_lookup ranks by headline_rank (20260747), not Japanese corpus
+//       frequency. The merge already demotes WordNet last, so the TOP result does not
+//       move (measured: 0 of 30 words changed at position 1); the WordNet-only TAIL
+//       reorders (10/30 within the top 3, 20/30 somewhere), and cached rows keep the
+//       old tail order until re-projected. See src/lib/projection.ts for the full note.
+//  12 = EN→JA function words resolve to NOTHING (an/is/my no longer cache a wrong
+//       answer, and never reach paid MT) + an inflected verb prefers verb senses
+//       (worked → 働く, not 仕事). Changes WHICH senses exist, not just their order.
+const CURRENT_PROJECTION_VERSION = 12;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up
@@ -236,6 +248,16 @@ async function resolveDictionary(
   sourceLang: string,
   targetLang: string,
 ): Promise<ProviderResult[]> {
+  // GRAMMAR, not vocabulary: resolve to nothing and stop. Skipping only the gloss scan
+  // still let junk through (prod cached an→1, is→ある, my→マイ), and an empty result
+  // would otherwise fall through to PAID MT — buying a wrong answer for "the".
+  // Callers treat the empty array as "no entry", which is what these words are.
+  if (sourceLang === "EN" && targetLang === "JA" && isEnglishFunctionWord(input)) return [];
+  // A PHRASE is not a headword — "have worked" cannot match either provider, so skip
+  // both round-trips. This does NOT stop the request: an empty dictionary result falls
+  // through to MT, which is the RIGHT answer for a phrase and is what the client
+  // already relies on when it sends a whole native-language sentence here.
+  if (sourceLang === "EN" && targetLang === "JA" && isMultiWord(input)) return [];
   if (sourceLang === "EN" && targetLang === "JA") {
     // Lemmatize via WordNet-morphy candidates (cats→cat, ran→run), resolved in just TWO
     // parallel round-trips — same union-query + first-hit machinery as the batch path
@@ -262,7 +284,10 @@ async function resolveDictionary(
       targetLang,
       EN_JA_RESULT_LIMIT,
     );
-    return resolved.get(input) ?? [];
+    const senses = resolved.get(input) ?? [];
+    // "worked" lemmatizes to "work" and then led with 仕事 (the noun). The inflection is
+    // the only English POS signal available, so let it settle the tie.
+    return inflectedVerbSurface(input, candidates) ? preferVerbSenses(senses) : senses;
   }
   // JA→EN (and every other pair): one provider, but the input may still need a lemma
   // candidate — kuromoji hands us IPADIC's 〜す lemma for a する-verb stem (接して → 接す)
@@ -347,7 +372,13 @@ async function resolveDictionaryMany(
     // its lemma candidates and query WordNet + the gloss fallback over the UNION, then
     // pick each token's winning lemma and re-key the senses to the surface token. So a
     // paragraph of inflected English (cats, ran, studies) reads as well as single words.
-    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    //
+    // Function words are dropped FIRST (see resolveDictionary): the reader then renders
+    // them as plain grammar — the way it already treats Japanese particles — instead of
+    // colouring "an" as a word you could add.
+    const inputs2 = inputs.filter((i) => !isEnglishFunctionWord(i));
+    if (inputs2.length === 0) return out;
+    const candsByInput = new Map(inputs2.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
     const allCands = [...new Set([...candsByInput.values()].flat())];
     // Stopwords go to WordNet only, not the pathological gloss scan (see EN_JA_STOPWORDS).
     const glossCands = allCands.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
@@ -360,9 +391,12 @@ async function resolveDictionaryMany(
     const wnByCand = groupProviderByInput(wnRows);
     const glossByCand = groupProviderByInput(glossRows);
     for (const [input, results] of resolvePerInputWithCandidates(
-      inputs, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
+      inputs2, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
     )) {
-      out.set(input, results);
+      // Same inflection bias as the single-word path: a reader full of "worked" should
+      // colour 働く, not 仕事.
+      const cands = candsByInput.get(input) ?? [];
+      out.set(input, inflectedVerbSurface(input, cands) ? preferVerbSenses(results) : results);
     }
   } else {
     // Same first-hit-wins candidate resolution as the single-word path, over the UNION
@@ -1051,9 +1085,10 @@ async function resolveBatch(
 // Request parsing/clamping (band/limit/excludeSeen) lives in _lib.parseLearnRequest
 // (unit-tested). This file keeps only the I/O.
 
-/** Unseen headwords at proficiency band `band` for the caller (JMdict source →
- *  the SQL retrieval; see migration 20260717). Empty for a pair/band with no
- *  curated wordlist (only JA→EN/JLPT is populated today). */
+/** Unseen headwords at proficiency band `band` for the caller (the SQL retrieval
+ *  owns the source: JMdict for JA→EN, english_proficiency + WordNet for EN→JA; see
+ *  migrations 20260717 and 20260745). Empty for a pair/band with no curated
+ *  wordlist — those two pairs are the populated ones. */
 async function selectLearnHeadwords(
   supabase: Supa,
   sourceLang: string,
@@ -1155,8 +1190,9 @@ async function handleRequest(req: Request): Promise<Response> {
   // LEARN mode: { learn: { band, limit? } } → up to `limit` UNSEEN words at the
   // given proficiency band, projected into the cache (via the batch path) and
   // returned as quiz cards (each card = one word's full sense list, primary
-  // first). The source retrieval reads JMdict (the `words` cache is incomplete);
-  // resolveBatch then projects + groups exactly like a paragraph's new words.
+  // first). The source retrieval reads the server-only wordlists (the `words`
+  // cache is incomplete); resolveBatch then projects + groups exactly like a
+  // paragraph's new words.
   if (body.learn && typeof body.learn === "object") {
     const parsed = parseLearnRequest(body.learn as { band?: unknown; limit?: unknown; excludeSeen?: unknown });
     if (!parsed.ok) return reply({ error: parsed.error }, 400);
@@ -1166,7 +1202,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const headwords = await selectLearnHeadwords(supabase, sourceLang, targetLang, band, userId, limit, excludeSeen);
       if (headwords.length === 0) return reply({ cards: [] });
       // Reuse the batch resolver: cache read → JMdict projection → grouped rows.
-      // These are JMdict headwords, so they resolve without the paid MT path.
+      // Every headword is drawn from a source we can already translate (JMdict for
+      // JA→EN; for EN→JA the pool requires a WordNet lemma WITH a Japanese side), so
+      // these resolve without the paid MT path.
       const entries = await resolveBatch(
         supabase, headwords, sourceLang, targetLang, req.headers.get("Authorization"),
       );
@@ -1303,6 +1341,17 @@ async function handleRequest(req: Request): Promise<Response> {
   //    be PARTIAL — other homophones (事) might never have been cached — so fall
   //    through to the full lookup, which projects the complete set (after which the
   //    exact-headword row exists and future lookups hit the cache).
+  // A GRAMMATICAL word is terminal, and that has to be decided BEFORE the cache read.
+  // Measured live: "an" already had a paid `mt:an` row holding "1", freshly re-stamped,
+  // so the cache answered and every guard further down was unreachable. Terminal means
+  // the dictionary is never consulted, the cache is never consulted, and MT is never
+  // bought — the dead row simply stops being served.
+  // (A multi-word PHRASE deliberately does NOT stop here: MT is the right answer for it,
+  // and the client sends whole native-language sentences down this same path.)
+  if (sourceLang === "EN" && targetLang === "JA" && isEnglishFunctionWord(input)) {
+    return reply({ translated: false, translation: null, word: null, words: [] });
+  }
+
   if (persist) {
     const cached = await fetchVerified(supabase, input, sourceLang, targetLang);
     if (cached.some((r) => r.input === input)) return reply(respondWords(input, cached));

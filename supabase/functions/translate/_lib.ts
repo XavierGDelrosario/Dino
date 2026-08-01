@@ -334,31 +334,41 @@ export function applyInputAttributeOverride(
  * ('<input>:<entry>'), so renumbering doesn't change a row's identity.
  */
 export function mergeProviderResults(
-  primary: ProviderResult[],
-  fallback: ProviderResult[],
+  semantic: ProviderResult[],
+  gloss: ProviderResult[],
   limit: number,
 ): ProviderResult[] {
-  // INTERSECTION-BOOST. An entry BOTH providers return is high-confidence: WordNet
-  // asserts a semantic link AND the JA word's own gloss leads with the English input
-  // (the gloss path ranks head-matches first). Lead with those, ordered by the GLOSS
-  // rank — because WordNet's own order is frequency-polluted and can float a
-  // common-but-wrong word to the top (cat→やつ over 猫: both synsets tie at sense_rank
-  // 0, so JA frequency wins it, and やつ "guy" > 猫). Keep the PRIMARY (WordNet) row
-  // for shared entries (same JMdict entry → same projection). Then WordNet-only, then
-  // gloss-only. Falls back to the old WordNet-first order when there's no overlap.
-  const fallbackRank = new Map<string, number>();
-  fallback.forEach((r, i) => { if (r.entryId != null && !fallbackRank.has(r.entryId)) fallbackRank.set(r.entryId, i); });
-  const primaryIds = new Set(primary.map((r) => r.entryId).filter((k): k is string => k != null));
+  // INTERSECTION-BOOST, then GLOSS, then WordNet.
+  //
+  // An entry BOTH providers return is high-confidence: WordNet asserts a semantic
+  // link AND the JA word's own gloss leads with the English input. Those lead,
+  // ordered by the GLOSS rank.
+  //
+  // WordNet-only rows now come LAST, where they used to come second. Measured on
+  // prod 2026-07-31: `wordnet_en_ja_lookup('run')` returns 言う · 機能 · 運転 … with
+  // 走る nowhere in the top eight, and 'light' leads with 好き. Two reasons, both
+  // structural — Japanese WordNet ships acknowledged errors in ~5% of entries, and
+  // it orders by PRINCETON sense rank, which ranks ENGLISH senses and says nothing
+  // about which Japanese lemma of a synset is the right translation. The same
+  // frequency pollution was already noted for cat→やつ over 猫.
+  //
+  // The gloss search, by contrast, now ranks by how PRIMARY the match is inside the
+  // entry (migration 20260742's headline_rank), which is a direct answer to "does
+  // this Japanese word MEAN this English word". So it leads, and WordNet does what
+  // it is actually good at: covering words the gloss search misses entirely.
+  const glossRank = new Map<string, number>();
+  gloss.forEach((r, i) => { if (r.entryId != null && !glossRank.has(r.entryId)) glossRank.set(r.entryId, i); });
+  const semanticIds = new Set(semantic.map((r) => r.entryId).filter((k): k is string => k != null));
 
-  const shared = primary
-    .filter((r) => r.entryId != null && fallbackRank.has(r.entryId))
-    .sort((a, b) => fallbackRank.get(a.entryId!)! - fallbackRank.get(b.entryId!)!);
-  const primaryOnly = primary.filter((r) => r.entryId == null || !fallbackRank.has(r.entryId));
-  const fallbackOnly = fallback.filter((r) => r.entryId == null || !primaryIds.has(r.entryId));
+  const shared = semantic
+    .filter((r) => r.entryId != null && glossRank.has(r.entryId))
+    .sort((a, b) => glossRank.get(a.entryId!)! - glossRank.get(b.entryId!)!);
+  const semanticOnly = semantic.filter((r) => r.entryId == null || !glossRank.has(r.entryId));
+  const glossOnly = gloss.filter((r) => r.entryId == null || !semanticIds.has(r.entryId));
 
   const seen = new Set<string>();
   const merged: ProviderResult[] = [];
-  for (const r of [...shared, ...primaryOnly, ...fallbackOnly]) {
+  for (const r of [...shared, ...glossOnly, ...semanticOnly]) {
     if (merged.length >= limit) break;
     const key = r.entryId ?? null;
     if (key != null) {
@@ -620,6 +630,98 @@ export const EN_JA_STOPWORDS: ReadonlySet<string> = new Set([
   "being", "am",
 ]);
 
+/**
+ * English words that are GRAMMAR, not vocabulary — a lookup should return nothing
+ * rather than a bad match, and must never reach paid MT.
+ *
+ * Skipping the gloss scan (EN_JA_STOPWORDS) was not enough: it stops the pathological
+ * scan but still lets whatever WordNet or a stray gloss match survive, so prod cached
+ * `an` → 1, `is` → ある, `my` → マイ (the loanword, as in マイカー). None of those is
+ * what the word means, and a miss then falls through to Google — paying for a wrong
+ * answer to "the".
+ *
+ * Terminal instead: these resolve to NO senses and stop there. That mirrors what the
+ * reader already does with Japanese particles, which are greyed out by POS rather than
+ * looked up. A learner is not served by a dictionary entry for "an".
+ *
+ * DELIBERATELY CONSERVATIVE — only words with no useful standalone entry. Words that
+ * are also content words stay OUT: "have"/"can"/"will"/"work" have real meanings, and
+ * blocking them would be a worse bug than the one this fixes.
+ */
+export const EN_FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  ...EN_JA_STOPWORDS,
+  // possessive determiners — JMdict has no entry; 私の is a phrase, not a headword
+  "my", "your", "his", "her", "its", "our", "their",
+  // personal pronouns
+  "i", "me", "you", "he", "she", "it", "we", "us", "they", "them", "him",
+  // demonstratives
+  "this", "that", "these", "those",
+]);
+
+/** True when `input` is a single English word that is grammar rather than vocabulary. */
+export function isEnglishFunctionWord(input: string): boolean {
+  const w = input.trim().toLowerCase();
+  return w.length > 0 && !/\s/.test(w) && EN_FUNCTION_WORDS.has(w);
+}
+
+/** True when `input` is more than one whitespace-separated token. */
+export function isMultiWord(input: string): boolean {
+  return input.trim().split(/\s+/).length > 1;
+}
+
+// JMdict CONJUGATION CLASSES — the tags that mark an entry as an actual verb. Used to
+// bias an inflected English verb ("worked") toward 働く instead of the noun 仕事.
+//
+// ‼️ Bare `vs` is EXCLUDED, and that distinction is the whole fix. `vs` means "noun or
+// participle which takes する" — it is a NOUN entry (仕事 is ["n","vs"], 制作 likewise).
+// A first cut matched it and the bias did nothing: every noun in the list counted as a
+// verb, so 仕事 stayed first. Measured live before and after.
+//
+// `vi`/`vt` are excluded for the same reason — transitivity is a property, not a class,
+// and a real verb always carries a class alongside it (働く is ["v5k","vi"]).
+const VERB_POS = /^(v1|v2|v4|v5|vk|vn|vr|vz|vs-)/;
+
+/**
+ * Does the SURFACE form say "this is a verb"? `-ed` / `-ing` are unambiguous in a way
+ * the dictionary side cannot see: words.part_of_speech on an EN row holds the JMdict
+ * POS of the matched JAPANESE sense, and there is no English POS source (docs/TODO.md).
+ * The inflection is the one English POS signal we DO have, so use it.
+ */
+export function inflectedAsVerb(surface: string, lemma: string): boolean {
+  const s = surface.trim().toLowerCase();
+  if (s === lemma.trim().toLowerCase()) return false; // uninflected — says nothing
+  return /(?:ed|ing)$/.test(s);
+}
+
+/**
+ * Same question, asked against a whole candidate list.
+ *
+ * `lemmaCandidates` returns [SURFACE, ...lemmas], so the lemma is NOT at a fixed
+ * position — reading the last entry picked up whatever the regular-form generator
+ * emitted last ("worke" for "worked") and the bias silently never fired. Take the
+ * first candidate that actually differs from the surface; a word with no differing
+ * candidate ("bed") never inflected, so it is not evidence of anything.
+ */
+export function inflectedVerbSurface(surface: string, candidates: string[]): boolean {
+  const s = surface.trim().toLowerCase();
+  const lemma = candidates.find((c) => c.trim().toLowerCase() !== s);
+  return lemma ? inflectedAsVerb(surface, lemma) : false;
+}
+
+/**
+ * Stable-sort verb senses ahead of the rest. Applied only when the surface is an
+ * inflected verb form: "worked" resolved to work's senses and led with 仕事 (the noun),
+ * because the gloss "work" sits at sense 0 / gloss 0 of BOTH and frequency broke the
+ * tie. The inflection settles it — you cannot inflect a noun that way.
+ *
+ * A bias, not a filter: noun senses stay, just below. Nothing is dropped.
+ */
+export function preferVerbSenses<T extends { partOfSpeech?: string[] | null }>(rows: T[]): T[] {
+  const isVerb = (r: T) => (r.partOfSpeech ?? []).some((p) => VERB_POS.test(p));
+  // Stable partition preserves the existing (headline_rank) order within each group.
+  return [...rows.filter(isVerb), ...rows.filter((r) => !isVerb(r))];
+}
+
 /** surface (NFC kanji) → its correct everyday standalone reading (hiragana). */
 export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
   前: "まえ", 人: "ひと", 本: "ほん", 彼: "かれ", 娘: "むすめ",
@@ -661,11 +763,21 @@ export function applyWritingOverride<T extends { input: string }>(
  * has no override or no sense carries the preferred form. Used by the edge's card /
  * single-word assembly so learn/calibration + translate all agree on the primary.
  */
-export function orderSensesForInput<T extends { input: string; inputReading: string | null }>(
-  input: string,
-  words: T[],
-): T[] {
-  return applyWritingOverride(input, applyReadingOverride(input, words));
+export function orderSensesForInput<
+  T extends { input: string; inputReading: string | null; partOfSpeech?: string[] | null },
+>(input: string, words: T[]): T[] {
+  const ordered = applyWritingOverride(input, applyReadingOverride(input, words));
+  // The verb bias is applied at READ time, not only when projecting, so it also fixes
+  // rows ALREADY in the cache. Doing it in the projection alone was measurably not
+  // enough: "worked" was cached at the current version with 仕事 first, so the cache
+  // answered and the projection never ran again — only another version bump would have
+  // reached it. Ordering here needs no bump and cannot go stale.
+  //
+  // Safe for every language: the test is an English -ed/-ing surface with a differing
+  // lemma, which no Japanese headword satisfies.
+  return inflectedVerbSurface(input, lemmaCandidates(input, "EN"))
+    ? preferVerbSenses(ordered)
+    : ordered;
 }
 
 // ── PostgREST list-filter chunking ─────────────────────────────────────────
