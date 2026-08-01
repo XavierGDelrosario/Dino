@@ -22,6 +22,7 @@ import {
   DEFAULT_LEARNING_LANGUAGE,
   DEFAULT_NATIVE_LANGUAGE,
   targetOptions,
+  SUPPORTED_LANGUAGES,
   type LangCode,
 } from "../services/language";
 import { TextQuizView } from "./TextQuizView";
@@ -125,6 +126,10 @@ export function LearnView({ userId }: { userId: string }) {
           userId={userId}
           lists={lists}
           onCreateList={createNamedList}
+          // The pair PICKED here, not the saved profile: without these the placement
+          // quiz read the profile and served Japanese words under the English UI.
+          learning={learning}
+          native={native}
           onClose={() => {
             setCalibrating(false);
             void loadLevel();
@@ -163,7 +168,15 @@ export function LearnView({ userId }: { userId: string }) {
           className="learn__langselect"
           value={learning}
           onChange={(e) => {
-            setLearning(e.target.value as LangCode);
+            const picked = e.target.value as LangCode;
+            setLearning(picked);
+            // The EXPLANATION language has to move with it. Leaving it put made the
+            // pair same-language (EN→EN) the moment you picked your own native
+            // language, and the pool has nothing for that — an empty quiz with no
+            // stated reason. Mirrors how useTranslate resolves `native`.
+            setNative((n) =>
+              n === picked ? SUPPORTED_LANGUAGES.find((l) => l.code !== picked)?.code ?? n : n,
+            );
             reset();
           }}
         >

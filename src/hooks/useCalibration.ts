@@ -46,10 +46,23 @@ const GRAMMATICAL_POS = new Set([
 const isAffixOnly = (w: Word): boolean =>
   !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => GRAMMATICAL_POS.has(p));
 
-export function useCalibration(userId: string) {
+/**
+ * @param override the pair the CALLER is working in. Learn lets you pick a language on
+ * the spot, and this used to read the saved profile regardless — so choosing English
+ * gave you the CEFR bands and then placed you on JAPANESE words. When given, it wins;
+ * the profile stays the fallback for callers that have no picker.
+ */
+export function useCalibration(
+  userId: string,
+  override?: { learning: LangCode; native: LangCode },
+) {
+  // Read as PRIMITIVES, not as the object: `override` is written inline by the caller,
+  // so it is a new reference every render and would retrigger `load` forever.
+  const pickedLearning = override?.learning;
+  const pickedNative = override?.native;
   const langs = useRef<{ learning: LangCode; native: LangCode }>({
-    learning: DEFAULT_LEARNING_LANGUAGE,
-    native: DEFAULT_NATIVE_LANGUAGE,
+    learning: pickedLearning ?? DEFAULT_LEARNING_LANGUAGE,
+    native: pickedNative ?? DEFAULT_NATIVE_LANGUAGE,
   });
   const maxBand = useRef(1);
   const baseline = useRef<VocabRating[]>([]); // rated vocabulary before this session
@@ -114,8 +127,13 @@ export function useCalibration(userId: string) {
     setStatus("loading");
     setError(null);
     try {
-      const p = await getUserProfile(userId).catch(() => null);
-      langs.current = profileToLangs(p);
+      // The caller's explicit pair wins over the saved profile — see `override`.
+      const picked =
+        pickedLearning && pickedNative
+          ? { learning: pickedLearning, native: pickedNative }
+          : null;
+      const p = picked ? null : await getUserProfile(userId).catch(() => null);
+      langs.current = picked ?? profileToLangs(p);
       if (!proficiencyFrameworkFor(langs.current.learning)) {
         setStatus("unavailable");
         return;
@@ -149,7 +167,7 @@ export function useCalibration(userId: string) {
       setError(message(e));
       setStatus("error");
     }
-  }, [userId, fetchAround]);
+  }, [userId, fetchAround, pickedLearning, pickedNative]);
 
   useEffect(() => {
     void load();

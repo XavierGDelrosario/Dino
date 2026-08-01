@@ -14,6 +14,7 @@ import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n } from "../i18n";
 import type { List } from "../services/lists";
+import type { LangCode } from "../services/language";
 import "../components/flashcards/flashcards.css";
 import "./learn.css";
 import "./calibration.css";
@@ -23,13 +24,23 @@ export function CalibrationView({
   lists,
   onCreateList,
   onClose,
+  learning,
+  native,
 }: {
   userId: string;
   lists: List[];
   onCreateList: (name: string) => Promise<string>;
   onClose: () => void;
+  /** The pair the CALLER is working in. Learn has its own language picker, and
+   *  without these the placement quiz fell back to the saved profile — picking
+   *  English gave CEFR bands and then placed you on Japanese words. */
+  learning?: LangCode;
+  native?: LangCode;
 }) {
-  const c = useCalibration(userId);
+  const c = useCalibration(
+    userId,
+    learning && native ? { learning, native } : undefined,
+  );
   const { t } = useI18n();
   const { status, current, revealed, reveal, rate } = c;
 
