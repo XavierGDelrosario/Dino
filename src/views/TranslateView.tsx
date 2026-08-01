@@ -17,7 +17,7 @@ import { useDictation } from "../hooks/useDictation";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
-import { PencilIcon, MicIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
 import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
@@ -274,13 +274,17 @@ export function TranslateView({
                   keeps it reachable in a browser that has neither, via the mock. */}
               {(dictation.available || import.meta.env.DEV) && (
                 <button
-                  className="io__tool"
+                  /* Listening is a MODE the user has to be able to see and leave, so
+                     it says so twice: the red pulsing .io__tool--rec, and a stop
+                     square in place of the mic. An accent border alone (what
+                     aria-pressed gets) reads the same as hover. */
+                  className={`io__tool${dictation.listening ? " io__tool--rec" : ""}`}
                   onClick={dictation.available ? dictation.toggle : dictation.startMock}
                   aria-pressed={dictation.listening}
                   aria-label={dictation.listening ? tr("listen.stop") : tr("listen.tool")}
                   title={dictation.listening ? tr("listen.stop") : tr("listen.tool")}
                 >
-                  <MicIcon />
+                  {dictation.listening ? <StopIcon /> : <MicIcon />}
                 </button>
               )}
               {ocrAvailable && (

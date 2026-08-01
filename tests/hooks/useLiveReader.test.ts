@@ -41,6 +41,20 @@ describe("completedPrefix", () => {
     expect(completedPrefix("猫が好き")).toBe("");
     expect(completedPrefix("")).toBe("");
   });
+
+  // Dictation commits every utterance with a trailing "\n" and never a 。, so if a
+  // line break didn't count as finished, the reader lagged one utterance behind and
+  // a single spoken line rendered nothing.
+  // The prefix ends at the last span's end, so the terminating break itself is
+  // trimmed off — what matters is that the LINE is included at all.
+  it("treats a hard line break as finished — one dictated line is enough", () => {
+    expect(completedPrefix("猫が好き\n")).toBe("猫が好き");
+    expect(completedPrefix("猫が好き\n犬も好き\n")).toBe("猫が好き\n犬も好き");
+  });
+
+  it("still excludes the utterance currently forming after a line break", () => {
+    expect(completedPrefix("猫が好き\n犬も")).toBe("猫が好き");
+  });
 });
 
 describe("useLiveReader", () => {

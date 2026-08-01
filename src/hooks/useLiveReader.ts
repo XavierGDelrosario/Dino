@@ -54,7 +54,16 @@ export function completedPrefix(text: string): string {
   const last = spans[spans.length - 1];
   // A final span that runs to the end of the input with no terminator after it is
   // the sentence currently being typed — drop it.
-  const terminated = /[。．！？!?…]\s*$/u.test(text.slice(last.start, last.end));
+  //
+  // A HARD LINE BREAK counts as that terminator, exactly as it does in
+  // `splitSentences`. Dictation commits each utterance with a trailing "\n" and
+  // never a 。 (a pause says WHERE the boundary is, not which mark belongs there —
+  // see services/speech/dictation), so a punctuation-only test made every dictated
+  // line look unfinished: the reader lagged one utterance behind, and a single
+  // spoken line showed nothing at all. The span text itself is trimmed, so the
+  // break lives in the source AFTER the span — test there.
+  const terminated =
+    /[。．！？!?…]\s*$/u.test(text.slice(last.start, last.end)) || text.slice(last.end).includes("\n");
   const end = terminated ? last.end : spans.length > 1 ? spans[spans.length - 2].end : 0;
   return text.slice(0, end);
 }
