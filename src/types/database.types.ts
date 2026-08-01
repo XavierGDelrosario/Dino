@@ -306,19 +306,20 @@ export type Database = {
         Row: {
           elapsed_days: number | null
           grade: number
-          log_id: string
           new_stability: number
           prev_stability: number | null
+          repeats: number
           reviewed_at: string
+          reviewed_on: string
           user_id: string
           user_word_id: string
         }
         Insert: {
           elapsed_days?: number | null
           grade: number
-          log_id?: string
           new_stability: number
           prev_stability?: number | null
+          repeats?: number
           reviewed_at?: string
           user_id: string
           user_word_id: string
@@ -326,9 +327,9 @@ export type Database = {
         Update: {
           elapsed_days?: number | null
           grade?: number
-          log_id?: string
           new_stability?: number
           prev_stability?: number | null
+          repeats?: number
           reviewed_at?: string
           user_id?: string
           user_word_id?: string
