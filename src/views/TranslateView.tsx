@@ -171,6 +171,23 @@ export function TranslateView({
   // Snapshot a paragraph's NEW words ONCE when its result arrives. The live
   // addablePrimaries empties as words get saved, which would otherwise unmount the
   // "Add all" button mid-interaction (so its ✓→+ →menu flow couldn't play out).
+  // Colour the LIVE reader by what the user already knows. Its meanings come from
+  // the free dictionary path, but the saved/confidence state behind the red→green
+  // colouring was only ever loaded by submit — so until you pressed a button, a word
+  // you know perfectly showed as blue "addable". One user_words read per new sense,
+  // deduped inside the hook; no dictionary call and no MT.
+  const { syncSenseState } = t; // destructured so the effect depends on IT, not all of `t`
+  useEffect(() => {
+    if (!live.para) return;
+    const ids: string[] = [];
+    live.para.meanings.forEach((senses) => senses.forEach((s) => ids.push(s.wordId)));
+    void syncSenseState(ids);
+  }, [live.para, syncSenseState]);
+
+  // Whether the reader should come up with its English already showing — set only
+  // when the user asked for it via "Show translation" (see askForTranslation). The
+  // plain Translate button clears it, so the reader stays Japanese-first by default.
+  const [openGloss, setOpenGloss] = useState(false);
   const [addAllWords, setAddAllWords] = useState<Word[]>([]);
   useEffect(() => {
     if (t.status === "done" && t.mode === "paragraph") setAddAllWords(t.addablePrimaries);
@@ -201,6 +218,15 @@ export function TranslateView({
 
   const wordStudy = t.status === "done" && t.mode === "word" && t.meanings.length > 0;
   const paraStudy = t.status === "done" && t.mode === "paragraph" && t.para;
+
+  /** "Show translation" on the live reader: run the same submit the button runs.
+   *  The live reader is replaced by the submitted one, so remember that the English
+   *  was ASKED for — otherwise the reader that arrives hides the gloss it just
+   *  bought, and the press reads as having done nothing. */
+  const askForTranslation = async () => {
+    setOpenGloss(true);
+    await t.submit();
+  };
   const hasActions =
     addAllWords.length > 0 || t.addableCount > 0 || t.reviewableCount > 0 || !!paraStudy;
 
@@ -353,7 +379,10 @@ export function TranslateView({
       <div className="translate__submit">
         <button
           className="btn"
-          onClick={() => t.submit()}
+          onClick={() => {
+            setOpenGloss(false); // Japanese-first; the reader's own toggle reveals it
+            void t.submit();
+          }}
           disabled={t.status === "loading" || !t.input.trim()}
         >
           {t.status === "loading" ? "…" : tr("translate.submit")}
@@ -407,8 +436,17 @@ export function TranslateView({
             // bought here. Both paths share the sentence cache, so tapping a few
             // and then pressing the toggle pays only for what's left.
             onTranslateSentence={live.translateSentence}
-            onLoadGloss={live.translateAll}
-            glossLoading={live.glossLoading}
+            // "Show translation" IS Translate. It used to buy only the gloss, which
+            // left it visibly weaker than the button beside it: no output box, and
+            // words still uncoloured because the saved/confidence state is loaded by
+            // submit. Same work now, so the only difference is that this one opens
+            // the English (and can put it away again).
+            //
+            // No double spend: submit's paragraph gloss and this toggle both go
+            // through glossSentences, which is content-addressed by sentence, so
+            // whichever runs second pays for nothing.
+            onLoadGloss={askForTranslation}
+            glossLoading={t.status === "loading"}
             saved={t.saved}
             confidence={t.confidence}
             lists={t.lists}
@@ -483,6 +521,7 @@ export function TranslateView({
                 onLoadGloss={t.loadGloss}
                 onTranslateSentence={t.loadSentenceGloss}
                 glossLoading={t.glossLoading}
+                openGloss={openGloss}
                 saved={t.saved}
                 confidence={t.confidence}
                 lists={t.lists}

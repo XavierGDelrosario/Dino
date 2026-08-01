@@ -7,7 +7,7 @@
 //                     like 辛い → からい / つらい are separate senses, so you can
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
@@ -84,6 +84,8 @@ export function useTranslate(userId: string) {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [confidence, setConfidence] = useState<Map<string, number>>(new Map());
   const [userWordIds, setUserWordIds] = useState<Map<string, string>>(new Map());
+  /** Senses whose knowledge state has already been fetched — see syncSenseState. */
+  const syncedIds = useRef<Set<string>>(new Set());
 
   // Destination for adds: a sub-list (also tags it) or null = just ALL. The
   // The user's sub-lists (the add buttons' second-click menu offers these + "new").
@@ -206,6 +208,11 @@ export function useTranslate(userId: string) {
         setSaving(new Set());
         setConfidence(conf);
         setUserWordIds(uw);
+        // This is the AUTHORITATIVE state for the new result and REPLACES what came
+        // before, so the live reader's incremental record starts over with it —
+        // otherwise a sense it had already fetched would be skipped for ever, even
+        // though this reset just dropped it.
+        syncedIds.current = new Set(ids);
       };
 
       // CASE B, single typed word → surface the learning language's DISTINCT
@@ -442,6 +449,57 @@ export function useTranslate(userId: string) {
     [analyzedInput, para, learning, nativeLang],
   );
 
+  /**
+   * Fill in the knowledge state (saved / confidence) for senses the LIVE reader has
+   * found, so it can colour them without a submit.
+   *
+   * Colours are read from `saved`/`confidence`, which only submit used to populate —
+   * so while typing or dictating, a word already known at 5/5 rendered blue
+   * "addable", which is worse than no colour: it says you don't have a word you do.
+   *
+   * MERGES, never replaces. submit's loadSenseState owns the authoritative reset for
+   * a whole result; this only adds what it learned about a few more senses, so it
+   * can't wipe that — or race an in-flight save's optimistic mark.
+   *
+   * Free: one `user_words` read, no dictionary and no MT. Each sense is fetched ONCE
+   * (the live reader re-analyzes on every pause, and re-asking the same question on
+   * every keystroke is how a free path stops being free). Saves and reviews update
+   * the state directly, so a fetched sense never needs asking again.
+   */
+  const syncSenseState = useCallback(
+    async (dictionaryWordIds: string[]) => {
+      const ids = dictionaryWordIds.filter((id) => !syncedIds.current.has(id));
+      if (ids.length === 0) return;
+      ids.forEach((id) => syncedIds.current.add(id));
+      try {
+        const tracked = await getUserWordStates({ userId, dictionaryWordIds: ids });
+        const owned = [...tracked].filter(([, st]) => st.tracked);
+        if (owned.length === 0) return;
+        setSaved((prev) => {
+          const next = new Set(prev);
+          owned.forEach(([id]) => next.add(id));
+          return next;
+        });
+        setConfidence((prev) => {
+          const next = new Map(prev);
+          owned.forEach(([id, st]) => next.set(id, st.confidenceRating));
+          return next;
+        });
+        setUserWordIds((prev) => {
+          const next = new Map(prev);
+          owned.forEach(([id, st]) => { if (st.userWordId) next.set(id, st.userWordId); });
+          return next;
+        });
+      } catch (e) {
+        // Non-fatal: the reader still works, it just isn't coloured yet. Re-allow the
+        // ask, so a transient failure isn't cached as "already fetched".
+        ids.forEach((id) => syncedIds.current.delete(id));
+        console.warn("useTranslate: failed to sync sense state for the live reader", e);
+      }
+    },
+    [userId],
+  );
+
   /** Swap source↔target, move the OUTPUT text into the input, and re-translate —
    *  the Google-Translate swap. Just swaps languages when there's nothing to move. */
   const swap = useCallback(() => {
@@ -587,7 +645,7 @@ export function useTranslate(userId: string) {
     // Google-Translate-style output box + swap (langs + text + re-translate)
     output, swap,
     // shared per-sense state
-    saved, saving, confidence, addSense, markUnknown,
+    saved, saving, confidence, addSense, markUnknown, syncSenseState,
     // word mode
     headword, meanings,
     // paragraph mode
