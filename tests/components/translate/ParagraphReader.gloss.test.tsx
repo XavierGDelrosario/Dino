@@ -291,9 +291,11 @@ describe("ParagraphReader — tapping a sentence's punctuation", () => {
     expect(paragraph.textContent).toBe("猫が走った。The cat ran.犬が寝た。");
   });
 
-  it("gives a sentence that ends WITHOUT punctuation its own control", () => {
-    // Recognized speech rarely punctuates, and headlines/list items never do — those
-    // sentences had no control at all, so they could not be translated.
+  it("gives unpunctuated text NO per-sentence controls — the whole gloss answers instead", () => {
+    // Recognized speech rarely punctuates and headlines never do. Those sentences
+    // used to get a stand-in marker: a pressable thing with no glyph in the source,
+    // unfindable unless you already knew it was there. Now the text keeps its
+    // controls-free flow and "Show translation" prints the lot in one block.
     const TWO_LINES = "猫が走った\n犬が寝た";
     const { container } = render(
       <LocaleProvider>
@@ -320,19 +322,33 @@ describe("ParagraphReader — tapping a sentence's punctuation", () => {
       </LocaleProvider>,
     );
 
-    const implicit = container.querySelectorAll(".reader__punct--implicit");
-    expect(implicit).toHaveLength(2); // one per unpunctuated sentence
-    // The marker's glyph lives in CSS, so the text still reads exactly as the source.
+    expect(container.querySelectorAll(".reader__punct")).toHaveLength(0);
+    // The reader renders exactly the source, controls or not.
     expect((container.querySelector(".reader") as HTMLElement).textContent).toBe(TWO_LINES);
 
-    fireEvent.click(implicit[1]);
-    expect(screen.getByText("The dog slept.")).toBeTruthy();
+    // Nothing inline, before or after the toggle — the block below carries it all.
+    expect(container.querySelector(".reader__whole")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(0);
+    expect((container.querySelector(".reader__whole") as HTMLElement).textContent).toBe(
+      "The cat ran. The dog slept.",
+    );
   });
 
-  it("puts the control at its OWN sentence's end, not past the line break", () => {
-    // The regression: when a sentence ended before its gap did (untokenized trailing
-    // text, then a newline), the control was emitted after the WHOLE gap — landing
-    // beside the next sentence instead of closing its own.
+  it("keeps the per-sentence layout as soon as ONE sentence is punctuated", () => {
+    // Mixed text still hangs its English off the marks it does have; only the
+    // wholly-unpunctuated case falls back to the block.
+    const { container } = renderTappable();
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(2);
+    expect(container.querySelector(".reader__whole")).toBeNull();
+  });
+
+  it("in MIXED text, only the punctuated sentence gets a control", () => {
+    // A line break ends the first sentence with no mark on it. It gets nothing —
+    // and, critically, the second sentence's 。 stays with the SECOND sentence
+    // rather than drifting up to close the first (the old placement regression,
+    // back when an unpunctuated line still claimed a control of its own).
     const TEXT2 = "猫が走った\n犬が寝た。";
     const { container } = render(
       <LocaleProvider>
@@ -361,16 +377,18 @@ describe("ParagraphReader — tapping a sentence's punctuation", () => {
 
     const paragraph = container.querySelector(".reader") as HTMLElement;
     const controls = [...paragraph.querySelectorAll(".reader__punct")];
-    expect(controls).toHaveLength(2);
-    // First control closes the FIRST sentence: everything before it is that
-    // sentence's text, and the line break has not happened yet.
-    const before = (paragraph.textContent ?? "").indexOf("犬");
+    expect(controls).toHaveLength(1);
+    expect(controls[0].textContent).toBe("。");
+    // It sits AFTER the second sentence's text, not up beside the first.
     const rendered = paragraph.innerHTML.indexOf(controls[0].outerHTML);
     expect(rendered).toBeGreaterThan(-1);
-    expect(paragraph.innerHTML.slice(0, rendered)).not.toContain("犬");
-    expect(before).toBeGreaterThan(0);
-    // …and the second is the real terminator of the second sentence.
-    expect(controls[1].textContent).toBe("。");
+    expect(paragraph.innerHTML.slice(0, rendered)).toContain("犬");
+    // One punctuated sentence is enough to keep the inline layout.
+    expect(container.querySelector(".reader__whole")).toBeNull();
+    // Pressing it answers for the sentence it closes, and only that one.
+    fireEvent.click(controls[0]);
+    expect(screen.getByText("The dog slept.")).toBeTruthy();
+    expect(screen.queryByText("The cat ran.")).toBeNull();
   });
 
   it("lifts a translated sentence onto its own line, alongside its English", () => {

@@ -790,20 +790,17 @@
   color: var(--accent, #4f8cff);
 }
 
-/* The stand-in for a sentence that ends WITHOUT punctuation — recognized speech,
-   headlines, list items. Its glyph is drawn in CSS on purpose: as ::after content it
-   never enters textContent, so the rendered text still matches the source exactly
-   (nothing is inserted into what the reader is reading). Dim at rest, like the
-   terminator it replaces. */
-.reader__punct--implicit::after {
-  content: "･";
-  opacity: 0.45;
-}
-
-.reader__punct--implicit:hover::after,
-.reader__punct--implicit:focus-visible::after,
-.reader__punct--implicit.is-bought::after {
-  opacity: 1;
+/* The WHOLE translation, under text that has no punctuation to hang per-sentence
+   controls on (dictated speech, a headline, one typed line). Same annotation
+   styling as .reader__gloss — dimmer, smaller, set off by a rule — so the two
+   layouts read as the same feature answering in the only way each text allows. */
+.reader__whole {
+  margin: 0.5rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 /* Back sits at the head of the bar; the actions that DO something (listen, clear,

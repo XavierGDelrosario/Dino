@@ -20,6 +20,14 @@ import "../common/SenseText.css"; // shared .sense* row/action styles
 // distributions to be meaningful (short outputs read fine as-is).
 const SUMMARY_MIN_WORDS = 12;
 
+// The marks that can BE a per-sentence control. Deliberately not `splitSentences`'
+// full set: ASCII "." is also a decimal point and an abbreviation mark, and turning
+// one into a button mid-number reads as a typo.
+const TERMINATOR = /[。．！？!?…]/u;
+// …and the same, anchored, allowing the closers that belong to the sentence
+// (「…だ。」 ends on 」 but is still punctuated).
+const ENDS_TERMINATED = /[。．！？!?…][」』）〉》】)"'”’]*$/u;
+
 function ParagraphReaderImpl({
   text,
   tokens,
@@ -67,13 +75,38 @@ function ParagraphReaderImpl({
   // for every sentence at once.
   const [tapped, setTapped] = useState<ReadonlySet<number>>(new Set());
 
+  // Does ANY sentence end on a real terminator? That decides which of the two gloss
+  // layouts the whole reader uses.
+  //
+  // Inline (per-sentence English under each line) needs a mark to hang the control
+  // on. Text with no punctuation anywhere — dictated speech, a headline, one typed
+  // line — has none, and the stand-in dot this used to draw was a control the reader
+  // couldn't see, sitting where the source had nothing. So that text gets the SIMPLE
+  // layout instead: one "Show translation", the whole English in one block below.
+  //
+  // Buying is unchanged either way — the toggle still pays per sentence through
+  // `onLoadGloss`, so the cost and the cache are exactly as before; only where the
+  // answer is drawn differs.
+  const inlineGloss = useMemo(() => sentences.some((s) => ENDS_TERMINATED.test(s.text)), [sentences]);
+
   const visibleGloss = useCallback(
     (index: number): string | null => {
+      if (!inlineGloss) return null; // the whole-text block below owns it
       const gloss = sentences[index]?.gloss;
       if (!gloss) return null;
       return showGloss || tapped.has(index) ? gloss : null;
     },
-    [sentences, showGloss, tapped],
+    [sentences, showGloss, tapped, inlineGloss],
+  );
+
+  /** Every sentence's English as one paragraph — the unpunctuated-text layout. */
+  const wholeGloss = useMemo(
+    () =>
+      sentences
+        .map((s) => s.gloss)
+        .filter(Boolean)
+        .join(" "),
+    [sentences],
   );
 
   // Summary infographic (level / frequency / confidence + coverage donut), hidden
@@ -173,30 +206,32 @@ function ParagraphReaderImpl({
           const cut = end - at;
           const chunk = raw.slice(local, cut);
           const mark = chunk.slice(-1);
-          const isTerminator = /[。．！？!?…]/u.test(mark);
-          // Only an actual terminator becomes the control; a sentence ending on
-          // ordinary text gets the implicit marker, or a kana would look pressable.
+          const isTerminator = TERMINATOR.test(mark);
+          // ONLY an actual terminator becomes the control. A sentence ending on
+          // ordinary text gets nothing: the stand-in marker that used to go here was
+          // a pressable thing with no glyph in the source, which is unfindable if you
+          // don't already know it's there. Unpunctuated text is served by the
+          // whole-text block instead (see `inlineGloss`).
           parts.push(<span key={`${key}-txt-${idx}`}>{isTerminator ? chunk.slice(0, -1) : chunk}</span>);
-          if (buySentence) {
+          if (isTerminator) {
             parts.push(
-              <button
-                key={`${key}-mark-${idx}`}
-                type="button"
-                className={`reader__punct${isTerminator ? "" : " reader__punct--implicit"}${
-                  sentences[idx]?.gloss ? " is-bought" : ""
-                }`}
-                // Clicking the OPEN sentence's mark closes it — the same control
-                // that asked the question dismisses the answer.
-                onClick={openFor(idx)}
-                title={tr("reader.translateSentence")}
-                aria-label={tr("reader.translateSentence")}
-              >
-                {isTerminator ? mark : null}
-              </button>,
+              buySentence ? (
+                <button
+                  key={`${key}-mark-${idx}`}
+                  type="button"
+                  className={`reader__punct${sentences[idx]?.gloss ? " is-bought" : ""}`}
+                  // Clicking the OPEN sentence's mark closes it — the same control
+                  // that asked the question dismisses the answer.
+                  onClick={openFor(idx)}
+                  title={tr("reader.translateSentence")}
+                  aria-label={tr("reader.translateSentence")}
+                >
+                  {mark}
+                </button>
+              ) : (
+                <span key={`${key}-mark-${idx}`}>{mark}</span>
+              ),
             );
-            marked.add(idx);
-          } else if (isTerminator) {
-            parts.push(<span key={`${key}-mark-${idx}`}>{mark}</span>);
           }
           const gloss = visibleGloss(idx);
           if (gloss)
@@ -213,31 +248,6 @@ function ParagraphReaderImpl({
 
       const out: JSX.Element[] = [];
       let cursor = from;
-      // Sentences whose control was already drawn as a clickable TERMINATOR by
-      // `gap` — they must not also get an implicit marker.
-      const marked = new Set<number>();
-      let nextSentence = 0;
-      // Emit a control for every sentence the cursor has now passed. Positional, not
-      // exact-match: a sentence can end on a token (speech, headlines), inside a
-      // longer gap, or on punctuation — only the last of those is `gap`'s case, and
-      // requiring an exact hit is what left some sentences with no control at all.
-      const closePassedSentences = (key2: string) => {
-        if (!buySentence) return;
-        while (nextSentence < sentences.length && sentences[nextSentence].end <= cursor) {
-          const idx = nextSentence++;
-          if (marked.has(idx) || sentences[idx].end <= from) continue;
-          out.push(
-            <button
-              key={`${key2}-end-${idx}`}
-              type="button"
-              className={`reader__punct reader__punct--implicit${sentences[idx]?.gloss ? " is-bought" : ""}`}
-              onClick={openFor(idx)}
-              title={tr("reader.translateSentence")}
-              aria-label={tr("reader.translateSentence")}
-            />,
-          );
-        }
-      };
       tokens.forEach((t, i) => {
         if (t.start < from || t.end > to) return; // belongs to another sentence
         if (t.start > cursor) out.push(gap(text.slice(cursor, t.start), cursor, `${key}-gap-${i}`));
@@ -253,13 +263,8 @@ function ParagraphReaderImpl({
           </span>
         );
         cursor = Math.max(cursor, t.end);
-        closePassedSentences(`${key}-t${i}`);
       });
-      if (cursor < to) {
-        out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
-        cursor = to;
-      }
-      closePassedSentences(`${key}-tail`);
+      if (cursor < to) out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
       return out;
     },
     [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, sentences, onTranslateSentence, visibleGloss, tr],
@@ -374,6 +379,9 @@ function ParagraphReaderImpl({
           sentence; each translation is injected under the sentence it belongs to
           (see `gap`), so only glossed lines break and the rest keeps flowing. */}
       <p className="reader">{flat}</p>
+      {/* Unpunctuated text: nowhere to put a per-sentence English, so the whole
+          translation goes here in one block — the plain answer to one plain toggle. */}
+      {!inlineGloss && showGloss && wholeGloss && <p className="reader__whole">{wholeGloss}</p>}
       {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"

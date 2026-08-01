@@ -14,7 +14,9 @@
 // terminator but is its own sentence"). So committing each utterance with a
 // trailing "\n" turns the SPEAKER'S PAUSE into the sentence boundary — which is
 // what a pause usually means anyway — without inventing a 。 that may be wrong.
-// The reader already renders a boundary with no terminator: `.reader__punct--implicit`.
+// The reader renders a boundary with no terminator plainly: it hangs no per-sentence
+// control off it, and glosses the text as one block instead (see `inlineGloss` in
+// ParagraphReader).
 //
 // Deliberately NOT inserting 。: a pause is evidence of a boundary, not evidence of
 // which mark belongs there, and a wrong 。 is baked into text the user then saves.
