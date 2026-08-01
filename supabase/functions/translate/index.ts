@@ -1051,9 +1051,10 @@ async function resolveBatch(
 // Request parsing/clamping (band/limit/excludeSeen) lives in _lib.parseLearnRequest
 // (unit-tested). This file keeps only the I/O.
 
-/** Unseen headwords at proficiency band `band` for the caller (JMdict source →
- *  the SQL retrieval; see migration 20260717). Empty for a pair/band with no
- *  curated wordlist (only JA→EN/JLPT is populated today). */
+/** Unseen headwords at proficiency band `band` for the caller (the SQL retrieval
+ *  owns the source: JMdict for JA→EN, english_proficiency + WordNet for EN→JA; see
+ *  migrations 20260717 and 20260745). Empty for a pair/band with no curated
+ *  wordlist — those two pairs are the populated ones. */
 async function selectLearnHeadwords(
   supabase: Supa,
   sourceLang: string,
@@ -1155,8 +1156,9 @@ async function handleRequest(req: Request): Promise<Response> {
   // LEARN mode: { learn: { band, limit? } } → up to `limit` UNSEEN words at the
   // given proficiency band, projected into the cache (via the batch path) and
   // returned as quiz cards (each card = one word's full sense list, primary
-  // first). The source retrieval reads JMdict (the `words` cache is incomplete);
-  // resolveBatch then projects + groups exactly like a paragraph's new words.
+  // first). The source retrieval reads the server-only wordlists (the `words`
+  // cache is incomplete); resolveBatch then projects + groups exactly like a
+  // paragraph's new words.
   if (body.learn && typeof body.learn === "object") {
     const parsed = parseLearnRequest(body.learn as { band?: unknown; limit?: unknown; excludeSeen?: unknown });
     if (!parsed.ok) return reply({ error: parsed.error }, 400);
@@ -1166,7 +1168,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const headwords = await selectLearnHeadwords(supabase, sourceLang, targetLang, band, userId, limit, excludeSeen);
       if (headwords.length === 0) return reply({ cards: [] });
       // Reuse the batch resolver: cache read → JMdict projection → grouped rows.
-      // These are JMdict headwords, so they resolve without the paid MT path.
+      // Every headword is drawn from a source we can already translate (JMdict for
+      // JA→EN; for EN→JA the pool requires a WordNet lemma WITH a Japanese side), so
+      // these resolve without the paid MT path.
       const entries = await resolveBatch(
         supabase, headwords, sourceLang, targetLang, req.headers.get("Authorization"),
       );
