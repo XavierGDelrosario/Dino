@@ -462,3 +462,54 @@ describe("ParagraphReader — tapping a sentence's punctuation", () => {
     expect(marks(container)).toHaveLength(0);
   });
 });
+
+describe("ParagraphReader — English sentences end on a period", () => {
+  // The reader's terminator set left ASCII "." out, on the theory that it is also a
+  // decimal point. Net effect: EVERY English sentence looked unpunctuated, so no line
+  // got its own control and the whole text fell to the block gloss meant for dictation.
+  const EN = "The cat ran. The dog slept.";
+  const EN_TOKENS: AnalyzedToken[] = [
+    { text: "cat", start: 4, end: 7, reading: null, lemma: "cat", pos: "名詞" },
+    { text: "dog", start: 17, end: 20, reading: null, lemma: "dog", pos: "名詞" },
+  ];
+  const EN_SENTENCES: SentenceGloss[] = [
+    { text: "The cat ran.", start: 0, end: 12, gloss: "猫が走った。" },
+    { text: "The dog slept.", start: 13, end: 27, gloss: "犬が寝た。" },
+  ];
+  const renderEn = () =>
+    render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={EN}
+          tokens={EN_TOKENS}
+          meaningsByWord={new Map()}
+          sentences={EN_SENTENCES}
+          onTranslateSentence={vi.fn()}
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+
+  it("gives each English sentence its own control, with the period as the mark", () => {
+    const { container } = renderEn();
+    const marks = container.querySelectorAll(".reader__punct");
+    expect(marks).toHaveLength(2);
+    expect(marks[0].textContent).toBe(".");
+  });
+
+  it("uses the INLINE layout, not the unpunctuated block", () => {
+    const { container } = renderEn();
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
+    expect(container.querySelectorAll(".reader__gloss")).toHaveLength(2);
+    expect(container.querySelector(".reader__whole")).toBeNull();
+  });
+
+  it("renders the English exactly as typed", () => {
+    const { container } = renderEn();
+    expect((container.querySelector(".reader") as HTMLElement).textContent).toBe(EN);
+  });
+});
