@@ -177,6 +177,71 @@ describe("nativeRecognizer (streaming)", () => {
       expect(onFinal).toHaveBeenCalledTimes(2); // not three, and no duplicate text
     });
 
+    // THE "IT SAID EVERYTHING TWICE" BUG. iOS ends its task after about a minute, so
+    // a restart is routine, not rare — and the dying task flushes its whole
+    // hypothesis as it closes. `restart` has already cleared `committed` by then, so
+    // that flush used to read as brand-new speech: the entire previous session was
+    // appended a second time and committed by the silence timer.
+    it("ignores the dying session's flush during a restart — it is not new speech", async () => {
+      const { listeners, onFinal, onPartial } = await listen();
+      listeners.partialResults?.({ matches: ["さっき言ったこと"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenLastCalledWith("さっき言ったこと");
+
+      // The session ends; `restart` runs synchronously as far as its first await, so
+      // the teardown window is open from here.
+      listeners.listeningState?.({ status: "stopped" });
+      onPartial.mockClear();
+
+      // …and in that window the closing task flushes everything it heard.
+      listeners.partialResults?.({ matches: ["さっき言ったこと"] });
+      expect(onPartial).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(2000);
+      await flush();
+      expect(onFinal).toHaveBeenCalledTimes(1); // committed once, not twice
+    });
+
+    // iOS rewrites earlier words as more audio arrives (kana converted to kanji, a
+    // particle appearing), so the committed text is not always a literal prefix of
+    // the hypothesis containing it. Taking the WHOLE hypothesis in that case — what
+    // it used to do — handed back every line already on screen.
+    it("does not re-emit committed text when the engine REVISES it", async () => {
+      const { listeners, onPartial, onFinal } = await listen();
+      listeners.partialResults?.({ matches: ["きしゃのきしゃ"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenLastCalledWith("きしゃのきしゃ");
+
+      // Converted to kanji: not a prefix any more, and SHORTER than the kana was.
+      listeners.partialResults?.({ matches: ["汽車の記者が来た"] });
+      const calls = onPartial.mock.calls;
+      const emitted = calls[calls.length - 1][0] as string;
+
+      // The property that matters: what comes back is a TAIL. Because kana→kanji
+      // changes the character count, the seam is off by that delta (here "が来" is
+      // lost with it) — the accepted cost of never repeating a paragraph. The box is
+      // editable, which is why losing a character beats saying everything twice.
+      expect("汽車の記者が来た".endsWith(emitted)).toBe(true);
+      expect(emitted).not.toContain("汽車の記者");
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenCalledTimes(2);
+    });
+
+    it("treats a SHORTER hypothesis as a fresh one rather than swallowing it", async () => {
+      const { listeners, onPartial, onFinal } = await listen();
+      listeners.partialResults?.({ matches: ["ながいはなしをしました"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenCalledTimes(1);
+
+      // The engine started over: too short to be a continuation of the committed text.
+      listeners.partialResults?.({ matches: ["はい"] });
+      expect(onPartial).toHaveBeenLastCalledWith("はい");
+    });
+
     it("restarts a session that died quietly — with a gap between stop and start", async () => {
       const { listeners } = await listen();
       listeners.partialResults?.({ matches: ["まだ聞こえる"] });

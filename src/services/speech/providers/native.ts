@@ -188,13 +188,32 @@ export const nativeRecognizer: SpeechRecognizer = {
 
     handles.push(
       await SpeechRecognition.addListener("partialResults", ({ matches }) => {
+        // Ignore what a DYING session emits while a restart is in flight. iOS
+        // flushes one last hypothesis — the whole session — as the task closes, and
+        // by then `restart` has already cleared `committed`, so that flush read as
+        // brand-new speech: everything said in the last minute was appended a second
+        // time and then committed by the silence timer. That is the "it pasted what
+        // I said earlier" bug, and it fires on EVERY restart, which for a session
+        // over about a minute is routine rather than rare.
+        if (cycling || stopped) return;
         const full = matches?.[0] ?? "";
         if (!full) return;
         heard = full;
         // Strip what is already on screen: iOS extends ONE hypothesis across a
         // pause, so without this every committed sentence would reappear inside
         // the next one.
-        const rest = (full.startsWith(committed) ? full.slice(committed.length) : full).trim();
+        //
+        // Cut by LENGTH rather than by a literal prefix match. iOS REVISES earlier
+        // words as more audio arrives (記者 → 汽車, a particle appearing mid-phrase),
+        // so `committed` regularly stops being a prefix of the hypothesis that
+        // contains it — and the old fallback for that case took the WHOLE hypothesis,
+        // re-emitting every line already committed. A revision rewrites words; it
+        // does not restart the utterance, so the boundary stays where it was.
+        // Trade-off: a revision that changes the LENGTH of the committed part shifts
+        // the cut by those few characters. Losing a character beats repeating a
+        // paragraph.
+        if (full.length < committed.length) committed = ""; // a new hypothesis, not a continuation
+        const rest = full.slice(committed.length).trim();
         if (!rest) return;
         forming = rest;
         onPartial(rest);

@@ -144,6 +144,27 @@ describe("useDictation", () => {
     expect(view.result.current.listening).toBe(false);
   });
 
+  it("opens ONE recognizer when the mic is pressed twice before it starts", async () => {
+    // `handle` is only set after the await, so it can't guard the gap by itself. Two
+    // sessions feeding the same box commit every utterance twice — and the first,
+    // handle-less one keeps the mic open with no way to stop it.
+    let release: ((h: SpeechStreamHandle) => void) | null = null;
+    const stop = vi.fn();
+    startSpeechStream.mockImplementation(
+      () => new Promise<SpeechStreamHandle>((resolve) => (release = resolve)),
+    );
+
+    const { view } = box();
+    await act(async () => {
+      void view.result.current.toggle();
+      void view.result.current.toggle(); // pressed again while the first is starting
+    });
+    expect(startSpeechStream).toHaveBeenCalledTimes(1);
+
+    await act(async () => release!({ stop }));
+    expect(view.result.current.listening).toBe(true);
+  });
+
   it("stops the session when the screen goes away — the mic must not stay open", async () => {
     const mic = fakeRecognizer();
     const { view } = box();

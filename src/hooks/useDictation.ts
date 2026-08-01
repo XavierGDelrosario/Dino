@@ -62,6 +62,8 @@ export function useDictation({
   const [error, setError] = useState<string | null>(null);
 
   const handle = useRef<SpeechStreamHandle | null>(null);
+  /** A start is awaiting permission//the backend — see `start`. */
+  const starting = useRef(false);
   /** Everything committed — the box MINUS any partial currently showing. */
   const base = useRef("");
 
@@ -103,7 +105,12 @@ export function useDictation({
   }, []);
 
   const start = useCallback(async () => {
-    if (handle.current) return;
+    // `handle` is only set AFTER the await, so it cannot guard the gap on its own: a
+    // second press (or a double-fired tap) during permission//start would open a
+    // SECOND recognizer feeding the same box — every utterance committed twice — and
+    // leave the first one running with no handle to stop it, so the mic stayed live.
+    if (handle.current || starting.current) return;
+    starting.current = true;
     setError(null);
     // Continue from what is already in the box — typed, pasted or dictated earlier.
     base.current = valueRef.current;
@@ -124,6 +131,8 @@ export function useDictation({
       setListening(true);
     } catch (e) {
       setError(e instanceof SpeechPermissionError ? "microphone-permission-denied" : message(e));
+    } finally {
+      starting.current = false;
     }
   }, [sink]);
 
