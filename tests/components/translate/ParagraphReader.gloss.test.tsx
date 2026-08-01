@@ -173,6 +173,42 @@ describe("ParagraphReader — on-demand gloss", () => {
     expect(onLoadGloss).not.toHaveBeenCalled();
   });
 
+  it("asks for the REST when only some sentences have been bought", () => {
+    // The gate used to be "no gloss at all", so tapping one sentence and then
+    // pressing the toggle silently skipped the rest. Now that the press also runs
+    // the full submit, that gate stopped a partially-tapped text from ever running it.
+    const { onLoadGloss } = renderLazy({
+      sentences: [SENTENCES[0], { ...SENTENCES[1], gloss: null }],
+    });
+    fireEvent.click(toggle());
+    expect(onLoadGloss).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens with the English already showing when it was ASKED for", () => {
+    // The press happens on the LIVE reader, which is then replaced by this one. The
+    // gloss it paid for must not come up hidden, or the press reads as a no-op.
+    render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={TEXT}
+          tokens={TOKENS}
+          meaningsByWord={MEANINGS}
+          sentences={SENTENCES}
+          openGloss
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+    // …and it still puts it away.
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
+    expect(screen.queryByText("The cat ran.")).toBeNull();
+  });
+
   it("keeps showing the Japanese while the translation is in flight", () => {
     const { container } = renderLazy({ glossLoading: true });
     // Disabled while loading, so a second press can't buy it twice.

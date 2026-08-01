@@ -36,6 +36,7 @@ function ParagraphReaderImpl({
   onLoadGloss,
   onTranslateSentence,
   glossLoading = false,
+  openGloss = false,
   saved,
   confidence,
   lists,
@@ -57,6 +58,10 @@ function ParagraphReaderImpl({
    *  for the one line they didn't catch instead of the whole text. */
   onTranslateSentence?: (index: number) => void | Promise<void>;
   glossLoading?: boolean;
+  /** Start with the English showing. Set when this reader is the ANSWER to a
+   *  "Show translation" press — the press happened on the reader it replaced, so
+   *  without this the gloss it just paid for would come up hidden. */
+  openGloss?: boolean;
   saved: Set<string>;
   confidence: Map<string, number>;
   lists: List[];
@@ -69,7 +74,7 @@ function ParagraphReaderImpl({
   // Inline translation: OFF by default (the reader is for reading the Japanese).
   // Toggling it on breaks the paragraph into sentences and prints each one's
   // English directly beneath it, so the eye never leaves the line it's reading.
-  const [showGloss, setShowGloss] = useState(false);
+  const [showGloss, setShowGloss] = useState(openGloss);
   // Sentences whose control was pressed. Their English shows directly beneath them,
   // in the flow of the text — pressing again hides it. The toggle is the same thing
   // for every sentence at once.
@@ -303,11 +308,15 @@ function ParagraphReaderImpl({
     return out;
   }, [spans, sentences, text, visibleGloss]);
   const hasGloss = sentences.some((s) => s.gloss);
+  // Anything still unanswered? The gate used to be "no gloss at all", which meant a
+  // text with ONE sentence tapped never asked for the rest — and, now that the press
+  // runs the full submit, never ran it either.
+  const needsGloss = sentences.length === 0 || sentences.some((s) => !s.gloss);
   // Offer the toggle when there's a translation to show OR a way to fetch one.
   const canShowGloss = hasGloss || !!onLoadGloss;
   // First press buys the translation; later presses just show/hide what we hold.
   const toggleGloss = () => {
-    if (!hasGloss && onLoadGloss && !glossLoading) void onLoadGloss();
+    if (needsGloss && onLoadGloss && !glossLoading) void onLoadGloss();
     setShowGloss((v) => {
       // Turning it OFF clears the individually-tapped lines too. They are the same
       // answer arrived at a different way, so leaving them behind made the toggle
