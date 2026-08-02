@@ -65,7 +65,11 @@ export function App() {
   }, []);
 
   return (
-    <main className="app">
+    // The app is a phone-width column everywhere EXCEPT /admin: that's an ops
+    // surface of dense multi-column tables (user buckets, timestamps, emails) that
+    // can't fit 540px, and squeezing them there is what made rows spill out of the
+    // panels. Widen the column for that one route; every other view is unchanged.
+    <main className={`app${path === "/admin" ? " app--wide" : ""}`}>
       <header className="app__header">
         <LanguageMenu
           open={openMenu === "lang"}

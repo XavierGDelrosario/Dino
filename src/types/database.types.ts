@@ -276,6 +276,47 @@ export type Database = {
           },
         ]
       }
+      media_favorites: {
+        Row: {
+          created_at: string
+          favorite_id: string
+          lang: string
+          site: string
+          summary: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          favorite_id?: string
+          lang?: string
+          site?: string
+          summary?: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          favorite_id?: string
+          lang?: string
+          site?: string
+          summary?: string | null
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       lists: {
         Row: {
           list_id: string

@@ -1,193 +1,429 @@
+/* =========================================================
+   Admin ops surface.
+
+   Two things drive this file, and both are about CONTAINMENT:
+
+   1. It renders inside `.app`, which is a 540px phone column. Admin content is
+      dense (6-column tables of opaque user buckets, timestamps, emails, raw error
+      input) and simply does not fit — the old sheet let tables push past the panel
+      border, so rows bled outside the rounded box. The page now opts into a wider
+      column (`.app--wide`, set on the /admin route) and EVERY table lives in an
+      `.admin__tablewrap` that scrolls ON ITS OWN. Nothing escapes the panel.
+   2. The app is dark (`--bg`/`--surface`/`--text` in common.css). The old sheet was
+      written light-first — hardcoded greens, light-mode fallbacks, and native
+      white form controls — so the page read as a different product. Everything here
+      is on the shared tokens now; the only fixed colours left are SEMANTIC (ok /
+      warn / error), and those are translucent tints that sit on a dark surface.
+   ========================================================= */
+
 .admin {
-  max-width: 720px;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.5rem 1rem;
+  padding: 0 0 1.5rem;
 }
+
 .admin__title {
   margin: 0 0 1rem;
+  font-size: 1.35rem;
 }
+
+/* ---- Tabs ---------------------------------------------------------------
+   One row that SCROLLS sideways rather than wrapping to two: six wrapped tabs
+   pushed the whole page down and made the active one hard to spot. */
 .admin__tabs {
   display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--border, #ddd);
-  margin-bottom: 1rem;
-}
-.admin__tab {
-  background: transparent;
-  border: none;
-  padding: 0.5rem 0.9rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--muted, #666);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-.admin__tab:hover {
-  color: inherit;
-}
-.admin__tab--on {
-  color: inherit;
-  font-weight: 600;
-  border-bottom-color: #2e7d32;
-}
-.admin__panel {
-  border: 1px solid var(--border, #ddd);
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
+  gap: 0.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1.25rem;
 }
+
+.admin__tabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.admin__tab {
+  flex: none;
+  background: transparent;
+  border: none;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.admin__tab:hover {
+  color: var(--text);
+}
+
+.admin__tab--on {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+/* ---- Panel -------------------------------------------------------------- */
+.admin__panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.1rem 1.25rem 1.25rem;
+  margin-bottom: 1.25rem;
+  /* The panel is the boundary: nothing inside may paint past it. Children that
+     can outgrow it (tables) scroll themselves — see .admin__tablewrap. */
+  overflow: hidden;
+}
+
 .admin__panel-title {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
 }
+
 .admin__muted {
-  color: var(--muted, #777);
+  color: var(--muted);
   font-size: 0.85rem;
+  line-height: 1.5;
   margin: 0.25rem 0;
+  overflow-wrap: anywhere;
 }
+
+/* ---- Headline stats ----------------------------------------------------- */
 .admin__stat {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 1rem;
   padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border, #eee);
+  border-bottom: 1px solid var(--border);
   margin: 0.5rem 0;
 }
+
 .admin__stat-label {
-  color: var(--muted, #555);
+  color: var(--muted);
+  font-size: 0.9rem;
 }
+
 .admin__stat-value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: 1.1rem;
+  white-space: nowrap;
 }
+
+/* ---- Tables -------------------------------------------------------------
+   The wrapper is what keeps a wide table inside the panel. `min-width` on the
+   table means columns stay legible and the WRAPPER scrolls instead of the page
+   (or, as before, the row spilling out of the border). */
+.admin__tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0.75rem -1.25rem -1.25rem; /* bleed to the panel edge; padding below re-pads */
+  padding: 0 1.25rem 1.25rem;
+}
+
 .admin__table {
   width: 100%;
+  /* Just enough that columns don't crush; anything wider comes from the content's
+     own nowrap widths, and the wrapper scrolls to meet it. */
+  min-width: 24rem;
   border-collapse: collapse;
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
+
 .admin__table th,
 .admin__table td {
   text-align: left;
-  padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid var(--border, #eee);
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
 }
+
+.admin__table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin__table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .admin__num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
+
 .admin__bucket {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--muted, #555);
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: nowrap;
 }
+
+.admin__nowrap {
+  white-space: nowrap;
+}
+
+/* Long free text (an error's input, a QA description): wrap inside a bounded
+   column instead of stretching the table. */
+.admin__wrap {
+  overflow-wrap: anywhere;
+  min-width: 12rem;
+}
+
+/* One-line clamp with an ellipsis. Must sit on a SPAN, not the cell: max-width on
+   a `td` is advisory in an auto-layout table, which is why the old rule never
+   actually clamped anything. */
+.admin__truncate {
+  display: block;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin__error {
-  color: #b00020;
+  color: #ff8a80;
+  background: rgba(255, 82, 82, 0.08);
+  border: 1px solid rgba(255, 82, 82, 0.25);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-size: 0.85rem;
+  font-family: inherit;
+  margin: 0.5rem 0;
 }
+
+/* ---- Capacity bar ------------------------------------------------------- */
 .admin__bar {
   height: 8px;
   border-radius: 4px;
-  background: var(--border, #eee);
+  background: var(--surface-2);
   overflow: hidden;
   margin: 0.25rem 0 0.75rem;
 }
+
 .admin__bar-fill {
   height: 100%;
-  background: #2e7d32;
+  background: var(--accent);
   transition: width 0.3s ease;
 }
+
 .admin__bar-fill--warn {
-  background: #c62828;
+  background: #e5534b;
 }
+
+/* ---- Filter bar --------------------------------------------------------- */
 .admin__filters {
   display: flex;
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
-  margin: 0.5rem 0 0.75rem;
+  margin: 0.75rem 0;
 }
+
+/* Pushes the trailing control (Refresh) to the right edge of the bar — but only
+   where the bar is one line. On a phone it wraps anyway, and a lone right-aligned
+   button on its own row just looks stranded. */
+@media (min-width: 640px) {
+  .admin__filters-end {
+    margin-left: auto;
+  }
+}
+
+/* A free-text filter shares the bar with the segmented controls — bounded, so it
+   neither collapses nor eats the row. */
+.admin__filter-input {
+  flex: 0 1 14rem;
+}
+
 .admin__seg {
   display: inline-flex;
-  border: 1px solid var(--border, #ddd);
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   overflow: hidden;
+  max-width: 100%;
 }
+
 .admin__seg-btn {
-  border: 1px solid var(--border, #ddd);
-  background: transparent;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
+  white-space: nowrap;
 }
+
+.admin__seg-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.admin__seg-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .admin__seg .admin__seg-btn {
   border: none;
-  border-right: 1px solid var(--border, #ddd);
+  border-right: 1px solid var(--border);
   border-radius: 0;
+  background: transparent;
+  color: var(--muted);
 }
+
 .admin__seg .admin__seg-btn:last-child {
   border-right: none;
 }
+
 .admin__seg-btn--on {
-  background: #2e7d32;
-  color: #fff;
+  background: var(--accent);
+  color: #0f1115;
+  font-weight: 600;
 }
-.admin__input {
-  flex: 1 1 12rem;
-  min-width: 8rem;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--border, #ddd);
-  border-radius: 6px;
-  font-size: 0.85rem;
+
+.admin__seg .admin__seg-btn--on {
+  background: var(--accent);
+  color: #0f1115;
 }
-.admin__nowrap { white-space: nowrap; }
-.admin__truncate {
-  max-width: 16rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
+/* ---- Forms --------------------------------------------------------------
+   A grid, not a flex-wrap jumble: fields share a track width and line up, and
+   `minmax(0, …)` is what stops a long value from widening the panel. */
 .admin__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.6rem;
+  align-items: end;
+  margin: 0.75rem 0;
+}
+
+.admin__form--stack {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 44rem;
+}
+
+/* The submit button sits on its own row, left-aligned, never stretched. */
+.admin__form-actions {
+  grid-column: 1 / -1;
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  margin: 0.5rem 0 0.5rem;
 }
-.admin__form .admin__input { flex: 0 1 auto; }
-/* A vertical form: full-width fields stacked, the action button left-aligned below. */
-.admin__form--stack {
-  flex-direction: column;
-  align-items: stretch;
-  max-width: 40rem;
+
+.admin__input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
 }
-.admin__form--stack .admin__seg-btn { align-self: flex-start; }
+
+.admin__input::placeholder {
+  color: var(--muted);
+}
+
+.admin__input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Native date pickers render a dark glyph on a dark field otherwise. */
+.admin__input[type="date"] {
+  color-scheme: dark;
+}
+
 .admin__textarea {
   resize: vertical;
   font-family: inherit;
-  line-height: 1.4;
+  line-height: 1.5;
 }
+
+/* A labelled field keeps its caption above the control so the grid rows align. */
 .admin__field {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
 }
+
+.admin__field-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* In-table editing controls stay compact so an edit row doesn't jump in height. */
+.admin__table .admin__input {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.45rem;
+  min-width: 8rem;
+}
+
+.admin__rowactions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+/* ---- Badges ------------------------------------------------------------- */
 .admin__badge {
   display: inline-block;
-  padding: 0.1rem 0.45rem;
+  padding: 0.12rem 0.5rem;
   border-radius: 999px;
   font-size: 0.72rem;
-  background: var(--border, #eee);
-  color: var(--muted, #666);
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
 }
+
 .admin__badge--ok {
-  background: #e3f2e4;
-  color: #2e7d32;
+  background: rgba(94, 196, 122, 0.14);
+  color: #7ddb9b;
+  border-color: rgba(94, 196, 122, 0.35);
 }
+
 .admin__warn {
-  color: #c62828;
+  color: #ffab91;
   font-weight: 600;
+}
+
+/* ---- Narrow screens -----------------------------------------------------
+   The panel's side padding is most of the width on a phone; give it back to the
+   content and let the table wrapper do the scrolling. */
+@media (max-width: 640px) {
+  .admin__panel {
+    padding: 0.9rem 0.85rem 1rem;
+  }
+
+  .admin__tablewrap {
+    margin: 0.75rem -0.85rem -1rem;
+    padding: 0 0.85rem 1rem;
+  }
+
+  .admin__truncate {
+    max-width: 11rem;
+  }
 }

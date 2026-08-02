@@ -126,6 +126,12 @@ body {
     calc(5rem + env(safe-area-inset-bottom));
 }
 
+/* Admin only (see App.tsx): a desk-width column for the ops tables. Still centred,
+   still safe-area padded — only the clamp changes, and only on that route. */
+.app--wide {
+  max-width: 1100px;
+}
+
 .app__header {
   text-align: center;
   margin-bottom: 1.5rem;

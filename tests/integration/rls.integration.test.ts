@@ -272,3 +272,72 @@ describe.skipIf(!ENABLED)("sub-list membership: multi-list + scoped removal", ()
     expect(vocab.data ?? []).toHaveLength(1); // still in the vocabulary
   });
 });
+
+describe.skipIf(!ENABLED)("RLS: media favourites are per-user (migration 20260741)", () => {
+  let alice: TestUser;
+  let bob: TestUser;
+  const url = (who: string) => `https://ja.wikinews.org/wiki/${who}-story`;
+
+  beforeAll(async () => {
+    [alice, bob] = await Promise.all([makeUser(), makeUser()]);
+  });
+
+  it("Alice can star an article and read it back", async () => {
+    const { error } = await alice.client.from("media_favorites").insert({
+      user_id: alice.userId,
+      title: "台風が九州に接近",
+      url: url(alice.userId),
+    });
+    expect(error).toBeNull();
+
+    const { data } = await alice.client.from("media_favorites").select("url");
+    expect((data ?? []).map((r) => (r as { url: string }).url)).toContain(url(alice.userId));
+  });
+
+  it("Bob cannot read Alice's favourites", async () => {
+    const { data, error } = await bob.client
+      .from("media_favorites")
+      .select("url")
+      .eq("user_id", alice.userId);
+    expect(error).toBeNull();
+    expect(data ?? []).toHaveLength(0);
+  });
+
+  it("Bob cannot star an article AS Alice", async () => {
+    // WITH CHECK (user_id = auth.uid()) — the row must be the caller's own.
+    const { error } = await bob.client.from("media_favorites").insert({
+      user_id: alice.userId,
+      title: "planted",
+      url: url("planted"),
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("Bob cannot delete Alice's favourite", async () => {
+    await bob.client.from("media_favorites").delete().eq("url", url(alice.userId));
+    // USING is own-rows, so the delete matched nothing — Alice's star survives.
+    const { data } = await alice.client
+      .from("media_favorites")
+      .select("url")
+      .eq("url", url(alice.userId));
+    expect(data ?? []).toHaveLength(1);
+  });
+
+  it("re-starring the same url is one row (UNIQUE (user_id, url) upsert)", async () => {
+    const { error } = await alice.client.from("media_favorites").upsert(
+      {
+        user_id: alice.userId,
+        title: "台風が九州に接近（更新）",
+        url: url(alice.userId),
+      },
+      { onConflict: "user_id,url" },
+    );
+    expect(error).toBeNull();
+
+    const { data } = await alice.client
+      .from("media_favorites")
+      .select("url")
+      .eq("url", url(alice.userId));
+    expect(data ?? []).toHaveLength(1);
+  });
+});

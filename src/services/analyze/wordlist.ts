@@ -126,6 +126,22 @@ export function sortWords(rows: ArticleWord[], axis: SortAxis, dir: SortDir = "l
   }
 }
 
+/**
+ * The article's quiz set, capped at `cap`: NEW words first (recommended order),
+ * then a top-up of the article's SAVED words in least-confident order. PURE.
+ *
+ * The top-up is the point: the quiz used to be new-words-only, so it emptied itself
+ * — quizzing the new words SAVES them, which flips them to "known" and shrank the
+ * set on every pass until the button vanished mid-study. An article you've already
+ * saved every word of is still the natural thing to review, so the set falls back
+ * to "the words in THIS article you hold least well" rather than disappearing.
+ */
+export function quizWords(rows: ArticleWord[], cap: number): ArticleWord[] {
+  const fresh = sortWords(rows.filter((r) => r.status === "new"), "recommended");
+  const known = sortWords(rows.filter((r) => r.status === "known"), "recommended");
+  return [...fresh, ...known].slice(0, Math.max(0, cap));
+}
+
 /** Apply the status filter (level filtering is done in the component from present bands). */
 export function filterByStatus(rows: ArticleWord[], status: StatusFilter): ArticleWord[] {
   return status === "all" ? rows : rows.filter((r) => r.status === status);
