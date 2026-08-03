@@ -523,6 +523,48 @@ textarea.translate__box::-webkit-scrollbar {
   .translate__io {
     flex-direction: column;
   }
+
+  /* THE HISTORY CLOCK JOINS THE FLOW. On desktop it's absolutely positioned at the
+     row's right edge so .langbar keeps its margin-inline:auto centring. On a phone
+     the bar fills nearly the whole width, so that put the clock ON TOP of the target
+     select — measured 32px of overlap at 320/375/390/430, i.e. every iPhone, with
+     the tap landing on the clock instead of the language. Centring is worth less
+     than being able to change the language you're translating into. */
+  .translate__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .langbar {
+    /* Give up the fixed cap + auto-centring so the bar shares the row. */
+    max-width: none;
+    margin-inline: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .thistory {
+    /* relative, not static: the dropdown is positioned against this element. */
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    flex: 0 0 auto;
+  }
+
+  /* Smaller language controls. The names are short ("Japanese"/"English") and were
+     set at desktop scale; trimming type + padding buys back ~50px of row. */
+  .langbar .select {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .langbar__swap {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.85rem;
+  }
   /* Taller input/output boxes on mobile (1.5× the 8rem default) — more room to
      read/edit on a narrow screen. */
   .translate__box {

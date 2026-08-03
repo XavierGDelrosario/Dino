@@ -111,7 +111,7 @@ export async function checkField(
           ? `example contains ${writing} but kuromoji split it across tokens (${tokens.map((t) => t.text).join("|")})`
           : `example does not contain the target ${writing}`,
       );
-    } else if (hit.text === writing && hit.reading && reading && hit.reading !== reading) {
+    } else if (hit.text === writing && hit.reading && reading && !sameReading(hit.reading, reading)) {
       // Compare only on the UNINFLECTED surface: a conjugated 行った legitimately reads
       // いった, not the lemma's いく. Same rule translateParagraph uses to decide whether
       // the dictionary reading may override kuromoji's.
@@ -127,13 +127,13 @@ export async function checkField(
           `example reads ${writing} as ${hit.reading}, JMdict says ${reading}` +
             ` — set example_reading to ${reading} if the sentence is right and kuromoji is wrong`,
         );
-      } else if (row.exampleReading !== reading) {
+      } else if (!sameReading(row.exampleReading, reading)) {
         at(
           "reading-override",
           `example_reading ${row.exampleReading} contradicts JMdict's ${reading} for ${writing}`,
         );
       }
-    } else if (row.exampleReading !== null && hit.reading === row.exampleReading) {
+    } else if (row.exampleReading !== null && hit.reading !== null && sameReading(hit.reading, row.exampleReading)) {
       // The override agrees with kuromoji, so it is doing nothing — drop it rather than
       // leave a pin that hides a future regression.
       at("reading-override", `example_reading ${row.exampleReading} is redundant (kuromoji already reads it that way)`);
@@ -170,6 +170,21 @@ function probeSurfaces(t: AnalyzedToken): string[] {
 /** A token is resolvable when ANY of its candidate forms is a JMdict headword. */
 function isResolvable(t: AnalyzedToken, resolves: (surface: string) => boolean): boolean {
   return probeSurfaces(t).some(resolves);
+}
+
+/**
+ * Compare two readings as SOUND, not as script.
+ *
+ * `analyze()` converts kuromoji's katakana readings to hiragana, because that is what
+ * furigana wants. So for a katakana headword (テレビ, アメリカ) the analyzer says てれび
+ * while JMdict says テレビ — identical pronunciation, different script, and a naive
+ * comparison fails every loanword in the corpus. Folding both to hiragana before
+ * comparing keeps the check meaningful for kanji headwords (辛い, 金 — the cases it
+ * exists for) without inventing a reading conflict for katakana ones.
+ */
+function sameReading(a: string, b: string): boolean {
+  const hira = (s: string) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  return hira(a) === hira(b);
 }
 
 /** Look up every entry's headword + every surface we need to probe, in two queries. */
