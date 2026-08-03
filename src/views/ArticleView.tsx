@@ -69,6 +69,7 @@ export function ArticleView({
           cards={quiz}
           lists={t.lists}
           mode="learn"
+          context={t.contextByWord}
           onGraded={t.applyReview}
           onCreateList={t.createNamedList}
           onClose={() => setQuiz(null)}

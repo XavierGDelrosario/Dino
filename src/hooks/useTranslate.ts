@@ -19,6 +19,7 @@ import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { expandDomain } from "../services/domain";
+import { contextByWord as contextForWords, type WordContext } from "../services/analyze/context";
 import { isExplicitSuggestion } from "../services/contentSafety";
 import { mapLimit } from "../lib/concurrency";
 import { MAX_TRANSLATION_CONCURRENCY } from "../services/translation";
@@ -580,6 +581,24 @@ export function useTranslate(userId: string) {
     return { addablePrimaries: addable, reviewablePrimaries: reviewable, addableCards: cards };
   }, [para, saved]);
 
+  // "Show in context" (the quiz's reveal panel): word → the source sentences it
+  // appeared in. Split HERE rather than reading `para.sentences`, because the split
+  // is pure and free while only the GLOSS costs money — so an analysis run with
+  // skipGloss (the Media article path) has `para.sentences` empty yet still deserves
+  // context. Any glosses already loaded are folded back in by sentence offset.
+  const contextByWord = useMemo(() => {
+    if (!para || !analyzedInput) return new Map<string, WordContext[]>();
+    const glossAt = new Map(para.sentences.map((s) => [s.start, s.gloss]));
+    return contextForWords({
+      tokens: para.tokens,
+      meaningsByWord: para.meanings,
+      sentences: splitSentences(analyzedInput).map((s) => ({
+        ...s,
+        gloss: glossAt.get(s.start) ?? null,
+      })),
+    });
+  }, [para, analyzedInput]);
+
   return {
     source, setSource, target, setTarget, input, setInput,
     status, mode, error,
@@ -598,6 +617,8 @@ export function useTranslate(userId: string) {
     // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
     // the state-sync callback the quiz uses after each grade.
     addablePrimaries, reviewablePrimaries, addableCards,
+    // word → the sentences it appeared in, for the quiz's "Show in context" panel.
+    contextByWord,
     addableCount: addablePrimaries.length,
     reviewableCount: reviewablePrimaries.length, applyReview,
     // #12 domain expansion: study related domain words at your level.

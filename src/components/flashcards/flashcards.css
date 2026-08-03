@@ -284,6 +284,53 @@
   text-align: center;
 }
 
+/* "Show in context" — the source sentences a quizzed word came from, under the card.
+   Collapsed by default (the card stays a cold recall test); the toggle matches the
+   reader's disclosure style (.reader-summary__toggle). */
+.quizctx {
+  margin-top: 0.75rem;
+}
+.quizctx__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.quizctx__toggle:hover {
+  color: var(--accent);
+}
+.quizctx__list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.quizctx__item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+}
+.quizctx__sentence {
+  margin: 0;
+  line-height: 1.7;
+}
+.quizctx__hit {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+.quizctx__gloss {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .flashcard {
   position: relative;
   background: var(--surface);

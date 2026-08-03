@@ -167,6 +167,7 @@ export function TranslateView({
           cards={quiz.cards}
           lists={t.lists}
           mode={quiz.mode}
+          context={t.contextByWord}
           onGraded={t.applyReview}
           onCreateList={t.createNamedList}
           onClose={() => setQuiz(null)}

@@ -4,8 +4,10 @@
 //              SRS practice). saveDictionaryWord is idempotent, so useTextQuiz
 //              handles both with the same save-then-record path.
 // Reuses the flashcard card/progress/grade UI from the review surface.
+import { useEffect, useState } from "react";
 import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
 import { useQuizFlip } from "../hooks/useQuizFlip";
+import { highlightSegments, type WordContext } from "../services/analyze/context";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
@@ -19,6 +21,10 @@ import "../components/flashcards/flashcards.css";
 
 export type QuizMode = "learn" | "review";
 
+// A common word can appear in a dozen sentences; the panel is a memory jog, not a
+// concordance, so show the first few and let the reader supply the rest.
+const MAX_CONTEXT_SENTENCES = 3;
+
 export function TextQuizView({
   userId,
   cards,
@@ -28,10 +34,15 @@ export function TextQuizView({
   onCreateList,
   onClose,
   onNewQuiz,
+  context,
 }: {
   userId: string;
   /** One entry per word — its full sense list (primary first) so meanings cycle. */
   cards: Word[][];
+  /** Source sentences per word (by primary-sense wordId) for the "Show in context"
+      reveal. Omitted by surfaces with no source text (the level-based Learn quiz),
+      which simply hides the button. */
+  context?: Map<string, WordContext[]>;
   /** The user's sub-lists, for the add-to-list menu. */
   lists: List[];
   mode?: QuizMode;
@@ -54,6 +65,14 @@ export function TextQuizView({
   const flip = useQuizFlip(q.position);
   const { t } = useI18n();
   const noun = (n: number) => plural(t, n, "common.word", "common.words");
+
+  // "Show in context" is a per-card reveal: collapse it on every card change, so a
+  // sentence revealed for one word can't sit open and pre-answer the next.
+  const [showContext, setShowContext] = useState(false);
+  useEffect(() => setShowContext(false), [q.position]);
+  // Keyed on the card's PRIMARY sense — how a card is identified everywhere else
+  // (addableCards / the article word list both build a card from senses[0]).
+  const sentences = (context?.get(q.senses[0]?.wordId ?? "") ?? []).slice(0, MAX_CONTEXT_SENTENCES);
 
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
@@ -160,6 +179,44 @@ export function TextQuizView({
           </div>
         )}
       </div>
+
+      {/* "Show in context" — the sentence(s) this word came from, under the card.
+          A hint you opt into: it stays collapsed by default so the card is still a
+          cold recall test, and it resets on every card. */}
+      {sentences.length > 0 && (
+        <div className="quizctx">
+          <button
+            type="button"
+            className="quizctx__toggle"
+            onClick={() => setShowContext((v) => !v)}
+            aria-expanded={showContext}
+          >
+            {showContext ? "▾" : "▸"} {t(showContext ? "quiz.hideContext" : "quiz.showContext")}
+          </button>
+          {showContext && (
+            <ul className="quizctx__list">
+              {sentences.map((c, i) => (
+                <li className="quizctx__item" key={`ctx-${i}`}>
+                  <p className="quizctx__sentence">
+                    {highlightSegments(c.text, c.spans).map((seg, j) =>
+                      seg.hit ? (
+                        <mark className="quizctx__hit" key={`seg-${j}`}>
+                          {seg.text}
+                        </mark>
+                      ) : (
+                        <span key={`seg-${j}`}>{seg.text}</span>
+                      ),
+                    )}
+                  </p>
+                  {/* The sentence's translation would hand over the answer, so it
+                      only appears once the card is already revealed. */}
+                  {q.flipped && c.gloss && <p className="quizctx__gloss">{c.gloss}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <ErrorText message={q.error} />
 

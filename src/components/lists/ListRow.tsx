@@ -171,8 +171,8 @@ export function ListRow({
                 ref={tagBtnRef}
                 className="iconbtn listrow__tag"
                 onClick={() => setTagMenu(true)}
-                aria-label={t("lists.addToSublist")}
-                title={t("lists.addToSublist")}
+                aria-label={t("lists.addToList")}
+                title={t("lists.addToList")}
               >
                 ＋
               </button>
@@ -180,7 +180,7 @@ export function ListRow({
                 <ListMenu
                   anchorRef={tagBtnRef}
                   lists={lists}
-                  title={t("lists.addToSublist")}
+                  title={t("lists.addToList")}
                   onPick={(listId) => {
                     onTag(listId);
                     setTagMenu(false);
