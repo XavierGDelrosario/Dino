@@ -71,6 +71,20 @@ CREATE TABLE IF NOT EXISTS jmdict_sense_example (
 
 ALTER TABLE jmdict_sense_example ENABLE ROW LEVEL SECURITY;
 
+-- ‼️ RLS IS NOT ENOUGH ON ITS OWN — revoke the table privileges explicitly.
+-- Supabase ships ALTER DEFAULT PRIVILEGES granting new public-schema tables to anon and
+-- authenticated, so "RLS on, no policies" is only *accidentally* locked down: it depends
+-- on which role happened to create the table. Measured on prod right after this
+-- migration first ran — jmdict_sense_example had come out with INSERT/UPDATE/DELETE/
+-- TRUNCATE/SELECT granted to anon, while english_frequency (same intent, created in a
+-- different context) had none at all.
+--
+-- RLS with no policies does stop SELECT/INSERT/UPDATE/DELETE at the row level, so
+-- nothing leaked. But TRUNCATE is NOT row-level and RLS does not gate it — a privilege
+-- no client should hold on the dictionary under any circumstances. Stating the revoke
+-- makes the lockdown a property of this migration rather than of the environment.
+REVOKE ALL ON TABLE jmdict_sense_example FROM PUBLIC, anon, authenticated;
+
 -- =========================================================
 -- The projection target on `words`.
 --
