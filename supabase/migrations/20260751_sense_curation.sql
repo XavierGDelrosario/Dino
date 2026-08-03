@@ -82,9 +82,14 @@ ALTER TABLE words
 -- that default, and nothing else changes. Cheap: `words` is ~7.8k rows on prod.
 UPDATE words SET sense_rank = jmdict_sense_pos WHERE sense_rank IS NULL;
 
--- Reads sort on this, so it is worth an index for the same reason jmdict_sense_pos was
--- worth ordering on: it is in the ORDER BY of every cache read.
-CREATE INDEX IF NOT EXISTS idx_words_sense_rank ON words (dictionary_ref, sense_rank);
+-- NO INDEX ON sense_rank, deliberately. The first draft of this migration created
+-- idx_words_sense_rank (dictionary_ref, sense_rank) on the reasoning that "every read
+-- sorts on it". Measured on prod, that index was 552 kB — larger than the corpus and
+-- all the new columns put together — and EXPLAIN showed it never being used: a cache
+-- read filters on (input, source_lang, target_lang) and is served by idx_words_lang_pair,
+-- after which the ORDER BY sorts the handful of senses one headword has. `dictionary_ref`
+-- appears in no read's WHERE clause, so the index could not be chosen even in principle.
+-- Sorting ≤10 rows needs no index; it needed a query plan read before it was written.
 
 COMMENT ON COLUMN words.example_reading IS
   'How the target word is pronounced in words.example — overrules kuromoji where they disagree.';
