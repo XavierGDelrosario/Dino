@@ -303,6 +303,42 @@ export function TranslateView({
         </button>
       </div>
 
+      {/* What you translated this session. Session-only by design (see
+          services/translateHistory.ts) — it disappears on reload, so it's a
+          convenience for re-running something you just looked at, not a record.
+          A chip replays the text AND its original direction. */}
+      {t.history.length > 0 && (
+        <div className="thistory">
+          <span className="thistory__label">{tr("translate.history")}</span>
+          <ul className="thistory__list">
+            {t.history.map((entry) => (
+              <li key={`${entry.source}|${entry.target}|${entry.text}`}>
+                <button
+                  type="button"
+                  className="thistory__chip"
+                  // The full text as the accessible name: a long paste is clipped to
+                  // one line visually, so the chip's own label would be ambiguous.
+                  title={tr("translate.historyReplay", { text: entry.text })}
+                  aria-label={tr("translate.historyReplay", { text: entry.text })}
+                  disabled={t.status === "loading"}
+                  onClick={() => t.replayHistory(entry)}
+                >
+                  {entry.text}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="thistory__clear"
+            aria-label={tr("translate.historyClearAria")}
+            onClick={t.clearHistory}
+          >
+            {tr("translate.historyClear")}
+          </button>
+        </div>
+      )}
+
       {/* The language you're learning: the study section below always targets it
           (its words get added/quizzed), whether you typed it or it's the output. */}
       <label className="learnpick">

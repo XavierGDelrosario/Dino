@@ -350,6 +350,72 @@
   justify-content: center;
 }
 
+/* Session translate history — a chip row under the Translate button. Deliberately
+   quiet (muted, small): it's a convenience for re-running something from a minute
+   ago, not a surface competing with the input. Mirrors .chip in lists.css rather
+   than importing it, because these are single-line-clamped text, not short labels. */
+.thistory {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.thistory__label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.thistory__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  /* It's a <ul> for semantics; strip the list affordances. */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Take the row's spare width so the Clear button stays pinned right. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.thistory__chip {
+  appearance: none;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  /* A pasted paragraph is a valid entry, so clamp to one line and cap the width —
+     without this a single long entry would blow out the row. The full text stays
+     available via the chip's title/aria-label. */
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.thistory__chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.thistory__clear {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.3rem 0.2rem;
+  text-decoration: underline;
+}
+
 /* "I'm learning: [lang]" — the study target selector below the Translate button. */
 .learnpick {
   display: flex;

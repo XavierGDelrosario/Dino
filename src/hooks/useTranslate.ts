@@ -7,8 +7,9 @@
 //                     like 辛い → からい / つらい are separate senses, so you can
 //                     add exactly the one you mean), and "Add all" saves the
 //                     primary of every new word at once.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
+import { pushEntry, type TranslateHistoryEntry } from "../services/translateHistory";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
 import { translate, translateSegments } from "../services/translation";
@@ -55,6 +56,20 @@ export function useTranslate(userId: string) {
   // (they'd be a stale mirror of saved/confidence state) — you come back to your
   // text with a clean slate and re-submit.
   const [input, setInput] = useStickyState(userId, "translate.input", "");
+  // What you translated this session — same sticky cache as the input, so it
+  // survives a tab switch and dies with the page. Recorded on SUCCESS only (see
+  // the effect below), so a failed submit (quota 429, oversize 413, network)
+  // doesn't leave an entry that replays straight back into the same error.
+  const [history, setHistory] = useStickyState<TranslateHistoryEntry[]>(
+    userId,
+    "translate.history",
+    [],
+  );
+  // Set at submit time, consumed when the status reaches "done". A ref, not state:
+  // it must not re-render, and submit has several success exits — capturing once at
+  // the top and committing on the status transition covers them all without
+  // threading a record call through each `return`.
+  const pendingEntry = useRef<TranslateHistoryEntry | null>(null);
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +169,7 @@ export function useTranslate(userId: string) {
     if (!text || status === "loading" || readerLoading) return;
     const src = override?.source ?? source;
     const tgt = override?.target ?? target;
+    pendingEntry.current = { text, source: src, target: tgt };
     setStatus("loading");
     setReaderLoading(false);
     setError(null);
@@ -372,6 +388,37 @@ export function useTranslate(userId: string) {
    * flight, is a no-op — so double-clicking the toggle can't buy it twice.
    * A failure is non-fatal: the reader keeps rendering, just without English.
    */
+  // Commit the pending entry once a submit actually succeeds. Keyed on the status
+  // transition rather than called inside submit because submit has several success
+  // exits (echo, EN→JA candidates, word, reader) and only ONE failure path — this
+  // records all of the former and none of the latter. Clearing the ref makes it
+  // idempotent, so an unrelated re-render at status "done" can't double-add.
+  useEffect(() => {
+    if (status !== "done") return;
+    const entry = pendingEntry.current;
+    if (!entry) return;
+    pendingEntry.current = null;
+    setHistory((prev) => pushEntry(prev, entry));
+  }, [status, setHistory]);
+
+  /**
+   * Re-run a history entry: restore the text AND the direction it was translated
+   * in, then submit. Both the LangBar and the request are set from the entry so
+   * what the user sees matches what actually ran — replaying with an override
+   * while the bar still showed the current direction would silently disagree.
+   */
+  const replayHistory = useCallback(
+    (entry: TranslateHistoryEntry) => {
+      setInput(entry.text);
+      setSource(entry.source);
+      setTarget(entry.target);
+      void submit({ text: entry.text, source: entry.source, target: entry.target });
+    },
+    [setInput, submit],
+  );
+
+  const clearHistory = useCallback(() => setHistory([]), [setHistory]);
+
   const loadGloss = useCallback(async () => {
     if (glossLoading) return;
     const text = analyzedInput;
@@ -625,6 +672,8 @@ export function useTranslate(userId: string) {
     exploreDomain, domainLoading,
     // add buttons: tag to ALL / a sub-list (idempotent) + create-and-tag.
     lists, addWords, createNamedList,
+    // session-only record of what you translated (dies with the page)
+    history, replayHistory, clearHistory,
     submit,
   };
 }
