@@ -286,6 +286,9 @@ export function ListRow({
           example={word.example}
           exampleGloss={word.exampleGloss}
           definitionSource={word.definitionSource}
+          userId={word.userId}
+          sourceLang={word.sourceLang}
+          targetLang={word.targetLang}
         />
 
         {/* Read the WORD aloud — never the meaning (an English gloss spoken by a

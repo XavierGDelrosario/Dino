@@ -67,8 +67,11 @@ function ArticleRow({
   lists,
   onAdd,
   onCreateList,
+  userId,
 }: {
   row: ArticleWord;
+  /** Whose knowledge colours the example sentence's words. */
+  userId: string;
   lists: List[];
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
@@ -129,6 +132,9 @@ function ArticleRow({
           example={row.primary.example}
           exampleGloss={row.primary.exampleGloss}
           definitionSource={row.primary.definitionSource}
+          userId={userId}
+          sourceLang={row.primary.sourceLang}
+          targetLang={row.primary.targetLang}
         />
       </div>
     </li>
@@ -140,8 +146,10 @@ export function ArticleWordList({
   lists,
   onAdd,
   onCreateList,
+  userId,
 }: {
   rows: ArticleWord[];
+  userId: string;
   lists: List[];
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
@@ -240,6 +248,7 @@ export function ArticleWordList({
               <ArticleRow
                 key={r.primary.wordId}
                 row={r}
+                userId={userId}
                 lists={lists}
                 onAdd={onAdd}
                 onCreateList={onCreateList}

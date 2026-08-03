@@ -65,3 +65,17 @@
   color: var(--accent);
   margin-bottom: 0.1rem;
 }
+
+/* The reader inside the panel. ParagraphReader brings its own type styling, so this
+   only has to give it the room the plain <p> had — and stop the row's own click
+   handling from swallowing a tap on a word (see SenseExample's stopPropagation). */
+.senseex__reader {
+  font-size: 1rem;
+  line-height: 2;
+}
+
+/* While the analysis loads the plain sentence is shown, dimmed — the text is readable
+   the whole time, so the colouring arriving is an upgrade rather than a content swap. */
+.senseex__sentence.is-loading {
+  opacity: 0.55;
+}

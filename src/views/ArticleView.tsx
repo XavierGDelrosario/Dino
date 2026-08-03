@@ -170,6 +170,7 @@ export function ArticleView({
           </div>
 
           <ArticleWordList
+            userId={userId}
             rows={rows}
             lists={t.lists}
             onAdd={t.addWords}
