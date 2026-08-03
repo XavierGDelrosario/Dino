@@ -22,17 +22,14 @@
 1283190	1	思ったより高かったので、買うのをやめた。	It was pricier than I expected, so I decided against buying it.	値段が大きい。手に入れるのに多くのお金が必要である。
 1283190	2	彼女は英語の能力が高い。	Her English ability is high.	程度や水準が上の方にある。
 
-# ── 辛い (1365850, からい) — WITHDRAWN, and worth knowing why ───────────────────
-# からい cannot be exampled yet. IPADIC reads 辛い as つらい in EVERY context tried —
-# 「このカレーはとても辛い」「辛い料理が好きだ」「この味噌汁は辛い」 all come back つらい —
-# so the reader would print つらい furigana over a sentence that means "spicy". The
-# gate rejected all three (check 2, target-reading) and no rewrite passes.
-#
-# The irony is exact: 辛い→からい/つらい is the flagship homograph this whole feature was
-# meant to disambiguate, and it is the one case the RENDERER cannot show correctly. A
-# per-sense reading override on the example (letting the corpus pin the furigana rather
-# than deferring to kuromoji) is the fix, and it is a schema change — deliberately not
-# smuggled into this batch.
+# ── 辛い (1365850, からい) — RESTORED with a pinned reading (20260751) ──────────
+# IPADIC reads 辛い as つらい in every context, including 「このカレーはとても辛い」, so
+# these three were withdrawn rather than ship つらい furigana over a sentence meaning
+# "spicy". Column 6 now states the reading, and the gate accepts it because it matches
+# what JMdict says this entry reads. The flagship homograph works.
+1365850	0	このカレーはとても辛い。	This curry is very spicy.	舌を刺すような刺激の強い味である。とうがらしなどの味。	からい
+1365850	1	この汁は少し辛い。	This broth is a little salty.	塩の味が強い。	からい
+1365850	2	あの先生は採点が辛い。	That teacher marks harshly.	評価や態度が厳しい。	からい
 
 # ── 甘い (1213400) — sweet / naive ──────────────────────────────────────────────
 1213400	0	このいちごはとても甘い。	These strawberries are very sweet.	砂糖や蜜のような味である。
@@ -124,16 +121,10 @@
 1198170	0	明日の会には出られません。	I can't attend tomorrow's meeting.	人が集まって話し合う場。
 1198170	1	卒業生の会に入っている。	I belong to the alumni association.	同じ目的をもつ人の集まり。団体。
 
-# ── 金 (1242590, かね) — WITHDRAWN, same cause as 辛い ──────────────────────────
-# 金 never reads かね for IPADIC: 「金を貯めて…」「金がかかる」「金に困っている」 all come
-# back きん (gold), and 「金がなくて…」 comes back きむ — the surname Kim. So the money
-# sense cannot be shown with correct furigana, though the sentence itself is fine.
-#
-# This is the SECOND rejection with one root cause (see 辛い above): kuromoji picks the
-# reading, the corpus has no way to overrule it, and for a kanji with a common
-# alternative reading it picks wrong. Two of the three withdrawals so far are this. That
-# is the case for a per-example reading override — one more data point, still not a
-# reason to change the schema mid-batch.
+# ── 金 (1242590, かね) — RESTORED with a pinned reading (20260751) ──────────────
+# 金 never reads かね for IPADIC: 「金がかかる」→ きん (gold), 「金がなくて…」→ きむ, the
+# surname Kim. Same fix.
+1242590	0	金がなくて旅行をあきらめた。	I gave up on the trip for lack of money.	品物と交換できる、お金。	かね
 
 # ── 車 (1323080) ────────────────────────────────────────────────────────────────
 1323080	0	駅まで車で送ってもらった。	I got a lift to the station by car.	エンジンで走る乗り物。自動車。
@@ -185,3 +176,18 @@
 # ── 間 (1215240, ま) — a pause / a room ─────────────────────────────────────────
 1215240	0	話の間が長すぎる。	The pauses in his speech are too long.	物事と物事の間の時間。
 1215240	2	六畳の間に通された。	I was shown into a six-mat room.	家の中の部屋。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REORDERING — curation with no sentence attached (20260751, column 7).
+#
+# 橋 is TWO JMdict entries: 1237410 はし "bridge" and 2151440 きょう "pons; pons
+# Varolii" (a structure in the brainstem). Nothing about frequency or sense position
+# separates them — both are their entry's sense 0 — so which one a learner sees first
+# comes down to entry id. Demoting the anatomy sense is exactly the fix
+# docs/QualityLimitations.md §2 asks for, and it needs no example sentence: the sense
+# is fine, its POSITION is the problem.
+#
+# Rank 9 rather than 1: it leaves room to curate the other senses later without
+# renumbering this one, and any un-curated sense keeps its jmdict_sense_pos (0-8 in
+# practice), so 9 reliably sorts last.
+2151440	0					9

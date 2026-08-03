@@ -163,6 +163,7 @@ interface WordRow {
   example: string | null;
   example_gloss: string | null;
   definition_ja: string | null;
+  example_reading: string | null;
   is_verified: boolean;
 }
 
@@ -185,6 +186,7 @@ function toWord(r: WordRow) {
     example: r.example ?? null,
     exampleGloss: r.example_gloss ?? null,
     definitionJa: r.definition_ja ?? null,
+    exampleReading: r.example_reading ?? null,
     isVerified: r.is_verified,
   };
 }
@@ -473,7 +475,7 @@ async function applySenseExamples(
 
   const { data, error } = await supabase
     .from("jmdict_sense_example")
-    .select("jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja")
+    .select("jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja, example_reading, sense_rank")
     .in("jmdict_entry_id", [...entryIds]);
   if (error) {
     console.error("jmdict_sense_example lookup failed:", error.message);
@@ -486,6 +488,8 @@ async function applySenseExamples(
     example: string | null;
     example_gloss: string | null;
     definition_ja: string | null;
+    example_reading: string | null;
+    sense_rank: number | null;
   };
   const bySense = new Map<string, Row>();
   for (const r of (data ?? []) as Row[]) bySense.set(`${r.jmdict_entry_id}:${r.jmdict_sense_pos}`, r);
@@ -499,6 +503,8 @@ async function applySenseExamples(
       r.example = hit.example;
       r.exampleGloss = hit.example_gloss;
       r.definitionJa = hit.definition_ja;
+      r.exampleReading = hit.example_reading;
+      r.senseRank = hit.sense_rank;
     }
   }
 }
@@ -761,7 +767,7 @@ async function fetchVerified(
   if (isReverseIntoJa(sourceLang, targetLang)) {
     // EN→JA: uniform input-frequency → order by the projected sense rank.
     query = query
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
+      .order("sense_rank", { ascending: true, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false });
   } else {
     // JA→EN: MATCH jmdict_lookup's ranking (frequency DESC, then entry, then sense)
@@ -770,7 +776,7 @@ async function fetchVerified(
     query = query
       .order("frequency", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+      .order("sense_rank", { ascending: true, nullsFirst: false });
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -840,7 +846,7 @@ async function fetchVerifiedMany(
       // chunk, so a word's senses are always ordered within their own query.
       .order("frequency", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+      .order("sense_rank", { ascending: true, nullsFirst: false });
     if (error) throw new Error(error.message);
     return (data ?? []) as WordRow[];
   }));

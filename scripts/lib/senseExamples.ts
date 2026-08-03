@@ -12,7 +12,12 @@
 //
 // FORMAT — tab-separated, one SENSE per line:
 //   entry_id <TAB> sense_pos <TAB> example <TAB> example_gloss <TAB> definition_ja
+//     [<TAB> example_reading [<TAB> sense_rank]]
 // Blank lines and lines starting '#' are comments. A field may be empty (= NULL).
+//
+// The last two are CURATION (migration 20260751) and are optional trailing fields, so
+// the hundreds of lines written before they existed stay valid as-is — a format change
+// that forced a rewrite of the whole corpus would be a change that risks it.
 // =========================================================
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -32,6 +37,17 @@ export interface SenseExample {
   exampleGloss: string | null;
   /** Monolingual Japanese definition of THIS sense, or null. */
   definitionJa: string | null;
+  /**
+   * How the TARGET reads IN THIS SENTENCE. Set only where kuromoji gets it wrong and no
+   * rewrite fixes it — 辛い (always read つらい, even in 「カレーが辛い」) and 金 (きん/きむ,
+   * never かね). Overrules the analyzer when rendering furigana. NULL = trust kuromoji.
+   */
+  exampleReading: string | null;
+  /**
+   * Curated display position for this sense among its headword's senses. NULL = keep
+   * JMdict's own order. Never touches `jmdict_sense_pos`, which is cache identity.
+   */
+  senseRank: number | null;
   /** 1-based line number in the TSV — so an error names the line you have to fix. */
   line: number;
 }
@@ -41,7 +57,11 @@ export interface ParseIssue {
   message: string;
 }
 
-const COLUMNS = 5;
+const MIN_COLUMNS = 5;
+const MAX_COLUMNS = 7;
+
+/** Kana only — an override written in kanji would defeat its own purpose. */
+const KANA_ONLY = /^[\u3041-\u309F\u30A0-\u30FF\u30FC]+$/;
 
 const clean = (s: string): string | null => {
   const v = s.trim().normalize("NFC");
@@ -68,8 +88,11 @@ export function parseSenseExamples(text: string): { rows: SenseExample[]; issues
     if (stripped.trim() === "" || stripped.startsWith("#")) return;
 
     const parts = stripped.split("\t");
-    if (parts.length !== COLUMNS) {
-      issues.push({ line, message: `expected ${COLUMNS} tab-separated fields, found ${parts.length}` });
+    if (parts.length < MIN_COLUMNS || parts.length > MAX_COLUMNS) {
+      issues.push({
+        line,
+        message: `expected ${MIN_COLUMNS}-${MAX_COLUMNS} tab-separated fields, found ${parts.length}`,
+      });
       return;
     }
 
@@ -88,16 +111,41 @@ export function parseSenseExamples(text: string): { rows: SenseExample[]; issues
     const example = clean(parts[2]);
     const exampleGloss = clean(parts[3]);
     const definitionJa = clean(parts[4]);
+    const exampleReading = clean(parts[5] ?? "");
+    const rankRaw = clean(parts[6] ?? "");
 
     // Mirrors CHECK sense_example_has_content: absence is "no row", not an empty one.
-    if (example === null && definitionJa === null) {
-      issues.push({ line, message: "row annotates nothing — needs an example or a definition" });
+    // A bare sense_rank counts — reordering a sense is a curation in its own right and
+    // owes no sentence (see 20260751).
+    if (example === null && definitionJa === null && rankRaw === null) {
+      issues.push({
+        line,
+        message: "row annotates nothing — needs an example, a definition, or a sense_rank",
+      });
       return;
     }
     // Mirrors CHECK sense_example_gloss_needs_example.
     if (exampleGloss !== null && example === null) {
       issues.push({ line, message: "example_gloss with no example to translate" });
       return;
+    }
+
+    if (exampleReading !== null && !KANA_ONLY.test(exampleReading)) {
+      issues.push({ line, message: `example_reading must be kana, got "${exampleReading}"` });
+      return;
+    }
+    // Mirrors CHECK sense_example_reading_needs_example.
+    if (exampleReading !== null && example === null) {
+      issues.push({ line, message: "example_reading with no example to annotate" });
+      return;
+    }
+    let senseRank: number | null = null;
+    if (rankRaw !== null) {
+      senseRank = Number(rankRaw);
+      if (!Number.isInteger(senseRank) || senseRank < 0) {
+        issues.push({ line, message: `sense_rank must be a non-negative integer, got "${rankRaw}"` });
+        return;
+      }
     }
 
     const key = `${entryId}:${sensePos}`;
@@ -108,7 +156,7 @@ export function parseSenseExamples(text: string): { rows: SenseExample[]; issues
     }
     seen.set(key, line);
 
-    rows.push({ entryId, sensePos, example, exampleGloss, definitionJa, line });
+    rows.push({ entryId, sensePos, example, exampleGloss, definitionJa, exampleReading, senseRank, line });
   });
 
   return { rows, issues };

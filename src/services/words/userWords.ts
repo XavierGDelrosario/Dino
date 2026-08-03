@@ -73,6 +73,8 @@ export interface UserWord {
   exampleGloss: string | null;
   /** Monolingual Japanese definition of the saved sense, or null. */
   definitionJa: string | null;
+  /** Pinned furigana for the target inside `example`, or null to trust kuromoji. */
+  exampleReading: string | null;
 }
 
 // Flat columns derived from the generated schema types (so a schema change
@@ -92,6 +94,7 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
     | "example"
     | "example_gloss"
     | "definition_ja"
+    | "example_reading"
   > | null;
 };
 
@@ -113,7 +116,7 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
 const DICTIONARY_COLUMNS =
   "translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency";
 /** Added by 20260750. Absent on any database that hasn't taken it. */
-const DICTIONARY_COLUMNS_OPTIONAL = "example, example_gloss, definition_ja";
+const DICTIONARY_COLUMNS_OPTIONAL = "example, example_gloss, definition_ja, example_reading";
 
 /** Latched false by the first 42703; a reload re-probes, so applying the migration
  *  heals the client with no redeploy. */
@@ -217,6 +220,7 @@ function toUserWord(row: UserWordRow): UserWord {
     example: row.words?.example ?? null,
     exampleGloss: row.words?.example_gloss ?? null,
     definitionJa: row.words?.definition_ja ?? null,
+    exampleReading: row.words?.example_reading ?? null,
   };
 }
 

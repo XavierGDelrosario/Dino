@@ -20,6 +20,7 @@ import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { contextByWord as contextForWords, type WordContext } from "../services/analyze/context";
+import { orderSensesByContextReading } from "../services/analyze/senseOrder";
 import {
   analyze,
   splitSentences,
@@ -675,7 +676,11 @@ export function useTranslate(userId: string) {
       for (const tok of para.tokens) {
         if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
         seen.add(tok.text);
-        const senses = para.meanings.get(tok.text) ?? [];
+        // Lead with the sense the SENTENCE used: kuromoji read this surface in
+        // context, so a homograph (辛い → からい / つらい) shows the meaning that's
+        // actually on the page instead of whichever the dictionary ranked first.
+        // No-op unless the reading genuinely separates the senses.
+        const senses = orderSensesByContextReading(para.meanings.get(tok.text) ?? [], tok.reading);
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);

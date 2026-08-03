@@ -16,6 +16,7 @@ import { getProficiency } from "../proficiency";
 import { getDifficulty } from "../difficulty";
 import type { Word } from "../words/repository";
 import type { ReaderAnalysisInput } from "./summarize";
+import { orderSensesByContextReading } from "./senseOrder";
 
 export interface ArticleWord {
   /** Dictionary headword (primary sense input). */
@@ -49,7 +50,12 @@ export function articleWordList(input: ReaderAnalysisInput): ArticleWord[] {
 
   for (const t of tokens) {
     if (!isContentPos(t.pos)) continue;
-    const senses = meaningsByWord.get(t.text) ?? [];
+    // Lead with the reading the analyzer gave this token (see analyze/senseOrder),
+    // so the row's primary — and the quiz card built from it — matches the furigana
+    // the reader displayed. The dedupe below keys on the resulting primary's wordId;
+    // in practice IPADIC returns one fixed reading per surface, so the same word
+    // still collapses to one row rather than splitting per occurrence.
+    const senses = orderSensesByContextReading(meaningsByWord.get(t.text) ?? [], t.reading);
     if (senses.length === 0) continue; // no dictionary entry — disregard
     const primary = senses[0];
 

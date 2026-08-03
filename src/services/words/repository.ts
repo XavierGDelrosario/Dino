@@ -76,6 +76,12 @@ export interface Word {
    * 多くは「ない」を伴って使う.
    */
   definitionJa: string | null;
+  /**
+   * How the target reads inside `example` — set only where kuromoji reads it wrong and
+   * no rewrite fixes it (辛い→つらい, 金→きん/きむ). Overrules the analyzer for the
+   * example's furigana; null means kuromoji is trusted, as everywhere else.
+   */
+  exampleReading: string | null;
   isVerified: boolean;
 }
 
@@ -83,6 +89,43 @@ export interface Word {
 // renamed/removed column becomes a COMPILE error in toWord() below. (The query
 // `.select("*")` returns extra columns toWord ignores — dictionary_ref etc.)
 type WordRow = Database["public"]["Tables"]["words"]["Row"];
+
+// ‼️ AVAILABILITY: `sense_rank` (migration 20260751) is the column every cache read
+// SORTS by, and PostgREST rejects an ORDER BY on a column the database doesn't have —
+// 42703, failing the whole query, exactly as a missing SELECT column does. A client
+// running ahead of its migration would therefore lose dictionary lookups entirely.
+// Same treatment as the dictionary embed in userWords.ts: ask for the curated order,
+// and on 42703 fall back to jmdict_sense_pos, which is what sense_rank is seeded to
+// anyway — so the fallback is not a degraded order, it is the identical one minus any
+// hand-curated overrides.
+let curatedOrderAvailable = true;
+
+/** The column cache reads sort senses by. */
+const orderColumn = (): "sense_rank" | "jmdict_sense_pos" =>
+  curatedOrderAvailable ? "sense_rank" : "jmdict_sense_pos";
+
+/** TEST SEAM — the latch is module-global (mirrors __clearWordsCache). */
+export function __resetCuratedOrderProbe(): void {
+  curatedOrderAvailable = true;
+}
+
+const isMissingColumn = (error: { code?: string } | null): boolean => error?.code === "42703";
+
+/**
+ * Run a senses query, retrying once on the pre-curation ordering if this database
+ * predates 20260751. `run` takes the order column and builds its own query.
+ */
+async function readOrdered<T>(
+  run: (order: "sense_rank" | "jmdict_sense_pos") => PromiseLike<{ data: T | null; error: { code?: string } | null }>,
+): Promise<{ data: T | null; error: { code?: string } | null }> {
+  const res = await run(orderColumn());
+  if (isMissingColumn(res.error) && curatedOrderAvailable) {
+    curatedOrderAvailable = false;
+    console.warn("[repository] database predates migration 20260751; using JMdict sense order.");
+    return run(orderColumn());
+  }
+  return res;
+}
 
 function toWord(row: WordRow): Word {
   return {
@@ -102,6 +145,7 @@ function toWord(row: WordRow): Word {
     example: row.example ?? null,
     exampleGloss: row.example_gloss ?? null,
     definitionJa: row.definition_ja ?? null,
+    exampleReading: row.example_reading ?? null,
     isVerified: row.is_verified,
   };
 }
@@ -129,7 +173,7 @@ export async function findCachedWord(params: {
   const cached = getCachedSenses(input, sourceLang, targetLang);
   if (cached) return cached[0] ?? null;
 
-  const { data, error } = await supabase
+  const { data, error } = await readOrdered<WordRow[]>((orderCol) => supabase
     .from("words")
     .select<string, WordRow>("*")
     .eq("input", input)
@@ -142,8 +186,8 @@ export async function findCachedWord(params: {
     // has (see src/lib/projection.ts).
     .or(FRESH)
     .order("is_verified", { ascending: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
-    .limit(1);
+    .order(orderCol, { ascending: true, nullsFirst: false })
+    .limit(1));
 
   if (error) throw toServiceError(error);
 
@@ -169,7 +213,7 @@ export async function findWordTranslations(params: {
   const cached = getCachedSenses(input, sourceLang, targetLang);
   if (cached) return cached;
 
-  const { data, error } = await supabase
+  const { data, error } = await readOrdered<WordRow[]>((orderCol) => supabase
     .from("words")
     .select<string, WordRow>("*")
     .eq("input", input)
@@ -177,7 +221,7 @@ export async function findWordTranslations(params: {
     .eq("target_lang", targetLang)
     .or(FRESH) // stale projections are a MISS (see findCachedWord)
     .order("is_verified", { ascending: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+    .order(orderCol, { ascending: true, nullsFirst: false }));
 
   if (error) throw toServiceError(error);
   const words = (data ?? []).map(toWord);
@@ -222,7 +266,7 @@ export async function findWordTranslationsBatch(params: {
   // ordering the grouping below relies on is preserved within its own query.
   const chunks = chunkForUrlFilter(misses);
   const rowsPerChunk = await mapLimit(chunks, URL_FILTER_CONCURRENCY, async (inputs) => {
-    const { data, error } = await supabase
+    const { data, error } = await readOrdered<WordRow[]>((orderCol) => supabase
       .from("words")
       .select<string, WordRow>("*")
       .in("input", inputs)
@@ -230,7 +274,7 @@ export async function findWordTranslationsBatch(params: {
       .eq("target_lang", targetLang)
       .or(FRESH) // stale projections are a MISS (see findCachedWord)
       .order("is_verified", { ascending: false })
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+      .order(orderCol, { ascending: true, nullsFirst: false }));
     if (error) throw toServiceError(error);
     return data ?? [];
   });

@@ -29,6 +29,7 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     example: null,
     exampleGloss: null,
     definitionJa: null,
+    exampleReading: null,
     isVerified: true,
     ...overrides,
   };
@@ -57,6 +58,7 @@ export function makeUserWord(overrides: Partial<UserWord> = {}): UserWord {
     example: null,
     exampleGloss: null,
     definitionJa: null,
+    exampleReading: null,
     ...overrides,
   };
 }

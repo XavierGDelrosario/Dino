@@ -171,6 +171,7 @@ export async function getReviewQueue(params: {
     example: null,
     exampleGloss: null,
     definitionJa: null,
+    exampleReading: null,
     retrievability: r.retrievability,
   }));
 }

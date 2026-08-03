@@ -17,6 +17,7 @@
 //
 // FORMAT (tab-separated, one sense per line, '#' comments and blank lines skipped):
 //   entry_id <TAB> sense_pos <TAB> example <TAB> example_gloss <TAB> definition_ja
+//     [<TAB> example_reading [<TAB> sense_rank]]
 // A trailing field may be empty (= NULL). Fields must not contain tabs or newlines.
 //
 // USAGE:
@@ -53,14 +54,18 @@ async function main(): Promise<void> {
       const chunk = rows.slice(i, i + BATCH);
       await client.query(
         `INSERT INTO jmdict_sense_example
-           (jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja)
-         SELECT * FROM unnest($1::text[], $2::int[], $3::text[], $4::text[], $5::text[])`,
+           (jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja,
+            example_reading, sense_rank)
+         SELECT * FROM unnest($1::text[], $2::int[], $3::text[], $4::text[], $5::text[],
+                              $6::text[], $7::int[])`,
         [
           chunk.map((r) => r.entryId),
           chunk.map((r) => r.sensePos),
           chunk.map((r) => r.example),
           chunk.map((r) => r.exampleGloss),
           chunk.map((r) => r.definitionJa),
+          chunk.map((r) => r.exampleReading),
+          chunk.map((r) => r.senseRank),
         ],
       );
     }
@@ -70,24 +75,35 @@ async function main(): Promise<void> {
     // attach another sense's sentence. See the migration header.
     const { rowCount: healed } = await client.query(
       `UPDATE words w
-          SET example       = e.example,
-              example_gloss = e.example_gloss,
-              definition_ja = e.definition_ja
+          SET example         = e.example,
+              example_gloss   = e.example_gloss,
+              definition_ja   = e.definition_ja,
+              example_reading = e.example_reading,
+              -- Curated order where one is given, else the dictionary's own. Never NULL:
+              -- reads ORDER BY this, so a NULL would clump every un-curated sense.
+              sense_rank      = COALESCE(e.sense_rank, w.jmdict_sense_pos)
          FROM jmdict_sense_example e
         WHERE w.jmdict_entry_id  = e.jmdict_entry_id
           AND w.jmdict_sense_pos = e.jmdict_sense_pos
           AND w.source_lang = 'JA' AND w.target_lang = 'EN'
-          AND (w.example       IS DISTINCT FROM e.example
-            OR w.example_gloss IS DISTINCT FROM e.example_gloss
-            OR w.definition_ja IS DISTINCT FROM e.definition_ja)`,
+          AND (w.example         IS DISTINCT FROM e.example
+            OR w.example_gloss   IS DISTINCT FROM e.example_gloss
+            OR w.definition_ja   IS DISTINCT FROM e.definition_ja
+            OR w.example_reading IS DISTINCT FROM e.example_reading
+            OR w.sense_rank      IS DISTINCT FROM COALESCE(e.sense_rank, w.jmdict_sense_pos))`,
     );
 
     // A sentence REMOVED from the corpus has to leave the cache too, or the deletion
     // never reaches anyone — the row above only touches senses still in the file.
     const { rowCount: cleared } = await client.query(
       `UPDATE words w
-          SET example = NULL, example_gloss = NULL, definition_ja = NULL
-        WHERE (w.example IS NOT NULL OR w.example_gloss IS NOT NULL OR w.definition_ja IS NOT NULL)
+          SET example = NULL, example_gloss = NULL, definition_ja = NULL,
+              example_reading = NULL,
+              -- Back to the dictionary's order, NOT to NULL — a withdrawn curation must
+              -- restore the default ordering, not erase it.
+              sense_rank = w.jmdict_sense_pos
+        WHERE (w.example IS NOT NULL OR w.example_gloss IS NOT NULL OR w.definition_ja IS NOT NULL
+               OR w.example_reading IS NOT NULL OR w.sense_rank IS DISTINCT FROM w.jmdict_sense_pos)
           AND NOT EXISTS (
             SELECT 1 FROM jmdict_sense_example e
              WHERE e.jmdict_entry_id  = w.jmdict_entry_id

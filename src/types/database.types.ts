@@ -582,6 +582,8 @@ export type Database = {
         Row: {
           definition_ja: string | null
           dictionary_ref: string | null
+          example_reading: string | null
+          sense_rank: number | null
           difficulty_override: number | null
           example: string | null
           example_gloss: string | null
@@ -603,6 +605,8 @@ export type Database = {
         Insert: {
           definition_ja?: string | null
           dictionary_ref?: string | null
+          example_reading?: string | null
+          sense_rank?: number | null
           difficulty_override?: number | null
           example?: string | null
           example_gloss?: string | null
@@ -624,6 +628,8 @@ export type Database = {
         Update: {
           definition_ja?: string | null
           dictionary_ref?: string | null
+          example_reading?: string | null
+          sense_rank?: number | null
           difficulty_override?: number | null
           example?: string | null
           example_gloss?: string | null

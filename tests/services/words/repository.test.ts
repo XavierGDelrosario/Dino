@@ -58,6 +58,7 @@ describe("findCachedWord", () => {
       example: null,
       exampleGloss: null,
       definitionJa: null,
+      exampleReading: null,
       isVerified: true,
     });
   });

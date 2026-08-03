@@ -115,7 +115,28 @@ export async function checkField(
       // Compare only on the UNINFLECTED surface: a conjugated 行った legitimately reads
       // いった, not the lemma's いく. Same rule translateParagraph uses to decide whether
       // the dictionary reading may override kuromoji's.
-      at("target-reading", `example reads ${writing} as ${hit.reading}, JMdict says ${reading}`);
+      //
+      // An authored example_reading SETTLES this. kuromoji cannot read 辛い as からい or
+      // 金 as かね in any context, so for those senses the disagreement is permanent and
+      // the corpus states the answer. It still has to be the RIGHT answer: the override
+      // is accepted only when it matches what JMdict says the sense reads, so it can
+      // overrule the analyzer but never the dictionary.
+      if (row.exampleReading === null) {
+        at(
+          "target-reading",
+          `example reads ${writing} as ${hit.reading}, JMdict says ${reading}` +
+            ` — set example_reading to ${reading} if the sentence is right and kuromoji is wrong`,
+        );
+      } else if (row.exampleReading !== reading) {
+        at(
+          "reading-override",
+          `example_reading ${row.exampleReading} contradicts JMdict's ${reading} for ${writing}`,
+        );
+      }
+    } else if (row.exampleReading !== null && hit.reading === row.exampleReading) {
+      // The override agrees with kuromoji, so it is doing nothing — drop it rather than
+      // leave a pin that hides a future regression.
+      at("reading-override", `example_reading ${row.exampleReading} is redundant (kuromoji already reads it that way)`);
     }
   }
 

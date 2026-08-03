@@ -35,6 +35,10 @@ export interface ProviderResult {
   example?: string | null;
   exampleGloss?: string | null;
   definitionJa?: string | null;
+  /** Pinned furigana for the target inside `example` (20260751). */
+  exampleReading?: string | null;
+  /** Curated display order; null → fall back to sensePos (never stored null). */
+  senseRank?: number | null;
 }
 
 /** A `words` row ready for upsert (snake_case, matches the table). */
@@ -60,6 +64,10 @@ export interface WordRowInsert {
   example: string | null;
   example_gloss: string | null;
   definition_ja: string | null;
+  example_reading: string | null;
+  // Display order. NEVER null — every read sorts on it, so an un-curated sense stores
+  // its jmdict_sense_pos and the ordering is unchanged until somebody curates it.
+  sense_rank: number;
   dictionary_ref: string;
   projection_version: number;
   is_verified: boolean;
@@ -278,6 +286,8 @@ export function projectRows(
       example: r.example ?? null,
       example_gloss: r.exampleGloss ?? null,
       definition_ja: r.definitionJa ?? null,
+      example_reading: r.exampleReading ?? null,
+      sense_rank: r.senseRank ?? r.sensePos ?? 0,
       dictionary_ref: ref,
       projection_version: projectionVersion,
       is_verified: true,
