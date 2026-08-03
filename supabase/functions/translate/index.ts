@@ -89,9 +89,11 @@ import {
 //   9 = proficiency_band falls back to the entry's KANJI writing (20260740), so a uk
 //       headword (こと, いる, ため) stops reading as unlevelled.
 //  10 = EN→JA ranked by how PRIMARY the matching gloss is in the entry (20260742).
-//  11 = per-sense enrichment projected: example / example_gloss / definition_ja from
-//       jmdict_sense_example (20260750). JA→EN only — see applySenseExamples.
-const CURRENT_PROJECTION_VERSION = 11;
+// NOT bumped for 20260750 (per-sense enrichment): the projection emits three more
+// columns, but the ingest backfills already-cached rows directly, so a bump would only
+// stampede the whole cache into re-projection for a result it already has. Bump when a
+// cached row would serve a STALE ANSWER; don't when it can be corrected in place.
+const CURRENT_PROJECTION_VERSION = 10;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up

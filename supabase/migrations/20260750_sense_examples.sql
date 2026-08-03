@@ -80,11 +80,22 @@ ALTER TABLE jmdict_sense_example ENABLE ROW LEVEL SECURITY;
 --
 -- Nullable and NOT part of any identity key: these are attributes of the sense, so
 -- they must not participate in `UNIQUE (dictionary_ref, source_lang, target_lang)`.
--- ADD COLUMN with no default is metadata-only, so this is instant on a full `words`.
+--
+-- ‼️ ONE statement, under a lock_timeout — this is a live table with users on it.
+-- ADD COLUMN with no default is metadata-only on PG11+, so the WORK is instant, but it
+-- still needs a brief ACCESS EXCLUSIVE lock on `words`. That is the classic way an
+-- "instant" migration becomes an outage: if the ALTER has to queue behind one
+-- long-running read, every query that arrives after it queues behind the ALTER, and
+-- reads stall for as long as that first query runs. lock_timeout turns a stall into a
+-- migration that fails fast and can simply be re-run; three separate ALTERs would take
+-- (and risk) the lock three times, so they are combined into one.
 -- =========================================================
-ALTER TABLE words ADD COLUMN IF NOT EXISTS example       TEXT;
-ALTER TABLE words ADD COLUMN IF NOT EXISTS example_gloss TEXT;
-ALTER TABLE words ADD COLUMN IF NOT EXISTS definition_ja TEXT;
+SET LOCAL lock_timeout = '3s';
+
+ALTER TABLE words
+  ADD COLUMN IF NOT EXISTS example       TEXT,
+  ADD COLUMN IF NOT EXISTS example_gloss TEXT,
+  ADD COLUMN IF NOT EXISTS definition_ja TEXT;
 
 COMMENT ON COLUMN words.example IS
   'Japanese sentence demonstrating THIS sense (projected from jmdict_sense_example; JA→EN rows only).';

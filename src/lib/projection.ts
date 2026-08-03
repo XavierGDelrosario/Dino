@@ -37,12 +37,18 @@
 // cached EN→JA row carries the old, wrong primary sense (run→実行, light→簡単) and has
 // to re-project.
 //
-// v11 (20260750): per-sense enrichment — an example sentence, its English gloss and a
-// monolingual JA definition — is projected onto each JA→EN row from the authored
-// jmdict_sense_example corpus. A cached row predates the corpus and carries NULLs, so
-// it re-projects. (The ingest ALSO backfills `words` directly: Lists reads a saved
-// word's attributes straight off the table without ever consulting the edge, so the
-// bump alone would leave exactly the words people study as the last to be enriched.)
+// 20260750 (per-sense enrichment) DELIBERATELY DID NOT BUMP THIS, and the reason is
+// worth keeping — it is the one case so far where the right move was to leave the stamp
+// alone. The projection does now emit three more columns, which by the rule above reads
+// like a bump. But the ingest BACKFILLS `words` directly, so every already-cached row
+// gets its example the moment the corpus loads, without being re-projected at all. A
+// bump would therefore buy nothing and cost a full-cache re-projection: every cached row
+// goes stale at once and re-resolves on whatever users happen to look up first after the
+// deploy. Free `jmdict_lookup` calls rather than paid MT, but still a self-inflicted load
+// spike in exchange for a result already delivered.
+//
+// The rule this refines: bump when a cached row would otherwise serve a STALE ANSWER.
+// Don't bump when the row can be corrected in place.
 //
 // MIRRORED in supabase/functions/translate/index.ts (separate Deno runtime — it can't
 // import this file). tests/services/projection-version.test.ts fails if the two drift.
@@ -50,7 +56,7 @@
 // =========================================================
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 11;
+export const CURRENT_PROJECTION_VERSION = 10;
 
 /**
  * PostgREST filter for "this row is safe to serve from cache" — a projection at the
