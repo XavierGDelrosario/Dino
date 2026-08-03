@@ -99,6 +99,10 @@ export function englishLemma(surface: string): string | null {
   const irregular = EN_IRREGULARS[w];
   if (irregular) return irregular;
 
+  // Gate EVERY -s rule, not just the plain one: "series"/"species" end in -ies and
+  // would otherwise become "sery"/"specy" before this check was ever reached.
+  if (NOT_A_PLURAL.has(w)) return null;
+
   // -ies → -y. Unambiguous for both plurals and 3rd-person/past: studies → study,
   // cities → city. (-ied is handled the same way: studied → study.)
   if (w.endsWith("ies") && w.length > 4) return `${w.slice(0, -3)}y`;
@@ -111,7 +115,6 @@ export function englishLemma(surface: string): string | null {
     !w.endsWith("ss") &&
     !w.endsWith("es") &&
     !w.endsWith("us") &&
-    !NOT_A_PLURAL.has(w) &&
     w.length > 3
   ) {
     return w.slice(0, -1);
