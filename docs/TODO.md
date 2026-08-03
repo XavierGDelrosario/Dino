@@ -414,6 +414,52 @@ Pipeline, ingest, projection, resolver, learn/calibration: **DONE + LIVE** (prod
 - **UI badge — half done.** `WordInfo.tsx` renders `getProficiency()`, wired into **ListRow** + **FlashcardCard**. Remaining: **translate result head** + **reader hovercard**.
 - **Live-verify the Learn tab** on a device (unit + RPC tests pass; only the device run is unverified).
 
+### Version drift — JA vs EN capability parity `[reference · measured 2026-08-04]`
+What each direction actually supports today. The core (words/user_words/lists/SRS/quiz
+surfaces) is language-agnostic and identical for both — every asymmetry below sits in the
+**analysis + enrichment** layers. Quality *ceilings* are the 🇯🇵/🇬🇧 sections above; this is
+presence/absence.
+
+| Capability | 🇯🇵 JA | 🇬🇧 EN |
+|---|---|---|
+| Dictionary lookup | JMdict (`jmdict_lookup`) | WordNet synsets → gloss fallback |
+| MT fallback (Google) | ✅ | ✅ |
+| Corpus frequency | `data/frequency/ja.tsv` | `en.tsv` |
+| Proficiency bands | JLPT (5) | CEFR (6) |
+| Leveling profile | anchors **+ POS offsets** | anchors only — no EN POS source |
+| Client morphology | kuromoji: reading + lemma + POS | **none** — segmentation only |
+| Lemmatization | client + edge | **edge only** (`lemmaCandidates`) |
+| Furigana / readings | ✅ | n/a (phonetic script) |
+| Reading + writing overrides | `readingOverrides.ts` | n/a |
+| Compound / counter handling | `compounds.ts` | ✗ |
+| Potential-verb + する candidates | ✅ (edge) | n/a |
+| Proper-noun demotion (人名/組織) | ✅ (kuromoji POS) | ✗ (no POS) |
+| Context sense ordering (`senseOrder`) | ✅ (needs a reading) | ✗ (reading always null) |
+| Sense examples + JA definition (`20260750`) | ✅ JA→EN only | ✗ by design |
+| Learn tab band pool | ✅ | ✗ — "only JA→EN (JLPT) is populated" (`learn.ts`) |
+| Media tab | Japanese Wikinews (`SITE`/`LANG` consts) | ✗ |
+
+**The root cause is one line.** `analyze()` routes JA to kuromoji and everything else to
+`segmentOnly`, which returns `reading: null, lemma: null, pos: null`. Measured on
+*"The cats were running quickly to the station."* — all 8 tokens came back fully null,
+against `猫|名詞|ねこ|猫 · が|助詞 · 走っ|動詞|はしっ|走る` for the JA equivalent.
+
+Three consequences follow, in descending severity:
+- **No function-word filter (the real bug).** `isContentPos(null)` returns **true**, so the
+  EN reader treats *the · were · to* as vocabulary — colourable, addable, quiz-eligible.
+  JA correctly kept only 猫/駅/走っ and dropped the particles. An EN paste therefore pads
+  lists and quizzes with articles and prepositions.
+- **No reader-side lemma.** *running* never resolves to *run* client-side (the edge
+  lemmatizes for LOOKUP only) — already filed under *English as a learning target*.
+- **Reading-keyed features are structurally unavailable to EN**, not merely unbuilt:
+  `senseOrder`, furigana and the override tables all key on a reading EN doesn't have.
+
+**Cheapest fix with the widest blast radius:** an EN POS tagger (or even a stopword list)
+so `isContentPos` can discriminate. That alone closes the function-word bug, and is a
+precondition for EN POS offsets in the leveling profile. Note `isContentPos(null) === true`
+is deliberate — it fails *open* so an unanalysed language still shows words — so any change
+must keep unknown languages working.
+
 ### English as a learning target
 Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE. Left, cheap-first:
 - **SUBTLEX-US** frequency upgrade (above).

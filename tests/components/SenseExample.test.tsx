@@ -23,13 +23,13 @@ import { ListRow } from "@/components/lists/ListRow";
 const ENRICHED = {
   example: "このいちごはとても甘い。",
   exampleGloss: "These strawberries are very sweet.",
-  definitionJa: "砂糖や蜜のような味である。",
+  definitionSource: "砂糖や蜜のような味である。",
 };
 
 const renderEx = (props: Partial<typeof ENRICHED> = {}) =>
   render(
     <LocaleProvider>
-      <SenseExample example={null} exampleGloss={null} definitionJa={null} {...props} />
+      <SenseExample example={null} exampleGloss={null} definitionSource={null} {...props} />
     </LocaleProvider>,
   );
 
@@ -45,7 +45,7 @@ describe("SenseExample", () => {
   });
 
   it("still offers the panel when only a definition exists (no example yet)", () => {
-    renderEx({ definitionJa: "砂糖や蜜のような味である。" });
+    renderEx({ definitionSource: "砂糖や蜜のような味である。" });
     expect(screen.getByRole("button", { name: /example/i })).toBeTruthy();
   });
 
@@ -59,7 +59,7 @@ describe("SenseExample", () => {
 
     expect(screen.getByText(ENRICHED.example)).toBeTruthy();
     expect(screen.getByText(ENRICHED.exampleGloss)).toBeTruthy();
-    expect(screen.getByText(ENRICHED.definitionJa)).toBeTruthy();
+    expect(screen.getByText(ENRICHED.definitionSource)).toBeTruthy();
     expect(screen.getByRole("button", { name: /hide example/i }).getAttribute("aria-expanded")).toBe("true");
   });
 

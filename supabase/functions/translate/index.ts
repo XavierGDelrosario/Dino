@@ -61,6 +61,8 @@ import {
   chunkForUrlFilter,
   shouldSkipMt,
   isEchoTranslation,
+  dictionaryRefFor,
+  curationKeyFor,
 } from "./_lib.ts";
 
 // Stamp written onto every projected `words` row (projection_version). BUMP this
@@ -162,7 +164,7 @@ interface WordRow {
   jmdict_sense_pos: number | null;
   example: string | null;
   example_gloss: string | null;
-  definition_ja: string | null;
+  definition_source: string | null;
   example_reading: string | null;
   is_verified: boolean;
 }
@@ -185,7 +187,7 @@ function toWord(r: WordRow) {
     jmdictSensePos: r.jmdict_sense_pos ?? null,
     example: r.example ?? null,
     exampleGloss: r.example_gloss ?? null,
-    definitionJa: r.definition_ja ?? null,
+    definitionSource: r.definition_source ?? null,
     exampleReading: r.example_reading ?? null,
     isVerified: r.is_verified,
   };
@@ -449,60 +451,63 @@ async function applyEnglishProficiency(
   applyInputAttributeOverride(perInput, band, "proficiencyBand"); // CEFR band or NULL, never the JA JLPT one
 }
 
-/** Stamp the authored per-sense enrichment (migration 20260750) onto the projected
- *  rows: a Japanese example sentence, its English gloss, and a monolingual JA
- *  definition. Read from the server-only `jmdict_sense_example`, same shape as
- *  applyEnglish{Frequency,Proficiency} — a reference table the edge folds in at
- *  projection time so the client only ever reads `words`.
+/** Stamp the authored curation (migration 20260752) onto the projected rows: an example
+ *  sentence, its gloss, a source-language definition, a pinned reading and a curated
+ *  display rank. Read from the server-only `sense_curation`, folded in at projection
+ *  time so the client only ever reads `words`.
  *
- *  JA→EN ONLY. The key is (entry, sense), and `sensePos` is a true sense index only in
- *  this direction — for EN→JA it is a match RANK across entries (20260742), so joining
- *  on it would staple one sense's sentence onto a different meaning. Fail-open: an
- *  unreachable table leaves the rows unannotated, exactly as they were before the
- *  corpus existed. */
+ *  Keyed on `dictionary_ref` — the same identity the cache is unique on — which is why
+ *  this now works in BOTH directions. The old (entry, sense) key could not express
+ *  EN→JA, where jmdict_sense_pos is the RANKER'S OUTPUT rather than a sense index: a
+ *  curation pinned to it would be pinned to a position the ranker recomputes. Lowercased
+ *  (curationKeyFor) because the EN→JA ref embeds the typed search term, so Car:1323080
+ *  and car:1323080 are one lookup.
+ *
+ *  Fail-open: an unreachable table leaves rows uncurated, exactly as before the corpus
+ *  existed. Curation is an enhancement, never a reason to fail a lookup. */
 async function applySenseExamples(
   supabase: Supa,
   perInput: { input: string; results: ProviderResult[] }[],
   sourceLang: string,
   targetLang: string,
 ): Promise<void> {
-  if (sourceLang !== "JA" || targetLang !== "EN" || perInput.length === 0) return;
-  const entryIds = new Set<string>();
+  if (perInput.length === 0) return;
+  const keys = new Set<string>();
   for (const p of perInput) {
-    for (const r of p.results) if (r.entryId != null && r.sensePos != null) entryIds.add(r.entryId);
+    for (const r of p.results) keys.add(curationKeyFor(dictionaryRefFor(r, p.input)));
   }
-  if (entryIds.size === 0) return; // nothing but MT results
+  if (keys.size === 0) return;
 
   const { data, error } = await supabase
-    .from("jmdict_sense_example")
-    .select("jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja, example_reading, sense_rank")
-    .in("jmdict_entry_id", [...entryIds]);
+    .from("sense_curation")
+    .select("dictionary_ref, example, example_gloss, definition_source, example_reading, sense_rank")
+    .eq("source_lang", sourceLang)
+    .eq("target_lang", targetLang)
+    .in("dictionary_ref", [...keys]);
   if (error) {
-    console.error("jmdict_sense_example lookup failed:", error.message);
-    return; // fail-open — an example is an enhancement, never a reason to fail a lookup
+    console.error("sense_curation lookup failed:", error.message);
+    return; // fail-open
   }
 
   type Row = {
-    jmdict_entry_id: string;
-    jmdict_sense_pos: number;
+    dictionary_ref: string;
     example: string | null;
     example_gloss: string | null;
-    definition_ja: string | null;
+    definition_source: string | null;
     example_reading: string | null;
     sense_rank: number | null;
   };
-  const bySense = new Map<string, Row>();
-  for (const r of (data ?? []) as Row[]) bySense.set(`${r.jmdict_entry_id}:${r.jmdict_sense_pos}`, r);
-  if (bySense.size === 0) return;
+  const byRef = new Map<string, Row>();
+  for (const r of (data ?? []) as Row[]) byRef.set(r.dictionary_ref, r);
+  if (byRef.size === 0) return;
 
   for (const p of perInput) {
     for (const r of p.results) {
-      if (r.entryId == null || r.sensePos == null) continue;
-      const hit = bySense.get(`${r.entryId}:${r.sensePos}`);
+      const hit = byRef.get(curationKeyFor(dictionaryRefFor(r, p.input)));
       if (!hit) continue;
       r.example = hit.example;
       r.exampleGloss = hit.example_gloss;
-      r.definitionJa = hit.definition_ja;
+      r.definitionSource = hit.definition_source;
       r.exampleReading = hit.example_reading;
       r.senseRank = hit.sense_rank;
     }

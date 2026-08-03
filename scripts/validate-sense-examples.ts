@@ -33,7 +33,7 @@ import { pathToFileURL } from "node:url";
 import { Client } from "pg";
 import { analyze, isContentPos, type AnalyzedToken } from "../src/services/language/analyze";
 import { lemmaCandidates } from "../supabase/functions/translate/_lib";
-import { parseSenseExamples, TSV_PATH, TSV_URL, type SenseExample } from "./lib/senseExamples";
+import { parseSenseExamples, entryIdFromRef, TSV_PATH, TSV_URL, type SenseExample } from "./lib/senseExamples";
 
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
@@ -174,7 +174,7 @@ function isResolvable(t: AnalyzedToken, resolves: (surface: string) => boolean):
 
 /** Look up every entry's headword + every surface we need to probe, in two queries. */
 async function loadDictionary(rows: SenseExample[], client: Client) {
-  const entryIds = [...new Set(rows.map((r) => r.entryId))];
+  const entryIds = [...new Set(rows.map((r) => entryIdFromRef(r.dictionaryRef)).filter((x): x is string => x !== null))];
   const heads = new Map<string, Headword>();
   const { rows: headRows } = await client.query(
     `SELECT e.entry_id, h.writing, h.reading
@@ -196,7 +196,7 @@ async function loadDictionary(rows: SenseExample[], client: Client) {
   };
   for (const r of rows) {
     if (r.example) await collect(r.example);
-    if (r.definitionJa) await collect(r.definitionJa);
+    if (r.definitionSource) await collect(r.definitionSource);
   }
   const { rows: known } = await client.query(
     `SELECT DISTINCT s.text FROM unnest($1::text[]) AS s(text)
@@ -252,19 +252,20 @@ async function main(): Promise<void> {
   const dict = client ? await loadDictionary(rows, client) : null;
 
   for (const row of rows) {
-    const head = dict?.heads.get(row.entryId) ?? null;
-    if (dict && !head) {
+    const entryId = entryIdFromRef(row.dictionaryRef);
+    const head = entryId ? dict?.heads.get(entryId) ?? null : null;
+    if (dict && entryId && !head) {
       failures.push({
         line: row.line,
         check: "entry",
-        message: `entry ${row.entryId} is not in JMdict — wrong ent_seq, or the entry was renumbered`,
+        message: `entry ${entryId} is not in JMdict — wrong ent_seq, or the entry was renumbered`,
       });
     }
     if (row.example) {
       failures.push(...(await checkField(row, "example", row.example, head, dict?.resolves ?? null)));
     }
-    if (row.definitionJa) {
-      failures.push(...(await checkField(row, "definition", row.definitionJa, head, dict?.resolves ?? null)));
+    if (row.definitionSource) {
+      failures.push(...(await checkField(row, "definition", row.definitionSource, head, dict?.resolves ?? null)));
     }
   }
   await client?.end();

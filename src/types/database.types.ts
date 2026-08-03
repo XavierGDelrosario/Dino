@@ -580,7 +580,7 @@ export type Database = {
       }
       words: {
         Row: {
-          definition_ja: string | null
+          definition_source: string | null
           dictionary_ref: string | null
           example_reading: string | null
           sense_rank: number | null
@@ -603,7 +603,7 @@ export type Database = {
           word_id: string
         }
         Insert: {
-          definition_ja?: string | null
+          definition_source?: string | null
           dictionary_ref?: string | null
           example_reading?: string | null
           sense_rank?: number | null
@@ -626,7 +626,7 @@ export type Database = {
           word_id?: string
         }
         Update: {
-          definition_ja?: string | null
+          definition_source?: string | null
           dictionary_ref?: string | null
           example_reading?: string | null
           sense_rank?: number | null

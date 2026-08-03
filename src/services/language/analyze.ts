@@ -28,6 +28,7 @@ import type { LangCode } from "./registry";
 import { tokenizeWords, type WordToken } from "./tokenize";
 import { getCounterResolver, parseJapaneseNumber } from "./counters";
 import { mergeJapaneseCompounds } from "./compounds";
+import { functionWordPos } from "./functionWords";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
 export interface AnalyzedToken extends WordToken {
@@ -51,8 +52,13 @@ const CONTENT_POS = new Set([
 
 /**
  * Is this a content word worth treating as vocabulary? JA: a content POS (not a
- * particle/auxiliary/symbol). Non-JA tokens carry no POS (`null`) → treated as
- * content so English words still count.
+ * particle/auxiliary/symbol). English closed-class words carry the synthetic
+ * FUNCTION_WORD_POS and are excluded the same way (see language/functionWords).
+ *
+ * `null` still means CONTENT — that failure mode is load-bearing: a language with no
+ * analyser at all must still show its words rather than none. So a new language is
+ * over-inclusive (every token is vocabulary) until it earns a POS source or a
+ * closed-class list, never silently empty.
  */
 export function isContentPos(pos: string | null): boolean {
   return pos === null || CONTENT_POS.has(pos);
@@ -115,13 +121,16 @@ function needsMorphology(lang: LangCode): boolean {
   return lang.toUpperCase() === "JA";
 }
 
-/** Plain segmentation with no enrichment — the non-JA path and the JA fallback. */
+/** Plain segmentation with no enrichment — the non-JA path and the JA fallback.
+ *  The one enrichment it DOES do is the closed-class tag: without a POS tagger it's
+ *  the only thing standing between an English paste and a vocabulary list full of
+ *  "the" and "was". Languages with no list keep `pos: null` (content by default). */
 function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
   return tokenizeWords(text, lang).map((t: WordToken) => ({
     ...t,
     reading: null,
     lemma: null,
-    pos: null,
+    pos: functionWordPos(t.text, lang),
   }));
 }
 

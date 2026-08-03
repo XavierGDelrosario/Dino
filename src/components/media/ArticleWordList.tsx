@@ -128,7 +128,7 @@ function ArticleRow({
         <SenseExample
           example={row.primary.example}
           exampleGloss={row.primary.exampleGloss}
-          definitionJa={row.primary.definitionJa}
+          definitionSource={row.primary.definitionSource}
         />
       </div>
     </li>

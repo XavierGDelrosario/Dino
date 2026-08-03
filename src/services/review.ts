@@ -170,7 +170,7 @@ export async function getReviewQueue(params: {
     // one, so these stay explicitly null rather than looking merely unwritten.
     example: null,
     exampleGloss: null,
-    definitionJa: null,
+    definitionSource: null,
     exampleReading: null,
     retrievability: r.retrievability,
   }));

@@ -34,11 +34,49 @@ export interface ProviderResult {
   // there is nothing safe to key on (see the migration header).
   example?: string | null;
   exampleGloss?: string | null;
-  definitionJa?: string | null;
+  definitionSource?: string | null;
   /** Pinned furigana for the target inside `example` (20260751). */
   exampleReading?: string | null;
   /** Curated display order; null → fall back to sensePos (never stored null). */
   senseRank?: number | null;
+}
+
+/**
+ * The STABLE cache identity of a projected sense — `words.dictionary_ref`.
+ *
+ * Direction-aware, because the two directions identify a row by different things:
+ *   JA→EN  `<entryId>:<sensePos>` — a SENSE of a JMdict entry. Deliberately free of the
+ *          headword, which is a projection output a logic change can move (the いく/行く
+ *          problem, CLAUDE.md #1).
+ *   EN→JA  `<input>:<entryId>`    — "for the English word X, the Japanese entry Y".
+ *          There is no sense index here: jmdict_sense_pos in this direction is a match
+ *          RANK the ranker computes, so it identifies nothing.
+ *   MT     `mt:<input>`.
+ *
+ * Exported because CURATION keys on it (20260752). The curation table addresses a row by
+ * the same string the cache does, so a curated override lands on exactly one row and
+ * survives any change to sense ORDER — which is the whole point, since on the EN→JA side
+ * the order is a heuristic we recompute.
+ */
+export function dictionaryRefFor(
+  r: Pick<ProviderResult, "entryId" | "sensePos" | "headword">,
+  input: string,
+): string {
+  if (r.entryId == null) return `mt:${input}`;
+  return r.headword != null ? `${r.entryId}:${r.sensePos ?? 0}` : `${input}:${r.entryId}`;
+}
+
+/**
+ * The key CURATION is stored and looked up under: the dictionary_ref, lowercased.
+ *
+ * The EN→JA ref embeds the TYPED search term, so `Car:1323080` and `car:1323080` are
+ * different strings for the same lookup — 53 of 284 EN→JA rows on prod are keyed on a
+ * capitalized input. Case-folding the curation key alone means one curation covers both
+ * without touching cache identity (which `user_words` and the upsert depend on).
+ * Japanese is unaffected: its refs are digits and colons.
+ */
+export function curationKeyFor(ref: string): string {
+  return ref.toLowerCase();
 }
 
 /** A `words` row ready for upsert (snake_case, matches the table). */
@@ -63,7 +101,7 @@ export interface WordRowInsert {
   // and a monolingual JA definition. NULL on every EN→JA and MT row.
   example: string | null;
   example_gloss: string | null;
-  definition_ja: string | null;
+  definition_source: string | null;
   example_reading: string | null;
   // Display order. NEVER null — every read sorts on it, so an un-curated sense stores
   // its jmdict_sense_pos and the ordering is unchanged until somebody curates it.
@@ -265,11 +303,7 @@ export function projectRows(
     const key = `${head} ${r.translation}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const ref = r.entryId == null
-      ? `mt:${input}`
-      : r.headword != null
-        ? `${r.entryId}:${r.sensePos ?? 0}`
-        : `${input}:${r.entryId}`;
+    const ref = dictionaryRefFor(r, input);
     rows.push({
       input: head,
       translation: r.translation,
@@ -285,7 +319,7 @@ export function projectRows(
       jmdict_sense_pos: r.sensePos ?? null,
       example: r.example ?? null,
       example_gloss: r.exampleGloss ?? null,
-      definition_ja: r.definitionJa ?? null,
+      definition_source: r.definitionSource ?? null,
       example_reading: r.exampleReading ?? null,
       sense_rank: r.senseRank ?? r.sensePos ?? 0,
       dictionary_ref: ref,

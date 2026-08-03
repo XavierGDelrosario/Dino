@@ -19,18 +19,18 @@ import "./senseexample.css";
 export function SenseExample({
   example,
   exampleGloss,
-  definitionJa,
+  definitionSource,
 }: {
   /** Japanese sentence demonstrating this sense, or null when none is written. */
   example: string | null;
   /** English translation of the example, or null. */
   exampleGloss: string | null;
   /** Monolingual Japanese definition of this sense, or null. */
-  definitionJa: string | null;
+  definitionSource: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
-  if (!example && !definitionJa) return null;
+  if (!example && !definitionSource) return null;
 
   const label = t(open ? "sense.hideExample" : "sense.showExample");
   return (
@@ -64,10 +64,10 @@ export function SenseExample({
             </p>
           )}
           {exampleGloss && <p className="senseex__gloss">{exampleGloss}</p>}
-          {definitionJa && (
+          {definitionSource && (
             <p className="senseex__definition" lang="ja">
               <span className="senseex__label">{t("sense.definition")}</span>
-              {definitionJa}
+              {definitionSource}
             </p>
           )}
         </div>

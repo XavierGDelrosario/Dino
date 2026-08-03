@@ -35,13 +35,13 @@ describe("sense-example corpus — format", () => {
   it("rejects the shapes the DB constraints reject", () => {
     const { rows, issues } = parseSenseExamples(
       [
-        "1234\t0\t例文だ。\tAn example.\t定義。", // valid
-        "1234\t1\t\t\t", // annotates nothing
-        "1234\t2\t\tA gloss with no example\t", // gloss without example
-        "1234\t0\t重複。\t\t定義。", // duplicate of line 1
-        "abc\t0\t例文だ。\t\t定義。", // entry_id not an ent_seq
-        "1234\t-1\t例文だ。\t\t定義。", // negative sense_pos
-        "1234\t9\tmissing a column", // wrong field count
+        "1234:0\t例文だ。\tAn example.\t定義。", // valid
+        "1234:1\t\t\t", // curates nothing
+        "1234:2\t\tA gloss with no example\t", // gloss without example
+        "1234:0\t重複。\t\t定義。", // duplicate ref (line 1)
+        "1234\t例文だ。\t\t定義。", // ref with no ':' separator
+        "1234:5\t例文だ。\t\t定義。\t\t-1", // negative sense_rank
+        "1234:9\tmissing a column", // wrong field count
       ].join("\n"),
     );
     expect(rows).toHaveLength(1);
@@ -50,7 +50,7 @@ describe("sense-example corpus — format", () => {
   });
 
   it("treats blank lines and # comments as absent", () => {
-    const { rows, issues } = parseSenseExamples("# a note\n\n1234\t0\t例文だ。\t\t定義。\n");
+    const { rows, issues } = parseSenseExamples("# a note\n\n1234:0\t例文だ。\t\t定義。\n");
     expect(issues).toEqual([]);
     expect(rows).toHaveLength(1);
     expect(rows[0].line).toBe(3); // the line number still points at the real file line
@@ -59,7 +59,7 @@ describe("sense-example corpus — format", () => {
   it("normalizes to NFC and turns empty fields into null", () => {
     // Decomposed が (か + combining dakuten) must land as the composed form, or the
     // same sentence typed two ways would be two different strings in the DB.
-    const { rows } = parseSenseExamples("1234\t0\tこれがある。\t\t定義。");
+    const { rows } = parseSenseExamples("1234:0\tこれがある。\t\t定義。");
     expect(rows[0].example).toBe("これがある。");
     expect(rows[0].exampleGloss).toBeNull();
   });
@@ -80,8 +80,8 @@ describe("sense-example corpus — kuromoji gate (regression)", () => {
         // Offline mode: no headword, no dictionary probe — offsets are what this half
         // proves, and offsets are what the reader's highlight ranges depend on.
         if (row.example) failures.push(...(await checkField(row, "example", row.example, null, null)));
-        if (row.definitionJa) {
-          failures.push(...(await checkField(row, "definition", row.definitionJa, null, null)));
+        if (row.definitionSource) {
+          failures.push(...(await checkField(row, "definition", row.definitionSource, null, null)));
         }
       }
       expect(failures).toEqual([]);

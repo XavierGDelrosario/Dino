@@ -245,6 +245,31 @@ describe("analyze — non-Japanese falls back to segmentation only", () => {
     expect(toks.map((t) => t.text)).toEqual(["hello", "world"]);
     expect(toks.every((t) => t.reading === null && t.lemma === null)).toBe(true);
   });
+
+  // English has no POS tagger, so before the closed-class list every token passed
+  // isContentPos and the reader offered "the"/"was" as vocabulary (The→の, was→する).
+  it("excludes English grammar words from vocabulary, keeping the content words", async () => {
+    const toks = await analyze("The cats were running quickly to the station.", "EN");
+    const content = toks.filter((t) => isContentPos(t.pos)).map((t) => t.text);
+    expect(content).toEqual(["cats", "running", "quickly", "station"]);
+  });
+
+  it("still segments and displays the grammar words — they're demoted, not dropped", async () => {
+    const toks = await analyze("the cat", "EN");
+    expect(toks.map((t) => t.text)).toEqual(["the", "cat"]);
+  });
+
+  it("a language with no closed-class list keeps every token as content (fails OPEN)", async () => {
+    // A new language must show its words rather than none until it earns a list.
+    const toks = await analyze("the cat", "ES");
+    expect(toks.every((t) => t.pos === null)).toBe(true);
+    expect(toks.filter((t) => isContentPos(t.pos))).toHaveLength(2);
+  });
+
+  it("an explicit single-word lookup of a grammar word still routes to the dictionary", async () => {
+    // Same call as the JA proper-noun rule: typing it IS a question the user asked.
+    expect(isSingleWord(await analyze("the", "EN"), "EN")).toBe(true);
+  });
 });
 
 // The dictionary-form rule the paragraph reader, Translate, and the Lists add form

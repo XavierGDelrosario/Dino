@@ -57,7 +57,7 @@ describe("findCachedWord", () => {
       // reached, which is most of them.
       example: null,
       exampleGloss: null,
-      definitionJa: null,
+      definitionSource: null,
       exampleReading: null,
       isVerified: true,
     });
@@ -69,7 +69,7 @@ describe("findCachedWord", () => {
         row({
           example: "このいちごはとても甘い。",
           example_gloss: "These strawberries are very sweet.",
-          definition_ja: "砂糖や蜜のような味である。",
+          definition_source: "砂糖や蜜のような味である。",
         }),
       ],
       error: null,
@@ -78,7 +78,7 @@ describe("findCachedWord", () => {
     expect(word).toMatchObject({
       example: "このいちごはとても甘い。",
       exampleGloss: "These strawberries are very sweet.",
-      definitionJa: "砂糖や蜜のような味である。",
+      definitionSource: "砂糖や蜜のような味である。",
     });
   });
 

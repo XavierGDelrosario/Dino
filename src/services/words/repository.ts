@@ -75,7 +75,7 @@ export interface Word {
    * glossed "inferiority" invites the unnatural 遜色がある; the definition records
    * 多くは「ない」を伴って使う.
    */
-  definitionJa: string | null;
+  definitionSource: string | null;
   /**
    * How the target reads inside `example` — set only where kuromoji reads it wrong and
    * no rewrite fixes it (辛い→つらい, 金→きん/きむ). Overrules the analyzer for the
@@ -144,7 +144,7 @@ function toWord(row: WordRow): Word {
     jmdictSensePos: row.jmdict_sense_pos ?? null,
     example: row.example ?? null,
     exampleGloss: row.example_gloss ?? null,
-    definitionJa: row.definition_ja ?? null,
+    definitionSource: row.definition_source ?? null,
     exampleReading: row.example_reading ?? null,
     isVerified: row.is_verified,
   };

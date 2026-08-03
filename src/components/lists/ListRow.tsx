@@ -285,7 +285,7 @@ export function ListRow({
         <SenseExample
           example={word.example}
           exampleGloss={word.exampleGloss}
-          definitionJa={word.definitionJa}
+          definitionSource={word.definitionSource}
         />
 
         {/* Read the WORD aloud — never the meaning (an English gloss spoken by a

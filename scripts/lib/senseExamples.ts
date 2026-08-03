@@ -1,23 +1,28 @@
 // =========================================================
-// The sense-example corpus file: format, parsing, and its rules — shared by the
-// ingest (scripts/ingest-sense-examples.ts), the kuromoji gate
-// (scripts/validate-sense-examples.ts) and the regression test that re-runs the gate
-// over the whole file (tests/scripts/senseExamples.test.ts).
+// The sense-curation corpus file: format, parsing, and its rules — shared by the ingest
+// (scripts/ingest-sense-examples.ts), the kuromoji gate (scripts/validate-sense-
+// examples.ts) and the regression test that re-runs the gate over the whole file.
 //
 // PURE + STRICT. This is AUTHORED data, so a malformed line is a mistake to surface,
 // never a row to quietly skip: a dropped sentence would look exactly like a sentence
 // that was never written, and the coverage number would lie. Every rule here mirrors a
-// CHECK constraint in migration 20260750, so the file fails at the gate rather than
-// halfway through an INSERT.
+// CHECK constraint in migration 20260752.
 //
-// FORMAT — tab-separated, one SENSE per line:
-//   entry_id <TAB> sense_pos <TAB> example <TAB> example_gloss <TAB> definition_ja
+// FORMAT — tab-separated, one CURATED ROW per line:
+//   dictionary_ref <TAB> example <TAB> example_gloss <TAB> definition_source
 //     [<TAB> example_reading [<TAB> sense_rank]]
 // Blank lines and lines starting '#' are comments. A field may be empty (= NULL).
 //
-// The last two are CURATION (migration 20260751) and are optional trailing fields, so
-// the hundreds of lines written before they existed stay valid as-is — a format change
-// that forced a rewrite of the whole corpus would be a change that risks it.
+// ‼️ COLUMN 1 IS words.dictionary_ref, not an entry id. It is what the CACHE is unique
+// on, so a curated row addresses exactly one cached row — and it is stable in BOTH
+// directions, where the old (entry, sense) key only worked in one:
+//   JA→EN  `<entryId>:<sensePos>`  — 1283190:0        (JMdict's sense position, still)
+//   EN→JA  `<input>:<entryId>`     — changes:5742628
+// In the EN→JA direction jmdict_sense_pos is the RANKER'S OUTPUT, so keying on it would
+// pin a position the ranker recomputes. See migration 20260752.
+//
+// The file is per-DIRECTION: ja.tsv is JA→EN, so the language pair is implied rather
+// than repeated on every line.
 // =========================================================
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -25,27 +30,29 @@ import { fileURLToPath } from "node:url";
 export const TSV_URL = new URL("../../data/sense_examples/ja.tsv", import.meta.url);
 export const TSV_PATH = fileURLToPath(TSV_URL);
 
-/** One sense's enrichment, as authored. NFC-normalized; empty fields become null. */
+/** The direction ja.tsv curates. */
+export const SOURCE_LANG = "JA";
+export const TARGET_LANG = "EN";
+
+/** One curated row, as authored. NFC-normalized; empty fields become null. */
 export interface SenseExample {
-  /** JMdict ent_seq of the entry this sense belongs to. */
-  entryId: string;
-  /** The sense's own position in that entry (0 = primary) — jmdict_lookup's s.position. */
-  sensePos: number;
+  /** words.dictionary_ref, lowercased — the cache identity this row curates. */
+  dictionaryRef: string;
   /** Japanese sentence demonstrating THIS sense, or null. */
   example: string | null;
   /** English translation of `example`, or null. */
   exampleGloss: string | null;
-  /** Monolingual Japanese definition of THIS sense, or null. */
-  definitionJa: string | null;
+  /** Monolingual definition in the SOURCE language, or null. */
+  definitionSource: string | null;
   /**
    * How the TARGET reads IN THIS SENTENCE. Set only where kuromoji gets it wrong and no
    * rewrite fixes it — 辛い (always read つらい, even in 「カレーが辛い」) and 金 (きん/きむ,
-   * never かね). Overrules the analyzer when rendering furigana. NULL = trust kuromoji.
+   * never かね). Overrules the analyzer, never the dictionary. NULL = trust kuromoji.
    */
   exampleReading: string | null;
   /**
-   * Curated display position for this sense among its headword's senses. NULL = keep
-   * JMdict's own order. Never touches `jmdict_sense_pos`, which is cache identity.
+   * Curated display position among a headword's senses. NULL = keep the default order,
+   * which for JA→EN is JMdict's own and for EN→JA is our computed ranking.
    */
   senseRank: number | null;
   /** 1-based line number in the TSV — so an error names the line you have to fix. */
@@ -57,16 +64,22 @@ export interface ParseIssue {
   message: string;
 }
 
-const MIN_COLUMNS = 5;
-const MAX_COLUMNS = 7;
+const MIN_COLUMNS = 4;
+const MAX_COLUMNS = 6;
 
 /** Kana only — an override written in kanji would defeat its own purpose. */
-const KANA_ONLY = /^[\u3041-\u309F\u30A0-\u30FF\u30FC]+$/;
+const KANA_ONLY = /^[ぁ-ゟ゠-ヿー]+$/;
 
 const clean = (s: string): string | null => {
   const v = s.trim().normalize("NFC");
   return v === "" ? null : v;
 };
+
+/** JA→EN refs are `<entryId>:<sensePos>`; pull the entry id back out for the gate. */
+export function entryIdFromRef(ref: string): string | null {
+  const m = /^(\d+):(\d+)$/.exec(ref);
+  return m ? m[1] : null;
+}
 
 /**
  * Parse the corpus text. PURE.
@@ -96,49 +109,45 @@ export function parseSenseExamples(text: string): { rows: SenseExample[]; issues
       return;
     }
 
-    const entryId = parts[0].trim();
-    if (!/^\d+$/.test(entryId)) {
-      issues.push({ line, message: `entry_id must be a JMdict ent_seq (digits), got "${entryId}"` });
-      return;
-    }
-
-    const sensePos = Number(parts[1].trim());
-    if (!Number.isInteger(sensePos) || sensePos < 0) {
-      issues.push({ line, message: `sense_pos must be a non-negative integer, got "${parts[1].trim()}"` });
-      return;
-    }
-
-    const example = clean(parts[2]);
-    const exampleGloss = clean(parts[3]);
-    const definitionJa = clean(parts[4]);
-    const exampleReading = clean(parts[5] ?? "");
-    const rankRaw = clean(parts[6] ?? "");
-
-    // Mirrors CHECK sense_example_has_content: absence is "no row", not an empty one.
-    // A bare sense_rank counts — reordering a sense is a curation in its own right and
-    // owes no sentence (see 20260751).
-    if (example === null && definitionJa === null && rankRaw === null) {
+    // Lowercased to match curationKeyFor: the EN→JA ref embeds the typed search term,
+    // so Car:1323080 and car:1323080 must be one curation, not two.
+    const dictionaryRef = (clean(parts[0]) ?? "").toLowerCase();
+    if (!dictionaryRef.includes(":")) {
       issues.push({
         line,
-        message: "row annotates nothing — needs an example, a definition, or a sense_rank",
+        message: `dictionary_ref must look like <entry>:<sense> or <input>:<entry>, got "${parts[0].trim()}"`,
       });
       return;
     }
-    // Mirrors CHECK sense_example_gloss_needs_example.
+
+    const example = clean(parts[1]);
+    const exampleGloss = clean(parts[2]);
+    const definitionSource = clean(parts[3]);
+    const exampleReading = clean(parts[4] ?? "");
+    const rankRaw = clean(parts[5] ?? "");
+
+    // Mirrors CHECK curation_has_content. A bare sense_rank counts — reordering is a
+    // curation in its own right and owes no sentence.
+    if (example === null && definitionSource === null && rankRaw === null) {
+      issues.push({
+        line,
+        message: "row curates nothing — needs an example, a definition, or a sense_rank",
+      });
+      return;
+    }
     if (exampleGloss !== null && example === null) {
       issues.push({ line, message: "example_gloss with no example to translate" });
       return;
     }
-
     if (exampleReading !== null && !KANA_ONLY.test(exampleReading)) {
       issues.push({ line, message: `example_reading must be kana, got "${exampleReading}"` });
       return;
     }
-    // Mirrors CHECK sense_example_reading_needs_example.
     if (exampleReading !== null && example === null) {
       issues.push({ line, message: "example_reading with no example to annotate" });
       return;
     }
+
     let senseRank: number | null = null;
     if (rankRaw !== null) {
       senseRank = Number(rankRaw);
@@ -148,15 +157,14 @@ export function parseSenseExamples(text: string): { rows: SenseExample[]; issues
       }
     }
 
-    const key = `${entryId}:${sensePos}`;
-    const first = seen.get(key);
+    const first = seen.get(dictionaryRef);
     if (first !== undefined) {
-      issues.push({ line, message: `duplicate sense ${key} — already defined on line ${first}` });
+      issues.push({ line, message: `duplicate ref ${dictionaryRef} — already curated on line ${first}` });
       return;
     }
-    seen.set(key, line);
+    seen.set(dictionaryRef, line);
 
-    rows.push({ entryId, sensePos, example, exampleGloss, definitionJa, exampleReading, senseRank, line });
+    rows.push({ dictionaryRef, example, exampleGloss, definitionSource, exampleReading, senseRank, line });
   });
 
   return { rows, issues };
