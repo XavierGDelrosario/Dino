@@ -383,3 +383,89 @@
 # ── 着く (1422970) — to arrive / to take a seat ────────────────────────────────
 1422970:0	駅には六時に着いた。	I arrived at the station at six.	目的の場所に行き当たる。
 1422970:1	みんなが席に着いた。	Everyone took their seats.	その場所に身を置く。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 7 — the polysemous core verbs and adjectives.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 見る (1259290) — to look / to examine / to look after ──────────────────────
+1259290:0	窓から海を見ている。	I'm looking at the sea from the window.	目でとらえる。
+1259290:1	医者に足を見てもらった。	I had the doctor look at my leg.	調べて判断する。
+1259290:2	祖母の面倒を見ている。	I look after my grandmother.	世話をする。
+
+# ── 強い (1236070) — strong / physically powerful / good at ────────────────────
+1236070:0	今日は風が強い。	The wind is strong today.	力や勢いが大きい。
+1236070:2	彼は数字に強い。	He's good with numbers.	その分野をよく知っていて、うまく扱える。
+
+# ── 元気 (1260720) — full of energy / in good health ───────────────────────────
+1260720:0	子どもたちは元気に遊んでいる。	The children are playing energetically.	勢いがあって生き生きとしているようす。
+1260720:1	祖父は九十歳だがまだ元気だ。	My grandfather is ninety and still in good health.	体の具合がよいようす。
+
+# ── 入る (1465590, はいる) — to enter / to join / to fit ───────────────────────
+1465590:0	靴を脱いで部屋に入った。	I took off my shoes and entered the room.	外から中へ移る。
+1465590:1	兄は去年、会社に入った。	My brother joined the company last year.	組織の一員になる。
+1465590:3	この箱には本が三十冊入る。	This box holds thirty books.	中におさまる。
+
+# ── 出す (1338180) — to take out / to submit / to publish ──────────────────────
+1338180:0	かばんから財布を出した。	I took my wallet out of my bag.	中から外へ移す。
+1338180:2	今日中に書類を出してください。	Please submit the documents by the end of today.	提出する。
+1338180:3	来月、新しい本を出す。	He's bringing out a new book next month.	世に送り出す。
+
+# ── 長い (1429750) — long in space / long in time ──────────────────────────────
+1429750:0	この橋はとても長い。	This bridge is very long.	端から端までの隔たりが大きい。
+1429750:1	長い間、返事を待っている。	I've been waiting a long time for a reply.	時間の隔たりが大きい。
+
+# ── 静か (1381820) — quiet / unhurried ─────────────────────────────────────────
+1381820:0	夜の図書館は静かだ。	The library is quiet at night.	音がしないようす。
+1381820:1	父は静かに歩いてきた。	My father came walking unhurriedly.	動きがゆるやかなようす。
+
+# ── 短い (1418620) ──────────────────────────────────────────────────────────────
+1418620:0	この鉛筆はもう短い。	This pencil is short now.	端から端までの隔たりが小さい。
+
+# ── 重い (1335750) — heavy / gloomy / grave ────────────────────────────────────
+1335750:0	このかばんは思ったより重い。	This bag is heavier than it looks.	目方が大きい。
+1335750:1	朝から気分が重い。	I've felt low since morning.	心がふさいで晴れないようす。
+1335750:3	彼は重い責任を負っている。	He carries a grave responsibility.	程度が大きく、大切であるようす。
+
+# ── 軽い (1252560) — light in weight / minor ───────────────────────────────────
+1252560:0	この鍋は軽くて使いやすい。	This pot is light and easy to use.	目方が小さい。
+1252560:2	軽いけがですんだ。	I got away with a minor injury.	程度が小さく、大したことがないようす。
+
+# ── 切る (1384830) — to cut / to sever / to switch off ─────────────────────────
+1384830:0	包丁で野菜を切る。	I cut the vegetables with a knife.	刃物で分ける。
+1384830:2	部屋を出るとき電気を切った。	I switched off the light on the way out.	電気などの流れを止める。
+1384830:3	話の途中で電話を切られた。	They hung up on me mid-conversation.	電話などのつながりを終わらせる。
+
+# ── 通る (1433030) — to pass along / to be let through ─────────────────────────
+1433030:0	毎朝この道を通る。	I go along this road every morning.	ある場所を過ぎて進む。
+1433030:2	どうぞ奥へお通りください。	Please come through to the back.	中へ進み入る。
+
+# ── 目 (1604890) — the eye / eyesight / a look ─────────────────────────────────
+1604890:0	煙が目にしみる。	The smoke stings my eyes.	ものを見るための器官。
+1604890:1	年をとって目が悪くなった。	My eyesight has got worse with age.	ものを見る力。視力。
+1604890:2	冷たい目で見られた。	They gave me a cold look.	見るときの目つき。まなざし。
+
+# ── 手 (1327190) — the hand / a handle ─────────────────────────────────────────
+1327190:0	冷たい水で手を洗った。	I washed my hands in cold water.	肩から指先までの部分。
+1327190:2	なべの手が熱くなっている。	The pot's handle has got hot.	道具の、持つための部分。
+
+# ── 頭 (1582310) — the head / the hair on it / the mind ────────────────────────
+1582310:0	低い枝に頭をぶつけた。	I hit my head on a low branch.	首から上の部分。
+1582310:1	朝、頭をとかす。	I comb my hair in the morning.	頭に生えている毛。
+1582310:2	彼は頭がいい。	He has a good mind.	ものを考える働き。
+
+# ── 道 (1454080) — a road / a route / the distance ─────────────────────────────
+1454080:0	家の前の道は狭い。	The road in front of the house is narrow.	人や車が通るところ。
+1454080:1	駅までの道を教えてください。	Please tell me the way to the station.	目的地までのたどり方。
+1454080:2	学校まではまだ道がある。	There's still some way to go to the school.	目的地までの隔たり。
+
+# ── 花 (1194500) — a flower / cherry blossom ───────────────────────────────────
+1194500:0	庭に赤い花が咲いた。	A red flower bloomed in the garden.	植物の、色や形の美しい部分。
+1194500:1	今年は花が早く咲いた。	The blossoms came early this year.	桜の花。
+
+# ── 口 (1275640) — the mouth / an opening / a spout ────────────────────────────
+1275640:0	口を大きく開けてください。	Please open your mouth wide.	食べたり話したりするための器官。
+1275640:1	袋の口をしっかり結んだ。	I tied the mouth of the bag tightly.	物の、外に向かって開いたところ。
+
+# ── 店 (1582120) ────────────────────────────────────────────────────────────────
+1582120:0	角の店でパンを買った。	I bought bread at the shop on the corner.	品物を売るところ。

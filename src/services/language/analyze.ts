@@ -29,6 +29,7 @@ import { tokenizeWords, type WordToken } from "./tokenize";
 import { getCounterResolver, parseJapaneseNumber } from "./counters";
 import { mergeJapaneseCompounds } from "./compounds";
 import { functionWordPos } from "./functionWords";
+import { readerLemma } from "./lemmaEn";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
 export interface AnalyzedToken extends WordToken {
@@ -129,7 +130,11 @@ function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
   return tokenizeWords(text, lang).map((t: WordToken) => ({
     ...t,
     reading: null,
-    lemma: null,
+    // The reader looks a word up by `lemma ?? text`, so this is what collapses
+    // cat/cats and ran/runs onto one dictionary entry — and what stops a homograph
+    // surface (sat → SAT the assault team) winning over the verb. Null where no rule
+    // is safe, which just restores look-up-as-written. See language/lemmaEn.
+    lemma: readerLemma(t.text, lang),
     pos: functionWordPos(t.text, lang),
   }));
 }
