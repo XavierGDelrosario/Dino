@@ -428,6 +428,7 @@ presence/absence.
 | Proficiency bands | JLPT (5) | CEFR (6) |
 | Leveling profile | anchors **+ POS offsets** | anchors only — no EN POS source |
 | Client morphology | kuromoji: reading + lemma + POS | **none** — segmentation only |
+| Grammar-word filtering | ✅ via POS (助詞/助動詞) | ✅ via curated closed-class list (`functionWords.ts`) |
 | Lemmatization | client + edge | **edge only** (`lemmaCandidates`) |
 | Furigana / readings | ✅ | n/a (phonetic script) |
 | Reading + writing overrides | `readingOverrides.ts` | n/a |
@@ -440,25 +441,43 @@ presence/absence.
 | Media tab | Japanese Wikinews (`SITE`/`LANG` consts) | ✗ |
 
 **The root cause is one line.** `analyze()` routes JA to kuromoji and everything else to
-`segmentOnly`, which returns `reading: null, lemma: null, pos: null`. Measured on
-*"The cats were running quickly to the station."* — all 8 tokens came back fully null,
-against `猫|名詞|ねこ|猫 · が|助詞 · 走っ|動詞|はしっ|走る` for the JA equivalent.
+`segmentOnly`, which returns `reading: null, lemma: null` — and, since 2026-08-04, a POS
+only for known closed-class words. Measured on *"The cats were running quickly to the
+station."* — every token came back fully null, against `猫|名詞|ねこ|猫 · が|助詞 ·
+走っ|動詞|はしっ|走る` for the JA equivalent. **Reading and lemma are still null for every
+non-JA token**, which is what the two remaining consequences below rest on.
 
-Three consequences follow, in descending severity:
-- **No function-word filter (the real bug).** `isContentPos(null)` returns **true**, so the
-  EN reader treats *the · were · to* as vocabulary — colourable, addable, quiz-eligible.
-  JA correctly kept only 猫/駅/走っ and dropped the particles. An EN paste therefore pads
-  lists and quizzes with articles and prepositions.
+**~~No function-word filter~~ — FIXED 2026-08-04** (`services/language/functionWords.ts`).
+`isContentPos(null)` returns **true**, so with no POS every English token passed the
+content gate: the reader offered *The→の · to→に · and→そして · was/were→する* as
+vocabulary. Measured before/after on the sentence above — **13 words offered → 6**
+(*cats · running · quickly · station · very · cold*), quiz button 8 → 6.
+- Fixed the way JA already handles 人名/組織/外国語: a **synthetic non-content POS** on
+  closed-class words, so `isContentPos` itself is untouched and still fails *open* on
+  `null`. That property is load-bearing — a language with no analyser must show its words
+  rather than none — and a spec pins it (`ES` keeps every token as content).
+- The list **under-reaches on purpose.** Matching is by surface with no POS to
+  disambiguate, and the costs are asymmetric: a function word slipping through is noise, a
+  content word wrongly demoted is a word the learner can never add. Hence *can · may ·
+  will* (a can, the month **May**, a will) and *have · do* are excluded by name — don't
+  "complete" the list without re-reading the header.
+- Only bites when English is the **learning target**; typing English while learning JA
+  studies the Japanese translation, which was always on kuromoji's path.
+
+Two consequences remain:
 - **No reader-side lemma.** *running* never resolves to *run* client-side (the edge
   lemmatizes for LOOKUP only) — already filed under *English as a learning target*.
 - **Reading-keyed features are structurally unavailable to EN**, not merely unbuilt:
   `senseOrder`, furigana and the override tables all key on a reading EN doesn't have.
 
-**Cheapest fix with the widest blast radius:** an EN POS tagger (or even a stopword list)
-so `isContentPos` can discriminate. That alone closes the function-word bug, and is a
-precondition for EN POS offsets in the leveling profile. Note `isContentPos(null) === true`
-is deliberate — it fails *open* so an unanalysed language still shows words — so any change
-must keep unknown languages working.
+**Still the widest-blast-radius fix: a real EN POS tagger.** The closed-class list closed
+the reader bug, but a tagger is still the precondition for **EN POS offsets in the leveling
+profile** (the one remaining leveling asymmetry), and it would replace surface matching with
+something that can tell the modal *can* from the noun *can*.
+
+**Adjacent, still open:** the reader keys meanings on the raw surface, so `The` and `the`
+fork into two vocabulary entries. Moot for the words now demoted, but a sentence-initial
+content word (`Cats` vs `cats`) still duplicates.
 
 ### English as a learning target
 Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE. Left, cheap-first:

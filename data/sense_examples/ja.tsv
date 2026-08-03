@@ -194,3 +194,91 @@
 # renumbering this one, and any un-curated sense keeps its jmdict_sense_pos (0-8 in
 # practice), so 9 reliably sorts last.
 2151440:0					9
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 3 — refs, not entry+sense columns (re-keyed by 20260752).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 会社 (1198550) — the company / the place you work ───────────────────────────
+1198550:0	父は自動車の会社に勤めている。	My father works for a car company.	利益を得るために作られた組織。
+1198550:1	今日は会社を休んだ。	I took the day off work today.	自分が勤めている職場。
+
+# ── 最近 (1293780) ──────────────────────────────────────────────────────────────
+1293780:0	最近、駅の前に新しい店ができた。	A new shop opened in front of the station recently.	今から少し前。このごろ。
+
+# ── 時代 (1316300) — a historical era / the times / age on an object ────────────
+1316300:0	江戸時代の絵を見に行った。	I went to see paintings from the Edo period.	歴史のある区切られた期間。
+1316300:1	時代が変われば考え方も変わる。	As the times change, so do attitudes.	その時々の世の中のありさま。
+1316300:2	この家具は時代がついている。	This furniture has the patina of age.	長い年月を経て古びていること。
+
+# ── 心 (1360480) ────────────────────────────────────────────────────────────────
+1360480:0	彼の言葉が心に残っている。	His words have stayed with me.	人の思いや感情が生まれるところ。
+
+# ── 神 (1364440) — a god / the slang "god-tier" ─────────────────────────────────
+1364440:0	神をまつる古い社を訪ねた。	I visited an old shrine dedicated to a god.	人の力を超えた存在として敬われるもの。
+1364440:1	あの選手の守備は神だ。	That player's defence is godlike.	非常にすぐれていることを言う、くだけた言い方。
+
+# ── 名前 (1531710) — a name / a given name ─────────────────────────────────────
+1531710:0	紙に名前を書いてください。	Please write your name on the paper.	そのものを他と区別して呼ぶための言葉。
+1531710:1	名字ではなく名前で呼んでほしい。	I'd rather you used my given name than my surname.	姓に対して、個人につけられた方の名。
+
+# ── 最後 (1293810) — the end / the last one / one's final moments ───────────────
+1293810:0	最後まで話を聞いてください。	Please hear me out to the end.	物事の終わりの部分。
+1293810:1	最後の電車に乗り遅れた。	I missed the last train.	順序のいちばんあとであること。
+1293810:3	祖母の最後を家族で看取った。	The family was at my grandmother's side at the end.	命が終わるとき。臨終。
+
+# ── 場所 (1355850) — a place / room to put something / a sumo tournament ────────
+1355850:0	待ち合わせの場所を決めよう。	Let's settle on a place to meet.	そこにあると決められた所。
+1355850:1	この机は場所を取りすぎる。	This desk takes up too much room.	物を置くための空間。
+1355850:2	九月の場所で優勝した。	He won the September tournament.	相撲の興行。
+
+# ── お願い (2036870) — a request / "please" ────────────────────────────────────
+2036870:0	一つお願いがあるのですが。	There's a favour I'd like to ask.	人に何かをしてほしいと頼むこと。
+2036870:1	もう一度だけ、お願い。	Just one more time, please.	頼むときに添える言葉。
+
+# ── アメリカ (1149830) — the USA / the land mass ────────────────────────────────
+1149830:0	来年アメリカに留学する。	I'm going to study in America next year.	北アメリカにある国。合衆国。
+1149830:1	コロンブスがアメリカに着いた。	Columbus reached America.	南北に広がる大陸。
+
+# ── 用 (1546200) ────────────────────────────────────────────────────────────────
+1546200:0	急な用ができて行けなくなった。	Something came up, so I can't go.	しなければならない事柄。用事。
+
+# ── 別 (1509430) — a distinction / another one ─────────────────────────────────
+1509430:0	男女の別なく採用する。	We hire without distinction of sex.	二つ以上のものの間にある違い。
+1509430:1	それはまた別の問題だ。	That's a separate matter.	今のものとは違うこと。
+
+# ── 大丈夫 (1414150) — fine / a soft refusal ────────────────────────────────────
+1414150:0	けがはありません、大丈夫です。	I'm not hurt, I'm fine.	危なげがなく、心配のないようす。
+1414150:2	コーヒーのおかわりは大丈夫です。	I'm good on the coffee, thanks.	断るときに使う、やわらかい言い方。
+
+# ── 社会 (1322700) — society / the school subject ──────────────────────────────
+1322700:0	学校を出て社会に出る。	You leave school and go out into society.	人々が集まって作る集団やその仕組み。
+1322700:1	社会のテストは来週だ。	The social studies test is next week.	学校の教科の一つ。
+
+# ── 相手 (1401000) — a companion / the other party / an opponent ────────────────
+1401000:0	話す相手がいなくて寂しい。	It's lonely with nobody to talk to.	一緒に何かをする人。
+1401000:1	契約の相手に連絡した。	I contacted the other party to the contract.	物事のやりとりをする、もう一方の側。
+1401000:2	決勝の相手は強かった。	Our opponent in the final was strong.	試合や争いで向かい合う者。
+
+# ── 駅 (1175140) ────────────────────────────────────────────────────────────────
+1175140:0	駅の改札で待っています。	I'll be waiting at the station ticket gate.	列車が止まって客が乗り降りする所。
+
+# ── 体 (1409140) — the body / a build / one's health ────────────────────────────
+1409140:0	体を動かすのが好きだ。	I like moving my body.	人や動物の全体。
+1409140:2	弟は体が大きい。	My younger brother has a big build.	体つき。からだの作り。
+1409140:3	体に気をつけてください。	Please take care of your health.	健康の状態。
+
+# ── 動画 (1451290) — a video / animation ───────────────────────────────────────
+1451290:0	休みの日は動画ばかり見ている。	On days off I do nothing but watch videos.	動きのある映像。
+1451290:1	日本の動画は世界で人気がある。	Japanese animation is popular worldwide.	絵を動かして見せる作品。
+
+# ── 始め (1342540) ──────────────────────────────────────────────────────────────
+1342540:0	始めから話してください。	Please tell it from the beginning.	物事の最初の部分。
+
+# ── 町 (1603990) — a town / the shops ──────────────────────────────────────────
+1603990:0	小さな町で育った。	I grew up in a small town.	人が集まって住む地域。
+1603990:1	日曜日は町に買い物に行く。	On Sundays I go into town to shop.	店の多いにぎやかな通り。
+
+# ── すごい (1374550) — amazing / intensely ─────────────────────────────────────
+1374550:1	彼の記憶力はすごい。	His memory is amazing.	程度が並外れてすぐれている。
+1374550:3	昨日はすごく寒かった。	It was awfully cold yesterday.	程度がはなはだしいようす。
