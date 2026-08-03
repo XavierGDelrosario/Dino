@@ -95,9 +95,67 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
   > | null;
 };
 
-/** Embed string that pulls the referenced dictionary fields for resolution. */
-const SELECT_WITH_DICTIONARY =
-  "*, words(translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency, example, example_gloss, definition_ja)";
+// ‼️ AVAILABILITY: naming a column in an embedded select makes the WHOLE read depend on
+// the database having taken a migration. PostgREST answers a select naming an absent
+// column with 42703 ("column words_1.example does not exist") and fails the ENTIRE
+// query — so a client newer than its database doesn't lose one field, it loses the
+// vocabulary. That is exactly what happened when the 20260750 columns were added here
+// and applied only to staging: an iOS build pointed at prod returned 42703 for every
+// Lists read.
+//
+// A schema change must not be able to take the app down, in either direction — a client
+// running ahead of a migration, a rolled-back database, a developer whose local DB is
+// behind. So the columns that migration 20260750 ADDED are treated as OPTIONAL: asked
+// for first, and dropped for the rest of the session the moment the database says it
+// doesn't have them. The mapping already reads them with `?? null`, so an un-migrated
+// database degrades to "no example written yet" — indistinguishable from the ordinary
+// case, since most senses have none.
+const DICTIONARY_COLUMNS =
+  "translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency";
+/** Added by 20260750. Absent on any database that hasn't taken it. */
+const DICTIONARY_COLUMNS_OPTIONAL = "example, example_gloss, definition_ja";
+
+/** Latched false by the first 42703; a reload re-probes, so applying the migration
+ *  heals the client with no redeploy. */
+let optionalColumnsAvailable = true;
+
+/** The dictionary fields to embed, minus anything this database has told us it lacks. */
+function dictionaryColumns(): string {
+  return optionalColumnsAvailable
+    ? `${DICTIONARY_COLUMNS}, ${DICTIONARY_COLUMNS_OPTIONAL}`
+    : DICTIONARY_COLUMNS;
+}
+
+/** TEST SEAM (mirrors repository.ts's __clearWordsCache): the latch above is
+ *  module-global, so without a reset one spec's downgrade leaks into the next. */
+export function __resetDictionaryColumnProbe(): void {
+  optionalColumnsAvailable = true;
+}
+
+/** PostgREST's "undefined column" — the whole query fails, not just the column. */
+const isMissingColumn = (error: { code?: string } | null): boolean => error?.code === "42703";
+
+/**
+ * Run a dictionary-embedding read, retrying ONCE without the optional columns if this
+ * database doesn't have them. `run` receives the embed column list and builds its own
+ * query, because the three call sites embed at different depths.
+ */
+async function readWithDictionary<T>(
+  run: (columns: string) => PromiseLike<{ data: T | null; error: { code?: string } | null }>,
+): Promise<T | null> {
+  let res = await run(dictionaryColumns());
+  if (isMissingColumn(res.error) && optionalColumnsAvailable) {
+    // Latch, so one probe costs one extra round-trip per session rather than per read.
+    optionalColumnsAvailable = false;
+    console.warn(
+      "[userWords] this database predates migration 20260750; " +
+        "continuing without per-sense examples.",
+    );
+    res = await run(dictionaryColumns());
+  }
+  if (res.error) throw toServiceError(res.error);
+  return res.data;
+}
 
 /**
  * The LIVE 0–5 confidence from a raw `user_words` row — decayed with time and
@@ -334,13 +392,17 @@ export async function editUserWord(params: {
   const translation = nfcTrim(params.translation);
   if (!translation) throw new ServiceError("A meaning is required", "validation");
 
-  const { data, error } = await supabase
-    .from("user_words")
-    .update({ custom_translation: translation })
-    .eq("user_word_id", params.userWordId)
-    .select<string, UserWordRow>(SELECT_WITH_DICTIONARY)
-    .single();
-  if (error || !data) throw toServiceError(error, "Failed to edit word");
+  const data = await readWithDictionary<UserWordRow>((columns) =>
+    supabase
+      .from("user_words")
+      .update({ custom_translation: translation })
+      .eq("user_word_id", params.userWordId)
+      .select<string, UserWordRow>(`*, words(${columns})`)
+      .single(),
+  ).catch((e) => {
+    throw toServiceError(e, "Failed to edit word");
+  });
+  if (!data) throw new ServiceError("Failed to edit word");
   return toUserWord(data);
 }
 
@@ -422,14 +484,15 @@ export async function getAllUserWords(params: {
 }): Promise<UserWord[]> {
   const limit = params.limit ?? USER_WORDS_PAGE_SIZE;
   const offset = params.offset ?? 0;
-  const { data, error } = await supabase
-    .from("user_words")
-    .select<string, UserWordRow>(SELECT_WITH_DICTIONARY)
-    .eq("user_id", params.userId)
-    .order("originally_translated_date", { ascending: false })
-    .order("user_word_id", { ascending: false })
-    .range(offset, offset + limit - 1);
-  if (error) throw toServiceError(error);
+  const data = await readWithDictionary<UserWordRow[]>((columns) =>
+    supabase
+      .from("user_words")
+      .select<string, UserWordRow>(`*, words(${columns})`)
+      .eq("user_id", params.userId)
+      .order("originally_translated_date", { ascending: false })
+      .order("user_word_id", { ascending: false })
+      .range(offset, offset + limit - 1),
+  );
   return (data ?? []).map(toUserWord);
 }
 
@@ -447,15 +510,16 @@ export async function getUserWordsInList(params: {
 }): Promise<UserWord[]> {
   const limit = params.limit ?? USER_WORDS_PAGE_SIZE;
   const offset = params.offset ?? 0;
-  const { data, error } = await supabase
-    .from("list_words")
-    .select<string, { user_words: UserWordRow | null }>(
-      `user_word_id, user_words(${SELECT_WITH_DICTIONARY})`
-    )
-    .eq("list_id", params.listId)
-    .order("user_word_id", { ascending: false })
-    .range(offset, offset + limit - 1);
-  if (error) throw toServiceError(error);
+  const data = await readWithDictionary<{ user_words: UserWordRow | null }[]>((columns) =>
+    supabase
+      .from("list_words")
+      .select<string, { user_words: UserWordRow | null }>(
+        `user_word_id, user_words(*, words(${columns}))`,
+      )
+      .eq("list_id", params.listId)
+      .order("user_word_id", { ascending: false })
+      .range(offset, offset + limit - 1),
+  );
 
   return (data ?? [])
     .map((r) => r.user_words)
