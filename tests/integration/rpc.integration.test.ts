@@ -466,8 +466,16 @@ describe.skipIf(!ENABLED)("rpc: review_queue", () => {
       const id = await makeStandaloneWord(u, { input, meaning: `${input}-m` });
       await u.client.rpc("record_review", { p_user_word_id: id, p_grade: 5 });
     }
-    // Three sessions in a row: all empty. (Before the fix: the same three cards, forever.)
-    for (let session = 0; session < 3; session++) {
+    // Many sessions in a row: all empty. (Before 20260732: the same three cards, forever.)
+    //
+    // The count is the regression detector, not decoration. 20260737's conf-5 cameo
+    // fired on `random() < n * 0.01` — 10% per call at p_limit 10 — with nothing gating
+    // it on the session having other material, so this state dealt one mastered card
+    // whose grade the cram freeze then discarded. That made THIS spec fail ~27% of CI
+    // runs at three sessions. 20260754 gates the cameo on `has_other`, so it is now
+    // deterministically empty; 25 sessions would catch a reintroduction ~93% of the time
+    // rather than the 27% three gave.
+    for (let session = 0; session < 25; session++) {
       const { data } = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 10 });
       expect(data as unknown[]).toHaveLength(0);
     }
