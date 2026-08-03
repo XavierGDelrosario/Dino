@@ -26,7 +26,7 @@
 .chip--active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0b1a2e;
+  color: #1b1030;
   font-weight: 600;
 }
 
