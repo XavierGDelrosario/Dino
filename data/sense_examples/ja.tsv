@@ -469,3 +469,36 @@
 
 # ── 店 (1582120) ────────────────────────────────────────────────────────────────
 1582120:0	角の店でパンを買った。	I bought bread at the shop on the corner.	品物を売るところ。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 9 — the everyday nouns a learner meets in week one.
+# Mostly single-sense: the sentence and the JA definition still earn their place,
+# since the definition is what carries usage the gloss cannot.
+# ═══════════════════════════════════════════════════════════════════════════════
+1156800:0	この言葉の意味がわからない。	I don't know what this word means.	言葉や行いが表している内容。
+1355810:0	雨の場合は中止します。	In the event of rain it will be called off.	あることが起こったときのようす。
+1191060:0	予約は電話でも可能です。	Booking by phone is also possible.	することができるようす。
+1447690:0	来週、東京へ出張する。	I'm going to Tokyo on business next week.	日本の首都。
+1306200:0	この部屋の使用は禁止されている。	Use of this room is prohibited.	物や場所を役立てて使うこと。
+1302090:0	大会への参加を申し込んだ。	I applied to take part in the tournament.	集まりや活動に加わること。
+1307850:0	公園で子供が遊んでいる。	Children are playing in the park.	年のいかない人。
+1531040:0	この美術館の入場は無料です。	Admission to this museum is free.	お金がかからないこと。
+1173720:0	日曜日に映画を見に行った。	I went to see a film on Sunday.	連続した映像で見せる作品。
+1293990:0	最初に自己紹介をします。	I'll introduce myself first.	いちばん初めのとき。
+1517090:0	もっといい方法があるはずだ。	There must be a better way.	物事を行うためのやり方。
+1550140:0	遅れた理由を説明した。	I explained the reason I was late.	そうなったわけ。
+1297910:0	この作品は十年前に描かれた。	This work was painted ten years ago.	作られた芸術上のもの。
+1218190:0	地元の企業に就職した。	I got a job at a local company.	利益を目的に事業を行う組織。
+1406150:0	チームでの彼の存在は大きい。	His presence on the team counts for a lot.	そこにあること。いること。
+1526920:0	電車の中で漫画を読む。	I read manga on the train.	絵とせりふで話を進める作品。
+1861770:0	会場には多くの人が集まった。	A great many people gathered at the venue.	数量がたくさんであること。
+1861770:1	参加者の多くは学生だった。	The majority of the participants were students.	全体の中で大きい方の部分。
+1579110:0	今日は朝から忙しい。	I've been busy since this morning.	この日。
+
+# ⚠️ WITHDRAWN — wrong ENTRY, not a wrong reading. 力(りき) 先(せん) 氏(うじ) 体(てい) are
+# the RARE-reading entries; the sentences written for them used the common readings
+# (ちから, さき, し, からだ), which belong to different ent_seqs. The gate flagged them as
+# reading mismatches and offered example_reading as the fix — that hint is a TRAP here:
+# pinning りき onto a sentence that means ちから would satisfy the check (りき does match
+# JMdict for that entry) while curating the wrong meaning entirely. The override is for
+# when kuromoji misreads the RIGHT entry, never for reconciling the wrong one.
