@@ -26,6 +26,8 @@ import {
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
+  shouldSkipMt,
+  isEchoTranslation,
   type ProviderResult,
 } from "../../supabase/functions/translate/_lib";
 
@@ -720,5 +722,104 @@ describe("expandSegmentResults", () => {
   it("never returns fewer entries than were requested", () => {
     const p = prepareSegments(["一。", "二。", "三。"]);
     expect(expandSegmentResults(p, ["One."])).toHaveLength(3);
+  });
+});
+
+// Both guards were written against real prod damage (2026-08-02): of 306 cached MT
+// rows, 73 were pure digits and 177 were Latin-only words sent as Japanese — every
+// one a billed Google call whose result was noise, cached as a "verified" word.
+describe("shouldSkipMt (pre-spend junk guard)", () => {
+  it("skips tokens with no letters — the page numbers prod was paying for", () => {
+    for (const n of ["2026", "0120", "1410612404000", "０１２", "100", "12.5", "-", "#3"]) {
+      expect(shouldSkipMt(n, "JA")).toBe(true);
+    }
+  });
+
+  it("skips blank / whitespace-only input", () => {
+    expect(shouldSkipMt("", "JA")).toBe(true);
+    expect(shouldSkipMt("   ", "JA")).toBe(true);
+  });
+
+  it("skips Latin words submitted as Japanese (source-script mismatch)", () => {
+    for (const w of ["overflowing", "stronger", "cooking", "honestly"]) {
+      expect(shouldSkipMt(w, "JA")).toBe(true);
+    }
+  });
+
+  it("keeps real Japanese, including kana-only and mixed digit+kanji", () => {
+    for (const w of ["文章", "よろしく", "ミニストップ", "第2類"]) {
+      expect(shouldSkipMt(w, "JA")).toBe(false);
+    }
+  });
+
+  it("mirrors the rule for EN source: Japanese in, digits out, English kept", () => {
+    expect(shouldSkipMt("文章", "EN")).toBe(true);
+    expect(shouldSkipMt("2026", "EN")).toBe(true);
+    expect(shouldSkipMt("sentence", "EN")).toBe(false);
+  });
+
+  it("imposes no script rule for a language with no entry, but still drops digits", () => {
+    expect(shouldSkipMt("사랑", "KO")).toBe(false);
+    expect(shouldSkipMt("123", "KO")).toBe(true);
+  });
+
+  it("is case-insensitive about the language code", () => {
+    expect(shouldSkipMt("stronger", "ja")).toBe(true);
+  });
+});
+
+describe("isEchoTranslation (cache-poisoning guard)", () => {
+  it("catches the echo that minted prod's numeric word rows", () => {
+    expect(isEchoTranslation("2026", "2026")).toBe(true);
+    expect(isEchoTranslation("immediately", "immediately")).toBe(true);
+  });
+
+  it("ignores case, width and surrounding space", () => {
+    expect(isEchoTranslation("URL", "ｕｒｌ")).toBe(true);
+    expect(isEchoTranslation("Someday", " someday ")).toBe(true);
+  });
+
+  it("passes a genuine translation through", () => {
+    expect(isEchoTranslation("文章", "sentence")).toBe(false);
+    expect(isEchoTranslation("京都パープルサンガ", "Kyoto Purple Sanga")).toBe(false);
+  });
+});
+
+describe("lemmaCandidates — JA potential verbs", () => {
+  // Every one of these was a billed MT row on prod because the potential form has no
+  // JMdict headword; the base form does.
+  it("offers the 五段 dictionary form as a fallback candidate", () => {
+    expect(lemmaCandidates("帰れる", "JA")).toContain("帰る");
+    expect(lemmaCandidates("戻れる", "JA")).toContain("戻る");
+    expect(lemmaCandidates("ゆける", "JA")).toContain("ゆく");
+    expect(lemmaCandidates("奪える", "JA")).toContain("奪う");
+    expect(lemmaCandidates("とまれる", "JA")).toContain("とまる");
+    expect(lemmaCandidates("たどりつける", "JA")).toContain("たどりつく");
+  });
+
+  it("handles the 一段 〜られる potential", () => {
+    expect(lemmaCandidates("食べられる", "JA")).toContain("食べる");
+  });
+
+  it("always tries the SURFACE first, so real verbs that look potential are safe", () => {
+    for (const v of ["見える", "消える", "生える"]) {
+      expect(lemmaCandidates(v, "JA")[0]).toBe(v);
+    }
+  });
+
+  it("adds no candidate when the stem can't be a potential form (kanji/non-え-row)", () => {
+    expect(lemmaCandidates("帰る", "JA")).toEqual(["帰る"]);
+    expect(lemmaCandidates("する", "JA")).toEqual(["する"]);
+  });
+
+  it("a 一段 verb yields a harmless extra candidate — the surface is still first", () => {
+    // 食べる and 帰れる are indistinguishable by surface alone (both え-row + る), so the
+    // rule fires on both. First-hit-wins resolution means 食べる matches itself and the
+    // speculative 食ぶ is never consulted.
+    expect(lemmaCandidates("食べる", "JA")).toEqual(["食べる", "食ぶ"]);
+  });
+
+  it("still offers the する candidate, and both when they apply", () => {
+    expect(lemmaCandidates("接す", "JA")).toEqual(["接す", "接する"]);
   });
 });

@@ -401,6 +401,53 @@ export function dropOffScriptTranslations(
   return script ? results.filter((r) => script.test(r.translation)) : results;
 }
 
+// INPUT guard, keyed on SOURCE language → the script a WORD must contain to be a
+// word in that language at all. Mirror of TARGET_SCRIPT, applied before we spend.
+const SOURCE_SCRIPT: Record<string, RegExp> = {
+  JA: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+  EN: /[A-Za-z]/,
+  // ZH: /\p{Script=Han}/u,
+  // KO: /[\p{Script=Hangul}\p{Script=Han}]/u,
+};
+
+/**
+ * Is this token not worth paying MT for? Word-level ONLY — never apply it to the
+ * paragraph gloss, whose segments are sentences, not vocabulary.
+ *
+ * Prod evidence (2026-08-02): 73 of 306 cached MT rows were pure digits — `2026`,
+ * `0120`, `1410612404000`, and an OCR blob — each a billed Google call that returned
+ * the digits unchanged, then cached as a "word" the reader offered to save. Another
+ * 177 rows were Latin-only words sent with source_lang=JA (`overflowing`, `stronger`,
+ * `cooking`), which Google duly mistranslated into noise ("overlooking", "Japanese",
+ * "0.092"). Both classes are decidable before the call, for free:
+ *   · no letter anywhere → digits/punctuation/symbols only, nothing to translate
+ *   · off-script for the source language → not a word in the language we claim
+ * The dictionary path runs FIRST and is unaffected, so this only ever suppresses the
+ * paid fallback: a skipped token returns "no result" and the reader greys it out —
+ * which is the correct outcome for a page number.
+ */
+export function shouldSkipMt(input: string, sourceLang: string): boolean {
+  const text = input.trim();
+  if (!text) return true;
+  if (!/\p{L}/u.test(text)) return true; // digits / punctuation / symbols only
+  const script = SOURCE_SCRIPT[sourceLang.toUpperCase()];
+  return script ? !script.test(text) : false;
+}
+
+/**
+ * Did MT hand back what we sent it? Google echoes the input when it can't translate
+ * (`2026` → `2026`, `immediately` → `immediately`), and caching that mints a
+ * "verified" dictionary row whose meaning is the word itself. Compared case- and
+ * width-insensitively so `URL` → `ＵＲＬ` counts as an echo too.
+ *
+ * The chars are already spent by the time we can check, so this is about not
+ * POISONING THE CACHE, not about cost — `shouldSkipMt` is the cost guard.
+ */
+export function isEchoTranslation(input: string, translation: string): boolean {
+  const norm = (s: string) => s.normalize("NFKC").trim().toLowerCase();
+  return norm(input) === norm(translation);
+}
+
 // Irregular English inflections the regular detachment rules below can't derive —
 // strong-verb past/participles + irregular plurals. Common forms only; the long tail
 // lives in Princeton WordNet's verb.exc/noun.exc (the eventual ingest upgrade). A key
@@ -475,6 +522,46 @@ function jaSuruCandidates(input: string): string[] {
   return [input, `${input.slice(0, -1)}する`];
 }
 
+// 五段 potential stem (え-row) → the う-row char its dictionary form ends in.
+const JA_POTENTIAL_STEM: Record<string, string> = {
+  え: "う", け: "く", げ: "ぐ", せ: "す", て: "つ",
+  ね: "ぬ", へ: "ふ", べ: "ぶ", め: "む", れ: "る",
+};
+
+/**
+ * The DICTIONARY form of a potential verb ("can ~"), or null if the input isn't one.
+ *
+ * IPADIC files a potential form as its own lexical entry, so kuromoji's lemma for
+ * 帰れる is 帰れる — which JMdict has no headword for, so it fell through to paid MT.
+ * Prod had exactly this: 帰れる → "Can go home?", 戻れる → "Can go back", ゆける,
+ * 奪える, とまれる, たどりつける — six billed calls for verbs the dictionary knows
+ * perfectly well in their base form.
+ *
+ * 五段: strip the え-row stem + る and restore the う-row ending (帰れる → 帰る,
+ * 行ける → 行く, 奪える → 奪う). 一段: 〜られる → 〜る (食べられる → 食べる).
+ *
+ * A 一段 verb is indistinguishable from a 五段 potential by surface alone (食べる and
+ * 帰れる are both え-row + る), so the rule fires on both and 食べる speculatively offers
+ * 食ぶ. That is harmless by construction: like the する candidate this is consulted only
+ * AFTER the surface misses, so a real verb (見える, 消える, 食べる) resolves to itself and
+ * never reaches the fallback, and a wrong guess just returns no rows. する → できる is
+ * deliberately absent — it isn't derivable from the surface.
+ */
+function jaPotentialCandidate(input: string): string | null {
+  if (input.length < 3 || !input.endsWith("る")) return null;
+  if (input.length >= 4 && input.endsWith("られる")) return `${input.slice(0, -3)}る`;
+  const base = JA_POTENTIAL_STEM[input[input.length - 2]];
+  return base ? `${input.slice(0, -2)}${base}` : null;
+}
+
+/** JA lemma candidates: the surface first, then する- and potential-form fallbacks. */
+function jaCandidates(input: string): string[] {
+  const cands = jaSuruCandidates(input);
+  const potential = jaPotentialCandidate(input);
+  if (potential && !cands.includes(potential)) cands.push(potential);
+  return cands;
+}
+
 /**
  * Lemma candidates for a query, keyed on SOURCE language — the per-language input seam.
  * Returns the SURFACE form first (morphy tries it before lemmatizing), then ordered
@@ -483,13 +570,14 @@ function jaSuruCandidates(input: string): string[] {
  *   EN — WordNet-morphy: irregular map + regular detachment rules. Covers cats→cat,
  *        ran→run, studies→study, running→run, mice→mouse. Long-tail irregulars are the
  *        Princeton verb.exc/noun.exc upgrade (see docs/TODO.md).
- *   JA — arrives pre-lemmatized from kuromoji, but IPADIC's lemma for the stem of a
- *        する-verb is a 五段 〜す form JMdict has no headword for (接して → 接す, while the
- *        entry is 接する). See jaSuruCandidates.
+ *   JA — arrives pre-lemmatized from kuromoji, but IPADIC's lemma can still be a form
+ *        JMdict has no headword for: the stem of a する-verb (接して → 接す, entry 接する)
+ *        and potential verbs, which IPADIC lexicalizes as-is (帰れる, entry 帰る).
+ *        See jaSuruCandidates / jaPotentialCandidate.
  *   other — identity ([input]).
  */
 export function lemmaCandidates(input: string, sourceLang: string): string[] {
-  if (sourceLang.toUpperCase() === "JA") return jaSuruCandidates(input);
+  if (sourceLang.toUpperCase() === "JA") return jaCandidates(input);
   if (sourceLang.toUpperCase() !== "EN") return [input];
   const w = input.toLowerCase();
   const cands = [input];

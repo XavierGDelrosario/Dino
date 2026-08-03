@@ -59,6 +59,8 @@ import {
   userIdFromAuth,
   type ProviderResult,
   chunkForUrlFilter,
+  shouldSkipMt,
+  isEchoTranslation,
 } from "./_lib.ts";
 
 // Stamp written onto every projected `words` row (projection_version). BUMP this
@@ -508,6 +510,9 @@ async function callTranslationProviderMany(
   }
 }
 
+// WORD-level MT (the paragraph gloss calls ...Many directly, and must not inherit
+// these word-only guards). Returning null is the established "MT gave us nothing"
+// signal, so both callers already refund the chars they reserved.
 async function callTranslationProvider(
   text: string,
   sourceLang: string,
@@ -515,7 +520,15 @@ async function callTranslationProvider(
 ): Promise<ProviderResult | null> {
   const out = await callTranslationProviderMany([text], sourceLang, targetLang);
   const translated = out?.[0];
-  return translated ? { translation: translated } : null;
+  if (!translated) return null;
+  // Google echoes what it can't translate. Caching that would mint a verified row
+  // whose meaning is the word itself (prod had 73 such numeric rows), so drop it —
+  // the chars are already spent, but the cache stays clean.
+  if (isEchoTranslation(text, translated)) {
+    console.log(JSON.stringify({ evt: "mt_echo_dropped", chars: text.length }));
+    return null;
+  }
+  return { translation: translated };
 }
 
 // ── Per-user RESTRICTIONS (the limits subsystem; see migration 20260620 +
@@ -962,8 +975,14 @@ async function resolveBatch(
   if (canMT && needMT.length > 0) {
     const limits = await resolveLimits(supabase, userId!);
     // (#2) over-cap entries are never sent to paid MT (the per-request paragraph cap
-    // holds on the batch path too).
-    const mtWords = needMT.filter((i) => i.length <= limits.paragraphCharLimit);
+    // holds on the batch path too), and neither are tokens that can't be words in
+    // the source language at all — page numbers and off-script junk (see
+    // shouldSkipMt). Skipping happens BEFORE the reserve, so it costs nothing.
+    const mtWords = needMT.filter(
+      (i) => i.length <= limits.paragraphCharLimit && !shouldSkipMt(i, sourceLang),
+    );
+    const skipped = needMT.length - mtWords.length;
+    if (skipped > 0) console.log(JSON.stringify({ evt: "mt_skipped", n: skipped, path: "batch" }));
     const totalChars = mtWords.reduce((n, w) => n + w.length, 0);
     if (totalChars > 0) {
       const reserve = await reserveQuota(supabase, userId!, totalChars, limits.monthlyCharQuota);
@@ -1322,6 +1341,15 @@ async function handleRequest(req: Request): Promise<Response> {
   if (persist && results.length === 0) {
     const revived = await reviveMtRows(supabase, [input], sourceLang, targetLang);
     if (revived.length > 0) return reply(respondWords(input, revived));
+  }
+
+  // A token that can't be a word in the source language (a page number, an English
+  // word submitted as Japanese) never reaches the paid provider — checked before the
+  // limits below, so it costs nothing and reserves nothing. The word simply comes
+  // back unresolved, which is what a page number should be.
+  if (results.length === 0 && persist && shouldSkipMt(input, sourceLang)) {
+    console.log(JSON.stringify({ evt: "mt_skipped", n: 1, path: "word" }));
+    return finish({ translated: false, translation: null, word: null, words: [] });
   }
 
   if (results.length === 0 && mtConfigured() && userId) {
