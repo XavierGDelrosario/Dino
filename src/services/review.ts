@@ -164,6 +164,13 @@ export async function getReviewQueue(params: {
     proficiencyBand: r.proficiency_band,
     partOfSpeech: r.part_of_speech,
     frequency: r.frequency,
+    // Sense enrichment (20260750) is NOT in the review_queue function's column list,
+    // so a review card carries none of it yet. Surfacing an example on the flashcard
+    // back means widening that SQL function — a deliberate next step, not a silent
+    // one, so these stay explicitly null rather than looking merely unwritten.
+    example: null,
+    exampleGloss: null,
+    definitionJa: null,
     retrievability: r.retrievability,
   }));
 }

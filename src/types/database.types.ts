@@ -580,8 +580,11 @@ export type Database = {
       }
       words: {
         Row: {
+          definition_ja: string | null
           dictionary_ref: string | null
           difficulty_override: number | null
+          example: string | null
+          example_gloss: string | null
           frequency: number | null
           input: string
           input_reading: string | null
@@ -598,8 +601,11 @@ export type Database = {
           word_id: string
         }
         Insert: {
+          definition_ja?: string | null
           dictionary_ref?: string | null
           difficulty_override?: number | null
+          example?: string | null
+          example_gloss?: string | null
           frequency?: number | null
           input: string
           input_reading?: string | null
@@ -616,8 +622,11 @@ export type Database = {
           word_id?: string
         }
         Update: {
+          definition_ja?: string | null
           dictionary_ref?: string | null
           difficulty_override?: number | null
+          example?: string | null
+          example_gloss?: string | null
           frequency?: number | null
           input?: string
           input_reading?: string | null

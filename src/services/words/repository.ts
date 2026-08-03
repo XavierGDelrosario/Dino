@@ -57,6 +57,25 @@ export interface Word {
   jmdictEntryId: string | null;
   /** JA→EN: the entry's sense index (0 = primary); EN→JA: match rank. Null = non-JMdict. */
   jmdictSensePos: number | null;
+  /**
+   * SENSE ENRICHMENT (authored corpus, migration 20260750) — all three null until a
+   * sense has been written, which is most of them.
+   *
+   * A Japanese sentence demonstrating THIS sense specifically. The point is what a
+   * gloss list structurally cannot do: 辛い "spicy" and 辛い "painful" read identically
+   * as English, but one sentence each settles them. JA→EN rows only — for EN→JA
+   * `jmdictSensePos` is a match rank, not a sense index, so nothing can be keyed on it.
+   */
+  example: string | null;
+  /** English translation of `example`. Null when the example has no gloss yet. */
+  exampleGloss: string | null;
+  /**
+   * A monolingual Japanese definition of THIS sense, written as a JA dictionary writes
+   * one (deliberately not simplified). Carries usage an English gloss cannot — 遜色
+   * glossed "inferiority" invites the unnatural 遜色がある; the definition records
+   * 多くは「ない」を伴って使う.
+   */
+  definitionJa: string | null;
   isVerified: boolean;
 }
 
@@ -80,6 +99,9 @@ function toWord(row: WordRow): Word {
     proficiencyBand: row.proficiency_band ?? null,
     jmdictEntryId: row.jmdict_entry_id ?? null,
     jmdictSensePos: row.jmdict_sense_pos ?? null,
+    example: row.example ?? null,
+    exampleGloss: row.example_gloss ?? null,
+    definitionJa: row.definition_ja ?? null,
     isVerified: row.is_verified,
   };
 }

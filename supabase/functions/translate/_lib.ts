@@ -28,6 +28,13 @@ export interface ProviderResult {
   proficiencyBand?: number | null;
   // POS tags of the sense (null for MT).
   partOfSpeech?: string[] | null;
+  // Sense enrichment (migration 20260750), stamped by applySenseExamples AFTER the
+  // provider returns — an authored annotation of a sense, not something a provider
+  // knows. JA→EN only: for EN→JA `sensePos` is a match rank, not a sense index, so
+  // there is nothing safe to key on (see the migration header).
+  example?: string | null;
+  exampleGloss?: string | null;
+  definitionJa?: string | null;
 }
 
 /** A `words` row ready for upsert (snake_case, matches the table). */
@@ -48,6 +55,11 @@ export interface WordRowInsert {
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
+  // Per-sense enrichment (20260750): a Japanese example sentence, its English gloss,
+  // and a monolingual JA definition. NULL on every EN→JA and MT row.
+  example: string | null;
+  example_gloss: string | null;
+  definition_ja: string | null;
   dictionary_ref: string;
   projection_version: number;
   is_verified: boolean;
@@ -263,6 +275,9 @@ export function projectRows(
       difficulty_override: null,
       jmdict_entry_id: r.entryId ?? null,
       jmdict_sense_pos: r.sensePos ?? null,
+      example: r.example ?? null,
+      example_gloss: r.exampleGloss ?? null,
+      definition_ja: r.definitionJa ?? null,
       dictionary_ref: ref,
       projection_version: projectionVersion,
       is_verified: true,

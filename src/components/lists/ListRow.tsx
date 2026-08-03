@@ -10,6 +10,7 @@ import { ListMenu } from "../common/ListMenu";
 import { PencilIcon, TrashIcon } from "../common/icons";
 import { WordInfoButton } from "../common/WordInfo";
 import { SpeakButton } from "../common/SpeakButton";
+import { SenseExample } from "../common/SenseExample";
 import { pronounceableText } from "../../services/voice";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
@@ -276,6 +277,16 @@ export function ListRow({
             ))}
           </div>
         )}
+
+        {/* Example sentence for the saved SENSE, immediately left of the listen button:
+            both answer "tell me more about this word" rather than changing anything, so
+            they sit together and away from the header's edit/tag/delete cluster. Renders
+            nothing until the sense has been written up. */}
+        <SenseExample
+          example={word.example}
+          exampleGloss={word.exampleGloss}
+          definitionJa={word.definitionJa}
+        />
 
         {/* Read the WORD aloud — never the meaning (an English gloss spoken by a
             Japanese voice is noise). Speaks the sense's reading where the headword is

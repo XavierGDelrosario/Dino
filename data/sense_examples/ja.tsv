@@ -1,0 +1,91 @@
+# Sense enrichment corpus — Japanese. One line per SENSE:
+#   entry_id <TAB> sense_pos <TAB> example <TAB> example_gloss <TAB> definition_ja
+#
+# entry_id is a JMdict ent_seq and sense_pos is that entry's OWN sense index (0 =
+# primary) — the same `s.position` jmdict_lookup returns for JA→EN. Both were read off
+# the live dictionary, never guessed: a wrong pair silently annotates another meaning.
+#
+# Every sentence and every definition renders through ParagraphReader, so both must
+# survive `npx tsx scripts/validate-sense-examples.ts` before being committed — the
+# target has to stay one token with the right reading, and nothing may mis-segment.
+#
+# The sentence demonstrates THAT SENSE, not the word in general — that is the whole
+# point of the file. The definition is written as a Japanese dictionary writes one, NOT
+# simplified: hard supporting words are deliberate and safe, because every word in a
+# definition is itself tappable (docs/TODO.md, "the rabbit hole is the FEATURE").
+#
+# First batch: high-frequency polysemous content words, where the English gloss list
+# alone genuinely cannot tell the meanings apart.
+
+# ── 高い (1283190) — tall / expensive / high-level ──────────────────────────────
+1283190	0	この辺りでいちばん高いビルに登った。	I went up the tallest building around here.	下から上までの距離が大きい。また、位置が上の方にある。
+1283190	1	思ったより高かったので、買うのをやめた。	It was pricier than I expected, so I decided against buying it.	値段が大きい。手に入れるのに多くのお金が必要である。
+1283190	2	彼女は英語の能力が高い。	Her English ability is high.	程度や水準が上の方にある。
+
+# ── 辛い (1365850, からい) — WITHDRAWN, and worth knowing why ───────────────────
+# からい cannot be exampled yet. IPADIC reads 辛い as つらい in EVERY context tried —
+# 「このカレーはとても辛い」「辛い料理が好きだ」「この味噌汁は辛い」 all come back つらい —
+# so the reader would print つらい furigana over a sentence that means "spicy". The
+# gate rejected all three (check 2, target-reading) and no rewrite passes.
+#
+# The irony is exact: 辛い→からい/つらい is the flagship homograph this whole feature was
+# meant to disambiguate, and it is the one case the RENDERER cannot show correctly. A
+# per-sense reading override on the example (letting the corpus pin the furigana rather
+# than deferring to kuromoji) is the fix, and it is a schema change — deliberately not
+# smuggled into this batch.
+
+# ── 甘い (1213400) — sweet / naive ──────────────────────────────────────────────
+1213400	0	このいちごはとても甘い。	These strawberries are very sweet.	砂糖や蜜のような味である。
+1213400	3	その考えは甘いと思う。	I think that thinking is naive.	見通しや考え方に厳しさが足りない。また、人に対する扱いが厳しくない。
+
+# ── 深い (1362640) — deep / profound / close ────────────────────────────────────
+1362640	0	この川は思ったより深い。	This river is deeper than it looks.	表面から底までの距離が大きい。
+1362640	1	彼の作品には深い意味がある。	His work carries a profound meaning.	内容に奥行きがあり、簡単には理解できない。
+1362640	3	二人は深い関係にある。	The two are in a close relationship.	つながりの程度が大きい。
+
+# ── 時間 (1315920) — time / hour / class period ─────────────────────────────────
+1315920	0	時間が足りなくて、最後まで書けなかった。	I ran out of time and couldn't write to the end.	過去から未来へと流れ続けるもの。また、その長さ。
+1315920	2	次の時間は数学です。	The next period is maths.	学校などで、授業の一区切り。
+
+# ── 家 (1191730, いえ) — house / household / lineage ────────────────────────────
+1191730	0	新しい家を建てることにした。	We decided to build a new house.	人が住むための建物。
+1191730	1	彼は家を継ぐために田舎へ帰った。	He went back to the countryside to carry on the family.	同じ血筋の者の集まり。また、その暮らしの単位。
+1191730	2	古い家の生まれだと聞いた。	I hear she comes from an old family line.	代々続いてきた血筋。
+
+# ── 月 (1255430, つき) — the Moon / month / moonlight ───────────────────────────
+1255430	0	今夜は月がきれいだ。	The moon is beautiful tonight.	地球の周りを回る天体。
+1255430	1	月に一度、母に手紙を書く。	I write to my mother once a month.	一年を十二に分けた区切り。
+1255430	2	月に照らされた道を歩いた。	I walked along a moonlit road.	月の光。
+
+# ── 年 (1468060, とし) — year / age / old age ───────────────────────────────────
+1468060	0	年が明けたら引っ越すつもりだ。	I plan to move once the new year starts.	一月から十二月までの一区切り。
+1468060	1	年の割に若く見える。	He looks young for his age.	生まれてから経過した年数。
+1468060	2	年には勝てないと父が言った。	My father said you can't beat old age.	年齢を重ねて体が衰えること。
+
+# ── 円 (1175570, えん) — yen / circle ───────────────────────────────────────────
+1175570	0	円が安くなっている。	The yen is getting weaker.	日本のお金の単位。
+1175570	1	紙に大きな円を描いた。	I drew a big circle on the paper.	一つの点から等しい距離にある点が作る形。
+
+# ── 取る (1326980) — grab / win / adopt ─────────────────────────────────────────
+1326980	0	棚から本を取ってください。	Please take the book off the shelf.	手に持つ。手を伸ばして持ち上げる。
+1326980	2	彼は大会で一位を取った。	He took first place at the tournament.	争って自分のものにする。
+1326980	3	会社は新しい方針を取ることにした。	The company decided to adopt a new policy.	ある方法や態度を選んで用いる。
+
+# ── 引く (1169250) — pull / attract / draw ──────────────────────────────────────
+1169250	0	ドアは押さずに引いてください。	Pull the door rather than pushing it.	自分の方へ寄せるように力を加える。
+1169250	1	派手な看板が目を引いた。	The gaudy sign caught my eye.	注意や関心を自分の方に向けさせる。
+1169250	3	トランプを一枚引いた。	I drew a single playing card.	札などを選び出す。
+
+# ── 立つ (1597040) — stand up / be situated ─────────────────────────────────────
+1597040	0	先生が入ってきたので、みんな立った。	Everyone stood up when the teacher came in.	体を起こして足で支える姿勢になる。
+1597040	1	丘の上に古い教会が立っている。	An old church stands on the hill.	建物などがある場所に位置している。
+
+# ── 空く (1586265, すく) — empty out / be hungry ────────────────────────────────
+1586265	0	昼を過ぎると電車が空く。	The trains empty out after midday.	中の人や物が減って、ゆとりができる。
+1586265	1	お腹が空いたので、何か食べよう。	I'm hungry, so let's eat something.	胃の中が空になって、食べ物がほしくなる。
+
+# ── 的 (1437270, まと) — target / object of attention ───────────────────────────
+# 「的の…」 is avoided on purpose: directly before の, IPADIC reads 的 as the suffix てき
+# (的の中心 → てき) while 的に / 的を read まと. The gate caught it.
+1437270	0	矢が的に当たった。	The arrow hit the target.	弓や銃で狙うためのしるし。
+1437270	1	彼の発言が批判の的になった。	His remark became the target of criticism.	注目や非難などが集まる対象。

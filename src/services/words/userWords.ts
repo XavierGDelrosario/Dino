@@ -67,6 +67,12 @@ export interface UserWord {
   proficiencyBand: number | null;
   partOfSpeech: string[] | null;
   frequency: number | null;
+  /** A Japanese sentence demonstrating the SAVED SENSE, or null if none is written. */
+  example: string | null;
+  /** English translation of `example`, or null. */
+  exampleGloss: string | null;
+  /** Monolingual Japanese definition of the saved sense, or null. */
+  definitionJa: string | null;
 }
 
 // Flat columns derived from the generated schema types (so a schema change
@@ -83,12 +89,15 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
     | "proficiency_band"
     | "part_of_speech"
     | "frequency"
+    | "example"
+    | "example_gloss"
+    | "definition_ja"
   > | null;
 };
 
 /** Embed string that pulls the referenced dictionary fields for resolution. */
 const SELECT_WITH_DICTIONARY =
-  "*, words(translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency)";
+  "*, words(translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency, example, example_gloss, definition_ja)";
 
 /**
  * The LIVE 0–5 confidence from a raw `user_words` row — decayed with time and
@@ -143,6 +152,13 @@ function toUserWord(row: UserWordRow): UserWord {
     proficiencyBand: row.words?.proficiency_band ?? null,
     partOfSpeech: row.words?.part_of_speech ?? null,
     frequency: row.words?.frequency ?? null,
+    // Sense enrichment (20260750). Read-only dictionary attributes like the three
+    // above — never stored on user_words, and null for a standalone created word.
+    // NOT suppressed by a custom_translation: an override renames the MEANING, while
+    // the example still demonstrates the sense the user saved.
+    example: row.words?.example ?? null,
+    exampleGloss: row.words?.example_gloss ?? null,
+    definitionJa: row.words?.definition_ja ?? null,
   };
 }
 

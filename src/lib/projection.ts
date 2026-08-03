@@ -37,13 +37,20 @@
 // cached EN→JA row carries the old, wrong primary sense (run→実行, light→簡単) and has
 // to re-project.
 //
+// v11 (20260750): per-sense enrichment — an example sentence, its English gloss and a
+// monolingual JA definition — is projected onto each JA→EN row from the authored
+// jmdict_sense_example corpus. A cached row predates the corpus and carries NULLs, so
+// it re-projects. (The ingest ALSO backfills `words` directly: Lists reads a saved
+// word's attributes straight off the table without ever consulting the edge, so the
+// bump alone would leave exactly the words people study as the last to be enriched.)
+//
 // MIRRORED in supabase/functions/translate/index.ts (separate Deno runtime — it can't
 // import this file). tests/services/projection-version.test.ts fails if the two drift.
 // Bump BOTH whenever the projection changes; the bump is what makes old rows stale.
 // =========================================================
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 10;
+export const CURRENT_PROJECTION_VERSION = 11;
 
 /**
  * PostgREST filter for "this row is safe to serve from cache" — a projection at the

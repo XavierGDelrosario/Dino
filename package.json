@@ -20,6 +20,8 @@
     "ingest:english-frequency": "tsx scripts/ingest-english-frequency.ts",
     "build:leveling": "tsx scripts/build-leveling-profile.ts",
     "ingest:english-proficiency": "tsx scripts/ingest-english-proficiency.ts",
+    "ingest:sense-examples": "tsx scripts/ingest-sense-examples.ts",
+    "validate:sense-examples": "tsx scripts/validate-sense-examples.ts",
     "db:up": "bash scripts/supabase-up.sh",
     "db:dump-seed": "bash scripts/dump-seed.sh",
     "db:backup": "bash scripts/backup-user-data.sh",

@@ -224,6 +224,10 @@ export const en = {
   "lists.infoAria": "Added {added}, last reviewed {reviewed}",
   "lists.infoTitle": "Added: {added}\nLast reviewed: {reviewed}",
   "lists.never": "never",
+  // sense enrichment (20260750) — the example-sentence disclosure on a word row
+  "sense.showExample": "Example",
+  "sense.hideExample": "Hide example",
+  "sense.definition": "Japanese definition",
   // period filter
   "lists.added": "Added",
   "lists.addedAria": "Filter by date added",
@@ -618,6 +622,9 @@ export const ja: Record<MessageKey, string> = {
   "lists.infoAria": "追加日 {added}、最終復習 {reviewed}",
   "lists.infoTitle": "追加日：{added}\n最終復習：{reviewed}",
   "lists.never": "なし",
+  "sense.showExample": "例文",
+  "sense.hideExample": "例文を隠す",
+  "sense.definition": "国語辞典の語釈",
   "lists.added": "追加",
   "lists.addedAria": "追加日でフィルター",
   "lists.reviewed": "復習",

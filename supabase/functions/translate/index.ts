@@ -86,7 +86,12 @@ import {
 //   8 = JA 〜す→〜する lemma fallback (kuromoji's 接す resolves to JMdict's 接する instead
 //       of falling through to MT) + MT rows are no longer exempt from the gate below, so
 //       a word MT once answered gets one FREE dictionary re-check (reviveMtRows).
-const CURRENT_PROJECTION_VERSION = 10;
+//   9 = proficiency_band falls back to the entry's KANJI writing (20260740), so a uk
+//       headword (こと, いる, ため) stops reading as unlevelled.
+//  10 = EN→JA ranked by how PRIMARY the matching gloss is in the entry (20260742).
+//  11 = per-sense enrichment projected: example / example_gloss / definition_ja from
+//       jmdict_sense_example (20260750). JA→EN only — see applySenseExamples.
+const CURRENT_PROJECTION_VERSION = 11;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up
@@ -153,6 +158,9 @@ interface WordRow {
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
+  example: string | null;
+  example_gloss: string | null;
+  definition_ja: string | null;
   is_verified: boolean;
 }
 
@@ -172,6 +180,9 @@ function toWord(r: WordRow) {
     difficultyOverride: r.difficulty_override ?? null,
     jmdictEntryId: r.jmdict_entry_id ?? null,
     jmdictSensePos: r.jmdict_sense_pos ?? null,
+    example: r.example ?? null,
+    exampleGloss: r.example_gloss ?? null,
+    definitionJa: r.definition_ja ?? null,
     isVerified: r.is_verified,
   };
 }
@@ -432,6 +443,62 @@ async function applyEnglishProficiency(
   const band = new Map<string, number>();
   for (const r of (data ?? []) as { surface: string; band: number }[]) band.set(r.surface, r.band);
   applyInputAttributeOverride(perInput, band, "proficiencyBand"); // CEFR band or NULL, never the JA JLPT one
+}
+
+/** Stamp the authored per-sense enrichment (migration 20260750) onto the projected
+ *  rows: a Japanese example sentence, its English gloss, and a monolingual JA
+ *  definition. Read from the server-only `jmdict_sense_example`, same shape as
+ *  applyEnglish{Frequency,Proficiency} — a reference table the edge folds in at
+ *  projection time so the client only ever reads `words`.
+ *
+ *  JA→EN ONLY. The key is (entry, sense), and `sensePos` is a true sense index only in
+ *  this direction — for EN→JA it is a match RANK across entries (20260742), so joining
+ *  on it would staple one sense's sentence onto a different meaning. Fail-open: an
+ *  unreachable table leaves the rows unannotated, exactly as they were before the
+ *  corpus existed. */
+async function applySenseExamples(
+  supabase: Supa,
+  perInput: { input: string; results: ProviderResult[] }[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<void> {
+  if (sourceLang !== "JA" || targetLang !== "EN" || perInput.length === 0) return;
+  const entryIds = new Set<string>();
+  for (const p of perInput) {
+    for (const r of p.results) if (r.entryId != null && r.sensePos != null) entryIds.add(r.entryId);
+  }
+  if (entryIds.size === 0) return; // nothing but MT results
+
+  const { data, error } = await supabase
+    .from("jmdict_sense_example")
+    .select("jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja")
+    .in("jmdict_entry_id", [...entryIds]);
+  if (error) {
+    console.error("jmdict_sense_example lookup failed:", error.message);
+    return; // fail-open — an example is an enhancement, never a reason to fail a lookup
+  }
+
+  type Row = {
+    jmdict_entry_id: string;
+    jmdict_sense_pos: number;
+    example: string | null;
+    example_gloss: string | null;
+    definition_ja: string | null;
+  };
+  const bySense = new Map<string, Row>();
+  for (const r of (data ?? []) as Row[]) bySense.set(`${r.jmdict_entry_id}:${r.jmdict_sense_pos}`, r);
+  if (bySense.size === 0) return;
+
+  for (const p of perInput) {
+    for (const r of p.results) {
+      if (r.entryId == null || r.sensePos == null) continue;
+      const hit = bySense.get(`${r.entryId}:${r.sensePos}`);
+      if (!hit) continue;
+      r.example = hit.example;
+      r.exampleGloss = hit.example_gloss;
+      r.definitionJa = hit.definition_ja;
+    }
+  }
 }
 
 // Google Cloud Translation API v2 endpoint (REST, API-key auth). Overridable via
@@ -1009,6 +1076,7 @@ async function resolveBatch(
   // values (before projection, so both the upsert and the refToTerms mapping see them).
   await applyEnglishFrequency(supabase, perInput, sourceLang, targetLang);
   await applyEnglishProficiency(supabase, perInput, sourceLang, targetLang);
+  await applySenseExamples(supabase, perInput, sourceLang, targetLang);
 
   // 3. One upsert for every freshly-projected sense (deduped by dictionary_ref).
   let savedRows: WordRow[] = [];
@@ -1424,6 +1492,7 @@ async function handleRequest(req: Request): Promise<Response> {
   // EN→JA: override the frequency + CEFR band with the ENGLISH input's own values.
   await applyEnglishFrequency(supabase, [{ input, results }], sourceLang, targetLang);
   await applyEnglishProficiency(supabase, [{ input, results }], sourceLang, targetLang);
+  await applySenseExamples(supabase, [{ input, results }], sourceLang, targetLang);
 
   // 4. Persist every sense as a verified global word (service role bypasses RLS).
   //    projectRows (in _lib.ts) stores the canonical headword as `input`, DEDUPEs

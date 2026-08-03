@@ -204,8 +204,19 @@ function getJaTokenizer(): Promise<Tokenizer<IpadicFeatures>> {
   if (!tokenizerPromise) {
     tokenizerPromise = import("kuromoji")
       .then(
-        ({ builder }) =>
+        (mod) =>
           new Promise<Tokenizer<IpadicFeatures>>((resolve, reject) => {
+            // kuromoji is CommonJS. Vite and Vitest interop it so `builder` sits on the
+            // namespace, but a plain Node ESM loader (tsx — how scripts/ run) puts it on
+            // `.default`, and destructuring `{ builder }` there yields undefined. That
+            // threw "builder is not a function", which analyzeJapanese CATCHES and turns
+            // into a silent Intl.Segmenter fallback — so a Node caller got segmentation
+            // with no readings or lemmas and no error. Accept both shapes.
+            const builder = mod.builder ?? (mod as unknown as { default?: typeof mod }).default?.builder;
+            if (typeof builder !== "function") {
+              reject(new Error("kuromoji: no builder export found on the module"));
+              return;
+            }
             builder({ dicPath: jaDicPath() }).build((err, tokenizer) => {
               if (err) reject(err);
               else resolve(tokenizer);

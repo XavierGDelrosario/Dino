@@ -774,6 +774,9 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.75rem;
+  /* Wraps so the example panel (SenseExample) can claim a full-width line of its own
+     beneath the meaning and the buttons, instead of being squeezed in beside them. */
+  flex-wrap: wrap;
 }
 
 .listrow__meaning {
