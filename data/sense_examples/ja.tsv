@@ -89,3 +89,99 @@
 # (的の中心 → てき) while 的に / 的を read まと. The gate caught it.
 1437270	0	矢が的に当たった。	The arrow hit the target.	弓や銃で狙うためのしるし。
 1437270	1	彼の発言が批判の的になった。	His remark became the target of criticism.	注目や非難などが集まる対象。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 2 — the next band of high-frequency polysemous content words.
+# Same rules: the sentence demonstrates THAT sense, the definition is written as a
+# Japanese dictionary writes one, and both must clear the kuromoji gate.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 必要 (1487660) — needed / a need ────────────────────────────────────────────
+1487660	0	この手続きには保証人が必要だ。	This procedure requires a guarantor.	なくてはならない。どうしても要る。
+1487660	1	必要があれば、すぐに連絡します。	If the need arises, I'll contact you at once.	なくてはならないこと。要ること。
+
+# ── 世界 (1373860) — the world / a sphere ───────────────────────────────────────
+1373860	0	世界には二百近い国がある。	There are nearly two hundred countries in the world.	地球上のすべての国や地域。
+1373860	1	彼女は音楽の世界で名を知られている。	She is known in the music world.	ある分野や社会の範囲。
+
+# ── 仕事 (1304970) — a job / work in the physical sense ─────────────────────────
+1304970	0	新しい仕事を探している。	I'm looking for a new job.	生活のためにする勤め。職業。
+1304970	1	物理では力と距離の積を仕事という。	In physics, force times distance is called work.	物体に力を加えて動かしたときの量。
+
+# ── 言う (1587040) — to say / to be called / to make a noise ────────────────────
+1587040	0	彼は何も言わずに部屋を出た。	He left the room without saying anything.	言葉に出して伝える。
+1587040	1	この花は何と言うのですか。	What is this flower called?	名づけて呼ぶ。名前とする。
+1587040	2	窓が風でがたがた言っている。	The window is rattling in the wind.	物が音を立てる。
+
+# ── 同じ (1451750) ──────────────────────────────────────────────────────────────
+1451750	0	二人は同じ学校に通っていた。	The two went to the same school.	二つ以上のものに違いがない。
+
+# ── 情報 (1356370) — news / the academic field ──────────────────────────────────
+1356370	0	事故の情報がまだ入っていない。	No information about the accident has come in yet.	物事の内容や事情についての知らせ。
+1356370	2	大学で情報を専攻している。	I'm majoring in information science at university.	学問としての情報科学。
+
+# ── 会 (1198170) — a gathering / an association ─────────────────────────────────
+1198170	0	明日の会には出られません。	I can't attend tomorrow's meeting.	人が集まって話し合う場。
+1198170	1	卒業生の会に入っている。	I belong to the alumni association.	同じ目的をもつ人の集まり。団体。
+
+# ── 金 (1242590, かね) — WITHDRAWN, same cause as 辛い ──────────────────────────
+# 金 never reads かね for IPADIC: 「金を貯めて…」「金がかかる」「金に困っている」 all come
+# back きん (gold), and 「金がなくて…」 comes back きむ — the surname Kim. So the money
+# sense cannot be shown with correct furigana, though the sentence itself is fine.
+#
+# This is the SECOND rejection with one root cause (see 辛い above): kuromoji picks the
+# reading, the corpus has no way to overrule it, and for a kanji with a common
+# alternative reading it picks wrong. Two of the three withdrawals so far are this. That
+# is the case for a per-example reading override — one more data point, still not a
+# reason to change the schema mid-batch.
+
+# ── 車 (1323080) ────────────────────────────────────────────────────────────────
+1323080	0	駅まで車で送ってもらった。	I got a lift to the station by car.	エンジンで走る乗り物。自動車。
+
+# ── 多い (1407460) — numerous / frequent ────────────────────────────────────────
+1407460	0	この町は外国人が多い。	This town has a lot of foreigners.	数や量がたくさんある。
+1407460	2	冬は電車が遅れることが多い。	Trains are often late in winter.	そうなることがたびたびある。
+
+# ── 男 (1419990) — a man / that fellow ──────────────────────────────────────────
+1419990	0	背の高い男が立っていた。	A tall man was standing there.	人間のうち、男性であるもの。
+1419990	1	あの男には気をつけたほうがいい。	You'd do well to watch out for that fellow.	その人を、親しみや見下しをこめて指す語。
+
+# ── 女 (1344930) ────────────────────────────────────────────────────────────────
+1344930	0	若い女が二人歩いてきた。	Two young women came walking along.	人間のうち、女性であるもの。
+
+# ── 人間 (1366770) — a human / someone's character ──────────────────────────────
+1366770	0	人間は道具を使う動物だ。	Humans are animals that use tools.	ヒト。人類。
+1366770	1	彼は人間ができている。	He is a person of real character.	人としての性質や人柄。
+
+# ── 名 (1531330) — a name / renown ──────────────────────────────────────────────
+1531330	0	この店の名を知らない。	I don't know this shop's name.	そのものを呼ぶための言葉。名前。
+1531330	2	彼は世界に名を知られた学者だ。	He is a scholar known the world over.	世間に知られていること。評判。
+
+# ── 次 (1316380) ────────────────────────────────────────────────────────────────
+1316380	0	次の駅で降ります。	I'm getting off at the next station.	順序があとに来ること。
+
+# ── 欲しい (1547330) ────────────────────────────────────────────────────────────
+1547330	0	新しい自転車が欲しい。	I want a new bicycle.	自分のものにしたいと思う。
+
+# ── 女性 (1345250) ──────────────────────────────────────────────────────────────
+1345250	0	受付には女性が二人いた。	There were two women at the reception desk.	おとなの女の人。
+
+# ── 一緒 (1163400) ──────────────────────────────────────────────────────────────
+1163400	0	昼ご飯を一緒に食べよう。	Let's have lunch together.	二人以上でともに行うこと。
+
+# ── 結果 (1254690) ──────────────────────────────────────────────────────────────
+1254690	0	試験の結果はまだ出ていない。	The exam results aren't out yet.	あることから生じた終わりの状態。
+
+# ── 写真 (1321900) ──────────────────────────────────────────────────────────────
+1321900	0	旅行先で写真をたくさん撮った。	I took a lot of photos on the trip.	光を使って写した像。
+
+# ── 違う (1158880) — to differ / to be wrong ────────────────────────────────────
+1158880	0	兄と弟では性格が違う。	The older and younger brother differ in character.	二つのものが同じでない。
+1158880	1	その答えは違うと思う。	I think that answer is wrong.	正しくない。間違っている。
+
+# ── 今 (1288850) ────────────────────────────────────────────────────────────────
+1288850	0	今、駅に着いたところだ。	I've just this moment arrived at the station.	話をしている、この時。
+
+# ── 間 (1215240, ま) — a pause / a room ─────────────────────────────────────────
+1215240	0	話の間が長すぎる。	The pauses in his speech are too long.	物事と物事の間の時間。
+1215240	2	六畳の間に通された。	I was shown into a six-mat room.	家の中の部屋。
