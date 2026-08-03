@@ -495,10 +495,16 @@
 1861770:1	参加者の多くは学生だった。	The majority of the participants were students.	全体の中で大きい方の部分。
 1579110:0	今日は朝から忙しい。	I've been busy since this morning.	この日。
 
-# ⚠️ WITHDRAWN — wrong ENTRY, not a wrong reading. 力(りき) 先(せん) 氏(うじ) 体(てい) are
-# the RARE-reading entries; the sentences written for them used the common readings
-# (ちから, さき, し, からだ), which belong to different ent_seqs. The gate flagged them as
-# reading mismatches and offered example_reading as the fix — that hint is a TRAP here:
-# pinning りき onto a sentence that means ちから would satisfy the check (りき does match
-# JMdict for that entry) while curating the wrong meaning entirely. The override is for
-# when kuromoji misreads the RIGHT entry, never for reconciling the wrong one.
+# ── 力・先・氏 — RE-FILED onto the common-reading entries ───────────────────────
+# These were first written against 力(りき) 先(せん) 氏(うじ) — the RARE-reading ent_seqs —
+# while the sentences used the common readings ちから・さき・し, which are SEPARATE entries.
+# The gate caught it as a reading mismatch and suggested `set example_reading`. That hint
+# is a TRAP here: pinning りき onto a sentence meaning ちから passes the check (りき really
+# is that entry's reading) while curating the wrong meaning entirely. example_reading is
+# for when kuromoji misreads the RIGHT entry — never for reconciling the wrong one.
+# The fix is to curate the correct entry, which is what these do.
+1554820:0	この仕事には力がいる。	This job takes strength.	物を動かしたり支えたりする働き。
+1554820:1	彼には人をまとめる力がある。	He has a real ability to bring people together.	物事をなしとげる能力。
+1387210:0	鉛筆の先が折れた。	The tip of the pencil broke.	細長いものの、いちばん端。
+1387210:2	先に行っていてください。	Please go on ahead.	順序や時間が前であること。
+2101130:0	田中氏が代表を務める。	Mr Tanaka serves as the representative.	人の名の下につけて敬意を表す言い方。
