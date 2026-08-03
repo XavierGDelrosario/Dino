@@ -12,10 +12,28 @@
   align-self: flex-start;
 }
 
+/* Title + ★ on one line. The star is `flex: none` (see .media__star) so a long
+   headline wraps under itself rather than squeezing the button, and align-items
+   keeps the star on the FIRST line of a wrapped title instead of centred against
+   the whole block. */
+.article__titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .article__title {
   margin: 0.25rem 0 0;
   font-size: 1.4rem;
   line-height: 1.3;
+}
+
+/* Bigger tap target than the list star: this one sits alone in a header rather
+   than at the end of a dense row, and it's a primary action here. */
+.article__titleRow .media__star {
+  font-size: 1.5rem;
+  padding: 0.25rem 0.35rem;
 }
 
 .article__actions {

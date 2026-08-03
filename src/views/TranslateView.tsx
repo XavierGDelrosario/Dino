@@ -17,6 +17,7 @@ import { useDictation } from "../hooks/useDictation";
 import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
+import { HistoryMenu } from "../components/translate/HistoryMenu";
 import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
 import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText } from "../services/ocr";
@@ -68,6 +69,7 @@ export function TranslateView({
   const { t: tr } = useI18n();
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ cards: Word[][]; mode: QuizMode } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Attribution for text loaded from Media — cleared the moment the user edits the
   // input (the credit no longer describes what's shown).
   const [credit, setCredit] = useState<MediaSource | null>(null);
@@ -233,13 +235,30 @@ export function TranslateView({
 
   return (
     <section className="translate">
-      <LangBar
-        source={t.source}
-        target={t.target}
-        onSource={t.setSource}
-        onTarget={t.setTarget}
-        onSwap={t.swap}
-      />
+      {/* Language bar, with the session-history clock parked at the right edge of
+          the same row. The clock is absolutely positioned so .langbar keeps its own
+          centring (margin-inline:auto) — in the flow it would drag the source/target
+          selects off-centre, and shift them the moment the first entry appeared. */}
+      <div className="translate__toolbar">
+        <LangBar
+          source={t.source}
+          target={t.target}
+          onSource={t.setSource}
+          onTarget={t.setTarget}
+          onSwap={t.swap}
+        />
+        {t.history.length > 0 && (
+          <HistoryMenu
+            entries={t.history}
+            open={historyOpen}
+            onToggle={() => setHistoryOpen((v) => !v)}
+            onClose={() => setHistoryOpen(false)}
+            onPick={t.replayHistory}
+            onClear={t.clearHistory}
+            disabled={t.status === "loading"}
+          />
+        )}
+      </div>
 
       {/* Two boxes: input (left) | output (right). The input carries a top-right
           tool bar (handwriting now; speech/camera will join it). Drawing opens as
@@ -389,42 +408,6 @@ export function TranslateView({
           {t.status === "loading" ? "…" : tr("translate.submit")}
         </button>
       </div>
-
-      {/* What you translated this session. Session-only by design (see
-          services/translateHistory.ts) — it disappears on reload, so it's a
-          convenience for re-running something you just looked at, not a record.
-          A chip replays the text AND its original direction. */}
-      {t.history.length > 0 && (
-        <div className="thistory">
-          <span className="thistory__label">{tr("translate.history")}</span>
-          <ul className="thistory__list">
-            {t.history.map((entry) => (
-              <li key={`${entry.source}|${entry.target}|${entry.text}`}>
-                <button
-                  type="button"
-                  className="thistory__chip"
-                  // The full text as the accessible name: a long paste is clipped to
-                  // one line visually, so the chip's own label would be ambiguous.
-                  title={tr("translate.historyReplay", { text: entry.text })}
-                  aria-label={tr("translate.historyReplay", { text: entry.text })}
-                  disabled={t.status === "loading"}
-                  onClick={() => t.replayHistory(entry)}
-                >
-                  {entry.text}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            className="thistory__clear"
-            aria-label={tr("translate.historyClearAria")}
-            onClick={t.clearHistory}
-          >
-            {tr("translate.historyClear")}
-          </button>
-        </div>
-      )}
 
       {/* The language you're learning: the study section below always targets it
           (its words get added/quizzed), whether you typed it or it's the output. */}

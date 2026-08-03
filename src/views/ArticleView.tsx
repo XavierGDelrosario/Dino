@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
 import { ArticleWordList } from "../components/media/ArticleWordList";
+import { FavoriteStar, type FavoriteState } from "../components/media/FavoriteStar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { TextQuizView } from "./TextQuizView";
 import { summarizeReader } from "../services/analyze/summarize";
@@ -26,10 +27,18 @@ export function ArticleView({
   userId,
   article,
   onBack,
+  favorite,
 }: {
   userId: string;
   article: Article;
   onBack: () => void;
+  /**
+   * The ★ for this article, supplied by whoever opened it (Media owns the state).
+   * OPTIONAL on purpose: this view is the generic analysis surface, and a source
+   * with no canonical URL — pasted text, a scan — has nothing to save a pointer
+   * to. Omit it and no star renders.
+   */
+  favorite?: FavoriteState;
 }) {
   const t = useTranslate(userId);
   const { t: tr } = useI18n();
@@ -88,7 +97,10 @@ export function ArticleView({
           <button className="btn btn--ghost btn--sm" onClick={() => setReading(false)}>
             ← {tr("media.backToAnalysis")}
           </button>
-          <h2 className="article__title">{article.title}</h2>
+          <div className="article__titleRow">
+            <h2 className="article__title">{article.title}</h2>
+            {favorite && <FavoriteStar {...favorite} />}
+          </div>
           <p className="reader__source">
             {tr("media.creditPrefix")}{" "}
             <a href={article.url} target="_blank" rel="noopener noreferrer">
@@ -122,7 +134,10 @@ export function ArticleView({
         <button className="btn btn--ghost btn--sm" onClick={onBack}>
           ← {tr("media.back")}
         </button>
-        <h2 className="article__title">{article.title}</h2>
+        <div className="article__titleRow">
+          <h2 className="article__title">{article.title}</h2>
+          {favorite && <FavoriteStar {...favorite} />}
+        </div>
         <p className="reader__source">
           {tr("media.creditPrefix")}{" "}
           <a href={article.url} target="_blank" rel="noopener noreferrer">

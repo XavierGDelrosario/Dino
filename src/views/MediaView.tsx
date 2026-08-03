@@ -19,6 +19,7 @@ import {
   type WikiSite,
 } from "../services/media/mediawiki";
 import { useFavorites } from "../hooks/useFavorites";
+import { FavoriteStar } from "../components/media/FavoriteStar";
 import { ArticleView } from "./ArticleView";
 import { ErrorText } from "../components/common/ErrorText";
 import { errorMessage } from "../lib/errorMessage";
@@ -39,6 +40,11 @@ export function MediaView({ userId }: { userId: string }) {
   const [error, setError] = useState<string | null>(null);
   // The selected article → its in-depth summary page (replaces the browse list).
   const [article, setArticle] = useState<Article | null>(null);
+  // The HEADLINE the open article came from. `Article` carries no summary, but a
+  // saved article stores one (it's what the ★ Saved list renders), so keep the
+  // headline that produced it rather than reconstructing a lossy summary from the
+  // body text.
+  const [openedFrom, setOpenedFrom] = useState<Headline | null>(null);
   const favorites = useFavorites(userId, SITE, LANG);
 
   const load = useCallback(async () => {
@@ -70,6 +76,7 @@ export function MediaView({ userId }: { userId: string }) {
         return;
       }
       setArticle(fetched);
+      setOpenedFrom(h);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -80,7 +87,26 @@ export function MediaView({ userId }: { userId: string }) {
   // The summary page takes over the tab, and its own reading mode takes over from
   // there — so Study → analysis → read → back all stay inside Media.
   if (article) {
-    return <ArticleView userId={userId} article={article} onBack={() => setArticle(null)} />;
+    return (
+      <ArticleView
+        userId={userId}
+        article={article}
+        onBack={() => setArticle(null)}
+        // The star is driven from THIS hook instance, not a second one inside
+        // ArticleView: MediaView stays mounted behind the analysis, so a star
+        // toggled in there is already reflected when you come back. A second
+        // useFavorites would be an independent copy that silently diverges.
+        favorite={
+          openedFrom
+            ? {
+                starred: favorites.urls.has(openedFrom.url),
+                pending: favorites.pending === openedFrom.url,
+                onToggle: () => void favorites.toggle(openedFrom),
+              }
+            : undefined
+        }
+      />
+    );
   }
 
   const list: Headline[] | null =
@@ -95,17 +121,11 @@ export function MediaView({ userId }: { userId: string }) {
       <li key={a.url} className="media__item">
         <div className="media__titleRow">
           <h3 className="media__title">{a.title}</h3>
-          <button
-            type="button"
-            className={`media__star${starred ? " media__star--on" : ""}`}
-            aria-pressed={starred}
-            title={t(starred ? "media.unfavorite" : "media.favorite")}
-            aria-label={t(starred ? "media.unfavorite" : "media.favorite")}
-            disabled={favorites.pending === a.url}
-            onClick={() => void favorites.toggle(a)}
-          >
-            {starred ? "★" : "☆"}
-          </button>
+          <FavoriteStar
+            starred={starred}
+            pending={favorites.pending === a.url}
+            onToggle={() => void favorites.toggle(a)}
+          />
         </div>
         {a.summary && <p className="media__summary">{a.summary}</p>}
         <div className="media__actions">

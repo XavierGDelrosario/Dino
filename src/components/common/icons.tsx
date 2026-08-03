@@ -146,3 +146,20 @@ export function SpeakerIcon({ size }: { size?: number }) {
     </Svg>
   );
 }
+
+/** History — the clock-with-a-rewind-arrow Google Translate uses for "recent".
+ *  The arc deliberately stops short of closing at the upper LEFT, where the arrow
+ *  head sits: a full circle plus hands reads as a plain clock (i.e. "time"), and
+ *  the break is the whole reason this says "go back to" instead. */
+export function HistoryIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      {/* Open arc, counter-clockwise from ~10 o'clock all the way round. */}
+      <path d="M3.5 9.5a9 9 0 1 0 2.6-3.9" />
+      {/* Rewind arrow head closing the gap. */}
+      <polyline points="3 4 3 9.5 8.5 9.5" />
+      {/* Hands: 12 and 3, the conventional clock reading. */}
+      <polyline points="12 7.5 12 12 15.5 13.8" />
+    </Svg>
+  );
+}

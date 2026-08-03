@@ -248,6 +248,17 @@
   color: var(--muted);
 }
 
+/* The row above the input/output boxes: the centred language bar, plus the
+   history clock pinned to its right edge. Anchor for .thistory.
+   The z-index lifts this whole row (and the dropdown it contains) above
+   .translate__io, which is a LATER sibling and would otherwise paint its boxes
+   over the open panel. Stays below .hovercard (50) so the reader's word popover
+   still wins. */
+.translate__toolbar {
+  position: relative;
+  z-index: 30;
+}
+
 .langbar {
   display: flex;
   align-items: center;
@@ -321,6 +332,21 @@
   overflow-y: auto;
 }
 
+/* The INPUT scrolls but draws no scrollbar. .io__tools (clear / mic / camera) is
+   pinned to the same top-right corner, so the track ran directly beneath the
+   buttons and read as a stray line through them. Scrolling itself is untouched —
+   wheel, trackpad, keyboard and caret-follow all still work; only the visual track
+   is suppressed. Scoped to the textarea so the output box keeps its own scrollbar,
+   where nothing overlaps it. */
+textarea.translate__box {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+textarea.translate__box::-webkit-scrollbar {
+  display: none; /* WebKit / Blink */
+}
+
 /* Output box: read-only display of the plain translation. */
 .translate__out {
   background: var(--surface);
@@ -339,59 +365,65 @@
   justify-content: center;
 }
 
-/* Session translate history — a chip row under the Translate button. Deliberately
-   quiet (muted, small): it's a convenience for re-running something from a minute
-   ago, not a surface competing with the input. Mirrors .chip in lists.css rather
-   than importing it, because these are single-line-clamped text, not short labels. */
+/* Session translate history — a clock button beside Translate that opens a
+   dropdown of what you translated this session (components/translate/HistoryMenu).
+   It replaced an always-visible chip row: the history is a look-back, not part of
+   the translate flow, and the row pushed the study section down the page to show
+   text the user had just typed. */
 .thistory {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.75rem;
+  /* Out of the flow so the Translate button stays optically centred in its row —
+     and so it doesn't jump sideways when the first entry appears. */
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.thistory__label {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.thistory__list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  align-items: center;
-  /* It's a <ul> for semantics; strip the list affordances. */
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  /* Take the row's spare width so the Clear button stays pinned right. */
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.thistory__chip {
+.thistory__btn {
   appearance: none;
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0.4rem;
   border-radius: 999px;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
   cursor: pointer;
-  /* A pasted paragraph is a valid entry, so clamp to one line and cap the width —
-     without this a single long entry would blow out the row. The full text stays
-     available via the chip's title/aria-label. */
-  max-width: 14rem;
+}
+
+.thistory__btn:hover,
+.thistory__btn[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.thistory__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 20;
+  width: min(20rem, calc(100vw - 2rem));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   text-align: left;
 }
 
-.thistory__chip:disabled {
-  opacity: 0.55;
-  cursor: default;
+.thistory__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.thistory__title {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 .thistory__clear {
@@ -401,8 +433,56 @@
   color: var(--muted);
   font-size: 0.8rem;
   cursor: pointer;
-  padding: 0.3rem 0.2rem;
+  padding: 0.1rem 0.2rem;
   text-decoration: underline;
+}
+
+.thistory__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  /* A full session's worth of entries shouldn't run off the screen. */
+  max-height: 17rem;
+  overflow-y: auto;
+}
+
+.thistory__item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.thistory__item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.thistory__item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* A pasted paragraph is a valid entry — clamp it to two lines rather than letting
+   one entry own the panel. The full text stays on the title/aria-label. */
+.thistory__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.thistory__dir {
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 /* "I'm learning: [lang]" — the study target selector below the Translate button. */
