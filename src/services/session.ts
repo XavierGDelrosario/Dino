@@ -107,7 +107,8 @@ export async function signIn(params: { email: string; password: string }): Promi
 }
 
 /**
- * Google OAuth. `linkGoogle` UPGRADES the current guest by linking a Google identity
+ * OAuth, shared by every provider (Google, Apple). `link…` UPGRADES the current
+ * guest by linking the identity
  * to the SAME uid (data preserved) — use it from the create-account page. `signInWithGoogle`
  * signs into the Google account as its own user (switches uid) — use it from sign-in.
  *
@@ -121,7 +122,7 @@ export async function signIn(params: { email: string; password: string }): Promi
  * (config.toml [auth.external.google]); unconfigured → errors. On native, also
  * requires NATIVE_OAUTH_REDIRECT in the redirect allow-list + Info.plist scheme.
  */
-async function startGoogleOAuth(
+async function startOAuth(
   start: (opts: {
     redirectTo: string;
     skipBrowserRedirect: boolean;
@@ -140,15 +141,44 @@ async function startGoogleOAuth(
 }
 
 export async function linkGoogle(): Promise<void> {
-  await startGoogleOAuth(
+  await startOAuth(
     (options) => supabase.auth.linkIdentity({ provider: "google", options }),
     "Could not link Google",
   );
 }
 export async function signInWithGoogle(): Promise<void> {
-  await startGoogleOAuth(
+  await startOAuth(
     (options) => supabase.auth.signInWithOAuth({ provider: "google", options }),
     "Google sign-in failed",
+  );
+}
+
+/**
+ * Sign in with Apple — the same two calls as Google, and REQUIRED rather than
+ * optional: the App Store guidelines make Sign in with Apple mandatory for an app
+ * that offers another third-party login (we offer Google), so shipping to iOS
+ * without it is a rejection.
+ *
+ * Identical flow to Google: web redirects to Apple and back to the origin; native
+ * opens the provider URL in an in-app browser and finishes on the custom scheme.
+ *
+ * Two things Apple needs that Google doesn't, and neither is code:
+ *   · the Supabase project's Apple provider must carry a Services ID + the signing
+ *     key (config.toml [auth.external.apple] locally);
+ *   · Apple's "Hide My Email" returns a private relay address, so an account may
+ *     have no reachable email — nothing here assumes one, and password reset simply
+ *     doesn't apply to an Apple-only account.
+ */
+export async function linkApple(): Promise<void> {
+  await startOAuth(
+    (options) => supabase.auth.linkIdentity({ provider: "apple", options }),
+    "Could not link Apple",
+  );
+}
+export async function signInWithApple(): Promise<void> {
+  await startOAuth(
+    (options) => supabase.auth.signInWithOAuth({ provider: "apple", options }),
+    "Apple sign-in failed",
   );
 }
 

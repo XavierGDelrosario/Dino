@@ -70,6 +70,16 @@ export function XIcon({ size }: { size?: number }) {
   );
 }
 
+/** Back — a bare chevron. The arrow-with-shaft version read as a heavy action
+ *  button; navigation should sit quietly at the edge of the bar. */
+export function BackIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="15 18 9 12 15 6" />
+    </Svg>
+  );
+}
+
 /** Delete / remove. Replaces the wastebasket emoji (U+1F5D1), whose DEFAULT
  *  presentation is TEXT, not emoji — so without a variation selector the browser hunts
  *  for it in a text font, and text fonts don't carry it. It rendered as a "1F5D1" hex

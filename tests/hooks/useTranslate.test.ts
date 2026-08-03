@@ -36,6 +36,7 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { useTranslate } from "@/hooks/useTranslate";
+import { getUserWordStates } from "@/services/words/userWords";
 import { listUserLists } from "@/services/lists";
 import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
@@ -84,5 +85,70 @@ describe("useTranslate — applyReview", () => {
 
     expect(result.current.confidence.get("w-1")).toBe(5);
     expect(result.current.saved.has("w-1")).toBe(true);
+  });
+});
+
+// The LIVE reader (under the input, while typing or dictating) finds its meanings on
+// the free dictionary path, but the red→green colouring reads saved/confidence —
+// which only submit used to fill. So a word known at 5/5 rendered blue "addable",
+// which is worse than no colour at all.
+describe("useTranslate — syncSenseState", () => {
+  const state = (tracked: boolean, confidenceRating = 0, userWordId = "uw-1") =>
+    new Map([["w-1", { tracked, confidenceRating, userWordId, lastReviewedDate: null }]]);
+
+  const mounted = async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await waitFor(() => expect(result.current.source).toBe(DEFAULT_LEARNING_LANGUAGE));
+    return result;
+  };
+
+  it("marks a sense the user already owns, at its confidence", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(state(true, 4));
+    const result = await mounted();
+
+    await act(async () => result.current.syncSenseState(["w-1"]));
+
+    expect(result.current.saved.has("w-1")).toBe(true);
+    expect(result.current.confidence.get("w-1")).toBe(4);
+  });
+
+  it("asks about each sense ONCE — the live reader re-analyzes on every pause", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(state(false));
+    const result = await mounted();
+
+    await act(async () => result.current.syncSenseState(["w-1"]));
+    await act(async () => result.current.syncSenseState(["w-1"]));
+
+    expect(getUserWordStates).toHaveBeenCalledTimes(1);
+  });
+
+  it("MERGES — it cannot unmark what another path already saved", async () => {
+    // An untracked answer must not clear a sense marked saved in the meantime, or a
+    // slow response would undo the add the user just made.
+    vi.mocked(getUserWordStates).mockResolvedValue(state(false));
+    const result = await mounted();
+
+    act(() => result.current.applyReview("w-1", "uw-1", 3));
+    await act(async () => result.current.syncSenseState(["w-1"]));
+
+    expect(result.current.saved.has("w-1")).toBe(true);
+    expect(result.current.confidence.get("w-1")).toBe(3);
+  });
+
+  it("lets a FAILED lookup be retried rather than caching the failure", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {}); // the failure is the point
+    vi.mocked(getUserWordStates).mockRejectedValueOnce(new Error("offline"));
+    const result = await mounted();
+
+    await act(async () => result.current.syncSenseState(["w-1"]));
+    expect(result.current.saved.has("w-1")).toBe(false);
+
+    vi.mocked(getUserWordStates).mockResolvedValue(state(true, 5));
+    await act(async () => result.current.syncSenseState(["w-1"]));
+
+    expect(result.current.saved.has("w-1")).toBe(true);
+    expect(result.current.confidence.get("w-1")).toBe(5);
+    expect(warn).toHaveBeenCalled(); // the miss was reported, not swallowed
+    warn.mockRestore();
   });
 });

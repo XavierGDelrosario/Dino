@@ -104,6 +104,7 @@ export function ArticleView({
           meaningsByWord={analysis.meaningsByWord}
           sentences={t.para?.sentences}
           onLoadGloss={t.loadGloss}
+          onTranslateSentence={t.loadSentenceGloss}
           glossLoading={t.glossLoading}
           saved={t.saved}
           confidence={t.confidence}

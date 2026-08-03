@@ -219,24 +219,30 @@ describe("mergeProviderResults (intersection-boosted EN→JA merge)", () => {
   it("intersection-boost: an entry BOTH providers return leads, in gloss order (cat→猫 not やつ)", () => {
     // WordNet floats a common-but-wrong word first (やつ before 猫); the gloss ranks
     // 猫 (head-match) first. 猫 is in both → boosted to the front, keeping WordNet's row.
-    const primary = [wn("yatsu", "やつ", 0), wn("neko", "猫", 1), wn("tsuku", "つく", 2)];
-    const fallback = [wn("neko", "猫-gloss", 0), wn("cat2", "キャット", 1)];
-    const merged = mergeProviderResults(primary, fallback, 12);
-    expect(merged.map((r) => r.entryId)).toEqual(["neko", "yatsu", "tsuku", "cat2"]);
+    const semantic = [wn("yatsu", "やつ", 0), wn("neko", "猫", 1), wn("tsuku", "つく", 2)];
+    const gloss = [wn("neko", "猫-gloss", 0), wn("cat2", "キャット", 1)];
+    const merged = mergeProviderResults(semantic, gloss, 12);
+    // Shared first, then GLOSS-only, then WordNet-only.
+    expect(merged.map((r) => r.entryId)).toEqual(["neko", "cat2", "yatsu", "tsuku"]);
     expect(merged[0].translation).toBe("猫"); // WordNet's row kept for the shared entry
   });
 
-  it("leads with the primary (WordNet) results, then appends fallback", () => {
-    const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
-    const fallback = [wn("200", "ばね", 0)];
-    const merged = mergeProviderResults(primary, fallback, 12);
-    expect(merged.map((r) => r.entryId)).toEqual(["100", "101", "200"]);
+  it("leads with the GLOSS search and uses WordNet as filler, not the other way round", () => {
+    // The measured reason (prod, 2026-07-31): WordNet-only rows are where the noise
+    // is — it returned 言う first for "run" and 好き for "light", because Princeton
+    // sense rank orders ENGLISH senses and says nothing about which Japanese lemma of
+    // a synset is the right translation. The gloss search ranks by how PRIMARY the
+    // match is inside the entry, which is a direct answer to that question.
+    const semantic = [wn("100", "言う", 0)]; // WordNet-only: plausible, usually wrong
+    const gloss = [wn("200", "走る", 0)]; // gloss head-match: the actual translation
+    const merged = mergeProviderResults(semantic, gloss, 12);
+    expect(merged.map((r) => r.entryId)).toEqual(["200", "100"]);
   });
 
   it("re-numbers sensePos contiguously so the merged order survives the cache read", () => {
-    const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
-    const fallback = [wn("200", "ばね", 0)]; // fallback also starts at 0 — must be renumbered
-    const merged = mergeProviderResults(primary, fallback, 12);
+    const semantic = [wn("100", "春", 0), wn("101", "泉", 1)];
+    const gloss = [wn("200", "ばね", 0)]; // both start at 0 — must be renumbered
+    const merged = mergeProviderResults(semantic, gloss, 12);
     expect(merged.map((r) => r.sensePos)).toEqual([0, 1, 2]);
   });
 
@@ -255,12 +261,13 @@ describe("mergeProviderResults (intersection-boosted EN→JA merge)", () => {
     expect(merged.map((r) => r.sensePos)).toEqual([0, 1]);
   });
 
-  it("caps the merged list at the limit", () => {
-    const primary = Array.from({ length: 10 }, (_, i) => wn(`p${i}`, `t${i}`, i));
-    const fallback = Array.from({ length: 10 }, (_, i) => wn(`f${i}`, `g${i}`, i));
-    const merged = mergeProviderResults(primary, fallback, 12);
+  it("caps the merged list at the limit, filling from the GLOSS side first", () => {
+    const semantic = Array.from({ length: 10 }, (_, i) => wn(`p${i}`, `t${i}`, i));
+    const gloss = Array.from({ length: 10 }, (_, i) => wn(`f${i}`, `g${i}`, i));
+    const merged = mergeProviderResults(semantic, gloss, 12);
     expect(merged).toHaveLength(12);
-    expect(merged.slice(0, 10).map((r) => r.entryId)).toEqual(primary.map((r) => r.entryId));
+    // Gloss results fill the list; WordNet supplies only the tail.
+    expect(merged.slice(0, 10).map((r) => r.entryId)).toEqual(gloss.map((r) => r.entryId));
   });
 
   it("a skipped duplicate doesn't consume a slot", () => {
@@ -497,11 +504,13 @@ describe("resolvePerInputWithCandidates (batch/paragraph lemmatization)", () => 
     const out = resolvePerInputWithCandidates(
       ["ran"],
       cands({ ran: ["ran", "run"] }),
-      byCand({ run: [r("走る", "e1")] }), // WordNet hit on the lemma
-      byCand({ run: [r("経営する", "e2")] }), // gloss keyed by the same lemma
+      byCand({ run: [r("経営する", "e1")] }), // WordNet hit on the lemma
+      byCand({ run: [r("走る", "e2")] }), // gloss keyed by the same lemma
       "JA",
       8,
     );
+    // Both sources resolved the same lemma; the GLOSS result leads (see
+    // mergeProviderResults) — which is also the right answer for "ran".
     expect(out.get("ran")?.map((x) => x.translation)).toEqual(["走る", "経営する"]);
   });
 

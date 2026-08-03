@@ -4,11 +4,12 @@
 //              SRS practice). saveDictionaryWord is idempotent, so useTextQuiz
 //              handles both with the same save-then-record path.
 // Reuses the flashcard card/progress/grade UI from the review surface.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
 import { useQuizFlip } from "../hooks/useQuizFlip";
 import { highlightSegments, type WordContext } from "../services/analyze/context";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
@@ -63,6 +64,17 @@ export function TextQuizView({
   // Keyed on the card position, NOT the shown sense — cycling meanings mid-card must
   // not be treated as a card boundary (it would flip the card under the user).
   const flip = useQuizFlip(q.position);
+
+  // Swipe to grade a FACE-DOWN card: right = 5, left = 1 (same directions as Review
+  // and the placement quiz). Revealed, the card's own swipe cycles meanings instead
+  // — the two never both apply, because this wrapper's handlers are only attached
+  // while `!q.flipped` and the card's own only while `q.flipped`.
+  const { grade } = q;
+  const swipe = useSwipeCard({
+    onLeft: useCallback(() => grade(1), [grade]),
+    onRight: useCallback(() => grade(5), [grade]),
+  });
+
   const { t } = useI18n();
   const noun = (n: number) => plural(t, n, "common.word", "common.words");
 
@@ -130,6 +142,7 @@ export function TextQuizView({
           a sub-list or a newly-created one) and ←/→ meaning-cycle arrows when the
           word has more than one sense. Keyed on the sense so cycling the meaning
           resets the button to add the newly-shown one. */}
+      <div {...(q.flipped || q.submitting ? {} : swipe.props)}>
       <div className="quizcard">
         <FlashcardCard
           word={card}
@@ -179,6 +192,8 @@ export function TextQuizView({
           </div>
         )}
       </div>
+      </div>
+
 
       {/* "Show in context" — the sentence(s) this word came from, under the card.
           A hint you opt into: it stays collapsed by default so the card is still a

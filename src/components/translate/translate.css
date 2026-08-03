@@ -88,25 +88,14 @@
    line never means looking away to a separate block. One sentence per row —
    the paragraph stops flowing on purpose, since a flowing paragraph has no
    place to put a per-sentence gloss. */
-.reader--glossed {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.reader__pair {
-  margin: 0;
-}
-
-.reader__source-line {
-  display: block;
-}
-
 /* Dimmer + smaller than the source, and indented, so the eye reads the
    Japanese first and the English as an annotation of it. */
+/* The INLINE gloss — only the "Show translation" toggle produces these, under every
+   sentence at once. A single tapped sentence answers in .glosscard instead, so
+   asking about one line never moves the paragraph. */
 .reader__gloss {
   display: block;
-  margin-top: 0.15rem;
+  margin: 0.15rem 0 0.35rem;
   padding-left: 0.9rem;
   border-left: 2px solid var(--border);
   font-size: 0.95rem;
@@ -801,4 +790,118 @@
 
 .hw__cand:hover {
   border-color: var(--accent);
+}
+
+/* ---- Live listener (EXPERIMENT) -------------------------------------------
+   Transcript column: the committed, analyzed utterances render through the shared
+   reader above; this is the chrome around them. */
+.listen__bar {
+  display: flex;
+  align-items: stretch; /* one height for every control in the row */
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Listen/Stop, Clear and Add sit on one line, so they share a height. Padding
+   alone doesn't guarantee it once one of them wraps its label. */
+.listen__bar .btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+}
+
+.listen__close {
+  margin-left: auto;
+}
+
+/* The utterance still forming. Deliberately plain and muted — recognition rewrites
+   it on every syllable, so colouring it would strobe; committing is what earns the
+   colour. Italic marks it as provisional without adding chrome. */
+.listen__partial {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-style: italic;
+  min-height: 1.4em; /* reserve the line so the transcript doesn't jump */
+}
+
+/* ---- Per-sentence translate --------------------------------------------------
+   The sentence's closing 。 IS the button. It has to read as punctuation at rest —
+   the reader is for reading Japanese, and a row of buttons down the text would be
+   noise — so it only declares itself on hover/focus. `is-bought` marks a sentence
+   already paid for, so a second press is visibly free. */
+.reader__punct {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* A filled block behind the character was far louder than the character itself —
+   the mark is one glyph and the highlight was a whole em box. An underline is the
+   smallest thing that still reads as "this is pressable". */
+.reader__punct:hover,
+.reader__punct:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--accent, #4f8cff);
+  color: var(--accent, #4f8cff);
+  outline: none;
+}
+
+/* Already paid for: tinted, no underline. Says "free to press again" without
+   competing with the sentence for attention. */
+.reader__punct.is-bought {
+  color: var(--accent, #4f8cff);
+}
+
+/* The WHOLE translation, under text that has no punctuation to hang per-sentence
+   controls on (dictated speech, a headline, one typed line). Same annotation
+   styling as .reader__gloss — dimmer, smaller, set off by a rule — so the two
+   layouts read as the same feature answering in the only way each text allows. */
+.reader__whole {
+  margin: 0.5rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Back sits at the head of the bar; the actions that DO something (listen, clear,
+   add) follow it, so the leftmost control is always the way out. */
+/* Discrete: no button chrome at rest, muted like the surrounding text, brightening
+   only on hover. It is the way out, not something to be drawn toward. */
+.listen__back {
+  background: none;
+  border: none;
+  padding: 0.2rem;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.listen__back:hover,
+.listen__back:focus-visible {
+  color: var(--text);
+  opacity: 1;
+  background: none;
+}
+
+/* A sentence currently showing its translation gets its own line, with the English
+   directly beneath it. Both start at the same edge, so they align without anything
+   being measured — the reason the JS-measured indent was abandoned. Indented as a
+   PAIR so the two read as one unit set apart from the surrounding prose. */
+.reader__sentence {
+  display: block;
+  margin: 0.35rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent, #4f8cff);
+}
+
+/* Inside its own block the gloss no longer needs its own rule to separate it from
+   the source — the block's border already does that. */
+.reader__sentence .reader__gloss {
+  padding-left: 0;
+  border-left: none;
 }

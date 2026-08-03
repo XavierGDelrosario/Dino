@@ -33,7 +33,7 @@ import {
 } from "./words/cache";
 import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
 import { isKatakanaOnly, nfc, nfcTrim } from "../lib/text";
-import { translateBatch, translateSegments } from "./translation";
+import { translateBatch, glossSentences } from "./translation";
 import { resolveSenseProvider } from "./senses";
 
 /**
@@ -319,6 +319,14 @@ export async function translateParagraph(params: {
    *  For surfaces that only need the per-word reader (e.g. the media summary page,
    *  which never shows the sentence translation), so opening one costs zero MT. */
   skipGloss?: boolean;
+  /** Resolve words from the CACHE + DICTIONARY only — a word JMdict lacks comes back
+   *  with no meanings instead of falling through to paid MT.
+   *
+   *  For analysis of text the user has not asked to translate: the LIVE reader runs
+   *  on every pause while typing, so a half-typed word (唐, 唐揚, 唐揚げ) would
+   *  otherwise bill Google for two fragments on the way to one real word. Same
+   *  seam, and the same reasoning, as the compound probes above. */
+  dictionaryOnly?: boolean;
 }): Promise<ParagraphTranslation> {
   const { targetLang, sourceLang = AUTO_DETECT } = params;
   const input = nfc(params.input);
@@ -335,11 +343,22 @@ export async function translateParagraph(params: {
   //    unit, so the reader can print the English under the Japanese it belongs to
   //    (see services/language/sentences.ts). It is still ONE round-trip and the
   //    same billed characters — the edge sends them as one multi-segment request.
-  const sentenceSpans = params.skipGloss ? [] : splitSentences(input);
+  //    SPLITTING IS FREE; only the gloss costs. `skipGloss` used to return no
+  //    spans at all, which silently removed the reader's per-sentence affordance:
+  //    the punctuation controls are drawn from these spans, so on a skipGloss
+  //    surface (the live reader, the article page) there was nothing to click
+  //    until a whole-text gloss had been bought and re-split the text. The spans
+  //    now always come back — with null glosses when nothing was purchased.
+  const sentenceSpans = splitSentences(input);
   const glossPromise: Promise<SentenceGloss[]> =
-    sentenceSpans.length === 0
-      ? Promise.resolve([])
-      : translateSegments({
+    params.skipGloss || sentenceSpans.length === 0
+      ? Promise.resolve(sentenceSpans.map((s) => ({ ...s, gloss: null })))
+      : // Through the CACHE, not the raw client: this is the same content the
+        // reader's per-sentence taps buy. Going direct meant a paragraph glossed by
+        // Translate seeded nothing, so tapping any of its sentences afterwards paid
+        // for the same text twice — and a sentence already tapped was re-sent when
+        // the paragraph was glossed.
+        glossSentences({
           segments: sentenceSpans.map((s) => s.text),
           sourceLang: resolvedSource,
           targetLang,
@@ -393,7 +412,12 @@ export async function translateParagraph(params: {
     try {
       const batches = await Promise.all([
         rest.length > 0
-          ? translateBatch({ inputs: rest, sourceLang: resolvedSource, targetLang })
+          ? translateBatch({
+              inputs: rest,
+              sourceLang: resolvedSource,
+              targetLang,
+              dictionaryOnly: params.dictionaryOnly,
+            })
           : null,
         katakana.length > 0
           ? translateBatch({

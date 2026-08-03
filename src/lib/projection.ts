@@ -32,13 +32,18 @@
 // the bump alone would only heal words somebody happens to look up again, and Lists
 // reads a saved word's band off `words` without ever consulting the dictionary.
 //
+// v10 (20260742): EN→JA is ranked by how PRIMARY the matching gloss is inside the
+// entry, and the edge merge leads with the gloss search instead of WordNet — so a
+// cached EN→JA row carries the old, wrong primary sense (run→実行, light→簡単) and has
+// to re-project.
+//
 // MIRRORED in supabase/functions/translate/index.ts (separate Deno runtime — it can't
 // import this file). tests/services/projection-version.test.ts fails if the two drift.
 // Bump BOTH whenever the projection changes; the bump is what makes old rows stale.
 // =========================================================
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 9;
+export const CURRENT_PROJECTION_VERSION = 10;
 
 /**
  * PostgREST filter for "this row is safe to serve from cache" — a projection at the

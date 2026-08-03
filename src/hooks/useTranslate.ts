@@ -12,18 +12,14 @@ import { useStickyState } from "./useStickyState";
 import { pushEntry, type TranslateHistoryEntry } from "../services/translateHistory";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
-import { translate, translateSegments } from "../services/translation";
+import { translate, glossSentences, getCachedGloss } from "../services/translation";
 import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { recordReview } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
-import { expandDomain } from "../services/domain";
 import { contextByWord as contextForWords, type WordContext } from "../services/analyze/context";
-import { isExplicitSuggestion } from "../services/contentSafety";
-import { mapLimit } from "../lib/concurrency";
-import { MAX_TRANSLATION_CONCURRENCY } from "../services/translation";
 import {
   analyze,
   splitSentences,
@@ -104,6 +100,8 @@ export function useTranslate(userId: string) {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [confidence, setConfidence] = useState<Map<string, number>>(new Map());
   const [userWordIds, setUserWordIds] = useState<Map<string, string>>(new Map());
+  /** Senses whose knowledge state has already been fetched — see syncSenseState. */
+  const syncedIds = useRef<Set<string>>(new Set());
 
   // Destination for adds: a sub-list (also tags it) or null = just ALL. The
   // The user's sub-lists (the add buttons' second-click menu offers these + "new").
@@ -143,7 +141,6 @@ export function useTranslate(userId: string) {
   // The explanation language the reader's words were studied in (set by submit);
   // domain expansion looks related words up in the same learning→native direction.
   const [nativeLang, setNativeLang] = useState<LangCode>("EN");
-  const [domainLoading, setDomainLoading] = useState(false);
 
   /** Create a sub-list and return its id (the add buttons then tag into it). */
   const createNamedList = useCallback(
@@ -228,6 +225,11 @@ export function useTranslate(userId: string) {
         setSaving(new Set());
         setConfidence(conf);
         setUserWordIds(uw);
+        // This is the AUTHORITATIVE state for the new result and REPLACES what came
+        // before, so the live reader's incremental record starts over with it —
+        // otherwise a sense it had already fetched would be skipped for ever, even
+        // though this reset just dropped it.
+        syncedIds.current = new Set(ids);
       };
 
       // CASE B, single typed word → surface the learning language's DISTINCT
@@ -434,7 +436,10 @@ export function useTranslate(userId: string) {
     setGlossLoading(true);
     try {
       const spans = splitSentences(text);
-      const glosses = await translateSegments({
+      // Through the CACHE: sentences already bought one at a time (by tapping their
+      // punctuation) are free here, so pressing the toggle after tapping a few costs
+      // only what is left. Never the reverse.
+      const glosses = await glossSentences({
         segments: spans.map((s) => s.text),
         sourceLang: learning,
         targetLang: nativeLang, // resolved by submit — the explanation language
@@ -449,6 +454,99 @@ export function useTranslate(userId: string) {
       setGlossLoading(false);
     }
   }, [analyzedInput, para, glossLoading, limits, learning, nativeLang]);
+
+  /**
+   * Buy the English for ONE sentence — the reader's punctuation affordance. Folds
+   * it into `para.sentences` so it shows under that line alone.
+   *
+   * The cheap half of loadGloss: one sentence, and free if it was already bought
+   * (here or by a whole-paragraph press). Idempotent — a sentence that already has
+   * a gloss is a no-op, so a second tap costs nothing.
+   */
+  const loadSentenceGloss = useCallback(
+    async (index: number) => {
+      const text = analyzedInput;
+      if (!text || !para) return;
+      const spans = splitSentences(text);
+      const span = spans[index];
+      if (!span || para.sentences[index]?.gloss) return;
+      try {
+        const [gloss] = await glossSentences({
+          segments: [span.text],
+          sourceLang: learning,
+          targetLang: nativeLang,
+        });
+        if (!gloss) return;
+        setPara((prev) => {
+          if (!prev || prev.tokens !== para.tokens) return prev; // moved on
+          // Seed every sentence from the cache while we're here: earlier taps and
+          // this one all show at once, without another request.
+          const sentences = spans.map((s, i) => ({
+            ...s,
+            gloss:
+              prev.sentences[i]?.gloss ??
+              getCachedGloss(s.text, learning, nativeLang) ??
+              null,
+          }));
+          return { ...prev, sentences };
+        });
+      } catch (e) {
+        setError(message(e));
+      }
+    },
+    [analyzedInput, para, learning, nativeLang],
+  );
+
+  /**
+   * Fill in the knowledge state (saved / confidence) for senses the LIVE reader has
+   * found, so it can colour them without a submit.
+   *
+   * Colours are read from `saved`/`confidence`, which only submit used to populate —
+   * so while typing or dictating, a word already known at 5/5 rendered blue
+   * "addable", which is worse than no colour: it says you don't have a word you do.
+   *
+   * MERGES, never replaces. submit's loadSenseState owns the authoritative reset for
+   * a whole result; this only adds what it learned about a few more senses, so it
+   * can't wipe that — or race an in-flight save's optimistic mark.
+   *
+   * Free: one `user_words` read, no dictionary and no MT. Each sense is fetched ONCE
+   * (the live reader re-analyzes on every pause, and re-asking the same question on
+   * every keystroke is how a free path stops being free). Saves and reviews update
+   * the state directly, so a fetched sense never needs asking again.
+   */
+  const syncSenseState = useCallback(
+    async (dictionaryWordIds: string[]) => {
+      const ids = dictionaryWordIds.filter((id) => !syncedIds.current.has(id));
+      if (ids.length === 0) return;
+      ids.forEach((id) => syncedIds.current.add(id));
+      try {
+        const tracked = await getUserWordStates({ userId, dictionaryWordIds: ids });
+        const owned = [...tracked].filter(([, st]) => st.tracked);
+        if (owned.length === 0) return;
+        setSaved((prev) => {
+          const next = new Set(prev);
+          owned.forEach(([id]) => next.add(id));
+          return next;
+        });
+        setConfidence((prev) => {
+          const next = new Map(prev);
+          owned.forEach(([id, st]) => next.set(id, st.confidenceRating));
+          return next;
+        });
+        setUserWordIds((prev) => {
+          const next = new Map(prev);
+          owned.forEach(([id, st]) => { if (st.userWordId) next.set(id, st.userWordId); });
+          return next;
+        });
+      } catch (e) {
+        // Non-fatal: the reader still works, it just isn't coloured yet. Re-allow the
+        // ask, so a transient failure isn't cached as "already fetched".
+        ids.forEach((id) => syncedIds.current.delete(id));
+        console.warn("useTranslate: failed to sync sense state for the live reader", e);
+      }
+    },
+    [userId],
+  );
 
   /** Swap source↔target, move the OUTPUT text into the input, and re-translate —
    *  the Google-Translate swap. Just swaps languages when there's nothing to move. */
@@ -526,47 +624,6 @@ export function useTranslate(userId: string) {
    *  quizzable Words (dropping ones already in the vocabulary). The caller opens a
    *  quiz over the result. Returns [] when there's nothing (un-embedded seeds, or
    *  all already known). */
-  const exploreDomain = useCallback(async (): Promise<Word[]> => {
-    if (!para || domainLoading) return [];
-    setDomainLoading(true);
-    setError(null);
-    try {
-      // Seeds = each distinct content word's primary JMdict entry (non-MT only).
-      const seedEntryIds: string[] = [];
-      const seenE = new Set<string>();
-      for (const tok of para.tokens) {
-        if (!isContentPos(tok.pos)) continue;
-        const eid = para.meanings.get(tok.text)?.[0]?.jmdictEntryId;
-        if (eid && !seenE.has(eid)) { seenE.add(eid); seedEntryIds.push(eid); }
-      }
-      const candidates = await expandDomain({ seedEntryIds, userLevel: level, limit: 18 });
-      // Resolve each candidate to a quizzable Word (learning→native). Prefer the
-      // sense whose STABLE entry id matches the embedded candidate (lookupWord
-      // matches by surface, so a homograph would otherwise resolve to the most
-      // frequent entry, not the one the word map clustered — see #1 identity).
-      const looked = await mapLimit(candidates, MAX_TRANSLATION_CONCURRENCY, (c) =>
-        lookupWord({ input: c.writing, sourceLang: learning, targetLang: nativeLang })
-          .then((r) => r.meanings.find((m) => m.jmdictEntryId === c.entryId) ?? r.meanings[0] ?? null)
-          .catch(() => null),
-      );
-      const words: Word[] = [];
-      const seenW = new Set<string>();
-      for (const w of looked) {
-        if (!w || saved.has(w.wordId) || seenW.has(w.wordId)) continue;
-        // CONTENT SAFETY (defense in depth): re-check the EXACT gloss the quiz will
-        // show — the resolved Word can differ from the vetted related_words gloss.
-        if (isExplicitSuggestion(w.input, w.translation)) continue;
-        seenW.add(w.wordId);
-        words.push(w);
-      }
-      return words;
-    } catch (e) {
-      setError(message(e));
-      return [];
-    } finally {
-      setDomainLoading(false);
-    }
-  }, [para, level, learning, nativeLang, saved, domainLoading]);
 
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
   const markUnknown = useCallback(
@@ -654,13 +711,13 @@ export function useTranslate(userId: string) {
     // Google-Translate-style output box + swap (langs + text + re-translate)
     output, swap,
     // shared per-sense state
-    saved, saving, confidence, addSense, markUnknown,
+    saved, saving, confidence, addSense, markUnknown, syncSenseState,
     // word mode
     headword, meanings,
     // paragraph mode
     para, analyzedInput, readerLoading,
     // on-demand sentence gloss for the reader's "Show translation" toggle
-    loadGloss, glossLoading,
+    loadGloss, glossLoading, loadSentenceGloss,
     // extract-and-quiz (#9): new content words (learn) + saved ones (review) +
     // the state-sync callback the quiz uses after each grade.
     addablePrimaries, reviewablePrimaries, addableCards,
@@ -668,8 +725,6 @@ export function useTranslate(userId: string) {
     contextByWord,
     addableCount: addablePrimaries.length,
     reviewableCount: reviewablePrimaries.length, applyReview,
-    // #12 domain expansion: study related domain words at your level.
-    exploreDomain, domainLoading,
     // add buttons: tag to ALL / a sub-list (idempotent) + create-and-tag.
     lists, addWords, createNamedList,
     // session-only record of what you translated (dies with the page)
