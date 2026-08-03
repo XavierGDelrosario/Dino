@@ -6,7 +6,7 @@
 // browse snippet, plus the site/lang needed to re-fetch) — never the prose, so a
 // favourite always re-opens the live article rather than a private copy.
 //
-// Table: media_favorites (migration 20260741) — own-rows RLS, UNIQUE (user_id, url),
+// Table: media_favorites (migration 20260749) — own-rows RLS, UNIQUE (user_id, url),
 // capped per user in the DB. Identity is the canonical URL, which already encodes
 // site + lang + title, so starring the same story twice is one row.
 // =========================================================

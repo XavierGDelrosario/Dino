@@ -273,7 +273,7 @@ describe.skipIf(!ENABLED)("sub-list membership: multi-list + scoped removal", ()
   });
 });
 
-describe.skipIf(!ENABLED)("RLS: media favourites are per-user (migration 20260741)", () => {
+describe.skipIf(!ENABLED)("RLS: media favourites are per-user (migration 20260749)", () => {
   let alice: TestUser;
   let bob: TestUser;
   const url = (who: string) => `https://ja.wikinews.org/wiki/${who}-story`;

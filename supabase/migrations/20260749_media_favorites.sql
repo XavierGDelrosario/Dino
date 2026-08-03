@@ -15,6 +15,14 @@
 -- site/lang needed to re-fetch. That keeps this consistent with the media-sourcing
 -- stance (derive + link out, don't re-host) and means a favourite always re-reads
 -- the live article rather than a private copy that drifts.
+--
+-- NUMBERED 20260749, NOT 20260741 (renumbered 2026-08-03): the CLI keys a migration
+-- by its NUMBER, not its filename, and 20260741 was already taken on the hosted DBs
+-- by another branch's `drop_word_embeddings`. `db push` therefore read this file as
+-- already-applied and silently skipped it — the table never existed on staging or
+-- prod, and every client read failed with PGRST205 "Could not find the table
+-- 'public.media_favorites' in the schema cache". A number is only free if no OTHER
+-- branch has pushed it; check `supabase migration list --linked`, not just `ls`.
 -- =========================================================
 
 CREATE TABLE IF NOT EXISTS media_favorites (
@@ -38,6 +46,11 @@ CREATE INDEX IF NOT EXISTS idx_media_favorites_user
   ON media_favorites (user_id, created_at DESC);
 
 ALTER TABLE media_favorites ENABLE ROW LEVEL SECURITY;
+-- Dropped-then-created so the file REPLAYS cleanly: any DB that applied it under the
+-- old 20260741 number already carries these policies, and a bare CREATE POLICY would
+-- abort the migration on 42710 rather than converging.
+DROP POLICY IF EXISTS "user_select_own_media_favorites" ON media_favorites;
+DROP POLICY IF EXISTS "user_manage_own_media_favorites" ON media_favorites;
 CREATE POLICY "user_select_own_media_favorites"
 ON media_favorites FOR SELECT USING (user_id = (auth.uid())::text);
 CREATE POLICY "user_manage_own_media_favorites"
