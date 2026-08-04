@@ -65,7 +65,11 @@ export function App() {
   }, []);
 
   return (
-    <main className="app">
+    // The app is a phone-width column everywhere EXCEPT /admin: that's an ops
+    // surface of dense multi-column tables (user buckets, timestamps, emails) that
+    // can't fit 540px, and squeezing them there is what made rows spill out of the
+    // panels. Widen the column for that one route; every other view is unchanged.
+    <main className={`app${path === "/admin" ? " app--wide" : ""}`}>
       <header className="app__header">
         <LanguageMenu
           open={openMenu === "lang"}
@@ -97,18 +101,18 @@ export function App() {
 
       {/* Legal docs are ALWAYS reachable — even while the Terms gate is up, the user
           must be able to read what they're accepting (the gate links here in a new tab). */}
-      {!recovering && (path === "/privacy" || path === "/terms") && (
-        <LegalView doc={path === "/terms" ? "terms" : "privacy"} />
+      {!recovering && (path === "/privacy" || path === "/terms" || path === "/support") && (
+        <LegalView doc={path === "/terms" ? "terms" : path === "/support" ? "support" : "privacy"} />
       )}
 
       {/* Terms-acceptance takeover: account owes acceptance (Google bypass / Terms update).
           Not shown over the legal docs themselves (above). */}
-      {userId && !isAnonymous && needsTerms && !recovering && path !== "/privacy" && path !== "/terms" && (
+      {userId && !isAnonymous && needsTerms && !recovering && path !== "/privacy" && path !== "/terms" && path !== "/support" && (
         <TermsGateView onDone={() => setNeedsTerms(false)} />
       )}
 
       {/* Main app (gated by Terms; legal routes handled above). */}
-      {userId && !recovering && !needsTerms && path !== "/privacy" && path !== "/terms" && (
+      {userId && !recovering && !needsTerms && path !== "/privacy" && path !== "/terms" && path !== "/support" && (
         path === "/signin" ? <AuthPage mode="signin" />
         : path === "/signup" ? <AuthPage mode="signup" />
         : path === "/profile" ? (isAnonymous ? <AuthPage mode="signup" /> : <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />)

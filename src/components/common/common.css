@@ -4,7 +4,13 @@
   --surface-2: #232733;
   --text: #e8eaed;
   --muted: #9aa0ab;
-  --accent: #6ea8fe;
+  /* BRAND PURPLE. Two of them, and the split is deliberate — the same reasoning
+     scripts/build-og-image.mjs already records: #7C3AED is the FILL colour (it is what
+     the favicon block is, and white sits on it cleanly), but as TEXT on the near-black
+     --bg it only reaches ~3.3:1 contrast. So the token used for text and small UI is the
+     lighter tint, and the saturated one is available for solid fills that carry white. */
+  --accent: #a78bfa;
+  --accent-strong: #7c3aed;
   --border: #2c313c;
   --radius: 14px;
 }
@@ -124,6 +130,12 @@ body {
   padding:
     calc(1.5rem + env(safe-area-inset-top)) 1rem
     calc(5rem + env(safe-area-inset-bottom));
+}
+
+/* Admin only (see App.tsx): a desk-width column for the ops tables. Still centred,
+   still safe-area padded — only the clamp changes, and only on that route. */
+.app--wide {
+  max-width: 1100px;
 }
 
 .app__header {

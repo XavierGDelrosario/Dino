@@ -276,6 +276,47 @@ export type Database = {
           },
         ]
       }
+      media_favorites: {
+        Row: {
+          created_at: string
+          favorite_id: string
+          lang: string
+          site: string
+          summary: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          favorite_id?: string
+          lang?: string
+          site?: string
+          summary?: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          favorite_id?: string
+          lang?: string
+          site?: string
+          summary?: string | null
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       lists: {
         Row: {
           list_id: string
@@ -306,19 +347,20 @@ export type Database = {
         Row: {
           elapsed_days: number | null
           grade: number
-          log_id: string
           new_stability: number
           prev_stability: number | null
+          repeats: number
           reviewed_at: string
+          reviewed_on: string
           user_id: string
           user_word_id: string
         }
         Insert: {
           elapsed_days?: number | null
           grade: number
-          log_id?: string
           new_stability: number
           prev_stability?: number | null
+          repeats?: number
           reviewed_at?: string
           user_id: string
           user_word_id: string
@@ -326,9 +368,9 @@ export type Database = {
         Update: {
           elapsed_days?: number | null
           grade?: number
-          log_id?: string
           new_stability?: number
           prev_stability?: number | null
+          repeats?: number
           reviewed_at?: string
           user_id?: string
           user_word_id?: string
@@ -539,8 +581,13 @@ export type Database = {
       }
       words: {
         Row: {
+          definition_source: string | null
           dictionary_ref: string | null
+          example_reading: string | null
+          sense_rank: number | null
           difficulty_override: number | null
+          example: string | null
+          example_gloss: string | null
           frequency: number | null
           input: string
           input_reading: string | null
@@ -557,8 +604,13 @@ export type Database = {
           word_id: string
         }
         Insert: {
+          definition_source?: string | null
           dictionary_ref?: string | null
+          example_reading?: string | null
+          sense_rank?: number | null
           difficulty_override?: number | null
+          example?: string | null
+          example_gloss?: string | null
           frequency?: number | null
           input: string
           input_reading?: string | null
@@ -575,8 +627,13 @@ export type Database = {
           word_id?: string
         }
         Update: {
+          definition_source?: string | null
           dictionary_ref?: string | null
+          example_reading?: string | null
+          sense_rank?: number | null
           difficulty_override?: number | null
+          example?: string | null
+          example_gloss?: string | null
           frequency?: number | null
           input?: string
           input_reading?: string | null

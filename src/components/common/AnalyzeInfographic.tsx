@@ -21,13 +21,13 @@ import "./AnalyzeInfographic.css";
 
 const COVERAGE: Record<string, string> = {
   known: "#3ecb6c",
-  new: "var(--accent, #4f8cff)",
+  new: "var(--accent, #a78bfa)",
   none: "var(--muted, #8a91a0)",
 };
 
 function bucketColor(kind: SeriesKind, b: InfographicBucket): string {
   if (b.muted) return "var(--muted, #8a91a0)";
-  if (b.key === "new") return COVERAGE.new; // blue — the coverage "New" slice + the Confidence "New" row
+  if (b.key === "new") return COVERAGE.new; // the accent — the coverage "New" slice + the Confidence "New" row
   if (kind === "confidence") return CONFIDENCE_HEX[Number(b.key)] ?? "var(--muted, #8a91a0)";
   if (kind === "coverage") return COVERAGE[b.key] ?? "var(--muted, #8a91a0)";
   return ordinalColor(b.weight ?? 0.5);

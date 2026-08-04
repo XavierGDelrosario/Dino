@@ -13,6 +13,8 @@ export function AttributionFooter() {
         <Link to="/privacy">{t("legal.privacy")}</Link>
         {" · "}
         <Link to="/terms">{t("legal.terms")}</Link>
+        {" · "}
+        <Link to="/support">{t("legal.support")}</Link>
       </p>
       Dictionary data from{" "}
       <a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener noreferrer">

@@ -39,10 +39,41 @@ Post-launch: media study · input modalities · AI.
 #### AI agents — generative study aids `[extends #12]`
 - **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota. Same reserve-before-call seam.
 - **Discipline:** hard `max_tokens` · cache outputs (like `words`) · prompt-cache the system prompt.
-- **Features:** sample sentence from a saved word · domain paragraph quiz ("paragraph at level X from these seeds").
+- **Features:** domain paragraph quiz ("paragraph at level X from these seeds"). *Sample sentences moved out — pre-generated at ingest, see below.*
 - **Fork:** an LLM can collapse #11/#12 into one call. Less infra; per-use cost + less determinism.
 - **Hybrid (rec):** embeddings for free level-aware selection; LLM only for generation. ~$0.0017 Haiku / $0.005 Sonnet per call.
 - ⚠️ **Billing — build monetization in parallel.** Every item here is per-use paid. Free stops being free. `user_limits` + reserve exist; Stripe/plan half doesn't. Set free-vs-paid limits **before launch**.
+
+#### Sense enrichment — example sentence + JA definition per meaning `[ingest-time · zero runtime cost]`
+- **Feature:** each SENSE gets (a) a Japanese example sentence + English gloss, (b) a Japanese-language definition. Surfaces in the reader's hover card (per sense, beside its `＋`), the flashcard back, and Lists detail.
+- **Why per-sense:** a gloss list can't separate 辛い からい/つらい — a sentence can. Sense precision without needing per-sense frequency (cf. Quality → *Per-sense granularity*).
+- **Generated at INGEST, not runtime** — the opposite of "AI agents" above: a committed data file, so no per-user cost, no quota, no `ANTHROPIC_API_KEY` edge secret, and the output is reviewable in a diff. Removes a planned paid feature instead of adding one.
+- **Storage:** server-only `jmdict_sense_example (jmdict_entry_id, jmdict_sense_pos, example, example_gloss, definition_ja)`; edge projects onto new nullable `words.*` columns — same shape as `english_frequency` → `words.frequency`. Data file `data/sense_examples/ja.tsv` + `scripts/ingest-sense-examples.ts` (usual `DATABASE_URL` convention). Bump `CURRENT_PROJECTION_VERSION` so cached rows re-project — #34's read-side gate is what makes a regeneration actually reach users.
+  - Dictionary-scoped by (entry, sense) on purpose: `words` is a LAZY cache, so a word nobody has looked up has no row to write into.
+- **Scale** (measured on prod 2026-08-01) — senses by headword frequency: ≥500 **4,534** · ≥450 9,283 · ≥400 16,880 · all 251,734. First pass = multi-sense entries in the top band, where an example earns its place.
+- **Storage is a non-issue** (measured, not estimated — real table built at scale on prod): **~280 B/row** for all three fields + PK. So ≥500 ≈ **1.3 MB** · ≥400 ≈ **5 MB** · the ENTIRE dictionary ≈ **70 MB**. Against 166 MB free (334/500 after `20260743`), even full coverage fits — and it costs less than the 80 MB of embeddings `20260741` dropped, for a feature on every word instead of one button.
+  - Text measured 88 B/sense on easy words, **172 B on hard ones** (harder words need longer sentences AND longer definitions) — the figures above use the hard-word size throughout, so they are ceilings.
+  - The `words` projection side is separate and grows with USAGE, not the dictionary: 7,100 cached rows today ≈ <1 MB; ~6 MB even at 50k.
+  - **The real constraint is generation time, not space.** ≥400 ≈ 120 turns hand-written. Hence the hybrid: hand-write the ≥500 band (~30 turns), Batch API the tail.
+- **Generation rules:** demonstrate THAT sense, not the word generally · natural JA in the word's own register · short enough for a hover card · write definitions as a real monolingual dictionary would, **not simplified**.
+  - ⚠️ **There is deliberately NO difficulty ceiling on supporting vocabulary.** Two earlier drafts of this rule were tried and both rejected (2026-08-01): "every supporting word more common than the target" rejects 「この部屋は書斎と客間を兼ねている」 (書斎/客間 aren't easier than 兼ねる) though it is the natural sentence; the weaker "no single word *harder* than the target" is also unnecessary. **Do not re-impose either.** A hard word in a definition is only a problem if it is a dead end — and it never is (below).
+  - **The rabbit hole is the FEATURE, not a side effect.** One search exposing a learner to many words is the point. Escape hatches make it safe at every step: a per-definition **switch to English**, and per-word tapping — the JA definition renders through `ParagraphReader`, so every word in it is already knowledge-coloured, addable, and openable, and *its* definition is Japanese and tappable too. A recursive vocabulary explorer out of components that already exist.
+  - ‼️ **Therefore JA definitions need BROAD coverage, not just hard words.** A definition graph with holes stops being explorable the moment you tap a common word and hit nothing — so the easy bands need definitions *more*, not less. This retracts an earlier suggestion to gate JA definitions above a difficulty threshold. Full coverage ≈ 70 MB, which fits.
+  - **The JA definition carries what the English gloss structurally cannot** — collocation, negation habits, what an auxiliary attaches to. 遜色 glossed "inferiority" invites 遜色がある (unnatural); the definition says 多くは「ない」を伴って使う. That usage note *is* the value. For a competent user the JA definition is the primary field and English is the fallback.
+- **Renders through `ParagraphReader`:** the example is JA text, so every word in it is tappable and knowledge-coloured with kuromoji furigana. No new rendering code.
+- ‼️ **kuromoji-validation gate — every sentence must PARSE correctly before it is finalized.** We author the corpus, so instead of making the parser smarter we pick sentences that suit it. Run each candidate through the **same `analyze()` the reader uses** (it runs in Node off `node_modules/kuromoji/dict` — `tests/services/language/analyze.test.ts` already drives the real engine), and reject-and-rewrite on any failure:
+  1. **Target survives as ONE token** with the right lemma — catches the 柔軟剤 / 電子レンジ fragment class from the quality reports.
+  2. **Reading matches the authoritative one** (`words`/JMdict) — the furigana risk: kuromoji mis-reads short fragments in isolation (行った→行う, 今→こん), and a definition full of wrong furigana would undercut the rabbit hole.
+  3. **No orphan content words** — every content-POS token should resolve to a JMdict entry (reuse the compound probe). One that doesn't means mis-segmentation.
+  4. Token offsets round-trip into the source string.
+  - Applies to the **definition** too, not just the example — it renders through the same reader.
+  - Doubles as a **regression test**: once `ja.tsv` exists, re-run the gate over the whole file so a kuromoji upgrade or JMdict re-ingest that breaks a sentence is caught. Check 3 needs the dictionary, so self-skip without it (same pattern as `quality-reports.integration.test.ts`).
+- **JA definitions — JMdict CANNOT supply these.** Its glosses are target-language only (`jmdict_glosses.lang` = eng/ger/fre/…, never jpn — the headword *is* the Japanese).
+  - **Japanese WordNet can, partially, and it's already in our pipeline:** `wnjpn.db`'s `synset_def` carries non-English defs, but `scripts/ingest-wordnet.ts:92` filters `d.lang = 'eng'` and `wordnet_synsets` only has `definition_en`. Widening that filter + a `definition_ja` column is a small change — but **verify coverage first**: they're translations of Princeton glosses (so they read like translated English), and only synset-linked words are covered at all.
+  - Free monolingual JA alternatives are thin: ja.wiktionary (CC BY-SA, uneven coverage). 大辞泉 / 大辞林 / 広辞苑 are commercial.
+  - Plan: WordNet where it exists, LLM-generate the rest, both into the same table.
+- **Serves both markets:** JA-native users (the ~40%) get meanings in their own language; advanced JA learners get monolingual definitions (a standard immersion technique).
+- **Throughput:** hand-written in-session ≈100–150 senses/turn — free, ~30 turns for the ≥500 band. Batch API covers ≥400 (16,880) in one job for a few dollars. Hybrid: hand-write the top band, script the tail.
 
 #### Article library — headlines → analysis → link-out `[extends #9 · legal-clean media]`
 - **Shape:** RSS/API headlines on our side → click → server-side fetch + analyze → **derived data only** → link out.
@@ -179,7 +210,7 @@ Media features multiply **sentence-gloss** calls. Word-by-word = free (JMdict ca
   | 1M unique sentences | 1M | ~250 MB |
 
 - **Takeaway:** individual media is trivial (KB/article, ~100 KB/episode). Concern only in the hundreds of MB — thousands of episodes / tens of thousands of articles. Text compresses.
-- ⚠️ Shares the 500 MB Free tier with JMdict (~243 MB) + embeddings → **Free→Pro trigger**. Non-issue on Pro (8 GB).
+- ⚠️ Shares the 500 MB Free tier with JMdict (~214 MB). After the word-map removal there is ~146 MB free — enough for media caching for a long while, but it is the same budget the `words` cache grows into.
 - **Bounded + tunable:** LRU/TTL by `hit_count` · or cache only popular/curated (persist after N requests). A policy knob, not a runaway.
 - **MEASURED — ja.wikinews, the whole corpus (2026-07-28).** The Media tab's source is a *static, bounded* archive, so it's the one corpus we can cost exactly. Pulled every mainspace non-redirect page (`generator=allpages` + `rvprop=size`), calibrated wikitext-bytes → plaintext-chars on 25 full extracts (**ratio 0.19** — Wikinews prose is ~80% markup: source lists, categories, templates):
 
@@ -289,15 +320,40 @@ Full ledger: `docs/QualityLimitations.md`.
   - wordfreq is per-surface; no per-reading count.
   - Miss: can't pick the learner-default reading for homographs (市→いち/し · 主→おも/しゅ · 角→かく/かど). Only `readingOverrides.ts` patches known cases.
   - Fix: build our own (MeCab+UniDic over JA Wikipedia).
-- **Word-map model** ⬛
-  - Live vectors = `multilingual-e5-small` (384-dim).
-  - Miss: katakana loanwords cluster by **spelling, not meaning** (ストライカー→streaker/stripper; real match ピッチャー ranks last).
-  - Fix: e5-large (1024-dim). Needs ~2 GB model + full re-embed + ~415 MB vectors → over Free cap.
-- **Embedding coverage floor** ⬛
-  - Only common ∪ freq≥250 (~41k) eligible; live vectors still common-only ~22.6k.
-  - Miss: rare words get **no word-map at all**. Full-dict = Pro storage.
+- **Word-map (embeddings) — REMOVED 2026-07-31** (`20260741`)
+  - Dropped from prod + staging: 80 MB of a 500 MB tier for one feature ("Explore related
+    words" + the #12 domain quiz), whose loanword clustering went by spelling not meaning.
+  - Effect: prod 434 → 354 MB, staging 428 → 348 MB; the Free→Pro pressure is gone.
+  - Reversible: `build-embeddings.py` + the creating migration remain; client half is in
+    git history. Reconsider the LLM route first (one call collapses #11+#12, no vectors).
+- **Unused JMdict primary keys — DROPPED 2026-08-01** (`20260743`)
+  - Surrogate `id` PKs on `jmdict_glosses`/`kana`/`kanji`: **0 scans** vs ~390k on the
+    sibling `_text` indexes over the same tables — never used, not merely rare.
+  - Effect: prod 354 → 334 MB, staging 348 → 328 MB. No feature loss, no rewrite.
+  - `jmdict_senses`'s PK **stays** (`jmdict_glosses.sense_id` FKs onto it).
+  - Considered and **kept**: `idx_jmdict_glosses_trgm` (25 MB, only 333 scans since
+    WordNet took over EN→JA). Measured — dropping it turns the EN→JA gloss fill from a
+    ~5 ms bitmap scan into a ~175 ms parallel seq scan over 438k rows (~35×) on a path
+    the user waits on. Revisit only under storage pressure.
+- **`review_log` capped — DONE 2026-08-01** (`20260744`)
+  - It was the only unbounded table: one row per graded card, never deleted. Measured
+    303 B/row and ~17 MB **per user per year** — user growth, not dictionary data, is
+    what threatens the tier.
+  - Now one row per card per UTC day (the day's FIRST review) + a `repeats` counter;
+    surrogate `log_id` PK dropped (2 lifetime scans, no FK) and `idx_review_log_user_word`
+    with it (redundant once the day key leads with `user_word_id`).
+  - Effect on prod: **5,877 → 4,447 rows, 1.70 → 0.80 MB (−53%)**; all 5,877 original
+    reviews still accounted for in `sum(repeats)`. 92% of what collapsed was cram-frozen.
+  - `prune_review_log(p_keep=30)` (weekly pg_cron) is the **ceiling**, not a saving — it
+    removes 0 rows today; it bounds the table at *vocabulary × 30*.
+  - ⚠️ Cost is to the future FSRS fit, not to the app — see FSRS (#19) below.
+- **EN→JA `jmdict_lookup` is SLOW — ~0.8 s warm, ~3.1 s cold** (measured prod 2026-08-01)
+  - Not the gloss scan (5 ms with the trigram index) — the cost is elsewhere in the
+    function; plpgsql is opaque to `EXPLAIN`, so it needs decomposing by hand.
+  - Miss: any EN→JA lookup WordNet doesn't fully cover stalls ~1 s. Rare (333 calls
+    lifetime) but user-visible when it fires. Not yet investigated.
 - **Per-sense granularity**
-  - Frequency + embeddings per-surface; proficiency per-ENTRY since `20260740`. Never per-sense.
+  - Frequency is per-surface; proficiency per-ENTRY since `20260740`. Never per-sense.
   - Miss: a homograph (辛い からい/つらい) gets **one blended** band/freq/vector. Sense precision lost.
   - Unlock: engineering, not money.
 - **JLPT list coverage** (measured on prod 2026-07-29)
@@ -323,10 +379,6 @@ Full ledger: `docs/QualityLimitations.md`.
 - **Frequency source**
   - EN uses generic wordfreq, not **SUBTLEX-US** (better learner/spoken fit; CC-BY-SA + commercial).
   - Miss: difficulty axis less aligned to real exposure.
-- **English embeddings absent** ⬛
-  - No EN word-map (JA-only).
-  - Miss: "Explore related words" **hidden** for EN learners; #12 domain-quiz can't run for EN.
-  - Storage hog (~80 MB+) → the real **Free→Pro trigger** for English.
 - **Reader-side lemmatizer**
   - EN→JA lookup lemmatizes (edge `lemmaCandidates`); reader side doesn't.
   - Miss: inflected EN in a paste (ran/running) may not resolve to lemma.
@@ -339,8 +391,8 @@ Full ledger: `docs/QualityLimitations.md`.
 
 ### Cross-cutting
 - **Per-sense axis** (JA+EN) — biggest lever that costs engineering, not money.
-- **Prod embedding regen at deploy · HNSW tuning under load · KO/ZH word-maps.** New lang = own dict source + `<source>_lookup()` + `related_words`.
-- **Top-3 money levers** (`docs/QualityLimitations.md`): bigger model + full-dict embeddings (→Pro) · per-sense (→engineering) · English embeddings (→Pro).
+- **KO/ZH support.** A new language = its own dictionary source + `<source>_lookup()`.
+- **Top levers** (`docs/QualityLimitations.md`): EN→JA sense quality (→verification, not money) · per-sense granularity (→engineering) · an independent JLPT list (→licensing).
 
 </details>
 
@@ -374,11 +426,75 @@ Pipeline, ingest, projection, resolver, learn/calibration: **DONE + LIVE** (prod
 - **UI badge — half done.** `WordInfo.tsx` renders `getProficiency()`, wired into **ListRow** + **FlashcardCard**. Remaining: **translate result head** + **reader hovercard**.
 - **Live-verify the Learn tab** on a device (unit + RPC tests pass; only the device run is unverified).
 
+### Version drift — JA vs EN capability parity `[reference · measured 2026-08-04]`
+What each direction actually supports today. The core (words/user_words/lists/SRS/quiz
+surfaces) is language-agnostic and identical for both — every asymmetry below sits in the
+**analysis + enrichment** layers. Quality *ceilings* are the 🇯🇵/🇬🇧 sections above; this is
+presence/absence.
+
+| Capability | 🇯🇵 JA | 🇬🇧 EN |
+|---|---|---|
+| Dictionary lookup | JMdict (`jmdict_lookup`) | WordNet synsets → gloss fallback |
+| MT fallback (Google) | ✅ | ✅ |
+| Corpus frequency | `data/frequency/ja.tsv` | `en.tsv` |
+| Proficiency bands | JLPT (5) | CEFR (6) |
+| Leveling profile | anchors **+ POS offsets** | anchors only — no EN POS source |
+| Client morphology | kuromoji: reading + lemma + POS | **none** — segmentation only |
+| Grammar-word filtering | ✅ via POS (助詞/助動詞) | ✅ via curated closed-class list (`functionWords.ts`) |
+| Lemmatization | client + edge | **edge only** (`lemmaCandidates`) |
+| Furigana / readings | ✅ | n/a (phonetic script) |
+| Reading + writing overrides | `readingOverrides.ts` | n/a |
+| Compound / counter handling | `compounds.ts` | ✗ |
+| Potential-verb + する candidates | ✅ (edge) | n/a |
+| Proper-noun demotion (人名/組織) | ✅ (kuromoji POS) | ✗ (no POS) |
+| Context sense ordering (`senseOrder`) | ✅ (needs a reading) | ✗ (reading always null) |
+| Sense examples + JA definition (`20260750`) | ✅ JA→EN only | ✗ by design |
+| Learn tab band pool | ✅ | ✗ — "only JA→EN (JLPT) is populated" (`learn.ts`) |
+| Media tab | Japanese Wikinews (`SITE`/`LANG` consts) | ✗ |
+
+**The root cause is one line.** `analyze()` routes JA to kuromoji and everything else to
+`segmentOnly`, which returns `reading: null, lemma: null` — and, since 2026-08-04, a POS
+only for known closed-class words. Measured on *"The cats were running quickly to the
+station."* — every token came back fully null, against `猫|名詞|ねこ|猫 · が|助詞 ·
+走っ|動詞|はしっ|走る` for the JA equivalent. **Reading and lemma are still null for every
+non-JA token**, which is what the two remaining consequences below rest on.
+
+**~~No function-word filter~~ — FIXED 2026-08-04** (`services/language/functionWords.ts`).
+`isContentPos(null)` returns **true**, so with no POS every English token passed the
+content gate: the reader offered *The→の · to→に · and→そして · was/were→する* as
+vocabulary. Measured before/after on the sentence above — **13 words offered → 6**
+(*cats · running · quickly · station · very · cold*), quiz button 8 → 6.
+- Fixed the way JA already handles 人名/組織/外国語: a **synthetic non-content POS** on
+  closed-class words, so `isContentPos` itself is untouched and still fails *open* on
+  `null`. That property is load-bearing — a language with no analyser must show its words
+  rather than none — and a spec pins it (`ES` keeps every token as content).
+- The list **under-reaches on purpose.** Matching is by surface with no POS to
+  disambiguate, and the costs are asymmetric: a function word slipping through is noise, a
+  content word wrongly demoted is a word the learner can never add. Hence *can · may ·
+  will* (a can, the month **May**, a will) and *have · do* are excluded by name — don't
+  "complete" the list without re-reading the header.
+- Only bites when English is the **learning target**; typing English while learning JA
+  studies the Japanese translation, which was always on kuromoji's path.
+
+Two consequences remain:
+- **No reader-side lemma.** *running* never resolves to *run* client-side (the edge
+  lemmatizes for LOOKUP only) — already filed under *English as a learning target*.
+- **Reading-keyed features are structurally unavailable to EN**, not merely unbuilt:
+  `senseOrder`, furigana and the override tables all key on a reading EN doesn't have.
+
+**Still the widest-blast-radius fix: a real EN POS tagger.** The closed-class list closed
+the reader bug, but a tagger is still the precondition for **EN POS offsets in the leveling
+profile** (the one remaining leveling asymmetry), and it would replace surface matching with
+something that can tell the modal *can* from the noun *can*.
+
+**Adjacent, still open:** the reader keys meanings on the raw surface, so `The` and `the`
+fork into two vocabulary entries. Moot for the words now demoted, but a sentence-initial
+content word (`Cats` vs `cats`) still duplicates.
+
 ### English as a learning target
 Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE. Left, cheap-first:
 - **SUBTLEX-US** frequency upgrade (above).
 - **English lemmatizer** (`ran/running → run`) for the **reader** side. Lookup already lemmatizes via edge `lemmaCandidates`; reader-side lemma is absent.
-- **English embeddings / word-map** (#11) — storage hog (~80 MB+), the real Free→Pro trigger. "Explore related words" stays hidden for non-JA learning langs until then.
 
 ### Legal — Privacy/ToS counsel review `[§10]`
 - `/privacy` + `/terms` drafted + footer-linked. Remaining: **counsel review before going truly public.**
@@ -389,6 +505,41 @@ Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE
 - TODO: collision messaging ("this email signs in with Google — use that") · claim/merge story · guest-carry decision for sign-in-Google · verify auto-link live.
 - Cases: `linkIdentity` needs `security_manual_linking_enabled` · email + later-Google auto-links only if email CONFIRMED · Google-first then email/password has no set-password UI · guest → sign-in-Google switches uid, so guest words don't carry.
 
+### Live listener — language handling `[listener · design call]`
+The transcript recognizes the **learning** language, not the input/source selector.
+That is deliberate — you listen to the language you study, so following `source`
+would stop it hearing Japanese the moment someone set source to English — but three
+things are unfinished:
+- **The "native" side is GUESSED.** `useLiveTranscript` picks
+  `SUPPORTED_LANGUAGES.find(l => l.code !== learning)`, so it is positional: right
+  for JA↔EN only because JA is first and EN second. `useTranslate` resolves native
+  properly from what the user typed + the target selector; thread that through
+  instead. **Do before a third language ships.**
+- **No language control inside the transcript** — it follows the Translate tab's
+  learning selector, so switching means backing out. Fine at two languages.
+- **One language per session.** A bilingual conversation (the actual case in Japan)
+  is recognized entirely as the learning language, so the other speaker's turns come
+  out as garbage. On-device recognizers do no language identification, so the honest
+  options are a manual toggle or accepting it — not a quick fix.
+
+### App Store submission `[iOS release]`
+Code-side items are done: Sign in with Apple (`session.ts` linkApple/signInWithApple
+— needs a Services ID + a .p8-signed secret that EXPIRES ≤6 months, then flip
+`config.toml [auth.external.apple].enabled`), complete account deletion (the
+`delete-account` edge function removes the auth row too), EDRDG attribution (footer),
+and `ios/App/App/PrivacyInfo.xcprivacy` (wired into the target; **keep it in sync
+with the App Store Connect privacy labels — Apple compares them**).
+Support page shipped (`/support`, footer-linked, writes to the Brevo sender address
+until the custom domain lands). Remaining is account/console work, not code — the
+answers are prepared in `docs/checklist/App_Store_Submission.md` (privacy labels
+matching the privacy manifest, age-rating questionnaire, listing fields, review
+notes); what is left there is signing + TestFlight, screenshots, the app record, and
+the Apple credentials.
+⚠ The native live transcript is **untested on a device** — it compiles and is
+unit-covered, but nobody has spoken at a phone yet. Also unresolved: whether it
+should keep listening while another app is foreground, which needs the `audio`
+background mode and a review justification.
+
 ### Source-language mismatch robustness `[translate UX]`
 - Concrete source mismatching the script (source=JA, Latin input) → garbage.
 - Fix: in `resolveSourceLanguage` / `useTranslate.submit`, if `detectLanguage` strongly disagrees on SCRIPT → override to detected (or warn). Low-risk.
@@ -396,6 +547,8 @@ Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE
 ### Very low priority
 - **Real furigana (#16)** — ruby above kanji + peel-matching-kana alignment (`alignFurigana`). Group ruby correct meanwhile.
 - **FSRS (#19)** — SRS to D/S/R (power-law, fit to `review_log`). New `record_review()` body, same API. HLR fine for now.
+  - ⚠️ **`20260744` constrains which FSRS you can fit.** `review_log` now keeps one row per card per UTC day (the day's FIRST review) with a `repeats` counter instead of a row each. That is the conventional 4.5-style preprocessing — but **FSRS-5's short-term memory model consumes same-day reviews, and those grades are gone.** Decide before fitting; reverting only helps data logged *after* the revert.
+  - **Retention, once fitted:** a fit no longer needs full per-row history. 23% of rows are first-review seeds and 14% are cram-frozen — the natural candidates to aggregate. Better lever than any further index trimming.
 
 </details>
 
@@ -427,6 +580,17 @@ Not a to-do — standing rules + hosted toggles for the live instance. Items 2�
 **8. Confirm pg_cron jobs registered on prod/staging**
 - Guest sweep (`20260727`, weekly) + `idempotency_keys` prune (`20260712`).
 - Both silently **no-op** without pg_cron. Do a `dry_run` pass first.
+
+**9. Staging schema is BEHIND prod — 3 migrations** (found 2026-08-01)
+- Missing on staging (`jfcb…`): `20260739` quality_report_status · `20260740`
+  proficiency_band_entry_fallback · `20260742` en_ja_headline_rank.
+- Verified by function body, not just the ledger: staging's `jmdict_lookup` has **no**
+  `headline_rank`, so staging still serves the OLD (wrong-primary) EN→JA order.
+- Miss: staging stops being a faithful rehearsal for iOS dev — a lookup bug reproduced
+  there may already be fixed on prod, and vice versa.
+- All three are applied + verified on prod; applying them to staging is a re-run, not
+  new work. `20260740` must keep its `public.`-qualified references (it failed on
+  staging once without them).
 
 </details>
 

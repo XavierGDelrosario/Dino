@@ -2,7 +2,16 @@
 // the password policy. On success → home. "Create account" upgrades the current
 // guest in place (keeps their words); "Sign in" switches to an existing account.
 import { useState } from "react";
-import { upgradeToAccount, signIn, requestPasswordReset, linkGoogle, signInWithGoogle, recordTermsAgreement } from "../services/session";
+import {
+  upgradeToAccount,
+  signIn,
+  requestPasswordReset,
+  linkGoogle,
+  signInWithGoogle,
+  linkApple,
+  signInWithApple,
+  recordTermsAgreement,
+} from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { errorMessage } from "../lib/errorMessage";
 import { checkPassword } from "../lib/password";
@@ -61,21 +70,24 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   // finishes asynchronously via the deep-link handler. If the user instead CANCELS
   // that sheet, no callback fires — so watch for the sheet closing and re-enable the
   // form (otherwise `busy` stays stuck and every button is disabled). No-op on web.
-  const google = async () => {
+  const oauth = (link: () => Promise<void>, signInWith: () => Promise<void>) => async () => {
     if (needsAgreement) return;
     setBusy(true);
     setErr(null);
     const stopWatch = await onOAuthBrowserDismissed(() => setBusy(false));
     try {
-      // Signup links Google to the SAME uid; stamp the agreement before redirecting.
+      // Signup LINKS to the same uid, so the guest's words carry over; stamp the
+      // agreement before redirecting, since the redirect leaves this page.
       if (mode === "signup") await recordTermsAgreement();
-      await (mode === "signup" ? linkGoogle() : signInWithGoogle());
+      await (mode === "signup" ? link() : signInWith());
     } catch (e) {
       stopWatch();
       setErr(errorMessage(e));
       setBusy(false);
     }
   };
+  const google = oauth(linkGoogle, signInWithGoogle);
+  const apple = oauth(linkApple, signInWithApple);
 
   const sendReset = async () => {
     if (busy || !email.trim()) return;
@@ -159,6 +171,12 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
 
       <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={google}>
         {t("auth.google")}
+      </button>
+
+      {/* Sign in with Apple is not optional on iOS: the App Store requires it
+          wherever another third-party login is offered. */}
+      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
+        {t("auth.apple")}
       </button>
 
       {mode === "signin" && (

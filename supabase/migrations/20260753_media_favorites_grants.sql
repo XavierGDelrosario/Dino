@@ -1,0 +1,32 @@
+-- =========================================================
+-- media_favorites: GRANT the table privileges its policies assume.
+--
+-- THE BUG. 20260749 (and 20260741 before the renumber) enabled RLS and created
+-- both policies, but never GRANTed anything to anon/authenticated. Those are two
+-- different gates: a POLICY decides WHICH ROWS a role may touch, a GRANT decides
+-- whether it may touch the table at all. With no grant, PostgREST answers every
+-- request with 42501 (insufficient_privilege) before a policy is ever consulted.
+--
+-- WHY IT LOOKED FINE. On the hosted projects it IS fine — staging and prod show
+-- media_favorites carrying DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+-- for both roles. That is `GRANT ALL`, not the four privileges this app asks for
+-- anywhere else, i.e. it came from Supabase's DEFAULT PRIVILEGES rather than from
+-- our SQL. CI builds its database with `supabase start`, where the migration runs
+-- under a role those defaults don't cover, so the grant never lands and the four
+-- RLS specs for this table have failed on every run since the feature shipped.
+--
+-- Depending on an environment's default privileges is the actual defect: it makes
+-- the schema behave differently on hosted vs local vs CI. Every other client-facing
+-- table states its grants outright (init.sql for users/lists/user_words,
+-- 20260620 for user_limits, and 17 more) — this one is the only omission.
+--
+-- FORWARD-ONLY: 20260749 is already applied on staging and prod, so it must not be
+-- edited. GRANT is idempotent, so this converges everywhere — a no-op where the
+-- default privileges already granted it, the actual fix where they didn't.
+--
+-- Privileges match the policies: SELECT for user_select_own_media_favorites, and
+-- INSERT/UPDATE/DELETE for the FOR ALL user_manage_own_media_favorites. No TRUNCATE
+-- or REFERENCES — the hosted GRANT ALL handed those over, and nothing needs them.
+-- =========================================================
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON media_favorites TO anon, authenticated;
