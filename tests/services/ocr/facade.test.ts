@@ -12,7 +12,14 @@ vi.mock("@capacitor/camera", () => ({
   CameraSource: { Camera: "CAMERA" },
 }));
 
-import { isOcrAvailable, captureText, captureResult } from "@/services/ocr";
+import {
+  isOcrAvailable,
+  captureText,
+  captureResult,
+  capturePhoto,
+  recognizeText,
+  recognizeImage,
+} from "@/services/ocr";
 
 describe("ocr facade", () => {
   it("reports unavailable on web/test", async () => {
@@ -26,5 +33,16 @@ describe("ocr facade", () => {
 
   it("captureResult degrades to null when no backend", async () => {
     expect(await captureResult({ lang: "JA" })).toBeNull();
+  });
+
+  // The crop flow splits capture from recognition; both halves must degrade the
+  // same way, or the cropper would open over a photo that can never be read.
+  it("capturePhoto degrades to null when no backend", async () => {
+    expect(await capturePhoto()).toBeNull();
+  });
+
+  it("recognizeImage / recognizeText degrade when no backend", async () => {
+    expect(await recognizeImage({ base64: "AAAA", lang: "JA" })).toBeNull();
+    expect(await recognizeText({ base64: "AAAA", lang: "JA" })).toBe("");
   });
 });

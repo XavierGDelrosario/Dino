@@ -345,6 +345,14 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
+# Sign in with Apple. REQUIRED for the iOS App Store wherever another third-party
+# login is offered (we offer Google), so this is not an optional provider.
+#
+# Apple's credentials differ from Google's: client_id is a SERVICES ID (not the app
+# bundle id), and the secret is a JWT you generate from a .p8 signing key, team id
+# and key id — and it EXPIRES (6 months max), so it has to be regenerated. Left
+# disabled until those exist; the client code (session.ts linkApple/signInWithApple)
+# is already in place and errors cleanly while it is off.
 [auth.external.apple]
 enabled = false
 client_id = ""

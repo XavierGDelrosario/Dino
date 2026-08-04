@@ -42,6 +42,10 @@ import {
   applyInputAttributeOverride,
   corsHeaders,
   EN_JA_STOPWORDS,
+  isEnglishFunctionWord,
+  isMultiWord,
+  inflectedVerbSurface,
+  preferVerbSenses,
   expandSegmentResults,
   groupByInput,
   MAX_SEGMENTS,
@@ -59,6 +63,10 @@ import {
   userIdFromAuth,
   type ProviderResult,
   chunkForUrlFilter,
+  shouldSkipMt,
+  isEchoTranslation,
+  dictionaryRefFor,
+  curationKeyFor,
 } from "./_lib.ts";
 
 // Stamp written onto every projected `words` row (projection_version). BUMP this
@@ -84,7 +92,22 @@ import {
 //   8 = JA 〜す→〜する lemma fallback (kuromoji's 接す resolves to JMdict's 接する instead
 //       of falling through to MT) + MT rows are no longer exempt from the gate below, so
 //       a word MT once answered gets one FREE dictionary re-check (reviveMtRows).
-const CURRENT_PROJECTION_VERSION = 9;
+//   9 = proficiency_band falls back to the entry's KANJI writing (20260740), so a uk
+//       headword (こと, いる, ため) stops reading as unlevelled.
+//  10 = EN→JA ranked by how PRIMARY the matching gloss is in the entry (20260742).
+//  11 = wordnet_en_ja_lookup ranks by headline_rank (20260747), not Japanese corpus
+//       frequency. The merge already demotes WordNet last, so the TOP result does not
+//       move (measured: 0 of 30 words changed at position 1); the WordNet-only TAIL
+//       reorders (10/30 within the top 3, 20/30 somewhere), and cached rows keep the
+//       old tail order until re-projected. See src/lib/projection.ts for the full note.
+//  12 = EN→JA function words resolve to NOTHING (an/is/my no longer cache a wrong
+//       answer, and never reach paid MT) + an inflected verb prefers verb senses
+//       (worked → 働く, not 仕事). Changes WHICH senses exist, not just their order.
+// NOT bumped for 20260750 (per-sense enrichment): the projection emits three more
+// columns, but the ingest backfills already-cached rows directly, so a bump would only
+// stampede the whole cache into re-projection for a result it already has. Bump when a
+// cached row would serve a STALE ANSWER; don't when it can be corrected in place.
+const CURRENT_PROJECTION_VERSION = 12;
 
 // The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
 // was still a cache HIT and every bump above reached only words nobody had looked up
@@ -151,6 +174,10 @@ interface WordRow {
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
+  example: string | null;
+  example_gloss: string | null;
+  definition_source: string | null;
+  example_reading: string | null;
   is_verified: boolean;
 }
 
@@ -170,6 +197,10 @@ function toWord(r: WordRow) {
     difficultyOverride: r.difficulty_override ?? null,
     jmdictEntryId: r.jmdict_entry_id ?? null,
     jmdictSensePos: r.jmdict_sense_pos ?? null,
+    example: r.example ?? null,
+    exampleGloss: r.example_gloss ?? null,
+    definitionSource: r.definition_source ?? null,
+    exampleReading: r.example_reading ?? null,
     isVerified: r.is_verified,
   };
 }
@@ -236,6 +267,16 @@ async function resolveDictionary(
   sourceLang: string,
   targetLang: string,
 ): Promise<ProviderResult[]> {
+  // GRAMMAR, not vocabulary: resolve to nothing and stop. Skipping only the gloss scan
+  // still let junk through (prod cached an→1, is→ある, my→マイ), and an empty result
+  // would otherwise fall through to PAID MT — buying a wrong answer for "the".
+  // Callers treat the empty array as "no entry", which is what these words are.
+  if (sourceLang === "EN" && targetLang === "JA" && isEnglishFunctionWord(input)) return [];
+  // A PHRASE is not a headword — "have worked" cannot match either provider, so skip
+  // both round-trips. This does NOT stop the request: an empty dictionary result falls
+  // through to MT, which is the RIGHT answer for a phrase and is what the client
+  // already relies on when it sends a whole native-language sentence here.
+  if (sourceLang === "EN" && targetLang === "JA" && isMultiWord(input)) return [];
   if (sourceLang === "EN" && targetLang === "JA") {
     // Lemmatize via WordNet-morphy candidates (cats→cat, ran→run), resolved in just TWO
     // parallel round-trips — same union-query + first-hit machinery as the batch path
@@ -262,7 +303,10 @@ async function resolveDictionary(
       targetLang,
       EN_JA_RESULT_LIMIT,
     );
-    return resolved.get(input) ?? [];
+    const senses = resolved.get(input) ?? [];
+    // "worked" lemmatizes to "work" and then led with 仕事 (the noun). The inflection is
+    // the only English POS signal available, so let it settle the tie.
+    return inflectedVerbSurface(input, candidates) ? preferVerbSenses(senses) : senses;
   }
   // JA→EN (and every other pair): one provider, but the input may still need a lemma
   // candidate — kuromoji hands us IPADIC's 〜す lemma for a する-verb stem (接して → 接す)
@@ -347,7 +391,13 @@ async function resolveDictionaryMany(
     // its lemma candidates and query WordNet + the gloss fallback over the UNION, then
     // pick each token's winning lemma and re-key the senses to the surface token. So a
     // paragraph of inflected English (cats, ran, studies) reads as well as single words.
-    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    //
+    // Function words are dropped FIRST (see resolveDictionary): the reader then renders
+    // them as plain grammar — the way it already treats Japanese particles — instead of
+    // colouring "an" as a word you could add.
+    const inputs2 = inputs.filter((i) => !isEnglishFunctionWord(i));
+    if (inputs2.length === 0) return out;
+    const candsByInput = new Map(inputs2.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
     const allCands = [...new Set([...candsByInput.values()].flat())];
     // Stopwords go to WordNet only, not the pathological gloss scan (see EN_JA_STOPWORDS).
     const glossCands = allCands.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
@@ -360,9 +410,12 @@ async function resolveDictionaryMany(
     const wnByCand = groupProviderByInput(wnRows);
     const glossByCand = groupProviderByInput(glossRows);
     for (const [input, results] of resolvePerInputWithCandidates(
-      inputs, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
+      inputs2, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
     )) {
-      out.set(input, results);
+      // Same inflection bias as the single-word path: a reader full of "worked" should
+      // colour 働く, not 仕事.
+      const cands = candsByInput.get(input) ?? [];
+      out.set(input, inflectedVerbSurface(input, cands) ? preferVerbSenses(results) : results);
     }
   } else {
     // Same first-hit-wins candidate resolution as the single-word path, over the UNION
@@ -430,6 +483,69 @@ async function applyEnglishProficiency(
   const band = new Map<string, number>();
   for (const r of (data ?? []) as { surface: string; band: number }[]) band.set(r.surface, r.band);
   applyInputAttributeOverride(perInput, band, "proficiencyBand"); // CEFR band or NULL, never the JA JLPT one
+}
+
+/** Stamp the authored curation (migration 20260752) onto the projected rows: an example
+ *  sentence, its gloss, a source-language definition, a pinned reading and a curated
+ *  display rank. Read from the server-only `sense_curation`, folded in at projection
+ *  time so the client only ever reads `words`.
+ *
+ *  Keyed on `dictionary_ref` — the same identity the cache is unique on — which is why
+ *  this now works in BOTH directions. The old (entry, sense) key could not express
+ *  EN→JA, where jmdict_sense_pos is the RANKER'S OUTPUT rather than a sense index: a
+ *  curation pinned to it would be pinned to a position the ranker recomputes. Lowercased
+ *  (curationKeyFor) because the EN→JA ref embeds the typed search term, so Car:1323080
+ *  and car:1323080 are one lookup.
+ *
+ *  Fail-open: an unreachable table leaves rows uncurated, exactly as before the corpus
+ *  existed. Curation is an enhancement, never a reason to fail a lookup. */
+async function applySenseExamples(
+  supabase: Supa,
+  perInput: { input: string; results: ProviderResult[] }[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<void> {
+  if (perInput.length === 0) return;
+  const keys = new Set<string>();
+  for (const p of perInput) {
+    for (const r of p.results) keys.add(curationKeyFor(dictionaryRefFor(r, p.input)));
+  }
+  if (keys.size === 0) return;
+
+  const { data, error } = await supabase
+    .from("sense_curation")
+    .select("dictionary_ref, example, example_gloss, definition_source, example_reading, sense_rank")
+    .eq("source_lang", sourceLang)
+    .eq("target_lang", targetLang)
+    .in("dictionary_ref", [...keys]);
+  if (error) {
+    console.error("sense_curation lookup failed:", error.message);
+    return; // fail-open
+  }
+
+  type Row = {
+    dictionary_ref: string;
+    example: string | null;
+    example_gloss: string | null;
+    definition_source: string | null;
+    example_reading: string | null;
+    sense_rank: number | null;
+  };
+  const byRef = new Map<string, Row>();
+  for (const r of (data ?? []) as Row[]) byRef.set(r.dictionary_ref, r);
+  if (byRef.size === 0) return;
+
+  for (const p of perInput) {
+    for (const r of p.results) {
+      const hit = byRef.get(curationKeyFor(dictionaryRefFor(r, p.input)));
+      if (!hit) continue;
+      r.example = hit.example;
+      r.exampleGloss = hit.example_gloss;
+      r.definitionSource = hit.definition_source;
+      r.exampleReading = hit.example_reading;
+      r.senseRank = hit.sense_rank;
+    }
+  }
 }
 
 // Google Cloud Translation API v2 endpoint (REST, API-key auth). Overridable via
@@ -508,6 +624,9 @@ async function callTranslationProviderMany(
   }
 }
 
+// WORD-level MT (the paragraph gloss calls ...Many directly, and must not inherit
+// these word-only guards). Returning null is the established "MT gave us nothing"
+// signal, so both callers already refund the chars they reserved.
 async function callTranslationProvider(
   text: string,
   sourceLang: string,
@@ -515,7 +634,15 @@ async function callTranslationProvider(
 ): Promise<ProviderResult | null> {
   const out = await callTranslationProviderMany([text], sourceLang, targetLang);
   const translated = out?.[0];
-  return translated ? { translation: translated } : null;
+  if (!translated) return null;
+  // Google echoes what it can't translate. Caching that would mint a verified row
+  // whose meaning is the word itself (prod had 73 such numeric rows), so drop it —
+  // the chars are already spent, but the cache stays clean.
+  if (isEchoTranslation(text, translated)) {
+    console.log(JSON.stringify({ evt: "mt_echo_dropped", chars: text.length }));
+    return null;
+  }
+  return { translation: translated };
 }
 
 // ── Per-user RESTRICTIONS (the limits subsystem; see migration 20260620 +
@@ -679,7 +806,7 @@ async function fetchVerified(
   if (isReverseIntoJa(sourceLang, targetLang)) {
     // EN→JA: uniform input-frequency → order by the projected sense rank.
     query = query
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
+      .order("sense_rank", { ascending: true, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false });
   } else {
     // JA→EN: MATCH jmdict_lookup's ranking (frequency DESC, then entry, then sense)
@@ -688,7 +815,7 @@ async function fetchVerified(
     query = query
       .order("frequency", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+      .order("sense_rank", { ascending: true, nullsFirst: false });
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -758,7 +885,7 @@ async function fetchVerifiedMany(
       // chunk, so a word's senses are always ordered within their own query.
       .order("frequency", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+      .order("sense_rank", { ascending: true, nullsFirst: false });
     if (error) throw new Error(error.message);
     return (data ?? []) as WordRow[];
   }));
@@ -962,8 +1089,14 @@ async function resolveBatch(
   if (canMT && needMT.length > 0) {
     const limits = await resolveLimits(supabase, userId!);
     // (#2) over-cap entries are never sent to paid MT (the per-request paragraph cap
-    // holds on the batch path too).
-    const mtWords = needMT.filter((i) => i.length <= limits.paragraphCharLimit);
+    // holds on the batch path too), and neither are tokens that can't be words in
+    // the source language at all — page numbers and off-script junk (see
+    // shouldSkipMt). Skipping happens BEFORE the reserve, so it costs nothing.
+    const mtWords = needMT.filter(
+      (i) => i.length <= limits.paragraphCharLimit && !shouldSkipMt(i, sourceLang),
+    );
+    const skipped = needMT.length - mtWords.length;
+    if (skipped > 0) console.log(JSON.stringify({ evt: "mt_skipped", n: skipped, path: "batch" }));
     const totalChars = mtWords.reduce((n, w) => n + w.length, 0);
     if (totalChars > 0) {
       const reserve = await reserveQuota(supabase, userId!, totalChars, limits.monthlyCharQuota);
@@ -990,6 +1123,7 @@ async function resolveBatch(
   // values (before projection, so both the upsert and the refToTerms mapping see them).
   await applyEnglishFrequency(supabase, perInput, sourceLang, targetLang);
   await applyEnglishProficiency(supabase, perInput, sourceLang, targetLang);
+  await applySenseExamples(supabase, perInput, sourceLang, targetLang);
 
   // 3. One upsert for every freshly-projected sense (deduped by dictionary_ref).
   let savedRows: WordRow[] = [];
@@ -1051,9 +1185,10 @@ async function resolveBatch(
 // Request parsing/clamping (band/limit/excludeSeen) lives in _lib.parseLearnRequest
 // (unit-tested). This file keeps only the I/O.
 
-/** Unseen headwords at proficiency band `band` for the caller (JMdict source →
- *  the SQL retrieval; see migration 20260717). Empty for a pair/band with no
- *  curated wordlist (only JA→EN/JLPT is populated today). */
+/** Unseen headwords at proficiency band `band` for the caller (the SQL retrieval
+ *  owns the source: JMdict for JA→EN, english_proficiency + WordNet for EN→JA; see
+ *  migrations 20260717 and 20260745). Empty for a pair/band with no curated
+ *  wordlist — those two pairs are the populated ones. */
 async function selectLearnHeadwords(
   supabase: Supa,
   sourceLang: string,
@@ -1155,8 +1290,9 @@ async function handleRequest(req: Request): Promise<Response> {
   // LEARN mode: { learn: { band, limit? } } → up to `limit` UNSEEN words at the
   // given proficiency band, projected into the cache (via the batch path) and
   // returned as quiz cards (each card = one word's full sense list, primary
-  // first). The source retrieval reads JMdict (the `words` cache is incomplete);
-  // resolveBatch then projects + groups exactly like a paragraph's new words.
+  // first). The source retrieval reads the server-only wordlists (the `words`
+  // cache is incomplete); resolveBatch then projects + groups exactly like a
+  // paragraph's new words.
   if (body.learn && typeof body.learn === "object") {
     const parsed = parseLearnRequest(body.learn as { band?: unknown; limit?: unknown; excludeSeen?: unknown });
     if (!parsed.ok) return reply({ error: parsed.error }, 400);
@@ -1166,7 +1302,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const headwords = await selectLearnHeadwords(supabase, sourceLang, targetLang, band, userId, limit, excludeSeen);
       if (headwords.length === 0) return reply({ cards: [] });
       // Reuse the batch resolver: cache read → JMdict projection → grouped rows.
-      // These are JMdict headwords, so they resolve without the paid MT path.
+      // Every headword is drawn from a source we can already translate (JMdict for
+      // JA→EN; for EN→JA the pool requires a WordNet lemma WITH a Japanese side), so
+      // these resolve without the paid MT path.
       const entries = await resolveBatch(
         supabase, headwords, sourceLang, targetLang, req.headers.get("Authorization"),
       );
@@ -1303,6 +1441,17 @@ async function handleRequest(req: Request): Promise<Response> {
   //    be PARTIAL — other homophones (事) might never have been cached — so fall
   //    through to the full lookup, which projects the complete set (after which the
   //    exact-headword row exists and future lookups hit the cache).
+  // A GRAMMATICAL word is terminal, and that has to be decided BEFORE the cache read.
+  // Measured live: "an" already had a paid `mt:an` row holding "1", freshly re-stamped,
+  // so the cache answered and every guard further down was unreachable. Terminal means
+  // the dictionary is never consulted, the cache is never consulted, and MT is never
+  // bought — the dead row simply stops being served.
+  // (A multi-word PHRASE deliberately does NOT stop here: MT is the right answer for it,
+  // and the client sends whole native-language sentences down this same path.)
+  if (sourceLang === "EN" && targetLang === "JA" && isEnglishFunctionWord(input)) {
+    return reply({ translated: false, translation: null, word: null, words: [] });
+  }
+
   if (persist) {
     const cached = await fetchVerified(supabase, input, sourceLang, targetLang);
     if (cached.some((r) => r.input === input)) return reply(respondWords(input, cached));
@@ -1322,6 +1471,15 @@ async function handleRequest(req: Request): Promise<Response> {
   if (persist && results.length === 0) {
     const revived = await reviveMtRows(supabase, [input], sourceLang, targetLang);
     if (revived.length > 0) return reply(respondWords(input, revived));
+  }
+
+  // A token that can't be a word in the source language (a page number, an English
+  // word submitted as Japanese) never reaches the paid provider — checked before the
+  // limits below, so it costs nothing and reserves nothing. The word simply comes
+  // back unresolved, which is what a page number should be.
+  if (results.length === 0 && persist && shouldSkipMt(input, sourceLang)) {
+    console.log(JSON.stringify({ evt: "mt_skipped", n: 1, path: "word" }));
+    return finish({ translated: false, translation: null, word: null, words: [] });
   }
 
   if (results.length === 0 && mtConfigured() && userId) {
@@ -1396,6 +1554,7 @@ async function handleRequest(req: Request): Promise<Response> {
   // EN→JA: override the frequency + CEFR band with the ENGLISH input's own values.
   await applyEnglishFrequency(supabase, [{ input, results }], sourceLang, targetLang);
   await applyEnglishProficiency(supabase, [{ input, results }], sourceLang, targetLang);
+  await applySenseExamples(supabase, [{ input, results }], sourceLang, targetLang);
 
   // 4. Persist every sense as a verified global word (service role bypasses RLS).
   //    projectRows (in _lib.ts) stores the canonical headword as `input`, DEDUPEs

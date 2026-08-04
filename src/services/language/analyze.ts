@@ -28,6 +28,8 @@ import type { LangCode } from "./registry";
 import { tokenizeWords, type WordToken } from "./tokenize";
 import { getCounterResolver, parseJapaneseNumber } from "./counters";
 import { mergeJapaneseCompounds } from "./compounds";
+import { functionWordPos } from "./functionWords";
+import { readerLemma } from "./lemmaEn";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
 export interface AnalyzedToken extends WordToken {
@@ -51,8 +53,13 @@ const CONTENT_POS = new Set([
 
 /**
  * Is this a content word worth treating as vocabulary? JA: a content POS (not a
- * particle/auxiliary/symbol). Non-JA tokens carry no POS (`null`) → treated as
- * content so English words still count.
+ * particle/auxiliary/symbol). English closed-class words carry the synthetic
+ * FUNCTION_WORD_POS and are excluded the same way (see language/functionWords).
+ *
+ * `null` still means CONTENT — that failure mode is load-bearing: a language with no
+ * analyser at all must still show its words rather than none. So a new language is
+ * over-inclusive (every token is vocabulary) until it earns a POS source or a
+ * closed-class list, never silently empty.
  */
 export function isContentPos(pos: string | null): boolean {
   return pos === null || CONTENT_POS.has(pos);
@@ -115,13 +122,20 @@ function needsMorphology(lang: LangCode): boolean {
   return lang.toUpperCase() === "JA";
 }
 
-/** Plain segmentation with no enrichment — the non-JA path and the JA fallback. */
+/** Plain segmentation with no enrichment — the non-JA path and the JA fallback.
+ *  The one enrichment it DOES do is the closed-class tag: without a POS tagger it's
+ *  the only thing standing between an English paste and a vocabulary list full of
+ *  "the" and "was". Languages with no list keep `pos: null` (content by default). */
 function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
   return tokenizeWords(text, lang).map((t: WordToken) => ({
     ...t,
     reading: null,
-    lemma: null,
-    pos: null,
+    // The reader looks a word up by `lemma ?? text`, so this is what collapses
+    // cat/cats and ran/runs onto one dictionary entry — and what stops a homograph
+    // surface (sat → SAT the assault team) winning over the verb. Null where no rule
+    // is safe, which just restores look-up-as-written. See language/lemmaEn.
+    lemma: readerLemma(t.text, lang),
+    pos: functionWordPos(t.text, lang),
   }));
 }
 
@@ -138,22 +152,53 @@ const UNKNOWN = "*"; // kuromoji's placeholder for "no value" on a feature
 const FOREIGN_POS = "外国語";
 const HAS_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
 
-// A SYNTHETIC pos for PERSON names (kuromoji 名詞-固有名詞-人名: 佐野, 田中, 太郎). A
-// name is not vocabulary — nobody studies 佐野 — so a text full of them shouldn't
-// fill the reader with addable blue words or pad the article word list. Like
-// FOREIGN_POS they stay VISIBLE as plain text; only their vocabulary-ness is
-// dropped. Typing a name into Translate still looks it up (isSingleWord counts
-// content tokens, and zero passes its `<= 1` test), which is the right split:
-// explicit lookup is a question the user asked, a name inside a paste is not.
+// SYNTHETIC poses for PROPER NAMES — people (kuromoji 名詞-固有名詞-人名: 佐野, 田中,
+// 太郎) and organizations (名詞-固有名詞-組織: トヨタ自動車, ソニー, 任天堂, 国連, 自民党,
+// 朝日新聞). A name is not vocabulary — nobody studies 佐野 or 朝日新聞 — so a news
+// article shouldn't fill the reader with addable blue words or pad the article word
+// list with the actors in one story. Like FOREIGN_POS they stay VISIBLE as plain
+// text; only their vocabulary-ness is dropped. Typing a name into Translate still
+// looks it up (isSingleWord counts content tokens, and zero passes its `<= 1` test),
+// which is the right split: explicit lookup is a question the user asked, a name
+// inside a paste is not.
 //
-// ONLY 人名. The sibling 固有名詞 subcategories must keep their content POS:
-//   * 地域 (東京, 日本, アメリカ) — real vocabulary a learner wants.
+// 組織 was previously left alone on the belief that it doubled as IPADIC's
+// unknown-KATAKANA bucket (so demoting it would hide loanwords). MEASURED against
+// the bundled IPADIC and that is not so: unknown/modern katakana lands in 名詞-一般
+// (スマホ・サブスク・コロナ・メタバース・リスキリング・エヌビディア・テスラ all verified),
+// while 組織 holds actual organizations. Only mis-segmented fragments leak in (タイパ
+// → タイ+パ), which are junk with no dictionary entry either way.
+//
+// The other 固有名詞 subcategories keep their content POS:
+//   * 地域 (東京, 日本, アメリカ, 中国) — real vocabulary a learner wants.
 //   * 一般 (富士山) — likewise, plus IPADIC's catch-all for unknown kanji words.
-//   * 組織 — NOT an organization tag in practice: it's where IPADIC dumps unknown
-//     KATAKANA (スマホ, サブスク, コロナ all land here). Demoting it would silently
-//     hide loanwords, which are exactly the words a learner needs. So a company
-//     name (トヨタ) stays addable — accepted, since the alternative costs far more.
+// Multi-token org names are only partly caught: 日本放送協会 segments as
+// 日本(地域)+放送+協会, so its pieces stay addable as the ordinary words they are.
 const PERSON_NAME_POS = "人名";
+const ORGANIZATION_POS = "組織";
+
+// …with ONE exemption inside 組織: public institutions. Measured over 120 random
+// Wikinews articles, the 組織 demotion drops 1.8% of content tokens and ~18% of those
+// are civics vocabulary a news reader genuinely needs — 労働省, 気象庁, 衆議院, 警視庁,
+// 警察庁, 消防庁, 海上保安庁, 最高裁, 農林水産省 — not brands. They read as compounds
+// (気象 + 庁), so a learner can decode and reuse them, unlike 読売新聞 or 吉野家.
+//
+// Matched by SUFFIX because that is what generalizes: every ministry ends 省, every
+// agency 庁, the legislature 議院/院, the courts 裁, bureaus 局, boards 委員会. 学院 is
+// excluded — it is the tail of university names (明治学院), which are proper names.
+// Party names (自民党) and 東証 stay demoted: those are named entities, not compounds.
+// JMdict's editorial `common` flag would separate the two groups more exactly (気象庁
+// true / 読売新聞 false, where corpus frequency does not discriminate at all), but it
+// isn't carried on `words` — a column + projection bump, deferred as not worth it.
+const INSTITUTION_SUFFIX = /(庁|省|局|院|裁|委員会)$/;
+const INSTITUTION_EXCEPT = /学院$/;
+const FIXED_INSTITUTIONS = new Set(["国連", "赤十字"]);
+
+/** True for a 組織-tagged token that is a public institution, not a brand/named entity. */
+function isInstitution(surface: string): boolean {
+  if (FIXED_INSTITUTIONS.has(surface)) return true;
+  return INSTITUTION_SUFFIX.test(surface) && !INSTITUTION_EXCEPT.test(surface);
+}
 
 function jaDicPath(): string {
   // Browser: served static assets under /dict/. Node (tests/SSR): the package.
@@ -173,8 +218,19 @@ function getJaTokenizer(): Promise<Tokenizer<IpadicFeatures>> {
   if (!tokenizerPromise) {
     tokenizerPromise = import("kuromoji")
       .then(
-        ({ builder }) =>
+        (mod) =>
           new Promise<Tokenizer<IpadicFeatures>>((resolve, reject) => {
+            // kuromoji is CommonJS. Vite and Vitest interop it so `builder` sits on the
+            // namespace, but a plain Node ESM loader (tsx — how scripts/ run) puts it on
+            // `.default`, and destructuring `{ builder }` there yields undefined. That
+            // threw "builder is not a function", which analyzeJapanese CATCHES and turns
+            // into a silent Intl.Segmenter fallback — so a Node caller got segmentation
+            // with no readings or lemmas and no error. Accept both shapes.
+            const builder = mod.builder ?? (mod as unknown as { default?: typeof mod }).default?.builder;
+            if (typeof builder !== "function") {
+              reject(new Error("kuromoji: no builder export found on the module"));
+              return;
+            }
             builder({ dicPath: jaDicPath() }).build((err, tokenizer) => {
               if (err) reject(err);
               else resolve(tokenizer);
@@ -227,9 +283,13 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     if (pos === "動詞" && (t.pos_detail_1 === "非自立" || t.pos_detail_1 === "接尾")) {
       pos = "助動詞";
     }
-    // Person names (佐野, 山田太郎) → plain text, not vocabulary. See PERSON_NAME_POS.
-    if (pos === "名詞" && t.pos_detail_1 === "固有名詞" && t.pos_detail_2 === "人名") {
-      pos = PERSON_NAME_POS;
+    // Proper names — people (佐野, 山田太郎) and organizations (ソニー, 国連) → plain
+    // text, not vocabulary. See PERSON_NAME_POS / ORGANIZATION_POS.
+    if (pos === "名詞" && t.pos_detail_1 === "固有名詞") {
+      if (t.pos_detail_2 === "人名") pos = PERSON_NAME_POS;
+      else if (t.pos_detail_2 === "組織" && !isInstitution(t.surface_form)) {
+        pos = ORGANIZATION_POS;
+      }
     }
     // Embedded non-Japanese tokens (QR, URL, bare digits) → plain text, not vocabulary.
     if (pos !== null && !HAS_JAPANESE.test(t.surface_form)) {

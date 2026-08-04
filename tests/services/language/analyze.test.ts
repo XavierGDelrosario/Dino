@@ -91,15 +91,45 @@ describe("analyze — Japanese (kuromoji)", () => {
     KUROMOJI_TIMEOUT,
   );
   it(
-    "only 人名 is demoted — place names and unknown katakana stay vocabulary",
+    "人名 and 組織 are demoted — place names and katakana loanwords stay vocabulary",
     async () => {
       const toks = await analyze("田中はスマホで東京の写真を見た", "JA");
       const posOf = (s: string) => toks.find((t) => t.text === s)?.pos ?? null;
       expect(isContentPos(posOf("田中"))).toBe(false); // 固有名詞-人名 → not vocabulary
       expect(isContentPos(posOf("東京"))).toBe(true); // 固有名詞-地域 → a real word
-      // 固有名詞-組織 is IPADIC's unknown-KATAKANA bucket, not just companies — demoting
-      // it would hide loanwords like スマホ, which are exactly what a learner needs.
+      // Unknown/modern katakana is tagged 名詞-一般, NOT 固有名詞-組織 — so demoting
+      // organizations does not cost the learner loanwords.
       expect(isContentPos(posOf("スマホ"))).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+  it(
+    "company / organization names are kept but marked non-content",
+    async () => {
+      const toks = await analyze("ソニーと任天堂は読売新聞の会議に参加した", "JA");
+      const byText = (s: string) => toks.find((t) => t.text === s);
+      // Shown as plain text, but neither addable in the reader nor in the word list.
+      expect(byText("ソニー")).toBeDefined();
+      expect(isContentPos(byText("ソニー")!.pos)).toBe(false); // 固有名詞-組織
+      expect(isContentPos(byText("任天堂")!.pos)).toBe(false);
+      expect(isContentPos(byText("読売新聞")!.pos)).toBe(false);
+      // Ordinary words in the same sentence are unaffected.
+      expect(isContentPos(byText("会議")!.pos)).toBe(true);
+      expect(isContentPos(byText("参加")!.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+  it(
+    "public institutions are EXEMPT from the 組織 demotion (気象庁 stays vocabulary)",
+    async () => {
+      const toks = await analyze("気象庁と警視庁は衆議院に報告し、朝日新聞が報じた", "JA");
+      const posOf = (s: string) => toks.find((t) => t.text === s)?.pos ?? null;
+      // Ministries/agencies/the legislature read as compounds a learner can reuse.
+      expect(isContentPos(posOf("気象庁"))).toBe(true);
+      expect(isContentPos(posOf("警視庁"))).toBe(true);
+      expect(isContentPos(posOf("衆議院"))).toBe(true);
+      // A newspaper in the same sentence is still a named entity → demoted.
+      expect(isContentPos(posOf("朝日新聞"))).toBe(false);
     },
     KUROMOJI_TIMEOUT,
   );
@@ -214,6 +244,31 @@ describe("analyze — non-Japanese falls back to segmentation only", () => {
     const toks = await analyze("hello world", "EN");
     expect(toks.map((t) => t.text)).toEqual(["hello", "world"]);
     expect(toks.every((t) => t.reading === null && t.lemma === null)).toBe(true);
+  });
+
+  // English has no POS tagger, so before the closed-class list every token passed
+  // isContentPos and the reader offered "the"/"was" as vocabulary (The→の, was→する).
+  it("excludes English grammar words from vocabulary, keeping the content words", async () => {
+    const toks = await analyze("The cats were running quickly to the station.", "EN");
+    const content = toks.filter((t) => isContentPos(t.pos)).map((t) => t.text);
+    expect(content).toEqual(["cats", "running", "quickly", "station"]);
+  });
+
+  it("still segments and displays the grammar words — they're demoted, not dropped", async () => {
+    const toks = await analyze("the cat", "EN");
+    expect(toks.map((t) => t.text)).toEqual(["the", "cat"]);
+  });
+
+  it("a language with no closed-class list keeps every token as content (fails OPEN)", async () => {
+    // A new language must show its words rather than none until it earns a list.
+    const toks = await analyze("the cat", "ES");
+    expect(toks.every((t) => t.pos === null)).toBe(true);
+    expect(toks.filter((t) => isContentPos(t.pos))).toHaveLength(2);
+  });
+
+  it("an explicit single-word lookup of a grammar word still routes to the dictionary", async () => {
+    // Same call as the JA proper-noun rule: typing it IS a question the user asked.
+    expect(isSingleWord(await analyze("the", "EN"), "EN")).toBe(true);
   });
 });
 

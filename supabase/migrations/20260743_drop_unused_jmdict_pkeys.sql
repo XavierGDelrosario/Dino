@@ -1,0 +1,54 @@
+-- =========================================================
+-- Drop three surrogate primary keys nobody reads — ~21 MB of pure index, on a
+-- 500 MB Free tier that was at 87% before the embeddings drop (`20260741`).
+--
+-- WHAT. `jmdict_glosses`, `jmdict_kana` and `jmdict_kanji` each carry a synthetic
+-- `id` PK created by the original schema (`20260618`) out of habit, not need. They
+-- are LEAF tables: the access paths are all by `entry_id` / `sense_id` / `text`,
+-- which have their own indexes. Measured on prod 2026-08-01:
+--
+--   index                    size     idx_scan
+--   jmdict_glosses_pkey      9640 kB         0
+--   jmdict_kana_pkey         5824 kB         0
+--   jmdict_kanji_pkey        5360 kB         0
+--   idx_jmdict_kanji_text    9064 kB   389,548   <- the paths actually used
+--   idx_jmdict_kana_text       12 MB   350,239
+--
+-- Zero scans is not "rarely used", it is never — against ~390k on the sibling
+-- indexes over the same tables in the same window, so the counters are live.
+--
+-- VERIFIED SAFE before writing this (all four checks against prod):
+--   1. No FOREIGN KEY anywhere references these three tables. The FKs run the other
+--      way (kana/kanji -> jmdict_entries, glosses -> jmdict_senses).
+--   2. No live function reads an `.id` of these tables — checked the actual bodies of
+--      jmdict_lookup, jmdict_entry_kanji_band, learn_words_at_band and
+--      wordnet_en_ja_lookup, not just the migration source.
+--   3. `scripts/ingest-jmdict.ts` takes `RETURNING id` from **jmdict_senses only**
+--      (to wire glosses to their sense); the kanji/kana/glosses inserts pass no
+--      `returning` at all.
+--   4. The one historical `k.id` reference was a tiebreak in `20260624_embeddings.sql`,
+--      whose function (`related_words`) was dropped by `20260741`.
+--
+-- ‼️ `jmdict_senses`'s PK STAYS. `jmdict_glosses.sense_id` is a FOREIGN KEY onto it,
+-- so it is load-bearing even though it is also rarely scanned directly. Do not
+-- "finish the job" by adding it here.
+--
+-- THE `id` COLUMNS ARE KEPT. Dropping a column in Postgres is metadata-only — the
+-- ~7 MB of heap those bigints occupy is not returned until a full table rewrite
+-- (VACUUM FULL), which takes an exclusive lock and needs the table's size again in
+-- free space. Not worth it for 7 MB. Keeping the columns also leaves the ingest's
+-- `TRUNCATE ... RESTART IDENTITY` working untouched.
+--
+-- REVERSIBLE: re-adding any of these is one ALTER TABLE (it rebuilds the index).
+-- =========================================================
+
+ALTER TABLE jmdict_glosses DROP CONSTRAINT IF EXISTS jmdict_glosses_pkey;
+ALTER TABLE jmdict_kana    DROP CONSTRAINT IF EXISTS jmdict_kana_pkey;
+ALTER TABLE jmdict_kanji   DROP CONSTRAINT IF EXISTS jmdict_kanji_pkey;
+
+-- NOTE: `idx_jmdict_glosses_trgm` (25 MB) was considered here and DELIBERATELY KEPT.
+-- Its scan count is low (333) because Japanese WordNet leads EN->JA since `20260703`
+-- and the gloss search only fills the remainder — but measured on prod, dropping it
+-- turns that fill from a ~5 ms bitmap scan into a ~175 ms parallel sequential scan
+-- over 438k gloss rows (~35x), on a path a user is waiting on. 25 MB is the better
+-- side of that trade. Revisit only if storage gets tight again.

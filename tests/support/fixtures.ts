@@ -26,6 +26,10 @@ export function makeWord(overrides: Partial<Word> = {}): Word {
     proficiencyBand: null,
     jmdictEntryId: null,
     jmdictSensePos: null,
+    example: null,
+    exampleGloss: null,
+    definitionSource: null,
+    exampleReading: null,
     isVerified: true,
     ...overrides,
   };
@@ -51,6 +55,10 @@ export function makeUserWord(overrides: Partial<UserWord> = {}): UserWord {
     proficiencyBand: null,
     partOfSpeech: null,
     frequency: null,
+    example: null,
+    exampleGloss: null,
+    definitionSource: null,
+    exampleReading: null,
     ...overrides,
   };
 }

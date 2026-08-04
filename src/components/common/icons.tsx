@@ -70,6 +70,16 @@ export function XIcon({ size }: { size?: number }) {
   );
 }
 
+/** Back — a bare chevron. The arrow-with-shaft version read as a heavy action
+ *  button; navigation should sit quietly at the edge of the bar. */
+export function BackIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="15 18 9 12 15 6" />
+    </Svg>
+  );
+}
+
 /** Delete / remove. Replaces the wastebasket emoji (U+1F5D1), whose DEFAULT
  *  presentation is TEXT, not emoji — so without a variation selector the browser hunts
  *  for it in a text font, and text fonts don't carry it. It rendered as a "1F5D1" hex
@@ -133,6 +143,23 @@ export function SpeakerIcon({ size }: { size?: number }) {
       <path d="M11 5 6 9H2v6h4l5 4z" />
       <path d="M15.5 8.5a5 5 0 0 1 0 7" />
       <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+    </Svg>
+  );
+}
+
+/** History — the clock-with-a-rewind-arrow Google Translate uses for "recent".
+ *  The arc deliberately stops short of closing at the upper LEFT, where the arrow
+ *  head sits: a full circle plus hands reads as a plain clock (i.e. "time"), and
+ *  the break is the whole reason this says "go back to" instead. */
+export function HistoryIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      {/* Open arc, counter-clockwise from ~10 o'clock all the way round. */}
+      <path d="M3.5 9.5a9 9 0 1 0 2.6-3.9" />
+      {/* Rewind arrow head closing the gap. */}
+      <polyline points="3 4 3 9.5 8.5 9.5" />
+      {/* Hands: 12 and 3, the conventional clock reading. */}
+      <polyline points="12 7.5 12 12 15.5 13.8" />
     </Svg>
   );
 }

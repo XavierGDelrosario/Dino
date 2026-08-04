@@ -1,0 +1,63 @@
+// =========================================================
+// Translate history — what you submitted this session (PURE, tested).
+//
+// SESSION ONLY, by construction: the list lives in `useStickyState`, whose module
+// cache dies with the page and resets on a user switch. That is the whole design,
+// not a first step toward a stored history — a durable one would be a per-user
+// table, an RLS policy, and a deletion path, to re-show text the user can already
+// re-type. It also keeps the surface honest for a shared or borrowed device: close
+// the tab and the record of what you looked up is gone.
+//
+// An entry stores the DIRECTION alongside the text because replaying it must
+// reproduce the original translation. The same string means different things in
+// different directions (愛 JA→EN vs ZH→EN), so text alone would replay a lookup the
+// user never made. The raw `SourceSelection` is kept rather than the resolved
+// language, so an entry submitted under auto-detect replays as auto-detect.
+// =========================================================
+
+import type { LangCode, SourceSelection } from "./language";
+
+export interface TranslateHistoryEntry {
+  /** Exactly what was submitted, trimmed — the text a replay re-runs. */
+  text: string;
+  /** Source as CHOSEN (may be auto-detect), so a replay resolves the same way. */
+  source: SourceSelection;
+  target: LangCode;
+}
+
+/**
+ * How many entries a session keeps. Small on purpose: this renders as a row of
+ * chips under the input, and a session's useful recall is the last handful. The
+ * cap is what stops a long paste-heavy session from growing the sticky cache
+ * without bound.
+ */
+export const MAX_HISTORY = 12;
+
+/** Identity of an entry — text AND direction (see the header note). */
+export function entryKey(entry: TranslateHistoryEntry): string {
+  return `${entry.source}\0${entry.target}\0${entry.text}`;
+}
+
+/**
+ * Add `entry` to the front of `list`, most-recent-first.
+ *
+ * Re-submitting something already in the list MOVES it to the front rather than
+ * duplicating — during a study session you re-translate the same phrase often, and
+ * a history that fills with one repeated string is useless. Returns a new array;
+ * `list` is never mutated (it is React state).
+ *
+ * An empty/whitespace-only `text` is dropped: submit already refuses those, so an
+ * entry like that could only come from a caller bypassing the guard.
+ */
+export function pushEntry(
+  list: readonly TranslateHistoryEntry[],
+  entry: TranslateHistoryEntry,
+  cap: number = MAX_HISTORY,
+): TranslateHistoryEntry[] {
+  const text = entry.text.trim();
+  if (!text) return [...list];
+
+  const next: TranslateHistoryEntry = { ...entry, text };
+  const key = entryKey(next);
+  return [next, ...list.filter((e) => entryKey(e) !== key)].slice(0, Math.max(0, cap));
+}

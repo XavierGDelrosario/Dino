@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest (required by App Store review since May 2024).
+
+  DINO does NOT track: nothing is shared with data brokers, there is no advertising
+  SDK, and no identifier is joined with third-party data. Hence NSPrivacyTracking
+  false and an empty NSPrivacyTrackingDomains.
+
+  Collected data — what leaves the device, and only to our own Supabase backend:
+    · email address, ONLY for an account the user chooses to create (a guest never
+      provides one) — app functionality, linked to the user, not for tracking;
+    · saved vocabulary and review history — the product itself; app functionality,
+      linked to the user, not for tracking.
+  Microphone audio, photos and handwriting are processed ON DEVICE and are not
+  collected; the text a user chooses to translate is sent for translation but is
+  not stored (paragraph translation is display-only, never persisted).
+
+  Accessed API: user defaults, which the WebView and Capacitor use to persist
+  preferences and the session — reason CA92.1 (access to information stored by the
+  app itself).
+
+  KEEP THIS IN SYNC with the App Store Connect privacy labels — Apple compares the
+  two, and a mismatch is a rejection. Re-check when a feature starts sending
+  something new (e.g. the LLM features, which would add a new collected type).
+-->
+<plist version="1.0">
+<dict>
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array>
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+      </array>
+    </dict>
+  </array>
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>CA92.1</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

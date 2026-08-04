@@ -1,12 +1,62 @@
 <!doctype html>
-<html lang="en">
+<!--
+  prefix="og: …" is the Open Graph RDFa namespace declaration. Lenient scrapers
+  (LinkedIn's Post Inspector, Facebook, Slack) resolve og:* without it, but a strict
+  RDFa parser treats an undeclared prefix as an unknown vocabulary and drops every
+  og:* property — which looks exactly like "the tags are right and the card is still
+  blank". Cheap to declare, so declare it.
+-->
+<html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>DINO</title>
+    <title>DINO — read Japanese, keep every word</title>
+    <meta
+      name="description"
+      content="Paste a paragraph or open an article. DINO breaks it into real words with readings and meanings, then feeds the ones you don't know into spaced repetition."
+    />
+    <meta name="theme-color" content="#0f1115" />
+
+    <!--
+      Social-share (Open Graph) card. LinkedIn, Slack, iMessage and X all fetch this
+      page with a crawler that NEVER runs JS — so these have to be static here in
+      index.html, not set from React, or every share is a bare grey link.
+      Every URL must be ABSOLUTE for the same reason (the crawler has no base to
+      resolve "/og.png" against once the markup is off-origin).
+      The image is built by scripts/build-og-image.mjs; re-run it if the copy below
+      changes so the card and the tags don't disagree.
+      Changing a tag will NOT change an already-shared link — LinkedIn caches by URL
+      for ~7 days; re-scrape at https://www.linkedin.com/post-inspector/.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DINO" />
+    <meta property="og:url" content="https://dino-86y.pages.dev/" />
+    <meta property="og:title" content="DINO — read Japanese, keep every word" />
+    <meta
+      property="og:description"
+      content="Paste a paragraph or open an article. DINO breaks it into real words with readings and meanings, then feeds the ones you don't know into spaced repetition."
+    />
+    <meta property="og:image" content="https://dino-86y.pages.dev/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="A Japanese sentence broken into words, each shaded by how well the learner knows it."
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- X / Twitter reads its own namespace and ignores og:* for the card type. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DINO — read Japanese, keep every word" />
+    <meta
+      name="twitter:description"
+      content="Paste a paragraph or open an article. DINO breaks it into real words with readings and meanings, then feeds the ones you don't know into spaced repetition."
+    />
+    <meta name="twitter:image" content="https://dino-86y.pages.dev/og.png" />
   </head>
   <body>
     <div id="root"></div>

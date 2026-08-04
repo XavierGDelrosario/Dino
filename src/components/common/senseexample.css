@@ -1,0 +1,81 @@
+/* The example-sentence disclosure (SenseExample) — shared by the Lists row and the
+   Media article word list, so the two surfaces cannot drift apart. */
+
+/* The toggle sits in the row's bottom strip, immediately LEFT of the listen button.
+   It is accent-coloured rather than muted like the other icon buttons: a row only
+   renders it when a sentence actually exists, so its presence is information (this
+   sense has been written up) and it should be legible as such at a glance. */
+.senseex__toggle {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* Open state reads as pressed, so it is obvious which row's panel is showing when
+   several are expanded down a long list. */
+.senseex__toggle--on {
+  background: var(--surface-2);
+  border-radius: 6px;
+}
+
+/* THE LINE. The panel is a flex item that claims a whole row of its own inside
+   .listrow__foot (which wraps) — that is what makes it span the full card and sit
+   UNDER a rule, reading as the card opening up rather than as a popover. */
+.senseex {
+  flex: 1 0 100%;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+/* The Japanese sentence is the point of the panel, so it gets body-text size and the
+   normal foreground colour while everything else around it is muted. */
+.senseex__sentence {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.senseex__gloss {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* The monolingual definition is the advanced half — subordinate to the sentence, but
+   still readable Japanese, so it keeps a comfortable line height. */
+.senseex__definition {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.senseex__label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin-bottom: 0.1rem;
+}
+
+/* The reader inside the panel. ParagraphReader brings its own type styling, so this
+   only has to give it the room the plain <p> had — and stop the row's own click
+   handling from swallowing a tap on a word (see SenseExample's stopPropagation). */
+.senseex__reader {
+  font-size: 1rem;
+  line-height: 2;
+}
+
+/* While the analysis loads the plain sentence is shown, dimmed — the text is readable
+   the whole time, so the colouring arriving is an upgrade rather than a content swap. */
+.senseex__sentence.is-loading {
+  opacity: 0.55;
+}

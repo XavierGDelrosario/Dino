@@ -8,7 +8,7 @@
 #
 # IRREPLACEABLE (user-generated, NOT reproducible from source releases):
 #   users · user_words · lists · list_words · review_log · user_limits ·
-#   translation_usage
+#   translation_usage · media_favorites
 # PLUS public.words (the dictionary CACHE): itself reproducible, BUT
 # user_words.dictionary_word_id has an FK into it and the referenced cache rows
 # are LAZILY projected (not guaranteed to exist after a fresh jmdict re-ingest),
@@ -76,6 +76,8 @@ TABLES=(
   public.user_words
   public.list_words
   public.review_log
+  # starred articles — user-curated, and its only FK is users
+  public.media_favorites
 )
 
 # UTC timestamp (matches the app's month-bucket convention) — sortable, tz-stable.

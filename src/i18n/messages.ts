@@ -33,14 +33,22 @@ export const en = {
   "media.loadingArticle": "Loading…",
   "media.readOnWikinews": "Open on Wikinews",
   "media.empty": "That article has no readable text.",
+  "media.noArticles": "No articles right now — try Refresh.",
   "media.source": "Article text from Wikinews, licensed CC BY 2.5.",
   "media.creditPrefix": "Source:",
+  // saved (★) articles
+  "media.tabBrowse": "Browse",
+  "media.tabFavorites": "★ Saved ({n})",
+  "media.favorite": "Save this article",
+  "media.unfavorite": "Remove from saved",
+  "media.noFavorites": "No saved articles yet — tap ☆ on a story to keep it here.",
   // in-depth article summary page
   "media.back": "Back",
   "media.backToAnalysis": "Back to analysis",
   "media.analyzing": "Analyzing the article…",
   "media.noWords": "No dictionary words found in this article.",
   "media.recommendedQuiz": "Recommended quiz · {n} words",
+  "media.reviewQuiz": "Review quiz · {n} words",
   "media.readArticle": "Read article",
   // word list — sort + filter
   "media.filterStatus": "Filter by status",
@@ -65,15 +73,15 @@ export const en = {
   "translate.showEnglish": "Show translation",
   "translate.glossPending": "Translating sentences…",
   "translate.submit": "Translate",
+  "translate.history": "This session",
+  "translate.historyReplay": "Translate “{text}” again",
+  "translate.historyClear": "Clear",
+  "translate.historyClearAria": "Clear this session's translation history",
   "translate.learning": "I'm learning:",
   "translate.learningAria": "Language I'm learning",
   "translate.addAll": "+ Add all {n} new {noun}",
   "translate.quizNew": "Quiz {n} new {noun}",
   "translate.reviewSaved": "Review {n} saved {noun}",
-  "translate.explore": "Explore related words",
-  "translate.exploreLoading": "Finding related words…",
-  "translate.noDomain":
-    "No related words at your level — try a longer or more common passage.",
 
   "translate.clearInput": "Clear input",
 
@@ -102,6 +110,10 @@ export const en = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "Scan text from a photo",
+  "ocr.cropHint": "Drag to select just the text you want.",
+  "ocr.cropAria": "Crop selection",
+  "ocr.photoAria": "Captured photo",
+  "ocr.recognize": "Recognize",
   "ocr.noText": "No text found in the photo.",
   "ocr.error": "Couldn’t read the photo. Try again.",
 
@@ -124,12 +136,18 @@ export const en = {
   "lists.reviewCappedTitle": "Review up to 20 of these words with flashcards",
   "lists.reviewAll": "▶ Review All ({n})",
   "lists.reviewAllTitle": "Review every one of these {n} words (no 20-word cap)",
+  "common.back": "Back",
+  "reader.translateSentence": "Translate this sentence",
+  // The mic dictates into the input box; there is no listening SCREEN any more, so
+  // the copy names the box. (The transcript view's own strings went with it.)
+  "listen.tool": "Dictate into the box",
+  "listen.stop": "Stop dictating",
   "lists.summaryBtn": "◔ Summary",
   "lists.summaryTitle": "Confidence, frequency and level across these words",
   "lists.deleteConfirm": "Delete the list \"{name}\"? Words stay in your vocabulary.",
   "lists.deleteWordConfirm": "Delete \"{word}\" from your vocabulary? This removes it from all lists and its review history.",
   "lists.removeFromListConfirm": "Remove \"{word}\" from \"{list}\"? It stays in your vocabulary.",
-  "lists.deleteListTitle": "Delete this sub-list",
+  "lists.deleteListTitle": "Delete this list",
   "lists.deleteListBtn": "Delete list",
   "lists.sortNewest": "Newest",
   "lists.sortOldest": "Oldest",
@@ -191,7 +209,7 @@ export const en = {
   // row
   "lists.editMeaningAria": "Edit meaning",
   "lists.editMeaningTitle": "Edit meaning",
-  "lists.addToSublist": "Add to a sub-list",
+  "lists.addToList": "Add to a list",
   "lists.select": "Select",
   "lists.selectDone": "Done",
   "lists.selectAll": "Select all",
@@ -206,6 +224,10 @@ export const en = {
   "lists.infoAria": "Added {added}, last reviewed {reviewed}",
   "lists.infoTitle": "Added: {added}\nLast reviewed: {reviewed}",
   "lists.never": "never",
+  // sense enrichment (20260750) — the example-sentence disclosure on a word row
+  "sense.showExample": "Example",
+  "sense.hideExample": "Hide example",
+  "sense.definition": "Japanese definition",
   // period filter
   "lists.added": "Added",
   "lists.addedAria": "Filter by date added",
@@ -275,6 +297,8 @@ export const en = {
   "quiz.scopeLearn": "Quizzing new words from this text",
   "quiz.addToList": "Add this meaning to your list",
   "quiz.added": "Added to your list",
+  "quiz.showContext": "Show in context",
+  "quiz.hideContext": "Hide context",
   "quiz.prevMeaning": "Previous meaning",
   "quiz.nextMeaning": "Next meaning",
   "quiz.meaningPos": "{i} / {n}",
@@ -296,16 +320,6 @@ export const en = {
   "learn.findLevel": "Find my level",
   "learn.recalibrate": "Retake level check",
   "learn.language": "Language",
-  "learn.swipe.dontKnow": "Don't know",
-  "learn.swipe.know": "Know",
-  "learn.swipe.reveal": "Reveal",
-  "learn.swipe.stop": "Stop",
-  "learn.swipe.hint": "Swipe → if you know it, ← if you don't. Tap the card to reveal.",
-  "learn.swipe.summary": "{known} known · {unknown} to learn",
-  "learn.swipe.loadingMore": "Finding more words…",
-  "learn.swipe.finished": "That's every new word at {level}. 🎉",
-  "learn.swipe.stopped": "Session paused.",
-  "learn.swipe.done": "Done",
 
   // calibration ("Find my level" placement quiz)
   "calib.instruction": "Tap the words you DON'T know.",
@@ -376,6 +390,7 @@ export const en = {
   "auth.toSignIn": "Already have an account? Sign in",
   "auth.toSignUp": "No account? Create one",
   "auth.google": "Continue with Google",
+  "auth.apple": "Continue with Apple",
   "auth.confirmEmail": "Check your email to confirm your address, then you're all set.",
   "auth.agreePre": "I agree to the ",
   "auth.termsLink": "Terms of Service",
@@ -403,6 +418,7 @@ export const en = {
   // legal
   "legal.privacy": "Privacy",
   "legal.terms": "Terms",
+  "legal.support": "Support",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -427,14 +443,22 @@ export const ja: Record<MessageKey, string> = {
   "media.loadingArticle": "読み込み中…",
   "media.readOnWikinews": "ウィキニュースで開く",
   "media.empty": "この記事には読めるテキストがありません。",
+  "media.noArticles": "記事がありません。「更新」を押してみてください。",
   "media.source": "記事本文はウィキニュースより（CC BY 2.5）。",
   "media.creditPrefix": "出典:",
+  // saved (★) articles
+  "media.tabBrowse": "一覧",
+  "media.tabFavorites": "★ 保存済み ({n})",
+  "media.favorite": "この記事を保存",
+  "media.unfavorite": "保存から削除",
+  "media.noFavorites": "保存した記事はまだありません。☆ を押すとここに残ります。",
   // in-depth article summary page
   "media.back": "戻る",
   "media.backToAnalysis": "分析に戻る",
   "media.analyzing": "記事を分析中…",
   "media.noWords": "この記事に辞書の単語が見つかりませんでした。",
   "media.recommendedQuiz": "おすすめクイズ · {n}語",
+  "media.reviewQuiz": "復習クイズ · {n}語",
   "media.readArticle": "記事を読む",
   // word list — sort + filter
   "media.filterStatus": "状態で絞り込み",
@@ -458,15 +482,15 @@ export const ja: Record<MessageKey, string> = {
   "translate.showEnglish": "訳を表示",
   "translate.glossPending": "文ごとに翻訳中…",
   "translate.submit": "翻訳",
+  "translate.history": "今回の履歴",
+  "translate.historyReplay": "「{text}」をもう一度翻訳",
+  "translate.historyClear": "消去",
+  "translate.historyClearAria": "今回の翻訳履歴を消去",
   "translate.learning": "学習中の言語：",
   "translate.learningAria": "学習する言語",
   "translate.addAll": "新しい{noun}{n}個をすべて追加",
   "translate.quizNew": "新しい{noun}{n}個をクイズ",
   "translate.reviewSaved": "保存済みの{noun}{n}個を復習",
-  "translate.explore": "関連語を探す",
-  "translate.exploreLoading": "関連語を検索中…",
-  "translate.noDomain":
-    "あなたのレベルに合う関連語が見つかりません。より長い、または一般的な文章をお試しください。",
 
   "translate.clearInput": "入力を消去",
 
@@ -495,6 +519,10 @@ export const ja: Record<MessageKey, string> = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "写真から文字を読み取る",
+  "ocr.cropHint": "読み取りたい部分をドラッグして選んでください。",
+  "ocr.cropAria": "切り取り範囲",
+  "ocr.photoAria": "撮影した写真",
+  "ocr.recognize": "読み取る",
   "ocr.noText": "写真から文字が見つかりませんでした。",
   "ocr.error": "写真を読み取れませんでした。もう一度お試しください。",
 
@@ -515,12 +543,16 @@ export const ja: Record<MessageKey, string> = {
   "lists.reviewCappedTitle": "これらの単語を最大20語までフラッシュカードで復習",
   "lists.reviewAll": "▶ すべて復習 ({n})",
   "lists.reviewAllTitle": "これら{n}語すべてを復習（20語の上限なし）",
+  "common.back": "戻る",
+  "reader.translateSentence": "この文を翻訳",
+  "listen.tool": "音声で入力する",
+  "listen.stop": "音声入力を停止",
   "lists.summaryBtn": "◔ サマリー",
   "lists.summaryTitle": "これらの単語の自信度・頻度・レベルの内訳",
   "lists.deleteConfirm": "リスト「{name}」を削除しますか？単語は語彙に残ります。",
   "lists.deleteWordConfirm": "「{word}」を語彙から削除しますか？すべてのリストと復習履歴からも削除されます。",
   "lists.removeFromListConfirm": "「{word}」を「{list}」から外しますか？語彙には残ります。",
-  "lists.deleteListTitle": "このサブリストを削除",
+  "lists.deleteListTitle": "このリストを削除",
   "lists.deleteListBtn": "リストを削除",
   "lists.sortNewest": "新しい順",
   "lists.sortOldest": "古い順",
@@ -575,7 +607,7 @@ export const ja: Record<MessageKey, string> = {
   "lists.otherMeanings": "他の意味（{n}）",
   "lists.editMeaningAria": "意味を編集",
   "lists.editMeaningTitle": "意味を編集",
-  "lists.addToSublist": "サブリストに追加",
+  "lists.addToList": "リストに追加",
   "lists.select": "選択",
   "lists.selectDone": "完了",
   "lists.selectAll": "すべて選択",
@@ -590,6 +622,9 @@ export const ja: Record<MessageKey, string> = {
   "lists.infoAria": "追加日 {added}、最終復習 {reviewed}",
   "lists.infoTitle": "追加日：{added}\n最終復習：{reviewed}",
   "lists.never": "なし",
+  "sense.showExample": "例文",
+  "sense.hideExample": "例文を隠す",
+  "sense.definition": "国語辞典の語釈",
   "lists.added": "追加",
   "lists.addedAria": "追加日でフィルター",
   "lists.reviewed": "復習",
@@ -655,6 +690,8 @@ export const ja: Record<MessageKey, string> = {
   "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
   "quiz.addToList": "この意味をリストに追加",
   "quiz.added": "リストに追加済み",
+  "quiz.showContext": "文脈を表示",
+  "quiz.hideContext": "文脈を隠す",
   "quiz.prevMeaning": "前の意味",
   "quiz.nextMeaning": "次の意味",
   "quiz.meaningPos": "{i} / {n}",
@@ -675,16 +712,6 @@ export const ja: Record<MessageKey, string> = {
   "learn.findLevel": "レベルを診断",
   "learn.recalibrate": "レベル診断をやり直す",
   "learn.language": "言語",
-  "learn.swipe.dontKnow": "わからない",
-  "learn.swipe.know": "わかる",
-  "learn.swipe.reveal": "答えを見る",
-  "learn.swipe.stop": "終了",
-  "learn.swipe.hint": "知っていれば右へ、知らなければ左へスワイプ。タップで答えを表示。",
-  "learn.swipe.summary": "わかる {known}・学習する {unknown}",
-  "learn.swipe.loadingMore": "単語をさがしています…",
-  "learn.swipe.finished": "{level} の新しい単語はこれで全部です。🎉",
-  "learn.swipe.stopped": "セッションを中断しました。",
-  "learn.swipe.done": "完了",
 
   // calibration ("Find my level" placement quiz)
   "calib.instruction": "知らない単語をタップしてください。",
@@ -751,6 +778,7 @@ export const ja: Record<MessageKey, string> = {
   "auth.toSignIn": "すでにアカウントをお持ちですか？ログイン",
   "auth.toSignUp": "アカウントがありませんか？作成する",
   "auth.google": "Google で続ける",
+  "auth.apple": "Apple で続ける",
   "auth.confirmEmail": "メールを確認してアドレスを認証してください。それで完了です。",
   "auth.agreePre": "",
   "auth.termsLink": "利用規約",
@@ -776,6 +804,7 @@ export const ja: Record<MessageKey, string> = {
 
   "legal.privacy": "プライバシー",
   "legal.terms": "利用規約",
+  "legal.support": "サポート",
 };
 
 export const LOCALES = [
