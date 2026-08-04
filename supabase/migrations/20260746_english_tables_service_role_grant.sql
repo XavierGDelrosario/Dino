@@ -1,0 +1,48 @@
+-- =========================================================
+-- english_frequency / english_proficiency — GRANT SELECT to service_role.
+--
+-- THE BUG: 20260721 and 20260722 create these two tables and `ENABLE ROW LEVEL
+-- SECURITY`, but never grant anything. RLS keeps clients out, which was the intent —
+-- except service_role only bypasses RLS, it does NOT bypass table GRANTs. So the edge
+-- function, which reads both tables when projecting EN→JA, got:
+--
+--   [Error] english_frequency lookup failed: permission denied for table english_frequency
+--   [Error] english_proficiency lookup failed: permission denied for table english_proficiency
+--
+-- Both readers (applyEnglishFrequency / applyEnglishProficiency in index.ts) are
+-- deliberately FAIL-OPEN — a leveling lookup must never 500 a translation — so nothing
+-- surfaced. The damage is silent and wrong-looking rather than loud: every EN→JA row got
+-- cached carrying the matched JAPANESE word's frequency and JLPT band instead of the
+-- English input's own wordfreq score and CEFR band. Observed on a fresh local DB, band-1
+-- (A1) learn cards: "best" cached as band 3 (最高's JLPT level), "well" as band 3,
+-- "day" split across bands 1/2 depending on which Japanese sense the row held. The
+-- English tab reads exactly this column to show a learner their level, and the SRS ease
+-- (migration 20260731) reads it to decide how far a word sits below the user — so a
+-- wrong band mis-schedules the word too.
+--
+-- WHY IT NEVER SHOWED UP ON PROD: prod's copies of these tables carry broad grants
+-- (SELECT/INSERT/UPDATE/DELETE for anon, authenticated AND service_role) that this
+-- repo's migrations do not produce — drift from some out-of-band grant. So prod happens
+-- to work while every environment built from the migrations alone (local, CI, a new
+-- staging) is silently broken. That asymmetry is the real hazard: the bug is invisible
+-- exactly where the data is checked, and present exactly where a new environment starts.
+--
+-- The fix mirrors 20260703_wordnet.sql:226, which got this right for the wordnet_*
+-- tables (`GRANT SELECT ON … TO service_role`), and jmdict_* before it.
+--
+-- The REVOKEs then re-assert the documented intent — these are SERVER-ONLY tables, like
+-- jmdict_* and wordnet_* — and bring prod back in line with the migrations. They are not
+-- load-bearing for security (RLS is on and there are no policies, so anon/authenticated
+-- are already blocked whatever the grant says); they remove a redundant privilege that
+-- should never have been there, and stop the drift from being inherited by the next
+-- environment cloned from prod.
+--
+-- AFTER APPLYING: rows cached while the grant was missing keep their wrong band. They
+-- heal on re-projection, which is what the projection_version gate is for; on an
+-- environment that never had correct EN rows (a fresh local), deleting the unreferenced
+-- EN cache rows is enough — see the note in docs/TODO.md.
+-- =========================================================
+
+GRANT SELECT ON english_frequency, english_proficiency TO service_role;
+
+REVOKE ALL ON english_frequency, english_proficiency FROM anon, authenticated;
