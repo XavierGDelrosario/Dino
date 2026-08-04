@@ -80,29 +80,37 @@ export function QualityPanel() {
       description="Log a translation that came back wrong: what you typed, and what was inaccurate about the result. Resolve one once it's been fixed."
     >
       <div className="admin__form admin__form--stack">
-        <input
-          className="admin__input"
-          placeholder="Input — the word or sentence you translated"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <textarea
-          className="admin__input admin__textarea"
-          placeholder="Description — what was inaccurate (wrong sense, missing word, bad reading…)"
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <button
-          type="button"
-          className="admin__seg-btn admin__seg-btn--on"
-          disabled={busy || !ready}
-          onClick={submit}
-        >
-          {busy ? "Saving…" : "Report issue"}
-        </button>
+        <label className="admin__field">
+          <span className="admin__field-label">input</span>
+          <input
+            className="admin__input"
+            placeholder="the word or sentence you translated"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
+        </label>
+        <label className="admin__field">
+          <span className="admin__field-label">what was inaccurate</span>
+          <textarea
+            className="admin__input admin__textarea"
+            placeholder="wrong sense, missing word, bad reading…"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <div className="admin__form-actions">
+          <button
+            type="button"
+            className="admin__seg-btn admin__seg-btn--on"
+            disabled={busy || !ready}
+            onClick={submit}
+          >
+            {busy ? "Saving…" : "Report issue"}
+          </button>
+          {msg && <span className="admin__muted">{msg}</span>}
+        </div>
       </div>
-      {msg && <p className="admin__muted">{msg}</p>}
 
       <div className="admin__filters">
         <div className="admin__seg">
@@ -117,12 +125,15 @@ export function QualityPanel() {
             </button>
           ))}
         </div>
-        <button type="button" className="admin__seg-btn" onClick={reload}>Refresh</button>
+        <button type="button" className="admin__seg-btn admin__filters-end" onClick={reload}>
+          Refresh
+        </button>
       </div>
 
       <AdminStatus error={formErr ?? error} pending={reports == null && formErr == null} />
 
       {reports && (
+        <div className="admin__tablewrap">
         <table className="admin__table">
           <thead>
             <tr><th>When</th><th>Input</th><th>Description</th><th>Status</th><th /></tr>
@@ -140,8 +151,12 @@ export function QualityPanel() {
             {reports.map((r) => (
               <tr key={r.id}>
                 <td className="admin__nowrap">{formatDateTime(r.reportedAt)}</td>
-                <td className="admin__bucket">{r.input}</td>
-                <td>{r.description}</td>
+                <td>
+                  {/* A reported input can be a whole sentence — clamp it, keep the
+                      description as the column that's allowed to wrap. */}
+                  <span className="admin__bucket admin__truncate" title={r.input}>{r.input}</span>
+                </td>
+                <td className="admin__wrap">{r.description}</td>
                 <td>
                   {r.status === "resolved" ? (
                     <span
@@ -155,19 +170,22 @@ export function QualityPanel() {
                   )}
                 </td>
                 <td className="admin__nowrap">
-                  <button
-                    type="button"
-                    className="admin__seg-btn"
-                    disabled={busyId === r.id}
-                    onClick={() => toggleStatus(r)}
-                  >
-                    {busyId === r.id ? "…" : r.status === "open" ? "Resolve" : "Reopen"}
-                  </button>
+                  <div className="admin__rowactions">
+                    <button
+                      type="button"
+                      className="admin__seg-btn"
+                      disabled={busyId === r.id}
+                      onClick={() => toggleStatus(r)}
+                    >
+                      {busyId === r.id ? "…" : r.status === "open" ? "Resolve" : "Reopen"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </AdminPanel>
   );

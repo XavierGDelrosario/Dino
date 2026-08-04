@@ -75,7 +75,9 @@ export function UsagePanel() {
             </button>
           ))}
         </div>
-        <button type="button" className="admin__seg-btn" onClick={reload}>Refresh</button>
+        <button type="button" className="admin__seg-btn admin__filters-end" onClick={reload}>
+          Refresh
+        </button>
       </div>
 
       <AdminStatus error={error} pending={usage == null} />
@@ -95,22 +97,24 @@ export function UsagePanel() {
             <span className="admin__stat-value">{formatCount(userTotal)}</span>
           </div>
 
-          <table className="admin__table">
-            <thead>
-              <tr><th>User bucket</th><th className="admin__num">Characters</th></tr>
-            </thead>
-            <tbody>
-              {usage.users.length === 0 && (
-                <tr><td colSpan={2} className="admin__muted">No per-user usage in {selected.title}.</td></tr>
-              )}
-              {usage.users.map((u) => (
-                <tr key={u.bucket}>
-                  <td className="admin__bucket">{u.bucket}</td>
-                  <td className="admin__num">{formatCount(u.charsUsed)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="admin__tablewrap">
+            <table className="admin__table">
+              <thead>
+                <tr><th>User bucket</th><th className="admin__num">Characters</th></tr>
+              </thead>
+              <tbody>
+                {usage.users.length === 0 && (
+                  <tr><td colSpan={2} className="admin__muted">No per-user usage in {selected.title}.</td></tr>
+                )}
+                {usage.users.map((u) => (
+                  <tr key={u.bucket}>
+                    <td className="admin__bucket">{u.bucket}</td>
+                    <td className="admin__num">{formatCount(u.charsUsed)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </AdminPanel>

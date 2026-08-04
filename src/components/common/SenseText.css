@@ -62,7 +62,7 @@
 }
 
 .sense__add:hover {
-  background: rgba(110, 168, 254, 0.15);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .sense__saved {

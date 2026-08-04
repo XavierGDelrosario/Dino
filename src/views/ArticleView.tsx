@@ -2,17 +2,19 @@
 // Wikipedia article (word lookups via the reader pipeline) and shows, in order:
 //   · the summary graphs (AnalyzeInfographic — coverage + confidence/freq/level)
 //   · a RECOMMENDED quiz (the article's new words, common + easy first — the fastest
-//     route to ~95% comprehension) + a "Read article" hand-off to the reader
+//     route to ~95% comprehension; once none are left it tops up with the article's
+//     least-confident saved words) + a "Read article" hand-off to the reader
 //   · a sortable / filterable list of the unique registered words in the article
 // Non-registered words (no dictionary entry) are disregarded throughout.
 import { useEffect, useMemo, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
 import { ArticleWordList } from "../components/media/ArticleWordList";
+import { FavoriteStar, type FavoriteState } from "../components/media/FavoriteStar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
 import { TextQuizView } from "./TextQuizView";
 import { summarizeReader } from "../services/analyze/summarize";
-import { articleWordList, sortWords } from "../services/analyze/wordlist";
+import { articleWordList, quizWords } from "../services/analyze/wordlist";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n } from "../i18n";
 import type { Article } from "../services/media/mediawiki";
@@ -25,10 +27,18 @@ export function ArticleView({
   userId,
   article,
   onBack,
+  favorite,
 }: {
   userId: string;
   article: Article;
   onBack: () => void;
+  /**
+   * The ★ for this article, supplied by whoever opened it (Media owns the state).
+   * OPTIONAL on purpose: this view is the generic analysis surface, and a source
+   * with no canonical URL — pasted text, a scan — has nothing to save a pointer
+   * to. Omit it and no star renders.
+   */
+  favorite?: FavoriteState;
 }) {
   const t = useTranslate(userId);
   const { t: tr } = useI18n();
@@ -54,10 +64,10 @@ export function ArticleView({
   const rows = useMemo(() => (analysis ? articleWordList(analysis) : []), [analysis]);
   const summary = useMemo(() => (analysis ? summarizeReader(analysis) : null), [analysis]);
 
-  const recommended = useMemo(
-    () => sortWords(rows.filter((r) => r.status === "new"), "recommended").map((r) => r.senses),
-    [rows],
-  );
+  // New words first, then the least-confident saved ones — so the quiz survives
+  // studying the article (see quizWords). `hasNew` only picks the button's wording.
+  const quizRows = useMemo(() => quizWords(rows, RECOMMENDED_QUIZ_CAP), [rows]);
+  const hasNew = useMemo(() => quizRows.some((r) => r.status === "new"), [quizRows]);
 
   // Quiz = full takeover (same .review column sizing as Review / Learn).
   if (quiz) {
@@ -68,6 +78,7 @@ export function ArticleView({
           cards={quiz}
           lists={t.lists}
           mode="learn"
+          context={t.contextByWord}
           onGraded={t.applyReview}
           onCreateList={t.createNamedList}
           onClose={() => setQuiz(null)}
@@ -86,7 +97,10 @@ export function ArticleView({
           <button className="btn btn--ghost btn--sm" onClick={() => setReading(false)}>
             ← {tr("media.backToAnalysis")}
           </button>
-          <h2 className="article__title">{article.title}</h2>
+          <div className="article__titleRow">
+            <h2 className="article__title">{article.title}</h2>
+            {favorite && <FavoriteStar {...favorite} />}
+          </div>
           <p className="reader__source">
             {tr("media.creditPrefix")}{" "}
             <a href={article.url} target="_blank" rel="noopener noreferrer">
@@ -102,6 +116,7 @@ export function ArticleView({
           meaningsByWord={analysis.meaningsByWord}
           sentences={t.para?.sentences}
           onLoadGloss={t.loadGloss}
+          onTranslateSentence={t.loadSentenceGloss}
           glossLoading={t.glossLoading}
           saved={t.saved}
           confidence={t.confidence}
@@ -119,7 +134,10 @@ export function ArticleView({
         <button className="btn btn--ghost btn--sm" onClick={onBack}>
           ← {tr("media.back")}
         </button>
-        <h2 className="article__title">{article.title}</h2>
+        <div className="article__titleRow">
+          <h2 className="article__title">{article.title}</h2>
+          {favorite && <FavoriteStar {...favorite} />}
+        </div>
         <p className="reader__source">
           {tr("media.creditPrefix")}{" "}
           <a href={article.url} target="_blank" rel="noopener noreferrer">
@@ -138,12 +156,12 @@ export function ArticleView({
           <AnalyzeInfographic data={summary.data} />
 
           <div className="article__actions">
-            {recommended.length > 0 && (
+            {quizRows.length > 0 && (
               <button
                 className="btn btn--primary"
-                onClick={() => setQuiz(recommended.slice(0, RECOMMENDED_QUIZ_CAP))}
+                onClick={() => setQuiz(quizRows.map((r) => r.senses))}
               >
-                {tr("media.recommendedQuiz", { n: Math.min(RECOMMENDED_QUIZ_CAP, recommended.length) })}
+                {tr(hasNew ? "media.recommendedQuiz" : "media.reviewQuiz", { n: quizRows.length })}
               </button>
             )}
             <button className="btn btn--ghost" onClick={() => setReading(true)}>
@@ -152,6 +170,7 @@ export function ArticleView({
           </div>
 
           <ArticleWordList
+            userId={userId}
             rows={rows}
             lists={t.lists}
             onAdd={t.addWords}

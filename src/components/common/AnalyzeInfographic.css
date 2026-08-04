@@ -44,7 +44,7 @@
 }
 
 .agx-tab.is-active {
-  background: color-mix(in srgb, var(--accent, #4f8cff) 20%, transparent);
+  background: color-mix(in srgb, var(--accent, #a78bfa) 20%, transparent);
   color: var(--text, #e7e9ee);
 }
 
@@ -63,7 +63,7 @@
 .agx-know.is-on,
 .agx-know:hover {
   color: var(--text, #e7e9ee);
-  border-color: var(--accent, #4f8cff);
+  border-color: var(--accent, #a78bfa);
 }
 
 /* ── Body: pie beside the (tabs + selected chart) column ──────────── */

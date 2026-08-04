@@ -28,6 +28,7 @@ import { Pager } from "../common/Pager";
 import { PAGE_SIZE } from "../../lib/pagination";
 import { WordInfoButton } from "../common/WordInfo";
 import { AddToListButton } from "../translate/AddToListButton";
+import { SenseExample } from "../common/SenseExample";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { useI18n } from "../../i18n";
@@ -66,8 +67,11 @@ function ArticleRow({
   lists,
   onAdd,
   onCreateList,
+  userId,
 }: {
   row: ArticleWord;
+  /** Whose knowledge colours the example sentence's words. */
+  userId: string;
   lists: List[];
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
@@ -109,15 +113,29 @@ function ArticleRow({
         </div>
       </div>
 
-      <div className="listrow__meaning">
-        {meanings.map((m, i) => (
-          <span key={i} className="listrow__meaning-line">
-            {m}
-            {i === 0 && row.primary.translationReading && (
-              <em className="listrow__reading">{row.primary.translationReading}</em>
-            )}
-          </span>
-        ))}
+      {/* Bottom strip, matching a Lists row: the meaning(s) on the left and the example
+          disclosure on the right. The wrapper is what lets the opened panel take a
+          full-width line under the rule (see .listrow__foot / .senseex). */}
+      <div className="listrow__foot">
+        <div className="listrow__meaning">
+          {meanings.map((m, i) => (
+            <span key={i} className="listrow__meaning-line">
+              {m}
+              {i === 0 && row.primary.translationReading && (
+                <em className="listrow__reading">{row.primary.translationReading}</em>
+              )}
+            </span>
+          ))}
+        </div>
+
+        <SenseExample
+          example={row.primary.example}
+          exampleGloss={row.primary.exampleGloss}
+          definitionSource={row.primary.definitionSource}
+          userId={userId}
+          sourceLang={row.primary.sourceLang}
+          targetLang={row.primary.targetLang}
+        />
       </div>
     </li>
   );
@@ -128,8 +146,10 @@ export function ArticleWordList({
   lists,
   onAdd,
   onCreateList,
+  userId,
 }: {
   rows: ArticleWord[];
+  userId: string;
   lists: List[];
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
@@ -228,6 +248,7 @@ export function ArticleWordList({
               <ArticleRow
                 key={r.primary.wordId}
                 row={r}
+                userId={userId}
                 lists={lists}
                 onAdd={onAdd}
                 onCreateList={onCreateList}

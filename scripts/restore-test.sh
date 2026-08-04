@@ -33,7 +33,7 @@ fi
 
 HERE="$(dirname "$0")"
 SCRATCH="dino_restore_test"
-TABLES=(users user_limits translation_usage words lists user_words list_words review_log)
+TABLES=(users user_limits translation_usage words lists user_words list_words review_log media_favorites)
 
 # Scratch-sandbox ops — ALWAYS the local container.
 psql() { docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 "$@"; }

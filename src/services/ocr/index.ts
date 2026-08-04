@@ -2,17 +2,20 @@
 // OCR facade — import from "./ocr".
 //
 //   isOcrAvailable(lang?)        is camera OCR usable on this platform?
+//   capturePhoto()               take a photo ONLY (so the UI can crop it first)
+//   recognizeText({ base64 })    recognize an image → reading-order text
 //   captureText({ lang })        take a photo → recognize → reading-order text
 //   captureResult({ lang })      same, but the full OcrResult (text + geometry),
 //                                for the future image overlay (Mode B)
 //
-// Mode A: the UI calls captureText, drops the result into the translate input, and
-// submits — the existing paragraph reader does the rest. Backends live behind
-// registry.ts (native iOS Vision today); types.ts is the seam.
+// Mode A: the UI calls capturePhoto, lets the user crop (ImageCropper), then
+// recognizeText — and drops the result into the translate input. The uncropped
+// captureText path is kept for callers that don't want the crop step. Backends live
+// behind registry.ts (native iOS Vision today); types.ts is the seam.
 // =========================================================
 
 import type { LangCode } from "../language";
-import type { OcrResult } from "./types";
+import type { OcrImage, OcrResult } from "./types";
 import { resolveRecognizer } from "./registry";
 import { blocksToText } from "./readingOrder";
 
@@ -22,6 +25,28 @@ export async function isOcrAvailable(lang?: LangCode): Promise<boolean> {
   const recognizer = await resolveRecognizer();
   if (!recognizer) return false;
   return lang ? recognizer.supports(lang) : true;
+}
+
+/** Take a photo WITHOUT recognizing it, so the UI can offer a crop step first.
+ *  Null if the user cancelled the camera or there's no backend. */
+export async function capturePhoto(): Promise<OcrImage | null> {
+  const recognizer = await resolveRecognizer();
+  if (!recognizer) return null;
+  return recognizer.captureImage();
+}
+
+/** Recognize an already-captured (possibly cropped) image → blocks + geometry. */
+export async function recognizeImage(opts: { base64: string; lang: LangCode }): Promise<OcrResult | null> {
+  const recognizer = await resolveRecognizer();
+  if (!recognizer) return null;
+  return recognizer.recognizeImage(opts);
+}
+
+/** Recognize an already-captured image → text in horizontal reading order
+ *  (empty string if nothing was recognized / no backend). */
+export async function recognizeText(opts: { base64: string; lang: LangCode }): Promise<string> {
+  const result = await recognizeImage(opts);
+  return result ? blocksToText(result.blocks) : "";
 }
 
 /** Take a photo and return the recognized blocks + geometry, or null if cancelled
@@ -41,3 +66,4 @@ export async function captureText(opts: { lang: LangCode }): Promise<string> {
 }
 
 export * from "./types";
+export * from "./crop";
