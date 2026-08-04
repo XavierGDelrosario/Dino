@@ -37,6 +37,27 @@
 // cached EN→JA row carries the old, wrong primary sense (run→実行, light→簡単) and has
 // to re-project.
 //
+// v11 (20260747): `wordnet_en_ja_lookup` now ranks by the same headline_rank the gloss
+// search uses — how PRIMARY the English word is inside the entry — instead of by
+// Japanese corpus frequency, which had every lemma touching the top synset tied at
+// rank 0 and let 言う (freq 568) beat 走る (446) for "run".
+//   ⚠️ SCOPE, measured on prod rather than assumed: the edge merge ALREADY demotes
+//   WordNet to last (intersection → gloss → WordNet, since 2026-07-31), so the TOP
+//   result is unchanged — 0 of 30 sampled words changed at position 1, because the
+//   gloss path answers for all of them and leads. What changes is the WordNet-only
+//   TAIL: 10 of 30 changed within the top 3, 20 of 30 at some position. That tail is
+//   also the only thing WordNet decides outright, for words the gloss search misses
+//   entirely. Cached rows carry the old tail order until re-projected — which is what
+//   this bump is for. Do not read the migration's own "17/30 → 30/30" as a user-facing
+//   number: that was the raw SQL function in isolation, before the merge demotes it.
+//
+// v12 (2026-08-01): EN→JA function words are TERMINAL and an inflected verb prefers
+// verb senses. Unlike v11 this changes WHICH senses exist, not just their order —
+// prod had cached `an` → 1, `is` → ある, `my` → マイ, and those rows are already
+// stamped v11 so the gate considers them fresh. A row whose word no longer projects
+// simply stops being served (it lingers as dead storage until the deferred sweep);
+// `worked` re-projects with 働く ahead of 仕事.
+//
 // 20260750 (per-sense enrichment) DELIBERATELY DID NOT BUMP THIS, and the reason is
 // worth keeping — it is the one case so far where the right move was to leave the stamp
 // alone. The projection does now emit three more columns, which by the rule above reads
@@ -56,7 +77,7 @@
 // =========================================================
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 10;
+export const CURRENT_PROJECTION_VERSION = 12;
 
 /**
  * PostgREST filter for "this row is safe to serve from cache" — a projection at the

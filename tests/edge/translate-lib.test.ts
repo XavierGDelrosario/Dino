@@ -29,6 +29,11 @@ import {
   shouldSkipMt,
   isEchoTranslation,
   type ProviderResult,
+  isEnglishFunctionWord,
+  isMultiWord,
+  inflectedAsVerb,
+  inflectedVerbSurface,
+  preferVerbSenses,
 } from "../../supabase/functions/translate/_lib";
 
 /** Build a JWT-shaped token (unpadded base64url payload, like a real JWT). */
@@ -830,5 +835,132 @@ describe("lemmaCandidates — JA potential verbs", () => {
 
   it("still offers the する candidate, and both when they apply", () => {
     expect(lemmaCandidates("接す", "JA")).toEqual(["接す", "接する"]);
+  });
+});
+
+// ── EN→JA: grammar, inflection and phrases (2026-08-01) ────────────────────
+// Reported from the app: "my", "worked", "have worked", "an", "is" all returned
+// poor results. Three different causes, so three different guards.
+describe("isEnglishFunctionWord", () => {
+  it("catches the grammar words that had no useful entry", () => {
+    // Measured on prod: an→1, is→ある, my→マイ (the loanword, as in マイカー).
+    for (const w of ["an", "is", "my", "the", "a", "was", "their", "this", "it"]) {
+      expect(isEnglishFunctionWord(w), w).toBe(true);
+    }
+  });
+
+  it("leaves CONTENT words alone, including ones that are also grammatical", () => {
+    // Blocking these would be a worse bug than the one being fixed: they have real
+    // dictionary entries a learner wants.
+    for (const w of ["have", "can", "will", "work", "worked", "book", "run"]) {
+      expect(isEnglishFunctionWord(w), w).toBe(false);
+    }
+  });
+
+  it("is case- and space-insensitive, and never matches a phrase", () => {
+    expect(isEnglishFunctionWord("  My  ")).toBe(true);
+    expect(isEnglishFunctionWord("my book")).toBe(false); // a phrase is not a function word
+  });
+});
+
+describe("isMultiWord", () => {
+  it("separates a headword from a phrase", () => {
+    expect(isMultiWord("have worked")).toBe(true);
+    expect(isMultiWord("worked")).toBe(false);
+    expect(isMultiWord("  spaced   out  ")).toBe(true);
+  });
+});
+
+describe("inflectedAsVerb / preferVerbSenses", () => {
+  it("finds the lemma anywhere in the candidate list, not at a fixed position", () => {
+    // lemmaCandidates returns [SURFACE, ...lemmas], so reading the LAST entry picked up
+    // whatever the regular-form generator emitted last ("worke") and the bias never
+    // fired at all — measured live on prod before this was fixed.
+    expect(inflectedVerbSurface("worked", ["worked", "work", "worke"])).toBe(true);
+    expect(inflectedVerbSurface("working", ["working", "work"])).toBe(true);
+    // No differing candidate = never inflected, so no evidence either way.
+    expect(inflectedVerbSurface("bed", ["bed"])).toBe(false);
+    expect(inflectedVerbSurface("work", ["work"])).toBe(false);
+  });
+
+  it("reads -ed/-ing as a verb, but only when the surface actually inflected", () => {
+    expect(inflectedAsVerb("worked", "work")).toBe(true);
+    expect(inflectedAsVerb("working", "work")).toBe(true);
+    // Uninflected surface says nothing about POS — "work" is both noun and verb.
+    expect(inflectedAsVerb("work", "work")).toBe(false);
+    // A word that merely ENDS in -ed without inflecting is not evidence either.
+    expect(inflectedAsVerb("bed", "bed")).toBe(false);
+  });
+
+  it("lifts verb senses above nouns without dropping anything", () => {
+    // "worked" resolved to work's senses and led with 仕事 (noun) because the gloss
+    // "work" sits at sense 0 / gloss 0 of both and frequency broke the tie.
+    const senses = [
+      { translation: "仕事", partOfSpeech: ["n"] },
+      { translation: "作品", partOfSpeech: ["n"] },
+      { translation: "働く", partOfSpeech: ["v5k", "vi"] },
+      { translation: "制作", partOfSpeech: ["n", "vs"] },
+    ];
+    const out = preferVerbSenses(senses);
+    expect(out[0].translation).toBe("働く");
+    expect(out).toHaveLength(senses.length); // a bias, not a filter
+    // Order WITHIN each group is preserved (headline_rank survives). 制作 is ["n","vs"]
+    // — a NOUN that takes する — so it stays in the non-verb group; an earlier draft of
+    // this expectation encoded the bug where bare `vs` counted as a verb.
+    expect(out.map((s) => s.translation)).toEqual(["働く", "仕事", "作品", "制作"]);
+  });
+
+  it("does NOT treat `vs` (a noun that takes する) as a verb", () => {
+    // The distinction that makes the bias work at all. 仕事 is ["n","vs"] and 制作 is
+    // ["n","vs"] — both NOUNS. A first cut matched bare `vs`, so every noun counted as
+    // a verb and 仕事 stayed first. Same for bare vi/vt, which are transitivity
+    // markers: a real verb always carries a conjugation class too (働く = v5k + vi).
+    const out = preferVerbSenses([
+      { translation: "仕事", partOfSpeech: ["n", "vs"] },
+      { translation: "制作", partOfSpeech: ["n", "vs"] },
+      { translation: "働く", partOfSpeech: ["v5k", "vi"] },
+    ]);
+    expect(out.map((s) => s.translation)).toEqual(["働く", "仕事", "制作"]);
+  });
+
+  it("recognises the irregular する/来る classes", () => {
+    const out = preferVerbSenses([
+      { translation: "名詞", partOfSpeech: ["n"] },
+      { translation: "する", partOfSpeech: ["vs-i"] },
+      { translation: "来る", partOfSpeech: ["vk"] },
+    ]);
+    expect(out.map((s) => s.translation)).toEqual(["する", "来る", "名詞"]);
+  });
+
+  it("is a no-op when nothing is a verb", () => {
+    const senses = [{ translation: "本", partOfSpeech: ["n"] }];
+    expect(preferVerbSenses(senses)).toEqual(senses);
+  });
+});
+
+describe("orderSensesForInput — verb bias applies to CACHED rows too", () => {
+  // Projection-time ordering alone was measurably not enough: "worked" was already
+  // cached at the CURRENT version with 仕事 first, so the cache answered and the
+  // projection never re-ran. Ordering at read time needs no version bump.
+  const senses = [
+    { input: "worked", inputReading: null, translation: "仕事", partOfSpeech: ["n"] },
+    { input: "worked", inputReading: null, translation: "働く", partOfSpeech: ["v5k", "vi"] },
+  ];
+
+  it("lifts the verb for an inflected English surface", () => {
+    expect(orderSensesForInput("worked", senses).map((s) => s.translation)).toEqual(["働く", "仕事"]);
+  });
+
+  it("leaves an uninflected surface alone — 'work' is legitimately both", () => {
+    const asWork = senses.map((s) => ({ ...s, input: "work" }));
+    expect(orderSensesForInput("work", asWork).map((s) => s.translation)).toEqual(["仕事", "働く"]);
+  });
+
+  it("does not disturb Japanese headwords", () => {
+    const ja = [
+      { input: "行った", inputReading: "いった", translation: "went", partOfSpeech: ["v5k"] },
+      { input: "行った", inputReading: "いった", translation: "carried out", partOfSpeech: ["v5u"] },
+    ];
+    expect(orderSensesForInput("行った", ja).map((s) => s.translation)).toEqual(["went", "carried out"]);
   });
 });
