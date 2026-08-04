@@ -53,7 +53,32 @@ describe("findCachedWord", () => {
       proficiencyBand: null,
       jmdictEntryId: "1467640",
       jmdictSensePos: 0,
+      // Sense enrichment (20260750) — null for a row the authored corpus hasn't
+      // reached, which is most of them.
+      example: null,
+      exampleGloss: null,
+      definitionSource: null,
+      exampleReading: null,
       isVerified: true,
+    });
+  });
+
+  it("maps the authored sense enrichment when the row carries it", async () => {
+    stub.queueFrom("words", {
+      data: [
+        row({
+          example: "このいちごはとても甘い。",
+          example_gloss: "These strawberries are very sweet.",
+          definition_source: "砂糖や蜜のような味である。",
+        }),
+      ],
+      error: null,
+    });
+    const word = await findCachedWord({ input: "猫", sourceLang: "JA", targetLang: "EN" });
+    expect(word).toMatchObject({
+      example: "このいちごはとても甘い。",
+      exampleGloss: "These strawberries are very sweet.",
+      definitionSource: "砂糖や蜜のような味である。",
     });
   });
 

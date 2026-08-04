@@ -1,0 +1,12 @@
+# Without this file the SPA fallback in _redirects (/* -> /index.html 200) answers
+# /robots.txt with the HTML app shell. Most crawlers treat an unparseable robots.txt
+# as allow-all, but a stricter one can back off — and social scrapers (LinkedInBot,
+# facebookexternalhit, Twitterbot) fetch it before reading og:* tags, so a junk
+# response is a bad thing to hand the exact clients we want to render a share card.
+
+User-agent: *
+Allow: /
+
+# The kuromoji dictionary is ~17MB of binary shards behind /dict/ — useless to a
+# crawler and expensive to walk.
+Disallow: /dict/

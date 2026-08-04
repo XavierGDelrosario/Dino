@@ -16,6 +16,7 @@ import { getProficiency } from "../proficiency";
 import { getDifficulty } from "../difficulty";
 import type { Word } from "../words/repository";
 import type { ReaderAnalysisInput } from "./summarize";
+import { orderSensesByContextReading } from "./senseOrder";
 
 export interface ArticleWord {
   /** Dictionary headword (primary sense input). */
@@ -49,7 +50,12 @@ export function articleWordList(input: ReaderAnalysisInput): ArticleWord[] {
 
   for (const t of tokens) {
     if (!isContentPos(t.pos)) continue;
-    const senses = meaningsByWord.get(t.text) ?? [];
+    // Lead with the reading the analyzer gave this token (see analyze/senseOrder),
+    // so the row's primary — and the quiz card built from it — matches the furigana
+    // the reader displayed. The dedupe below keys on the resulting primary's wordId;
+    // in practice IPADIC returns one fixed reading per surface, so the same word
+    // still collapses to one row rather than splitting per occurrence.
+    const senses = orderSensesByContextReading(meaningsByWord.get(t.text) ?? [], t.reading);
     if (senses.length === 0) continue; // no dictionary entry — disregard
     const primary = senses[0];
 
@@ -124,6 +130,22 @@ export function sortWords(rows: ArticleWord[], axis: SortAxis, dir: SortDir = "l
         (a, b) => a.confidence - b.confidence || b.occurrences - a.occurrences || corpusOf(b) - corpusOf(a),
       );
   }
+}
+
+/**
+ * The article's quiz set, capped at `cap`: NEW words first (recommended order),
+ * then a top-up of the article's SAVED words in least-confident order. PURE.
+ *
+ * The top-up is the point: the quiz used to be new-words-only, so it emptied itself
+ * — quizzing the new words SAVES them, which flips them to "known" and shrank the
+ * set on every pass until the button vanished mid-study. An article you've already
+ * saved every word of is still the natural thing to review, so the set falls back
+ * to "the words in THIS article you hold least well" rather than disappearing.
+ */
+export function quizWords(rows: ArticleWord[], cap: number): ArticleWord[] {
+  const fresh = sortWords(rows.filter((r) => r.status === "new"), "recommended");
+  const known = sortWords(rows.filter((r) => r.status === "known"), "recommended");
+  return [...fresh, ...known].slice(0, Math.max(0, cap));
 }
 
 /** Apply the status filter (level filtering is done in the component from present bands). */

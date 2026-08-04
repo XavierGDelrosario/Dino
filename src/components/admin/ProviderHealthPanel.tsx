@@ -62,35 +62,53 @@ export function ProviderHealthPanel() {
       <AdminStatus error={formErr ?? error} pending={rows == null && formErr == null} />
 
       {rows && (
-        <table className="admin__table">
-          <thead>
-            <tr><th>Provider</th><th>Cred. expiry</th><th>Usage</th><th>Note</th><th></th></tr>
-          </thead>
-          <tbody>
-            {rows.map((p) => (
-              editing === p.provider ? (
-                <tr key={p.provider}>
-                  <td className="admin__bucket">{p.provider}</td>
-                  <td><input className="admin__input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} /></td>
-                  <td className="admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
-                  <td><input className="admin__input" value={note} onChange={(e) => setNote(e.target.value)} /></td>
-                  <td className="admin__nowrap">
-                    <button type="button" className="admin__seg-btn admin__seg-btn--on" disabled={busy} onClick={save}>Save</button>
-                    <button type="button" className="admin__seg-btn" onClick={() => setEditing(null)}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={p.provider}>
-                  <td className="admin__bucket">{p.provider}</td>
-                  <td>{expiryCell(p)}</td>
-                  <td className="admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
-                  <td className="admin__truncate" title={p.quotaNote ?? undefined}>{p.quotaNote ?? "—"}</td>
-                  <td className="admin__nowrap"><button type="button" className="admin__seg-btn" onClick={() => startEdit(p)}>Edit</button></td>
-                </tr>
-              )
-            ))}
-          </tbody>
-        </table>
+        <div className="admin__tablewrap">
+          <table className="admin__table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Cred. expiry</th>
+                <th className="admin__num">Usage</th>
+                <th>Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => (
+                editing === p.provider ? (
+                  <tr key={p.provider}>
+                    <td className="admin__bucket">{p.provider}</td>
+                    <td><input className="admin__input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} /></td>
+                    <td className="admin__num admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
+                    <td><input className="admin__input" value={note} onChange={(e) => setNote(e.target.value)} /></td>
+                    <td>
+                      <div className="admin__rowactions">
+                        <button type="button" className="admin__seg-btn admin__seg-btn--on" disabled={busy} onClick={save}>Save</button>
+                        <button type="button" className="admin__seg-btn" onClick={() => setEditing(null)}>Cancel</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={p.provider}>
+                    <td className="admin__bucket">{p.provider}</td>
+                    <td className="admin__nowrap">{expiryCell(p)}</td>
+                    <td className="admin__num admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
+                    <td>
+                      <span className="admin__truncate admin__muted" title={p.quotaNote ?? undefined}>
+                        {p.quotaNote ?? "—"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="admin__rowactions">
+                        <button type="button" className="admin__seg-btn" onClick={() => startEdit(p)}>Edit</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </AdminPanel>
   );

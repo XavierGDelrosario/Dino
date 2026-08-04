@@ -39,7 +39,7 @@
 
 .modetoggle__btn--active {
   background: var(--accent);
-  color: #0b1a2e;
+  color: #1b1030;
   font-weight: 600;
 }
 
@@ -88,25 +88,14 @@
    line never means looking away to a separate block. One sentence per row —
    the paragraph stops flowing on purpose, since a flowing paragraph has no
    place to put a per-sentence gloss. */
-.reader--glossed {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.reader__pair {
-  margin: 0;
-}
-
-.reader__source-line {
-  display: block;
-}
-
 /* Dimmer + smaller than the source, and indented, so the eye reads the
    Japanese first and the English as an annotation of it. */
+/* The INLINE gloss — only the "Show translation" toggle produces these, under every
+   sentence at once. A single tapped sentence answers in .glosscard instead, so
+   asking about one line never moves the paragraph. */
 .reader__gloss {
   display: block;
-  margin-top: 0.15rem;
+  margin: 0.15rem 0 0.35rem;
   padding-left: 0.9rem;
   border-left: 2px solid var(--border);
   font-size: 0.95rem;
@@ -259,6 +248,17 @@
   color: var(--muted);
 }
 
+/* The row above the input/output boxes: the centred language bar, plus the
+   history clock pinned to its right edge. Anchor for .thistory.
+   The z-index lifts this whole row (and the dropdown it contains) above
+   .translate__io, which is a LATER sibling and would otherwise paint its boxes
+   over the open panel. Stays below .hovercard (50) so the reader's word popover
+   still wins. */
+.translate__toolbar {
+  position: relative;
+  z-index: 30;
+}
+
 .langbar {
   display: flex;
   align-items: center;
@@ -332,6 +332,21 @@
   overflow-y: auto;
 }
 
+/* The INPUT scrolls but draws no scrollbar. .io__tools (clear / mic / camera) is
+   pinned to the same top-right corner, so the track ran directly beneath the
+   buttons and read as a stray line through them. Scrolling itself is untouched —
+   wheel, trackpad, keyboard and caret-follow all still work; only the visual track
+   is suppressed. Scoped to the textarea so the output box keeps its own scrollbar,
+   where nothing overlaps it. */
+textarea.translate__box {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+textarea.translate__box::-webkit-scrollbar {
+  display: none; /* WebKit / Blink */
+}
+
 /* Output box: read-only display of the plain translation. */
 .translate__out {
   background: var(--surface);
@@ -348,6 +363,126 @@
 .translate__submit {
   display: flex;
   justify-content: center;
+}
+
+/* Session translate history — a clock button beside Translate that opens a
+   dropdown of what you translated this session (components/translate/HistoryMenu).
+   It replaced an always-visible chip row: the history is a look-back, not part of
+   the translate flow, and the row pushed the study section down the page to show
+   text the user had just typed. */
+.thistory {
+  /* Out of the flow so the Translate button stays optically centred in its row —
+     and so it doesn't jump sideways when the first entry appears. */
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.thistory__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0.4rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.thistory__btn:hover,
+.thistory__btn[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.thistory__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 20;
+  width: min(20rem, calc(100vw - 2rem));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  text-align: left;
+}
+
+.thistory__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.thistory__title {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.thistory__clear {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  text-decoration: underline;
+}
+
+.thistory__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  /* A full session's worth of entries shouldn't run off the screen. */
+  max-height: 17rem;
+  overflow-y: auto;
+}
+
+.thistory__item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.thistory__item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.thistory__item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* A pasted paragraph is a valid entry — clamp it to two lines rather than letting
+   one entry own the panel. The full text stays on the title/aria-label. */
+.thistory__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.thistory__dir {
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 /* "I'm learning: [lang]" — the study target selector below the Translate button. */
@@ -387,6 +522,48 @@
 @media (max-width: 600px) {
   .translate__io {
     flex-direction: column;
+  }
+
+  /* THE HISTORY CLOCK JOINS THE FLOW. On desktop it's absolutely positioned at the
+     row's right edge so .langbar keeps its margin-inline:auto centring. On a phone
+     the bar fills nearly the whole width, so that put the clock ON TOP of the target
+     select — measured 32px of overlap at 320/375/390/430, i.e. every iPhone, with
+     the tap landing on the clock instead of the language. Centring is worth less
+     than being able to change the language you're translating into. */
+  .translate__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .langbar {
+    /* Give up the fixed cap + auto-centring so the bar shares the row. */
+    max-width: none;
+    margin-inline: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .thistory {
+    /* relative, not static: the dropdown is positioned against this element. */
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    flex: 0 0 auto;
+  }
+
+  /* Smaller language controls. The names are short ("Japanese"/"English") and were
+     set at desktop scale; trimming type + padding buys back ~50px of row. */
+  .langbar .select {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .langbar__swap {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.85rem;
   }
   /* Taller input/output boxes on mobile (1.5× the 8rem default) — more room to
      read/edit on a narrow screen. */
@@ -509,7 +686,7 @@
 }
 
 .add:hover:not(:disabled) {
-  background: rgba(110, 168, 254, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .add--done {
@@ -735,4 +912,118 @@
 
 .hw__cand:hover {
   border-color: var(--accent);
+}
+
+/* ---- Live listener (EXPERIMENT) -------------------------------------------
+   Transcript column: the committed, analyzed utterances render through the shared
+   reader above; this is the chrome around them. */
+.listen__bar {
+  display: flex;
+  align-items: stretch; /* one height for every control in the row */
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Listen/Stop, Clear and Add sit on one line, so they share a height. Padding
+   alone doesn't guarantee it once one of them wraps its label. */
+.listen__bar .btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+}
+
+.listen__close {
+  margin-left: auto;
+}
+
+/* The utterance still forming. Deliberately plain and muted — recognition rewrites
+   it on every syllable, so colouring it would strobe; committing is what earns the
+   colour. Italic marks it as provisional without adding chrome. */
+.listen__partial {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-style: italic;
+  min-height: 1.4em; /* reserve the line so the transcript doesn't jump */
+}
+
+/* ---- Per-sentence translate --------------------------------------------------
+   The sentence's closing 。 IS the button. It has to read as punctuation at rest —
+   the reader is for reading Japanese, and a row of buttons down the text would be
+   noise — so it only declares itself on hover/focus. `is-bought` marks a sentence
+   already paid for, so a second press is visibly free. */
+.reader__punct {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* A filled block behind the character was far louder than the character itself —
+   the mark is one glyph and the highlight was a whole em box. An underline is the
+   smallest thing that still reads as "this is pressable". */
+.reader__punct:hover,
+.reader__punct:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--accent, #a78bfa);
+  color: var(--accent, #a78bfa);
+  outline: none;
+}
+
+/* Already paid for: tinted, no underline. Says "free to press again" without
+   competing with the sentence for attention. */
+.reader__punct.is-bought {
+  color: var(--accent, #a78bfa);
+}
+
+/* The WHOLE translation, under text that has no punctuation to hang per-sentence
+   controls on (dictated speech, a headline, one typed line). Same annotation
+   styling as .reader__gloss — dimmer, smaller, set off by a rule — so the two
+   layouts read as the same feature answering in the only way each text allows. */
+.reader__whole {
+  margin: 0.5rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Back sits at the head of the bar; the actions that DO something (listen, clear,
+   add) follow it, so the leftmost control is always the way out. */
+/* Discrete: no button chrome at rest, muted like the surrounding text, brightening
+   only on hover. It is the way out, not something to be drawn toward. */
+.listen__back {
+  background: none;
+  border: none;
+  padding: 0.2rem;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.listen__back:hover,
+.listen__back:focus-visible {
+  color: var(--text);
+  opacity: 1;
+  background: none;
+}
+
+/* A sentence currently showing its translation gets its own line, with the English
+   directly beneath it. Both start at the same edge, so they align without anything
+   being measured — the reason the JS-measured indent was abandoned. Indented as a
+   PAIR so the two read as one unit set apart from the surrounding prose. */
+.reader__sentence {
+  display: block;
+  margin: 0.35rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent, #a78bfa);
+}
+
+/* Inside its own block the gloss no longer needs its own rule to separate it from
+   the source — the block's border already does that. */
+.reader__sentence .reader__gloss {
+  padding-left: 0;
+  border-left: none;
 }

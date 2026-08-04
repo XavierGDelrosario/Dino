@@ -18,12 +18,14 @@ import {
   getAllUserWords,
   getUserWordsInList,
   getUserWordStates,
+  __resetDictionaryColumnProbe,
 } from "@/services/words/userWords";
 
 let stub: SupabaseStub;
 beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
+  __resetDictionaryColumnProbe(); // module-global latch — reset between cases
 });
 
 /** A raw user_words DB row (snake_case), with optional embedded dictionary word. */
@@ -406,5 +408,61 @@ describe("getUserWordStates", () => {
     const states = await getUserWordStates({ userId: "u", dictionaryWordIds: [] });
     expect(states.size).toBe(0);
     expect(stub.fromCalls).toEqual([]);
+  });
+});
+
+// =========================================================
+// A schema change must never cost availability.
+//
+// Naming a column in a PostgREST embedded select makes the WHOLE read depend on the
+// database having taken a migration: an absent column answers 42703 and fails the
+// entire query. When 20260750's columns were added to this select and applied only to
+// staging, a build pointed at prod returned "column words_1.example does not exist" for
+// every Lists read — the vocabulary was gone, not merely unenriched. These pin the
+// degrade-don't-die behaviour in both directions.
+// =========================================================
+describe("dictionary reads survive a database that predates 20260750", () => {
+  const MISSING = { code: "42703", message: 'column words_1.example does not exist' };
+
+  it("retries without the optional columns and still returns the vocabulary", async () => {
+    // First attempt asks for the enriched set and is rejected; the retry succeeds.
+    stub.queueFrom(
+      "user_words",
+      { data: null, error: MISSING },
+      { data: [uwRow({ words: { translation: "cat" } })], error: null },
+    );
+
+    const words = await getAllUserWords({ userId: "u" });
+    expect(words).toHaveLength(1);
+    expect(words[0].translation).toBe("cat");
+    // Degraded, not broken: no example is indistinguishable from "none written yet".
+    expect(words[0].example).toBeNull();
+
+    const selects = stub.callsFor("user_words", "select");
+    expect(selects).toHaveLength(2);
+    expect(String(selects[0].args[0])).toContain("example");
+    expect(String(selects[1].args[0])).not.toContain("example");
+  });
+
+  it("remembers the downgrade, so it costs one probe per session and not per read", async () => {
+    stub.queueFrom(
+      "user_words",
+      { data: null, error: MISSING },
+      { data: [uwRow({ words: { translation: "cat" } })], error: null },
+      { data: [uwRow({ words: { translation: "cat" } })], error: null },
+    );
+
+    await getAllUserWords({ userId: "u" });
+    await getAllUserWords({ userId: "u" });
+
+    const selects = stub.callsFor("user_words", "select");
+    expect(selects).toHaveLength(3); // 1 rejected + 1 retry + 1 already-downgraded
+    expect(String(selects[2].args[0])).not.toContain("example");
+  });
+
+  it("still throws on a real error — the fallback is not a blanket retry", async () => {
+    stub.queueFrom("user_words", { data: null, error: { code: "42501", message: "permission denied" } });
+    await expect(getAllUserWords({ userId: "u" })).rejects.toThrow(/permission denied/);
+    expect(stub.callsFor("user_words", "select")).toHaveLength(1);
   });
 });

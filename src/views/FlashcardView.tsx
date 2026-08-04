@@ -1,9 +1,11 @@
 // Review session screen: reveal → rate confidence → next, over the N
 // least-confident words. The grade is a 1–5 self-rated recall confidence
 // (1 = forgot … 5 = easy); clicking a rating records it and advances.
+import { useCallback } from "react";
 import { useReview } from "../hooks/useReview";
 import { useQuizFlip } from "../hooks/useQuizFlip";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
@@ -31,6 +33,18 @@ export function FlashcardView({
   // Deferred to the card boundary — toggling never rewrites the card in front of the
   // user (r.position is the boundary; a restart resets it to 1).
   const flip = useQuizFlip(r.position);
+
+  // Swipe to grade WITHOUT revealing: right = 5 (knew it outright), left = 1 (no
+  // idea). Same directions as the placement quiz, so the gesture means one thing
+  // everywhere. Only while the card is face-down — once it's revealed the 1–5
+  // GradeBar is the affordance, and a swipe there would silently pick 1 or 5 for a
+  // user who was reaching for a 3.
+  const { grade } = r;
+  const swipe = useSwipeCard({
+    onLeft: useCallback(() => grade(1), [grade]),
+    onRight: useCallback(() => grade(5), [grade]),
+  });
+
   const { t } = useI18n();
   const scopeName = listName || t("lists.allWords");
   const noun = (n: number) => plural(t, n, "common.word", "common.words");
@@ -87,7 +101,14 @@ export function FlashcardView({
       </div>
       <ProgressBar position={r.position} total={r.total} />
 
-      <FlashcardCard word={card} flipped={r.flipped} onFlip={r.flip} reversed={flip.reversed} />
+      {/* Swipe props only while face-down (see the hook call above); revealed, the
+          card is static and graded from the bar below. */}
+      <div {...(r.flipped || r.submitting ? {} : swipe.props)}>
+        <div className="swipecard__in" key={card.userWordId}>
+          <FlashcardCard word={card} flipped={r.flipped} onFlip={r.flip} reversed={flip.reversed} />
+        </div>
+      </div>
+
 
       <ErrorText message={r.error} />
 

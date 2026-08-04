@@ -466,8 +466,16 @@ describe.skipIf(!ENABLED)("rpc: review_queue", () => {
       const id = await makeStandaloneWord(u, { input, meaning: `${input}-m` });
       await u.client.rpc("record_review", { p_user_word_id: id, p_grade: 5 });
     }
-    // Three sessions in a row: all empty. (Before the fix: the same three cards, forever.)
-    for (let session = 0; session < 3; session++) {
+    // Many sessions in a row: all empty. (Before 20260732: the same three cards, forever.)
+    //
+    // The count is the regression detector, not decoration. 20260737's conf-5 cameo
+    // fired on `random() < n * 0.01` — 10% per call at p_limit 10 — with nothing gating
+    // it on the session having other material, so this state dealt one mastered card
+    // whose grade the cram freeze then discarded. That made THIS spec fail ~27% of CI
+    // runs at three sessions. 20260754 gates the cameo on `has_other`, so it is now
+    // deterministically empty; 25 sessions would catch a reintroduction ~93% of the time
+    // rather than the 27% three gave.
+    for (let session = 0; session < 25; session++) {
       const { data } = await u.client.rpc("review_queue", { p_user_id: u.userId, p_limit: 10 });
       expect(data as unknown[]).toHaveLength(0);
     }
@@ -1168,39 +1176,11 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: refund_translation_quota", () =>
   });
 });
 
-// ── related_words (#11) ─────────────────────────────────────────────────────
-// word_embeddings is superuser-write-only (server-only, like jmdict_*): even
-// service_role is denied, so we don't seed here — we exercise the RPC against the
-// real ingested vectors (self-skipping the ordering assertion when absent) and
-// assert the lockdown directly.
-describe.skipIf(!ENABLED)("rpc: related_words", () => {
-  const NEKO = "1467640"; // 猫 in JMdict — embedded once build-embeddings.py has run
-
-  it("returns distance-ordered neighbours for an embedded entry (skips if not embedded)", async () => {
-    const u = await makeUser();
-    const { data, error } = await u.client.rpc("related_words", { p_entry_id: NEKO, p_limit: 5 });
-    expect(error).toBeNull();
-    const rows = (data ?? []) as { entry_id: string; distance: number }[];
-    if (rows.length === 0) return; // embeddings not ingested in this env → skip the ordering check
-    expect(rows.length).toBeLessThanOrEqual(5);
-    expect(rows[0].entry_id).not.toBe(NEKO); // never returns the entry itself
-    for (let i = 1; i < rows.length; i++) {
-      expect(rows[i].distance).toBeGreaterThanOrEqual(rows[i - 1].distance); // nearest first
-    }
-  });
-
-  it("returns nothing for an entry that has no embedding", async () => {
-    const u = await makeUser();
-    const { data } = await u.client.rpc("related_words", { p_entry_id: "___no_such_entry___", p_limit: 5 });
-    expect((data as unknown[]) ?? []).toHaveLength(0);
-  });
-
-  it("does not expose raw vectors to clients (server-only table)", async () => {
-    const u = await makeUser();
-    const { data, error } = await u.client.from("word_embeddings").select("embedding").limit(1);
-    expect(error !== null || (data ?? []).length === 0).toBe(true); // denied or empty — never vectors
-  });
-});
+// The `related_words` / `word_embeddings` block that stood here was REMOVED with the
+// word map itself (migration 20260741_drop_word_embeddings). Its first case asserted
+// `error === null` from the RPC, so it fails outright once the function is gone — and
+// the local integration job applies that migration. The feature is recoverable from
+// git history (see the migration's header); so is this spec.
 
 // ── privilege lockdown + delete_account (#hardening §1b) ────────────────────
 describe.skipIf(!ENABLED || !SERVICE_KEY)("privilege lockdown", () => {

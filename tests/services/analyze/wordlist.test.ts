@@ -5,6 +5,7 @@ import {
   filterByStatus,
   coverageOf,
   wordsToTarget,
+  quizWords,
   type ArticleWord,
 } from "@/services/analyze/wordlist";
 import type { AnalyzedToken } from "@/services/language";
@@ -124,6 +125,40 @@ describe("sortWords", () => {
     const rows = [w("rare", 200, "new"), w("common", 600, "new")];
     const before = rows.map((r) => r.headword);
     sortWords(rows, "common", "most");
+    expect(rows.map((r) => r.headword)).toEqual(before);
+  });
+});
+
+describe("quizWords", () => {
+  it("puts every NEW word ahead of every saved one", () => {
+    const rows = [w("knownLow", 500, "known", 1), w("new", 500, "new", 0)];
+    expect(quizWords(rows, 10).map((r) => r.headword)).toEqual(["new", "knownLow"]);
+  });
+
+  it("tops up with the LEAST-confident saved words when new words don't fill the cap", () => {
+    const rows = [
+      w("new", 500, "new", 0),
+      w("mastered", 500, "known", 5),
+      w("shaky", 500, "known", 2),
+    ];
+    expect(quizWords(rows, 3).map((r) => r.headword)).toEqual(["new", "shaky", "mastered"]);
+  });
+
+  it("still returns a set when EVERY word is already saved (the button must not vanish)", () => {
+    const rows = [w("a", 500, "known", 5), w("b", 500, "known", 3)];
+    expect(quizWords(rows, 10).map((r) => r.headword)).toEqual(["b", "a"]);
+  });
+
+  it("caps the set, dropping saved words before new ones", () => {
+    const rows = [w("n1", 500, "new"), w("n2", 400, "new"), w("k", 500, "known", 1)];
+    expect(quizWords(rows, 2).map((r) => r.status)).toEqual(["new", "new"]);
+  });
+
+  it("is empty for no rows / a non-positive cap, and never mutates the input", () => {
+    const rows = [w("a", 500, "new"), w("b", 500, "known", 2)];
+    const before = rows.map((r) => r.headword);
+    expect(quizWords([], 10)).toEqual([]);
+    expect(quizWords(rows, 0)).toEqual([]);
     expect(rows.map((r) => r.headword)).toEqual(before);
   });
 });

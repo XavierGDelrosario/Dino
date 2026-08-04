@@ -28,6 +28,55 @@ export interface ProviderResult {
   proficiencyBand?: number | null;
   // POS tags of the sense (null for MT).
   partOfSpeech?: string[] | null;
+  // Sense enrichment (migration 20260750), stamped by applySenseExamples AFTER the
+  // provider returns — an authored annotation of a sense, not something a provider
+  // knows. JA→EN only: for EN→JA `sensePos` is a match rank, not a sense index, so
+  // there is nothing safe to key on (see the migration header).
+  example?: string | null;
+  exampleGloss?: string | null;
+  definitionSource?: string | null;
+  /** Pinned furigana for the target inside `example` (20260751). */
+  exampleReading?: string | null;
+  /** Curated display order; null → fall back to sensePos (never stored null). */
+  senseRank?: number | null;
+}
+
+/**
+ * The STABLE cache identity of a projected sense — `words.dictionary_ref`.
+ *
+ * Direction-aware, because the two directions identify a row by different things:
+ *   JA→EN  `<entryId>:<sensePos>` — a SENSE of a JMdict entry. Deliberately free of the
+ *          headword, which is a projection output a logic change can move (the いく/行く
+ *          problem, CLAUDE.md #1).
+ *   EN→JA  `<input>:<entryId>`    — "for the English word X, the Japanese entry Y".
+ *          There is no sense index here: jmdict_sense_pos in this direction is a match
+ *          RANK the ranker computes, so it identifies nothing.
+ *   MT     `mt:<input>`.
+ *
+ * Exported because CURATION keys on it (20260752). The curation table addresses a row by
+ * the same string the cache does, so a curated override lands on exactly one row and
+ * survives any change to sense ORDER — which is the whole point, since on the EN→JA side
+ * the order is a heuristic we recompute.
+ */
+export function dictionaryRefFor(
+  r: Pick<ProviderResult, "entryId" | "sensePos" | "headword">,
+  input: string,
+): string {
+  if (r.entryId == null) return `mt:${input}`;
+  return r.headword != null ? `${r.entryId}:${r.sensePos ?? 0}` : `${input}:${r.entryId}`;
+}
+
+/**
+ * The key CURATION is stored and looked up under: the dictionary_ref, lowercased.
+ *
+ * The EN→JA ref embeds the TYPED search term, so `Car:1323080` and `car:1323080` are
+ * different strings for the same lookup — 53 of 284 EN→JA rows on prod are keyed on a
+ * capitalized input. Case-folding the curation key alone means one curation covers both
+ * without touching cache identity (which `user_words` and the upsert depend on).
+ * Japanese is unaffected: its refs are digits and colons.
+ */
+export function curationKeyFor(ref: string): string {
+  return ref.toLowerCase();
 }
 
 /** A `words` row ready for upsert (snake_case, matches the table). */
@@ -48,6 +97,15 @@ export interface WordRowInsert {
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
+  // Per-sense enrichment (20260750): a Japanese example sentence, its English gloss,
+  // and a monolingual JA definition. NULL on every EN→JA and MT row.
+  example: string | null;
+  example_gloss: string | null;
+  definition_source: string | null;
+  example_reading: string | null;
+  // Display order. NEVER null — every read sorts on it, so an un-curated sense stores
+  // its jmdict_sense_pos and the ordering is unchanged until somebody curates it.
+  sense_rank: number;
   dictionary_ref: string;
   projection_version: number;
   is_verified: boolean;
@@ -245,11 +303,7 @@ export function projectRows(
     const key = `${head} ${r.translation}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const ref = r.entryId == null
-      ? `mt:${input}`
-      : r.headword != null
-        ? `${r.entryId}:${r.sensePos ?? 0}`
-        : `${input}:${r.entryId}`;
+    const ref = dictionaryRefFor(r, input);
     rows.push({
       input: head,
       translation: r.translation,
@@ -263,6 +317,11 @@ export function projectRows(
       difficulty_override: null,
       jmdict_entry_id: r.entryId ?? null,
       jmdict_sense_pos: r.sensePos ?? null,
+      example: r.example ?? null,
+      example_gloss: r.exampleGloss ?? null,
+      definition_source: r.definitionSource ?? null,
+      example_reading: r.exampleReading ?? null,
+      sense_rank: r.senseRank ?? r.sensePos ?? 0,
       dictionary_ref: ref,
       projection_version: projectionVersion,
       is_verified: true,
@@ -334,31 +393,41 @@ export function applyInputAttributeOverride(
  * ('<input>:<entry>'), so renumbering doesn't change a row's identity.
  */
 export function mergeProviderResults(
-  primary: ProviderResult[],
-  fallback: ProviderResult[],
+  semantic: ProviderResult[],
+  gloss: ProviderResult[],
   limit: number,
 ): ProviderResult[] {
-  // INTERSECTION-BOOST. An entry BOTH providers return is high-confidence: WordNet
-  // asserts a semantic link AND the JA word's own gloss leads with the English input
-  // (the gloss path ranks head-matches first). Lead with those, ordered by the GLOSS
-  // rank — because WordNet's own order is frequency-polluted and can float a
-  // common-but-wrong word to the top (cat→やつ over 猫: both synsets tie at sense_rank
-  // 0, so JA frequency wins it, and やつ "guy" > 猫). Keep the PRIMARY (WordNet) row
-  // for shared entries (same JMdict entry → same projection). Then WordNet-only, then
-  // gloss-only. Falls back to the old WordNet-first order when there's no overlap.
-  const fallbackRank = new Map<string, number>();
-  fallback.forEach((r, i) => { if (r.entryId != null && !fallbackRank.has(r.entryId)) fallbackRank.set(r.entryId, i); });
-  const primaryIds = new Set(primary.map((r) => r.entryId).filter((k): k is string => k != null));
+  // INTERSECTION-BOOST, then GLOSS, then WordNet.
+  //
+  // An entry BOTH providers return is high-confidence: WordNet asserts a semantic
+  // link AND the JA word's own gloss leads with the English input. Those lead,
+  // ordered by the GLOSS rank.
+  //
+  // WordNet-only rows now come LAST, where they used to come second. Measured on
+  // prod 2026-07-31: `wordnet_en_ja_lookup('run')` returns 言う · 機能 · 運転 … with
+  // 走る nowhere in the top eight, and 'light' leads with 好き. Two reasons, both
+  // structural — Japanese WordNet ships acknowledged errors in ~5% of entries, and
+  // it orders by PRINCETON sense rank, which ranks ENGLISH senses and says nothing
+  // about which Japanese lemma of a synset is the right translation. The same
+  // frequency pollution was already noted for cat→やつ over 猫.
+  //
+  // The gloss search, by contrast, now ranks by how PRIMARY the match is inside the
+  // entry (migration 20260742's headline_rank), which is a direct answer to "does
+  // this Japanese word MEAN this English word". So it leads, and WordNet does what
+  // it is actually good at: covering words the gloss search misses entirely.
+  const glossRank = new Map<string, number>();
+  gloss.forEach((r, i) => { if (r.entryId != null && !glossRank.has(r.entryId)) glossRank.set(r.entryId, i); });
+  const semanticIds = new Set(semantic.map((r) => r.entryId).filter((k): k is string => k != null));
 
-  const shared = primary
-    .filter((r) => r.entryId != null && fallbackRank.has(r.entryId))
-    .sort((a, b) => fallbackRank.get(a.entryId!)! - fallbackRank.get(b.entryId!)!);
-  const primaryOnly = primary.filter((r) => r.entryId == null || !fallbackRank.has(r.entryId));
-  const fallbackOnly = fallback.filter((r) => r.entryId == null || !primaryIds.has(r.entryId));
+  const shared = semantic
+    .filter((r) => r.entryId != null && glossRank.has(r.entryId))
+    .sort((a, b) => glossRank.get(a.entryId!)! - glossRank.get(b.entryId!)!);
+  const semanticOnly = semantic.filter((r) => r.entryId == null || !glossRank.has(r.entryId));
+  const glossOnly = gloss.filter((r) => r.entryId == null || !semanticIds.has(r.entryId));
 
   const seen = new Set<string>();
   const merged: ProviderResult[] = [];
-  for (const r of [...shared, ...primaryOnly, ...fallbackOnly]) {
+  for (const r of [...shared, ...glossOnly, ...semanticOnly]) {
     if (merged.length >= limit) break;
     const key = r.entryId ?? null;
     if (key != null) {
@@ -399,6 +468,53 @@ export function dropOffScriptTranslations(
 ): ProviderResult[] {
   const script = TARGET_SCRIPT[targetLang.toUpperCase()];
   return script ? results.filter((r) => script.test(r.translation)) : results;
+}
+
+// INPUT guard, keyed on SOURCE language → the script a WORD must contain to be a
+// word in that language at all. Mirror of TARGET_SCRIPT, applied before we spend.
+const SOURCE_SCRIPT: Record<string, RegExp> = {
+  JA: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
+  EN: /[A-Za-z]/,
+  // ZH: /\p{Script=Han}/u,
+  // KO: /[\p{Script=Hangul}\p{Script=Han}]/u,
+};
+
+/**
+ * Is this token not worth paying MT for? Word-level ONLY — never apply it to the
+ * paragraph gloss, whose segments are sentences, not vocabulary.
+ *
+ * Prod evidence (2026-08-02): 73 of 306 cached MT rows were pure digits — `2026`,
+ * `0120`, `1410612404000`, and an OCR blob — each a billed Google call that returned
+ * the digits unchanged, then cached as a "word" the reader offered to save. Another
+ * 177 rows were Latin-only words sent with source_lang=JA (`overflowing`, `stronger`,
+ * `cooking`), which Google duly mistranslated into noise ("overlooking", "Japanese",
+ * "0.092"). Both classes are decidable before the call, for free:
+ *   · no letter anywhere → digits/punctuation/symbols only, nothing to translate
+ *   · off-script for the source language → not a word in the language we claim
+ * The dictionary path runs FIRST and is unaffected, so this only ever suppresses the
+ * paid fallback: a skipped token returns "no result" and the reader greys it out —
+ * which is the correct outcome for a page number.
+ */
+export function shouldSkipMt(input: string, sourceLang: string): boolean {
+  const text = input.trim();
+  if (!text) return true;
+  if (!/\p{L}/u.test(text)) return true; // digits / punctuation / symbols only
+  const script = SOURCE_SCRIPT[sourceLang.toUpperCase()];
+  return script ? !script.test(text) : false;
+}
+
+/**
+ * Did MT hand back what we sent it? Google echoes the input when it can't translate
+ * (`2026` → `2026`, `immediately` → `immediately`), and caching that mints a
+ * "verified" dictionary row whose meaning is the word itself. Compared case- and
+ * width-insensitively so `URL` → `ＵＲＬ` counts as an echo too.
+ *
+ * The chars are already spent by the time we can check, so this is about not
+ * POISONING THE CACHE, not about cost — `shouldSkipMt` is the cost guard.
+ */
+export function isEchoTranslation(input: string, translation: string): boolean {
+  const norm = (s: string) => s.normalize("NFKC").trim().toLowerCase();
+  return norm(input) === norm(translation);
 }
 
 // Irregular English inflections the regular detachment rules below can't derive —
@@ -475,6 +591,46 @@ function jaSuruCandidates(input: string): string[] {
   return [input, `${input.slice(0, -1)}する`];
 }
 
+// 五段 potential stem (え-row) → the う-row char its dictionary form ends in.
+const JA_POTENTIAL_STEM: Record<string, string> = {
+  え: "う", け: "く", げ: "ぐ", せ: "す", て: "つ",
+  ね: "ぬ", へ: "ふ", べ: "ぶ", め: "む", れ: "る",
+};
+
+/**
+ * The DICTIONARY form of a potential verb ("can ~"), or null if the input isn't one.
+ *
+ * IPADIC files a potential form as its own lexical entry, so kuromoji's lemma for
+ * 帰れる is 帰れる — which JMdict has no headword for, so it fell through to paid MT.
+ * Prod had exactly this: 帰れる → "Can go home?", 戻れる → "Can go back", ゆける,
+ * 奪える, とまれる, たどりつける — six billed calls for verbs the dictionary knows
+ * perfectly well in their base form.
+ *
+ * 五段: strip the え-row stem + る and restore the う-row ending (帰れる → 帰る,
+ * 行ける → 行く, 奪える → 奪う). 一段: 〜られる → 〜る (食べられる → 食べる).
+ *
+ * A 一段 verb is indistinguishable from a 五段 potential by surface alone (食べる and
+ * 帰れる are both え-row + る), so the rule fires on both and 食べる speculatively offers
+ * 食ぶ. That is harmless by construction: like the する candidate this is consulted only
+ * AFTER the surface misses, so a real verb (見える, 消える, 食べる) resolves to itself and
+ * never reaches the fallback, and a wrong guess just returns no rows. する → できる is
+ * deliberately absent — it isn't derivable from the surface.
+ */
+function jaPotentialCandidate(input: string): string | null {
+  if (input.length < 3 || !input.endsWith("る")) return null;
+  if (input.length >= 4 && input.endsWith("られる")) return `${input.slice(0, -3)}る`;
+  const base = JA_POTENTIAL_STEM[input[input.length - 2]];
+  return base ? `${input.slice(0, -2)}${base}` : null;
+}
+
+/** JA lemma candidates: the surface first, then する- and potential-form fallbacks. */
+function jaCandidates(input: string): string[] {
+  const cands = jaSuruCandidates(input);
+  const potential = jaPotentialCandidate(input);
+  if (potential && !cands.includes(potential)) cands.push(potential);
+  return cands;
+}
+
 /**
  * Lemma candidates for a query, keyed on SOURCE language — the per-language input seam.
  * Returns the SURFACE form first (morphy tries it before lemmatizing), then ordered
@@ -483,13 +639,14 @@ function jaSuruCandidates(input: string): string[] {
  *   EN — WordNet-morphy: irregular map + regular detachment rules. Covers cats→cat,
  *        ran→run, studies→study, running→run, mice→mouse. Long-tail irregulars are the
  *        Princeton verb.exc/noun.exc upgrade (see docs/TODO.md).
- *   JA — arrives pre-lemmatized from kuromoji, but IPADIC's lemma for the stem of a
- *        する-verb is a 五段 〜す form JMdict has no headword for (接して → 接す, while the
- *        entry is 接する). See jaSuruCandidates.
+ *   JA — arrives pre-lemmatized from kuromoji, but IPADIC's lemma can still be a form
+ *        JMdict has no headword for: the stem of a する-verb (接して → 接す, entry 接する)
+ *        and potential verbs, which IPADIC lexicalizes as-is (帰れる, entry 帰る).
+ *        See jaSuruCandidates / jaPotentialCandidate.
  *   other — identity ([input]).
  */
 export function lemmaCandidates(input: string, sourceLang: string): string[] {
-  if (sourceLang.toUpperCase() === "JA") return jaSuruCandidates(input);
+  if (sourceLang.toUpperCase() === "JA") return jaCandidates(input);
   if (sourceLang.toUpperCase() !== "EN") return [input];
   const w = input.toLowerCase();
   const cands = [input];
