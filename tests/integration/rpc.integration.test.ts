@@ -149,8 +149,18 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     // (×0.2, landing on the 0.5d floor) and the peak-5 display floor is voided — it is
     // allowed to read 0. Forgetting a word you just aced is the strongest signal there is.
     expect(row.confidence_rating).toBe(0);
-    const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
-    expect(log ?? []).toHaveLength(2); // append-only: two rows
+    // 20260744 caps the log at one row per card per UTC day, so these two same-day
+    // reviews are ONE row — and ON CONFLICT only bumps `repeats`, leaving `grade` as
+    // the day's FIRST. The lapse still happened (asserted on the returned row above);
+    // what the log keeps is the day, not every grade in it.
+    const { data: log } = await u.client
+      .from("review_log")
+      .select("grade, repeats")
+      .eq("user_word_id", w);
+    expect(log ?? []).toHaveLength(1);
+    const entry = log![0] as unknown as { grade: number; repeats: number };
+    expect(entry.grade).toBe(5); // the day's first review, not the lapse that followed
+    expect(entry.repeats).toBe(2);
   });
 
   // ── the CRAM FREEZE: re-testing a word you still hold changes nothing ───────
