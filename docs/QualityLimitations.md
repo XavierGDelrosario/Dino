@@ -7,32 +7,32 @@ services**. Each item notes the fix / upgrade that removes it.
 
 > Framing: the **dictionary + translation core is solid on the free tier** (full JMdict +
 > Japanese WordNet + wordfreq). The quality ceiling is concentrated in the **derived
-> signals** — leveling, the word-map (embeddings), per-surface granularity, and English
-> being under-built. Nothing here is a correctness bug; these are *quality ceilings*.
+> signals** — leveling, per-surface granularity, and English being under-built. (The
+> word-map was removed in `20260741`; see §1.) Nothing here is a correctness bug; these are *quality ceilings*.
 
 ---
 
 ## 1. Supabase free tier (500 MB DB) — storage-driven
 
-- **The word-map (embeddings, #11/#12) is trimmed.** The full dictionary is ~217k entries,
-  but `build-embeddings.py` is limited to the "fat common" set (frequency floor 250 →
-  ~41–45k ELIGIBLE), and the vectors live today cover only the editorial common set
-  (~22.6k) — the eligible ceiling is not what is loaded. Rare/long-tail words have **no embedding** → no "related words"
-  and no domain expansion for them. Pure storage decision: full dict (~243 MB) + 384-dim
-  embeddings (~165 MB) already sits near the 500 MB ceiling.
-  **Fix:** Supabase Pro (8 GB) → embed the full dict.
-- **Embedding *quality* is capped by the small model.** `multilingual-e5-small` (384-dim)
-  produces the documented **katakana-loanword clustering bug** (related words come back a
-  *spelling* family, not a *meaning* family — ストライカー→ストリーカー/ストリッパー). The fix
-  (`multilingual-e5-large` 1024-dim or LaBSE) roughly **triples** vector storage (~415 MB)
-  → **forces Pro**. So loanword relatedness is bad *because of the tier*.
-  **Fix:** Pro + re-embed with a 1024-dim model (`vector(384)` column migration + re-embed).
+- **The word-map (embeddings) is REMOVED — 2026-07-31, migration `20260741`.** It was
+  80 MB of a 500 MB tier (prod sat at 434 MB, 87% full) and powered exactly one feature,
+  "Explore related words", plus the #12 domain quiz built on the same RPC. Its quality
+  was also poor in a specific way: with `multilingual-e5-small` (384-dim) katakana
+  loanwords clustered by **spelling**, not meaning (ストライカー → ストリーカー / ストリッパー,
+  with the truly related ピッチャー last). The fix — a 1024-dim model — roughly TRIPLES
+  vector storage, which is precisely what would have forced Pro. Dropping it removed
+  that pressure instead of paying for it: **prod 434 → 354 MB**, staging 428 → 348 MB.
+  **Reversible:** `scripts/build-embeddings.py` and the creating migration both remain;
+  the client half is recoverable from git history. Reconsider the LLM route first — one
+  "write a paragraph at level X using these seed words" call collapses #11+#12 with no
+  vectors at all.
 - **No hosted automated backups / PITR.** Off-site export exists (`npm run db:backup`), but
   point-in-time recovery + managed backups are a paid toggle. Durability/ops gap, not
   content, but real. **Fix:** Pro (deploy-time toggle).
-- **Thin headroom.** Full dict leaves ~180 MB, which embeddings mostly consume. A **second
-  language's** dict + embeddings crosses Free→Pro — multilingual ambition is the real
-  Free→Pro trigger, not any single feature.
+- **Headroom, after the word-map removal: ~146 MB** (354 of 500 used). That has to absorb
+  growth, not just data — the `words` cache grows with every new lookup, and the planned
+  `sentence_cache` and any media caching grow with usage. A **second language's**
+  dictionary is still the real Free→Pro trigger; no single feature is.
 
 ## 2. Source quality (free / open data)
 
@@ -76,8 +76,8 @@ services**. Each item notes the fix / upgrade that removes it.
   **no example sentences, no register/formality labels** beyond POS/misc tags. **Fix:** a
   commercial dictionary layer / curated sense re-ranking / example-sentence corpus (Tatoeba,
   jreibun — licensing TBD).
-- **Everything is per-SURFACE or per-ENTRY, never per-SENSE.** Frequency and embeddings are
-  one-per-headword; the proficiency band is one-per-entry since `20260740`. Either way a
+- **Everything is per-SURFACE or per-ENTRY, never per-SENSE.** Frequency is one-per-headword;
+  the proficiency band is one-per-entry since `20260740`. Either way a
   homograph (辛い → からい/つらい) or any polysemous word gets **one band, one frequency, one
   vector for all meanings**. A real granularity ceiling across all
   three derived axes. **Fix:** engineering (per-sense schema + ingest), not money — arguably
@@ -89,8 +89,7 @@ services**. Each item notes the fix / upgrade that removes it.
   serendipity=274). **CEFR proficiency also DONE 2026-07-09** — `data/proficiency/en.tsv` (8,845
   surfaces, CEFR-J + Octanove) → `english_proficiency` table (migration `20260722`) → edge override
   stamps the ENGLISH input's CEFR band (verified: wonderful→A1, reluctantly→C1). So English now has
-  BOTH a difficulty axis AND a curated level label (which leads over frequency). Still open: **no EN
-  embeddings** (word-map) — storage/Pro-gated, so "Explore related words" stays JA-only.
+  BOTH a difficulty axis AND a curated level label (which leads over frequency).
 - **MT fallback (Google) is single-sense, reading-less.** Words JMdict lacks get one Google
   gloss, no reading, no multi-sense — lower quality than dictionary entries.
 
@@ -98,7 +97,6 @@ services**. Each item notes the fix / upgrade that removes it.
 
 - **No licensed JLPT/CEFR list** → the consensus-voting idea can't help Japanese (all free =
   Waller); for English the best sources (Cambridge EVP, Oxford) are paid.
-- **Free embedding model** → the loanword-clustering bug above.
 - **Google MT is cost-rationed** → the whole-paragraph gloss + JMdict-miss words run behind a
   kill-switch + per-user/global quotas, so under load they degrade to "JMdict-only" (no result
   for uncovered words).
@@ -116,16 +114,16 @@ services**. Each item notes the fix / upgrade that removes it.
 
 ---
 
-## The 3 highest-impact levers (and what unlocks each)
+## The highest-impact levers (and what unlocks each)
 
-1. **Bigger embedding model + full-dict embeddings** — fixes loanword relatedness AND extends
-   the word-map to rare words. **Unlock: Supabase Pro** (storage).
-2. **Per-SENSE granularity** for proficiency / frequency / embeddings — fixes homograph
-   mis-leveling; the biggest *content-model* ceiling. **Unlock: engineering**, not money.
-3. **English embeddings** — no EN word-map, so "Explore related words" and #12's domain quiz
-   stay JA-only. **Unlock: Supabase Pro** (~80 MB+ — the real Free→Pro trigger for English).
-   *(This slot used to read "English CEFR data + EN frequency". Both shipped 2026-07-09 —
-   see §2 — so the secondary market is no longer unleveled; embeddings are what it lacks.)*
+1. **EN→JA sense quality** — the direction users actually report as weak. WordNet synsets
+   lead, the JMdict gloss search fills, and the grouping has **never been live-verified**
+   (does `spring` come back 春/泉/ばね, sense-distinct?). **Unlock: verification + tuning**,
+   not money — no licensable free EN→JA dictionary beats what is already ingested.
+2. **Per-SENSE granularity** for proficiency / frequency — fixes homograph mis-leveling;
+   the biggest *content-model* ceiling. **Unlock: engineering**, not money.
+3. **An independent JLPT list** — every free list traces to Waller, so ~1,656 of 6,604 JA
+   rows carry no band and consensus-voting buys nothing. **Unlock: licensing.**
 
 ## What is NOT a shortcoming (solid on free tier)
 

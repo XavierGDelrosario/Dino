@@ -58,6 +58,19 @@
 // simply stops being served (it lingers as dead storage until the deferred sweep);
 // `worked` re-projects with 働く ahead of 仕事.
 //
+// 20260750 (per-sense enrichment) DELIBERATELY DID NOT BUMP THIS, and the reason is
+// worth keeping — it is the one case so far where the right move was to leave the stamp
+// alone. The projection does now emit three more columns, which by the rule above reads
+// like a bump. But the ingest BACKFILLS `words` directly, so every already-cached row
+// gets its example the moment the corpus loads, without being re-projected at all. A
+// bump would therefore buy nothing and cost a full-cache re-projection: every cached row
+// goes stale at once and re-resolves on whatever users happen to look up first after the
+// deploy. Free `jmdict_lookup` calls rather than paid MT, but still a self-inflicted load
+// spike in exchange for a result already delivered.
+//
+// The rule this refines: bump when a cached row would otherwise serve a STALE ANSWER.
+// Don't bump when the row can be corrected in place.
+//
 // MIRRORED in supabase/functions/translate/index.ts (separate Deno runtime — it can't
 // import this file). tests/services/projection-version.test.ts fails if the two drift.
 // Bump BOTH whenever the projection changes; the bump is what makes old rows stale.

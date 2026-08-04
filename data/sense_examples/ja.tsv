@@ -1,0 +1,510 @@
+# Sense curation corpus — JA→EN. One line per CURATED ROW:
+#   dictionary_ref <TAB> example <TAB> example_gloss <TAB> definition_source
+#     [<TAB> example_reading [<TAB> sense_rank]]
+#
+# Column 1 is words.dictionary_ref — what the CACHE is unique on. For JA→EN that is
+# `<jmdict_entry_id>:<sense_position>`, so JMdict's own sense position is still the key;
+# both halves were read off the live dictionary, never guessed, since a wrong pair
+# silently curates another meaning. (For EN→JA the ref is `<input>:<entry_id>`, which is
+# why curation was re-keyed onto the ref at all — see migration 20260752.)
+#
+# Every sentence and every definition renders through ParagraphReader, so both must
+# survive `npx tsx scripts/validate-sense-examples.ts` before being committed — the
+# target has to stay one token with the right reading, and nothing may mis-segment.
+#
+# The sentence demonstrates THAT SENSE, not the word in general — that is the whole
+# point of the file. The definition is written as a Japanese dictionary writes one, NOT
+# simplified: hard supporting words are deliberate and safe, because every word in a
+# definition is itself tappable (docs/TODO.md, "the rabbit hole is the FEATURE").
+#
+# First batch: high-frequency polysemous content words, where the English gloss list
+# alone genuinely cannot tell the meanings apart.
+
+# ── 高い (1283190) — tall / expensive / high-level ──────────────────────────────
+1283190:0	この辺りでいちばん高いビルに登った。	I went up the tallest building around here.	下から上までの距離が大きい。また、位置が上の方にある。
+1283190:1	思ったより高かったので、買うのをやめた。	It was pricier than I expected, so I decided against buying it.	値段が大きい。手に入れるのに多くのお金が必要である。
+1283190:2	彼女は英語の能力が高い。	Her English ability is high.	程度や水準が上の方にある。
+
+# ── 辛い (1365850, からい) — RESTORED with a pinned reading (20260751) ──────────
+# IPADIC reads 辛い as つらい in every context, including 「このカレーはとても辛い」, so
+# these three were withdrawn rather than ship つらい furigana over a sentence meaning
+# "spicy". Column 6 now states the reading, and the gate accepts it because it matches
+# what JMdict says this entry reads. The flagship homograph works.
+1365850:0	このカレーはとても辛い。	This curry is very spicy.	舌を刺すような刺激の強い味である。とうがらしなどの味。	からい
+1365850:1	この汁は少し辛い。	This broth is a little salty.	塩の味が強い。	からい
+1365850:2	あの先生は採点が辛い。	That teacher marks harshly.	評価や態度が厳しい。	からい
+
+# ── 甘い (1213400) — sweet / naive ──────────────────────────────────────────────
+1213400:0	このいちごはとても甘い。	These strawberries are very sweet.	砂糖や蜜のような味である。
+1213400:3	その考えは甘いと思う。	I think that thinking is naive.	見通しや考え方に厳しさが足りない。また、人に対する扱いが厳しくない。
+
+# ── 深い (1362640) — deep / profound / close ────────────────────────────────────
+1362640:0	この川は思ったより深い。	This river is deeper than it looks.	表面から底までの距離が大きい。
+1362640:1	彼の作品には深い意味がある。	His work carries a profound meaning.	内容に奥行きがあり、簡単には理解できない。
+1362640:3	二人は深い関係にある。	The two are in a close relationship.	つながりの程度が大きい。
+
+# ── 時間 (1315920) — time / hour / class period ─────────────────────────────────
+1315920:0	時間が足りなくて、最後まで書けなかった。	I ran out of time and couldn't write to the end.	過去から未来へと流れ続けるもの。また、その長さ。
+1315920:2	次の時間は数学です。	The next period is maths.	学校などで、授業の一区切り。
+
+# ── 家 (1191730, いえ) — house / household / lineage ────────────────────────────
+1191730:0	新しい家を建てることにした。	We decided to build a new house.	人が住むための建物。
+1191730:1	彼は家を継ぐために田舎へ帰った。	He went back to the countryside to carry on the family.	同じ血筋の者の集まり。また、その暮らしの単位。
+1191730:2	古い家の生まれだと聞いた。	I hear she comes from an old family line.	代々続いてきた血筋。
+
+# ── 月 (1255430, つき) — the Moon / month / moonlight ───────────────────────────
+1255430:0	今夜は月がきれいだ。	The moon is beautiful tonight.	地球の周りを回る天体。
+1255430:1	月に一度、母に手紙を書く。	I write to my mother once a month.	一年を十二に分けた区切り。
+1255430:2	月に照らされた道を歩いた。	I walked along a moonlit road.	月の光。
+
+# ── 年 (1468060, とし) — year / age / old age ───────────────────────────────────
+1468060:0	年が明けたら引っ越すつもりだ。	I plan to move once the new year starts.	一月から十二月までの一区切り。
+1468060:1	年の割に若く見える。	He looks young for his age.	生まれてから経過した年数。
+1468060:2	年には勝てないと父が言った。	My father said you can't beat old age.	年齢を重ねて体が衰えること。
+
+# ── 円 (1175570, えん) — yen / circle ───────────────────────────────────────────
+1175570:0	円が安くなっている。	The yen is getting weaker.	日本のお金の単位。
+1175570:1	紙に大きな円を描いた。	I drew a big circle on the paper.	一つの点から等しい距離にある点が作る形。
+
+# ── 取る (1326980) — grab / win / adopt ─────────────────────────────────────────
+1326980:0	棚から本を取ってください。	Please take the book off the shelf.	手に持つ。手を伸ばして持ち上げる。
+1326980:2	彼は大会で一位を取った。	He took first place at the tournament.	争って自分のものにする。
+1326980:3	会社は新しい方針を取ることにした。	The company decided to adopt a new policy.	ある方法や態度を選んで用いる。
+
+# ── 引く (1169250) — pull / attract / draw ──────────────────────────────────────
+1169250:0	ドアは押さずに引いてください。	Pull the door rather than pushing it.	自分の方へ寄せるように力を加える。
+1169250:1	派手な看板が目を引いた。	The gaudy sign caught my eye.	注意や関心を自分の方に向けさせる。
+1169250:3	トランプを一枚引いた。	I drew a single playing card.	札などを選び出す。
+
+# ── 立つ (1597040) — stand up / be situated ─────────────────────────────────────
+1597040:0	先生が入ってきたので、みんな立った。	Everyone stood up when the teacher came in.	体を起こして足で支える姿勢になる。
+1597040:1	丘の上に古い教会が立っている。	An old church stands on the hill.	建物などがある場所に位置している。
+
+# ── 空く (1586265, すく) — empty out / be hungry ────────────────────────────────
+1586265:0	昼を過ぎると電車が空く。	The trains empty out after midday.	中の人や物が減って、ゆとりができる。
+1586265:1	お腹が空いたので、何か食べよう。	I'm hungry, so let's eat something.	胃の中が空になって、食べ物がほしくなる。
+
+# ── 的 (1437270, まと) — target / object of attention ───────────────────────────
+# 「的の…」 is avoided on purpose: directly before の, IPADIC reads 的 as the suffix てき
+# (的の中心 → てき) while 的に / 的を read まと. The gate caught it.
+1437270:0	矢が的に当たった。	The arrow hit the target.	弓や銃で狙うためのしるし。
+1437270:1	彼の発言が批判の的になった。	His remark became the target of criticism.	注目や非難などが集まる対象。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 2 — the next band of high-frequency polysemous content words.
+# Same rules: the sentence demonstrates THAT sense, the definition is written as a
+# Japanese dictionary writes one, and both must clear the kuromoji gate.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 必要 (1487660) — needed / a need ────────────────────────────────────────────
+1487660:0	この手続きには保証人が必要だ。	This procedure requires a guarantor.	なくてはならない。どうしても要る。
+1487660:1	必要があれば、すぐに連絡します。	If the need arises, I'll contact you at once.	なくてはならないこと。要ること。
+
+# ── 世界 (1373860) — the world / a sphere ───────────────────────────────────────
+1373860:0	世界には二百近い国がある。	There are nearly two hundred countries in the world.	地球上のすべての国や地域。
+1373860:1	彼女は音楽の世界で名を知られている。	She is known in the music world.	ある分野や社会の範囲。
+
+# ── 仕事 (1304970) — a job / work in the physical sense ─────────────────────────
+1304970:0	新しい仕事を探している。	I'm looking for a new job.	生活のためにする勤め。職業。
+1304970:1	物理では力と距離の積を仕事という。	In physics, force times distance is called work.	物体に力を加えて動かしたときの量。
+
+# ── 言う (1587040) — to say / to be called / to make a noise ────────────────────
+1587040:0	彼は何も言わずに部屋を出た。	He left the room without saying anything.	言葉に出して伝える。
+1587040:1	この花は何と言うのですか。	What is this flower called?	名づけて呼ぶ。名前とする。
+1587040:2	窓が風でがたがた言っている。	The window is rattling in the wind.	物が音を立てる。
+
+# ── 同じ (1451750) ──────────────────────────────────────────────────────────────
+1451750:0	二人は同じ学校に通っていた。	The two went to the same school.	二つ以上のものに違いがない。
+
+# ── 情報 (1356370) — news / the academic field ──────────────────────────────────
+1356370:0	事故の情報がまだ入っていない。	No information about the accident has come in yet.	物事の内容や事情についての知らせ。
+1356370:2	大学で情報を専攻している。	I'm majoring in information science at university.	学問としての情報科学。
+
+# ── 会 (1198170) — a gathering / an association ─────────────────────────────────
+1198170:0	明日の会には出られません。	I can't attend tomorrow's meeting.	人が集まって話し合う場。
+1198170:1	卒業生の会に入っている。	I belong to the alumni association.	同じ目的をもつ人の集まり。団体。
+
+# ── 金 (1242590, かね) — RESTORED with a pinned reading (20260751) ──────────────
+# 金 never reads かね for IPADIC: 「金がかかる」→ きん (gold), 「金がなくて…」→ きむ, the
+# surname Kim. Same fix.
+1242590:0	金がなくて旅行をあきらめた。	I gave up on the trip for lack of money.	品物と交換できる、お金。	かね
+
+# ── 車 (1323080) ────────────────────────────────────────────────────────────────
+1323080:0	駅まで車で送ってもらった。	I got a lift to the station by car.	エンジンで走る乗り物。自動車。
+
+# ── 多い (1407460) — numerous / frequent ────────────────────────────────────────
+1407460:0	この町は外国人が多い。	This town has a lot of foreigners.	数や量がたくさんある。
+1407460:2	冬は電車が遅れることが多い。	Trains are often late in winter.	そうなることがたびたびある。
+
+# ── 男 (1419990) — a man / that fellow ──────────────────────────────────────────
+1419990:0	背の高い男が立っていた。	A tall man was standing there.	人間のうち、男性であるもの。
+1419990:1	あの男には気をつけたほうがいい。	You'd do well to watch out for that fellow.	その人を、親しみや見下しをこめて指す語。
+
+# ── 女 (1344930) ────────────────────────────────────────────────────────────────
+1344930:0	若い女が二人歩いてきた。	Two young women came walking along.	人間のうち、女性であるもの。
+
+# ── 人間 (1366770) — a human / someone's character ──────────────────────────────
+1366770:0	人間は道具を使う動物だ。	Humans are animals that use tools.	ヒト。人類。
+1366770:1	彼は人間ができている。	He is a person of real character.	人としての性質や人柄。
+
+# ── 名 (1531330) — a name / renown ──────────────────────────────────────────────
+1531330:0	この店の名を知らない。	I don't know this shop's name.	そのものを呼ぶための言葉。名前。
+1531330:2	彼は世界に名を知られた学者だ。	He is a scholar known the world over.	世間に知られていること。評判。
+
+# ── 次 (1316380) ────────────────────────────────────────────────────────────────
+1316380:0	次の駅で降ります。	I'm getting off at the next station.	順序があとに来ること。
+
+# ── 欲しい (1547330) ────────────────────────────────────────────────────────────
+1547330:0	新しい自転車が欲しい。	I want a new bicycle.	自分のものにしたいと思う。
+
+# ── 女性 (1345250) ──────────────────────────────────────────────────────────────
+1345250:0	受付には女性が二人いた。	There were two women at the reception desk.	おとなの女の人。
+
+# ── 一緒 (1163400) ──────────────────────────────────────────────────────────────
+1163400:0	昼ご飯を一緒に食べよう。	Let's have lunch together.	二人以上でともに行うこと。
+
+# ── 結果 (1254690) ──────────────────────────────────────────────────────────────
+1254690:0	試験の結果はまだ出ていない。	The exam results aren't out yet.	あることから生じた終わりの状態。
+
+# ── 写真 (1321900) ──────────────────────────────────────────────────────────────
+1321900:0	旅行先で写真をたくさん撮った。	I took a lot of photos on the trip.	光を使って写した像。
+
+# ── 違う (1158880) — to differ / to be wrong ────────────────────────────────────
+1158880:0	兄と弟では性格が違う。	The older and younger brother differ in character.	二つのものが同じでない。
+1158880:1	その答えは違うと思う。	I think that answer is wrong.	正しくない。間違っている。
+
+# ── 今 (1288850) ────────────────────────────────────────────────────────────────
+1288850:0	今、駅に着いたところだ。	I've just this moment arrived at the station.	話をしている、この時。
+
+# ── 間 (1215240, ま) — a pause / a room ─────────────────────────────────────────
+1215240:0	話の間が長すぎる。	The pauses in his speech are too long.	物事と物事の間の時間。
+1215240:2	六畳の間に通された。	I was shown into a six-mat room.	家の中の部屋。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REORDERING — curation with no sentence attached (20260751, column 7).
+#
+# 橋 is TWO JMdict entries: 1237410 はし "bridge" and 2151440 きょう "pons; pons
+# Varolii" (a structure in the brainstem). Nothing about frequency or sense position
+# separates them — both are their entry's sense 0 — so which one a learner sees first
+# comes down to entry id. Demoting the anatomy sense is exactly the fix
+# docs/QualityLimitations.md §2 asks for, and it needs no example sentence: the sense
+# is fine, its POSITION is the problem.
+#
+# Rank 9 rather than 1: it leaves room to curate the other senses later without
+# renumbering this one, and any un-curated sense keeps its jmdict_sense_pos (0-8 in
+# practice), so 9 reliably sorts last.
+2151440:0					9
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 3 — refs, not entry+sense columns (re-keyed by 20260752).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 会社 (1198550) — the company / the place you work ───────────────────────────
+1198550:0	父は自動車の会社に勤めている。	My father works for a car company.	利益を得るために作られた組織。
+1198550:1	今日は会社を休んだ。	I took the day off work today.	自分が勤めている職場。
+
+# ── 最近 (1293780) ──────────────────────────────────────────────────────────────
+1293780:0	最近、駅の前に新しい店ができた。	A new shop opened in front of the station recently.	今から少し前。このごろ。
+
+# ── 時代 (1316300) — a historical era / the times / age on an object ────────────
+1316300:0	江戸時代の絵を見に行った。	I went to see paintings from the Edo period.	歴史のある区切られた期間。
+1316300:1	時代が変われば考え方も変わる。	As the times change, so do attitudes.	その時々の世の中のありさま。
+1316300:2	この家具は時代がついている。	This furniture has the patina of age.	長い年月を経て古びていること。
+
+# ── 心 (1360480) ────────────────────────────────────────────────────────────────
+1360480:0	彼の言葉が心に残っている。	His words have stayed with me.	人の思いや感情が生まれるところ。
+
+# ── 神 (1364440) — a god / the slang "god-tier" ─────────────────────────────────
+1364440:0	神をまつる古い社を訪ねた。	I visited an old shrine dedicated to a god.	人の力を超えた存在として敬われるもの。
+1364440:1	あの選手の守備は神だ。	That player's defence is godlike.	非常にすぐれていることを言う、くだけた言い方。
+
+# ── 名前 (1531710) — a name / a given name ─────────────────────────────────────
+1531710:0	紙に名前を書いてください。	Please write your name on the paper.	そのものを他と区別して呼ぶための言葉。
+1531710:1	名字ではなく名前で呼んでほしい。	I'd rather you used my given name than my surname.	姓に対して、個人につけられた方の名。
+
+# ── 最後 (1293810) — the end / the last one / one's final moments ───────────────
+1293810:0	最後まで話を聞いてください。	Please hear me out to the end.	物事の終わりの部分。
+1293810:1	最後の電車に乗り遅れた。	I missed the last train.	順序のいちばんあとであること。
+1293810:3	祖母の最後を家族で看取った。	The family was at my grandmother's side at the end.	命が終わるとき。臨終。
+
+# ── 場所 (1355850) — a place / room to put something / a sumo tournament ────────
+1355850:0	待ち合わせの場所を決めよう。	Let's settle on a place to meet.	そこにあると決められた所。
+1355850:1	この机は場所を取りすぎる。	This desk takes up too much room.	物を置くための空間。
+1355850:2	九月の場所で優勝した。	He won the September tournament.	相撲の興行。
+
+# ── お願い (2036870) — a request / "please" ────────────────────────────────────
+2036870:0	一つお願いがあるのですが。	There's a favour I'd like to ask.	人に何かをしてほしいと頼むこと。
+2036870:1	もう一度だけ、お願い。	Just one more time, please.	頼むときに添える言葉。
+
+# ── アメリカ (1149830) — the USA / the land mass ────────────────────────────────
+1149830:0	来年アメリカに留学する。	I'm going to study in America next year.	北アメリカにある国。合衆国。
+1149830:1	コロンブスがアメリカに着いた。	Columbus reached America.	南北に広がる大陸。
+
+# ── 用 (1546200) ────────────────────────────────────────────────────────────────
+1546200:0	急な用ができて行けなくなった。	Something came up, so I can't go.	しなければならない事柄。用事。
+
+# ── 別 (1509430) — a distinction / another one ─────────────────────────────────
+1509430:0	男女の別なく採用する。	We hire without distinction of sex.	二つ以上のものの間にある違い。
+1509430:1	それはまた別の問題だ。	That's a separate matter.	今のものとは違うこと。
+
+# ── 大丈夫 (1414150) — fine / a soft refusal ────────────────────────────────────
+1414150:0	けがはありません、大丈夫です。	I'm not hurt, I'm fine.	危なげがなく、心配のないようす。
+1414150:2	コーヒーのおかわりは大丈夫です。	I'm good on the coffee, thanks.	断るときに使う、やわらかい言い方。
+
+# ── 社会 (1322700) — society / the school subject ──────────────────────────────
+1322700:0	学校を出て社会に出る。	You leave school and go out into society.	人々が集まって作る集団やその仕組み。
+1322700:1	社会のテストは来週だ。	The social studies test is next week.	学校の教科の一つ。
+
+# ── 相手 (1401000) — a companion / the other party / an opponent ────────────────
+1401000:0	話す相手がいなくて寂しい。	It's lonely with nobody to talk to.	一緒に何かをする人。
+1401000:1	契約の相手に連絡した。	I contacted the other party to the contract.	物事のやりとりをする、もう一方の側。
+1401000:2	決勝の相手は強かった。	Our opponent in the final was strong.	試合や争いで向かい合う者。
+
+# ── 駅 (1175140) ────────────────────────────────────────────────────────────────
+1175140:0	駅の改札で待っています。	I'll be waiting at the station ticket gate.	列車が止まって客が乗り降りする所。
+
+# ── 体 (1409140) — the body / a build / one's health ────────────────────────────
+1409140:0	体を動かすのが好きだ。	I like moving my body.	人や動物の全体。
+1409140:2	弟は体が大きい。	My younger brother has a big build.	体つき。からだの作り。
+1409140:3	体に気をつけてください。	Please take care of your health.	健康の状態。
+
+# ── 動画 (1451290) — a video / animation ───────────────────────────────────────
+1451290:0	休みの日は動画ばかり見ている。	On days off I do nothing but watch videos.	動きのある映像。
+1451290:1	日本の動画は世界で人気がある。	Japanese animation is popular worldwide.	絵を動かして見せる作品。
+
+# ── 始め (1342540) ──────────────────────────────────────────────────────────────
+1342540:0	始めから話してください。	Please tell it from the beginning.	物事の最初の部分。
+
+# ── 町 (1603990) — a town / the shops ──────────────────────────────────────────
+1603990:0	小さな町で育った。	I grew up in a small town.	人が集まって住む地域。
+1603990:1	日曜日は町に買い物に行く。	On Sundays I go into town to shop.	店の多いにぎやかな通り。
+
+# ── すごい (1374550) — amazing / intensely ─────────────────────────────────────
+1374550:1	彼の記憶力はすごい。	His memory is amazing.	程度が並外れてすぐれている。
+1374550:3	昨日はすごく寒かった。	It was awfully cold yesterday.	程度がはなはだしいようす。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 5
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 普通 (1497190) — ordinary / a local train ──────────────────────────────────
+1497190:0	普通のやり方では間に合わない。	The ordinary approach won't get it done in time.	特に変わったところがなく、ありふれているようす。
+1497190:2	急行はもう出たので普通に乗った。	The express had gone, so I took the local.	各駅に止まる列車。
+
+# ── 簡単 (1214330) — easy / brief ──────────────────────────────────────────────
+1214330:0	この問題は思ったより簡単だった。	This problem was easier than I expected.	手間がかからず、やさしいようす。
+1214330:1	簡単に自己紹介をしてください。	Please introduce yourself briefly.	手短で、こみいっていないようす。
+
+# ── 最高 (1293850) — the best / the maximum ────────────────────────────────────
+1293850:0	今日の天気は最高だ。	The weather today is perfect.	この上なくすぐれているようす。
+1293850:1	最高で四十度まで上がった。	It rose to a maximum of forty degrees.	数量や程度がいちばん上であること。
+
+# ── 実際 (1321110) — the actual facts / really ─────────────────────────────────
+1321110:0	話と実際とはずいぶん違った。	The account and the reality were quite different.	本当のありさま。事実。
+1321110:2	実際、そんなことは起こらない。	Really, that sort of thing doesn't happen.	本当に。まったく。
+
+# ── 先生 (1387990) — a teacher / a form of address ─────────────────────────────
+1387990:0	数学の先生に質問した。	I asked the maths teacher a question.	学問や技術を教える人。
+1387990:1	先生、この薬は毎日飲むのですか。	Doctor, do I take this medicine every day?	医者や弁護士などを敬って呼ぶ言い方。
+
+# ── 中国 (1424270) — China / the Chūgoku region ────────────────────────────────
+1424270:0	中国は日本の西にある。	China lies to the west of Japan.	アジアの東部にある国。
+1424270:1	広島は中国にある。	Hiroshima is in the Chūgoku region.	本州の西の部分をさす地方名。
+
+# ── 気持ち (1591430) — a feeling / a token of one's thanks ─────────────────────
+1591430:0	朝の散歩は気持ちがいい。	A morning walk feels good.	心に起こる感じ。
+1591430:2	これはほんの気持ちです。	This is just a small token of my thanks.	相手を思う心。心づかい。
+
+# ── 夜 (1536350) ────────────────────────────────────────────────────────────────
+1536350:0	夜になると風が冷たくなる。	The wind turns cold when night falls.	日が沈んでから朝までの間。
+
+# ── テレビ (1080510) — the set / the programme ─────────────────────────────────
+1080510:0	テレビが古くなったので買い替えた。	The television got old, so I replaced it.	映像と音を受けて映す装置。
+1080510:1	その事件はテレビで見た。	I saw that incident on television.	テレビで流される番組。
+
+# ── 外 (1203250) — outside / the open air ──────────────────────────────────────
+1203250:0	外は雨が降っている。	It's raining outside.	ある区切りより向こうの側。
+1203250:1	子どもたちを外で遊ばせる。	We let the children play outdoors.	建物の中ではない、開けたところ。
+
+# ── 早く (1400150) — early / quickly ───────────────────────────────────────────
+1400150:0	明日は早く起きるつもりだ。	I plan to get up early tomorrow.	時期や時刻が前の方であるようす。
+1400150:1	早く走れば間に合うだろう。	If you run quickly you'll make it.	動きに時間がかからないようす。
+
+# ── 生活 (1378860) — life as it is lived / a livelihood ────────────────────────
+1378860:0	都会の生活にもだんだん慣れた。	I've gradually got used to life in the city.	日々を暮らしていくこと。
+1378860:1	この仕事で生活を立てている。	I make my living from this work.	暮らしを支える手立て。
+
+# ── わかる (1606560) — to understand / to come to light ────────────────────────
+1606560:0	言いたいことはわかる。	I understand what you want to say.	物事の意味や内容がはっきりつかめる。
+1606560:1	調べて原因がわかった。	We looked into it and the cause came to light.	今まで不明だったことがはっきりする。
+
+# ── 得 (1454490) ────────────────────────────────────────────────────────────────
+1454490:0	まとめて買うほうが得だ。	Buying in bulk works out cheaper.	ほかより利益があること。
+
+# ── 人気 (1367010, にんき) ─────────────────────────────────────────────────────
+1367010:0	あの店は若い人に人気がある。	That shop is popular with young people.	世間から好まれ、もてはやされること。
+
+# ── 区 (1244080) ────────────────────────────────────────────────────────────────
+1244080:0	この区には図書館が三つある。	There are three libraries in this ward.	市などをいくつかに分けた区画。
+
+# ── 個人 (1264770) ──────────────────────────────────────────────────────────────
+1264770:0	これはあくまで個人の意見です。	This is strictly a personal opinion.	団体に対して、ひとりひとりの人。
+
+# ── 出る (1338240) — to go out / to depart / to lead to ────────────────────────
+1338240:0	七時に家を出る。	I leave the house at seven.	中から外へ移る。
+1338240:1	来週、旅に出るつもりだ。	I plan to set out on a trip next week.	目的地に向かって出発する。
+1338240:3	この道は駅に出る。	This road comes out at the station.	進んだ先がそこに行き着く。
+
+# ── 使う (1305990) — to use a tool / to employ someone / to spend / to speak ───
+1305990:0	この鍋は毎日使っている。	I use this pot every day.	道具や方法を役立てる。
+1305990:1	店は学生を三人使っている。	The shop employs three students.	人を働かせる。
+1305990:2	旅行に十万円使った。	I spent a hundred thousand yen on the trip.	お金や時間をついやす。
+1305990:3	彼は難しい言葉を使う。	He uses difficult words.	言葉をあやつる。
+
+# ── 作る (1597890) — to build / to cook / to grow ──────────────────────────────
+1597890:0	父が本棚を作ってくれた。	My father made me a bookshelf.	材料に手を加えて、形のあるものにする。
+1597890:1	母が朝ご飯を作っている。	My mother is making breakfast.	材料を調理して食べ物にする。
+1597890:2	畑で野菜を作っている。	We grow vegetables in the field.	作物を育てる。
+
+# ── 持つ (1315720) — to hold / to own / to last ────────────────────────────────
+1315720:0	荷物を持ちましょうか。	Shall I carry your bag?	手にとって支える。
+1315720:1	彼は古い車を持っている。	He owns an old car.	自分のものとしている。
+1315720:3	この電池は一年持つ。	This battery lasts a year.	状態が長くたもたれる。
+
+# ── 聞く (1591110) — to hear / to listen / to ask ──────────────────────────────
+1591110:0	外で大きな音を聞いた。	I heard a loud noise outside.	音が耳に入る。
+1591110:1	寝る前に音楽を聞く。	I listen to music before bed.	注意を向けて音を受け取る。
+1591110:2	道を聞いてもいいですか。	May I ask you the way?	わからないことを人にたずねる。
+
+# ── 乗る (1355120) — to board / to step onto ───────────────────────────────────
+1355120:0	八時のバスに乗る。	I take the eight o'clock bus.	乗り物の中に入って運ばれる。
+1355120:1	台に乗って電球を替えた。	I stood on a stool and changed the bulb.	物の上にあがる。
+
+# ── 着く (1422970) — to arrive / to take a seat ────────────────────────────────
+1422970:0	駅には六時に着いた。	I arrived at the station at six.	目的の場所に行き当たる。
+1422970:1	みんなが席に着いた。	Everyone took their seats.	その場所に身を置く。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 7 — the polysemous core verbs and adjectives.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 見る (1259290) — to look / to examine / to look after ──────────────────────
+1259290:0	窓から海を見ている。	I'm looking at the sea from the window.	目でとらえる。
+1259290:1	医者に足を見てもらった。	I had the doctor look at my leg.	調べて判断する。
+1259290:2	祖母の面倒を見ている。	I look after my grandmother.	世話をする。
+
+# ── 強い (1236070) — strong / physically powerful / good at ────────────────────
+1236070:0	今日は風が強い。	The wind is strong today.	力や勢いが大きい。
+1236070:2	彼は数字に強い。	He's good with numbers.	その分野をよく知っていて、うまく扱える。
+
+# ── 元気 (1260720) — full of energy / in good health ───────────────────────────
+1260720:0	子どもたちは元気に遊んでいる。	The children are playing energetically.	勢いがあって生き生きとしているようす。
+1260720:1	祖父は九十歳だがまだ元気だ。	My grandfather is ninety and still in good health.	体の具合がよいようす。
+
+# ── 入る (1465590, はいる) — to enter / to join / to fit ───────────────────────
+1465590:0	靴を脱いで部屋に入った。	I took off my shoes and entered the room.	外から中へ移る。
+1465590:1	兄は去年、会社に入った。	My brother joined the company last year.	組織の一員になる。
+1465590:3	この箱には本が三十冊入る。	This box holds thirty books.	中におさまる。
+
+# ── 出す (1338180) — to take out / to submit / to publish ──────────────────────
+1338180:0	かばんから財布を出した。	I took my wallet out of my bag.	中から外へ移す。
+1338180:2	今日中に書類を出してください。	Please submit the documents by the end of today.	提出する。
+1338180:3	来月、新しい本を出す。	He's bringing out a new book next month.	世に送り出す。
+
+# ── 長い (1429750) — long in space / long in time ──────────────────────────────
+1429750:0	この橋はとても長い。	This bridge is very long.	端から端までの隔たりが大きい。
+1429750:1	長い間、返事を待っている。	I've been waiting a long time for a reply.	時間の隔たりが大きい。
+
+# ── 静か (1381820) — quiet / unhurried ─────────────────────────────────────────
+1381820:0	夜の図書館は静かだ。	The library is quiet at night.	音がしないようす。
+1381820:1	父は静かに歩いてきた。	My father came walking unhurriedly.	動きがゆるやかなようす。
+
+# ── 短い (1418620) ──────────────────────────────────────────────────────────────
+1418620:0	この鉛筆はもう短い。	This pencil is short now.	端から端までの隔たりが小さい。
+
+# ── 重い (1335750) — heavy / gloomy / grave ────────────────────────────────────
+1335750:0	このかばんは思ったより重い。	This bag is heavier than it looks.	目方が大きい。
+1335750:1	朝から気分が重い。	I've felt low since morning.	心がふさいで晴れないようす。
+1335750:3	彼は重い責任を負っている。	He carries a grave responsibility.	程度が大きく、大切であるようす。
+
+# ── 軽い (1252560) — light in weight / minor ───────────────────────────────────
+1252560:0	この鍋は軽くて使いやすい。	This pot is light and easy to use.	目方が小さい。
+1252560:2	軽いけがですんだ。	I got away with a minor injury.	程度が小さく、大したことがないようす。
+
+# ── 切る (1384830) — to cut / to sever / to switch off ─────────────────────────
+1384830:0	包丁で野菜を切る。	I cut the vegetables with a knife.	刃物で分ける。
+1384830:2	部屋を出るとき電気を切った。	I switched off the light on the way out.	電気などの流れを止める。
+1384830:3	話の途中で電話を切られた。	They hung up on me mid-conversation.	電話などのつながりを終わらせる。
+
+# ── 通る (1433030) — to pass along / to be let through ─────────────────────────
+1433030:0	毎朝この道を通る。	I go along this road every morning.	ある場所を過ぎて進む。
+1433030:2	どうぞ奥へお通りください。	Please come through to the back.	中へ進み入る。
+
+# ── 目 (1604890) — the eye / eyesight / a look ─────────────────────────────────
+1604890:0	煙が目にしみる。	The smoke stings my eyes.	ものを見るための器官。
+1604890:1	年をとって目が悪くなった。	My eyesight has got worse with age.	ものを見る力。視力。
+1604890:2	冷たい目で見られた。	They gave me a cold look.	見るときの目つき。まなざし。
+
+# ── 手 (1327190) — the hand / a handle ─────────────────────────────────────────
+1327190:0	冷たい水で手を洗った。	I washed my hands in cold water.	肩から指先までの部分。
+1327190:2	なべの手が熱くなっている。	The pot's handle has got hot.	道具の、持つための部分。
+
+# ── 頭 (1582310) — the head / the hair on it / the mind ────────────────────────
+1582310:0	低い枝に頭をぶつけた。	I hit my head on a low branch.	首から上の部分。
+1582310:1	朝、頭をとかす。	I comb my hair in the morning.	頭に生えている毛。
+1582310:2	彼は頭がいい。	He has a good mind.	ものを考える働き。
+
+# ── 道 (1454080) — a road / a route / the distance ─────────────────────────────
+1454080:0	家の前の道は狭い。	The road in front of the house is narrow.	人や車が通るところ。
+1454080:1	駅までの道を教えてください。	Please tell me the way to the station.	目的地までのたどり方。
+1454080:2	学校まではまだ道がある。	There's still some way to go to the school.	目的地までの隔たり。
+
+# ── 花 (1194500) — a flower / cherry blossom ───────────────────────────────────
+1194500:0	庭に赤い花が咲いた。	A red flower bloomed in the garden.	植物の、色や形の美しい部分。
+1194500:1	今年は花が早く咲いた。	The blossoms came early this year.	桜の花。
+
+# ── 口 (1275640) — the mouth / an opening / a spout ────────────────────────────
+1275640:0	口を大きく開けてください。	Please open your mouth wide.	食べたり話したりするための器官。
+1275640:1	袋の口をしっかり結んだ。	I tied the mouth of the bag tightly.	物の、外に向かって開いたところ。
+
+# ── 店 (1582120) ────────────────────────────────────────────────────────────────
+1582120:0	角の店でパンを買った。	I bought bread at the shop on the corner.	品物を売るところ。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 9 — the everyday nouns a learner meets in week one.
+# Mostly single-sense: the sentence and the JA definition still earn their place,
+# since the definition is what carries usage the gloss cannot.
+# ═══════════════════════════════════════════════════════════════════════════════
+1156800:0	この言葉の意味がわからない。	I don't know what this word means.	言葉や行いが表している内容。
+1355810:0	雨の場合は中止します。	In the event of rain it will be called off.	あることが起こったときのようす。
+1191060:0	予約は電話でも可能です。	Booking by phone is also possible.	することができるようす。
+1447690:0	来週、東京へ出張する。	I'm going to Tokyo on business next week.	日本の首都。
+1306200:0	この部屋の使用は禁止されている。	Use of this room is prohibited.	物や場所を役立てて使うこと。
+1302090:0	大会への参加を申し込んだ。	I applied to take part in the tournament.	集まりや活動に加わること。
+1307850:0	公園で子供が遊んでいる。	Children are playing in the park.	年のいかない人。
+1531040:0	この美術館の入場は無料です。	Admission to this museum is free.	お金がかからないこと。
+1173720:0	日曜日に映画を見に行った。	I went to see a film on Sunday.	連続した映像で見せる作品。
+1293990:0	最初に自己紹介をします。	I'll introduce myself first.	いちばん初めのとき。
+1517090:0	もっといい方法があるはずだ。	There must be a better way.	物事を行うためのやり方。
+1550140:0	遅れた理由を説明した。	I explained the reason I was late.	そうなったわけ。
+1297910:0	この作品は十年前に描かれた。	This work was painted ten years ago.	作られた芸術上のもの。
+1218190:0	地元の企業に就職した。	I got a job at a local company.	利益を目的に事業を行う組織。
+1406150:0	チームでの彼の存在は大きい。	His presence on the team counts for a lot.	そこにあること。いること。
+1526920:0	電車の中で漫画を読む。	I read manga on the train.	絵とせりふで話を進める作品。
+1861770:0	会場には多くの人が集まった。	A great many people gathered at the venue.	数量がたくさんであること。
+1861770:1	参加者の多くは学生だった。	The majority of the participants were students.	全体の中で大きい方の部分。
+1579110:0	今日は朝から忙しい。	I've been busy since this morning.	この日。
+
+# ── 力・先・氏 — RE-FILED onto the common-reading entries ───────────────────────
+# These were first written against 力(りき) 先(せん) 氏(うじ) — the RARE-reading ent_seqs —
+# while the sentences used the common readings ちから・さき・し, which are SEPARATE entries.
+# The gate caught it as a reading mismatch and suggested `set example_reading`. That hint
+# is a TRAP here: pinning りき onto a sentence meaning ちから passes the check (りき really
+# is that entry's reading) while curating the wrong meaning entirely. example_reading is
+# for when kuromoji misreads the RIGHT entry — never for reconciling the wrong one.
+# The fix is to curate the correct entry, which is what these do.
+1554820:0	この仕事には力がいる。	This job takes strength.	物を動かしたり支えたりする働き。
+1554820:1	彼には人をまとめる力がある。	He has a real ability to bring people together.	物事をなしとげる能力。
+1387210:0	鉛筆の先が折れた。	The tip of the pencil broke.	細長いものの、いちばん端。
+1387210:2	先に行っていてください。	Please go on ahead.	順序や時間が前であること。
+2101130:0	田中氏が代表を務める。	Mr Tanaka serves as the representative.	人の名の下につけて敬意を表す言い方。

@@ -11,7 +11,9 @@ vi.mock("@/services/words/repository", () => ({
 vi.mock("@/services/translation", () => ({
   translate: vi.fn(),
   translateBatch: vi.fn(),
-  translateSegments: vi.fn(),
+  // The paragraph gloss goes through the CACHE (glossSentences), not the raw
+  // client — so a sentence bought by a reader tap isn't paid for twice.
+  glossSentences: vi.fn(),
 }));
 vi.mock("@/services/senses", () => ({ resolveSenseProvider: vi.fn() }));
 // Partial-mock language: keep the real resolveSourceLanguage / AUTO_DETECT, but
@@ -23,7 +25,7 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { findWordTranslations, findWordTranslationsBatch } from "@/services/words/repository";
-import { translate, translateBatch, translateSegments } from "@/services/translation";
+import { translate, translateBatch, glossSentences } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
 import { lookupWord, lookupWordsBatch, translateParagraph } from "@/services/lookup";
@@ -34,7 +36,7 @@ const mockFind = vi.mocked(findWordTranslations);
 const mockFindBatch = vi.mocked(findWordTranslationsBatch);
 const mockTranslate = vi.mocked(translate);
 const mockTranslateBatch = vi.mocked(translateBatch);
-const mockTranslateSegments = vi.mocked(translateSegments);
+const mockTranslateSegments = vi.mocked(glossSentences);
 const mockResolveProvider = vi.mocked(resolveSenseProvider);
 const mockAnalyze = vi.mocked(analyze);
 
@@ -328,8 +330,28 @@ describe("translateParagraph", () => {
 
     const res = await translateParagraph({ input: "猫が走った。", targetLang: "EN", skipGloss: true });
     expect(mockTranslateSegments).not.toHaveBeenCalled();
-    expect(res.sentences).toEqual([]);
     expect(res.translated).toBe(false);
+    // …but the SPANS still come back. Splitting is free string work, and the
+    // reader draws its per-sentence affordance from these: returning [] here left
+    // the live reader and the article page with nothing to click until a
+    // whole-text gloss had been bought, which re-split the text as a side effect.
+    expect(res.sentences).toEqual([
+      { text: "猫が走った。", start: 0, end: 6, gloss: null },
+    ]);
+  });
+
+  it("skipGloss returns a span per sentence, all unglossed", async () => {
+    mockFindBatch.mockResolvedValue(new Map());
+    mockAnalyze.mockResolvedValue([]);
+
+    const res = await translateParagraph({
+      input: "猫が走った。犬も走った。",
+      targetLang: "EN",
+      skipGloss: true,
+    });
+    expect(res.sentences.map((s) => s.text)).toEqual(["猫が走った。", "犬も走った。"]);
+    expect(res.sentences.every((s) => s.gloss === null)).toBe(true);
+    expect(mockTranslateSegments).not.toHaveBeenCalled();
   });
 
   it("survives a gloss failure — the reader still renders", async () => {

@@ -52,44 +52,66 @@ export function GrantsPanel() {
       title="Feature grants"
       description="Grant-only — entitlements can be extended (re-grant with a later expiry) but never revoked."
     >
+      {/* Every field is a labelled cell in one grid, so the five controls line up
+          in equal tracks instead of wrapping into a ragged flex row. */}
       <div className="admin__form">
-        <input className="admin__input" placeholder="user email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <select className="admin__input" value={feature} onChange={(e) => setFeature(e.target.value)}>
-          {FEATURES.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <input className="admin__input" placeholder="value (optional)" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} />
         <label className="admin__field">
-          <span className="admin__muted">expires</span>
+          <span className="admin__field-label">user email</span>
+          <input className="admin__input" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label className="admin__field">
+          <span className="admin__field-label">feature</span>
+          <select className="admin__input" value={feature} onChange={(e) => setFeature(e.target.value)}>
+            {FEATURES.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </label>
+        <label className="admin__field">
+          <span className="admin__field-label">value (optional)</span>
+          <input className="admin__input" placeholder="e.g. 50000" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} />
+        </label>
+        <label className="admin__field">
+          <span className="admin__field-label">expires</span>
           <input className="admin__input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
         </label>
-        <input className="admin__input" placeholder="note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button type="button" className="admin__seg-btn admin__seg-btn--on" disabled={busy || !email.trim()} onClick={submit}>
-          {busy ? "Granting…" : "Grant"}
-        </button>
+        <label className="admin__field">
+          <span className="admin__field-label">note (optional)</span>
+          <input className="admin__input" placeholder="why this grant" value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+        <div className="admin__form-actions">
+          <button type="button" className="admin__seg-btn admin__seg-btn--on" disabled={busy || !email.trim()} onClick={submit}>
+            {busy ? "Granting…" : "Grant"}
+          </button>
+          {msg && <span className="admin__muted">{msg}</span>}
+        </div>
       </div>
-      {msg && <p className="admin__muted">{msg}</p>}
 
       <AdminStatus error={formErr ?? error} pending={grants == null && formErr == null} />
 
       {grants && (
-        <table className="admin__table">
-          <thead>
-            <tr><th>User</th><th>Feature</th><th className="admin__num">Value</th><th>Granted</th><th>Expires</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {grants.length === 0 && <tr><td colSpan={6} className="admin__muted">No grants yet.</td></tr>}
-            {grants.map((g) => (
-              <tr key={g.id}>
-                <td className="admin__truncate" title={g.note ?? undefined}>{g.email}</td>
-                <td className="admin__bucket">{g.feature}</td>
-                <td className="admin__num">{g.value ?? "—"}</td>
-                <td className="admin__nowrap">{formatDate(g.grantedAt)}</td>
-                <td className="admin__nowrap">{g.expiresAt ? formatDate(g.expiresAt) : "never"}</td>
-                <td>{g.active ? <span className="admin__badge admin__badge--ok">active</span> : <span className="admin__badge">expired</span>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="admin__tablewrap">
+          <table className="admin__table">
+            <thead>
+              <tr><th>User</th><th>Feature</th><th className="admin__num">Value</th><th>Granted</th><th>Expires</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {grants.length === 0 && <tr><td colSpan={6} className="admin__muted">No grants yet.</td></tr>}
+              {grants.map((g) => (
+                <tr key={g.id}>
+                  <td>
+                    <span className="admin__truncate" title={g.note ? `${g.email} — ${g.note}` : g.email}>
+                      {g.email}
+                    </span>
+                  </td>
+                  <td className="admin__bucket">{g.feature}</td>
+                  <td className="admin__num">{g.value ?? "—"}</td>
+                  <td className="admin__nowrap">{formatDate(g.grantedAt)}</td>
+                  <td className="admin__nowrap">{g.expiresAt ? formatDate(g.expiresAt) : "never"}</td>
+                  <td>{g.active ? <span className="admin__badge admin__badge--ok">active</span> : <span className="admin__badge">expired</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </AdminPanel>
   );
