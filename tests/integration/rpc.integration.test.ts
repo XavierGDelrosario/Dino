@@ -149,8 +149,18 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     // (×0.2, landing on the 0.5d floor) and the peak-5 display floor is voided — it is
     // allowed to read 0. Forgetting a word you just aced is the strongest signal there is.
     expect(row.confidence_rating).toBe(0);
-    const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
-    expect(log ?? []).toHaveLength(2); // append-only: two rows
+    // 20260744 caps the log at one row per card per UTC day, so these two same-day
+    // reviews are ONE row — and ON CONFLICT only bumps `repeats`, leaving `grade` as
+    // the day's FIRST. The lapse still happened (asserted on the returned row above);
+    // what the log keeps is the day, not every grade in it.
+    const { data: log } = await u.client
+      .from("review_log")
+      .select("grade, repeats")
+      .eq("user_word_id", w);
+    expect(log ?? []).toHaveLength(1);
+    const entry = log![0] as unknown as { grade: number; repeats: number };
+    expect(entry.grade).toBe(5); // the day's first review, not the lapse that followed
+    expect(entry.repeats).toBe(2);
   });
 
   // ── the CRAM FREEZE: re-testing a word you still hold changes nothing ───────
@@ -174,9 +184,14 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
       expect(row.last_reviewed_date).toBe(seeded.last_reviewed_date);
     }
 
-    // Still APPENDED to the history (FSRS trains on it; the review did happen).
-    const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
-    expect(log ?? []).toHaveLength(3);
+    // Still recorded — but as ONE row for the day carrying a repeat count, not three
+    // rows (20260744). The reviews happened; what changed is how they are stored.
+    const { data: log } = await u.client
+      .from("review_log")
+      .select("grade, repeats")
+      .eq("user_word_id", w);
+    expect(log ?? []).toHaveLength(1);
+    expect((log?.[0] as unknown as { repeats: number }).repeats).toBe(3);
   });
 
   it("a LAPSE is exempt from the freeze — failing a word you just saw still counts", async () => {
@@ -211,6 +226,50 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
 
     const { data } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4 });
     expect((data as { stability: number }).stability).toBeGreaterThan(low); // it GREW
+  });
+
+  // ── the COLLAPSE: one row per card per UTC day (20260744) ──────────────────
+  it("keeps the day's FIRST review and counts the rest, rather than one row each", async () => {
+    // review_log is the only unbounded table in the schema — one row per graded card,
+    // never deleted, because FSRS cannot be backfilled. Measured on prod: 303 B/row and
+    // ~17 MB per user per year. Collapsing same-day reviews (the conventional FSRS
+    // preprocessing) removed 24% of rows there, 92% of them cram-frozen ones the
+    // scheduler already treats as teaching it nothing.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "反復", meaning: "repetition" });
+
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 2 }); // the day's FIRST
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+
+    const { data } = await u.client
+      .from("review_log")
+      .select("grade, repeats, reviewed_on")
+      .eq("user_word_id", w);
+    const rows = (data ?? []) as unknown as { grade: number; repeats: number }[];
+    expect(rows).toHaveLength(1);
+    // The FIRST grade survives — it is the one carrying the real retention interval;
+    // the later two are cramming and would bias a fit if they replaced it.
+    expect(rows[0].grade).toBe(2);
+    expect(rows[0].repeats).toBe(3);
+  });
+
+  it("the collapse cannot be used to forge history — no client write grant", async () => {
+    // The only way a same-day repeat could overwrite the day's first grade is a direct
+    // client write. review_log is read-own SELECT only (no INSERT/UPDATE grant), which
+    // is what makes "keep the FIRST review" a guarantee rather than a convention.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "改竄", meaning: "falsification" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 1 });
+
+    const { error } = await u.client
+      .from("review_log")
+      .update({ grade: 5, repeats: 1 })
+      .eq("user_word_id", w);
+    expect(error).not.toBeNull();
+
+    const { data } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
+    expect((data?.[0] as unknown as { grade: number }).grade).toBe(1);
   });
 
   it("rejects an invalid grade", async () => {
@@ -1399,5 +1458,53 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: srs_leveling (the ease)", () => 
     expect(row.level_source).toBe("band");
     expect(row.ease).toBeGreaterThan(1);
     expect(row.word_position).toBeGreaterThan(row.user_position); // more common = below them
+  });
+});
+
+// ── prune_review_log (service-role only, 20260744) ─────────────────────────
+// The CEILING on the schema's only unbounded table. It removes nothing at today's
+// volumes by design — its job is to make "grows forever" into "at most
+// vocabulary x p_keep rows" — so what's asserted here is that it is enforceable,
+// honest about what it would delete, and unreachable from a client.
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: prune_review_log", () => {
+  it("is NOT callable by a client (it deletes review history)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("prune_review_log", { p_keep: 1, p_dry_run: true });
+    expect(error).not.toBeNull();
+  });
+
+  it("keeps at most p_keep rows per card, and dry-run matches what it deletes", async () => {
+    const svc = serviceClient()!;
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "上限", meaning: "upper limit" });
+
+    // Three separate DAYS of history: same-day reviews collapse, so the rows have to
+    // be aged apart to exist at all. Backdating the word clears the cram freeze too.
+    for (let i = 0; i < 3; i++) {
+      await backdateReview(w, 60);
+      await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4 });
+      await svc
+        .from("review_log")
+        .update({ reviewed_at: new Date(Date.now() - (i + 1) * 86_400_000).toISOString() })
+        .eq("user_word_id", w)
+        .is("repeats", 1);
+    }
+
+    const before = await svc.from("review_log").select("reviewed_on").eq("user_word_id", w);
+    const n = (before.data ?? []).length;
+    if (n < 2) return; // the backdating didn't take on this DB — nothing to assert
+
+    const dry = await svc.rpc("prune_review_log", { p_keep: 1, p_dry_run: true });
+    const real = await svc.rpc("prune_review_log", { p_keep: 1, p_dry_run: false });
+    expect(Number(dry.data)).toBe(Number(real.data)); // it said what it would do
+
+    const after = await svc.from("review_log").select("reviewed_on").eq("user_word_id", w);
+    expect((after.data ?? []).length).toBe(1);
+  });
+
+  it("rejects a nonsense keep count rather than emptying the table", async () => {
+    const svc = serviceClient()!;
+    const { error } = await svc.rpc("prune_review_log", { p_keep: 0, p_dry_run: true });
+    expect(error).not.toBeNull();
   });
 });

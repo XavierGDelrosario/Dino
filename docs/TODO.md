@@ -335,6 +335,18 @@ Full ledger: `docs/QualityLimitations.md`.
     WordNet took over EN→JA). Measured — dropping it turns the EN→JA gloss fill from a
     ~5 ms bitmap scan into a ~175 ms parallel seq scan over 438k rows (~35×) on a path
     the user waits on. Revisit only under storage pressure.
+- **`review_log` capped — DONE 2026-08-01** (`20260744`)
+  - It was the only unbounded table: one row per graded card, never deleted. Measured
+    303 B/row and ~17 MB **per user per year** — user growth, not dictionary data, is
+    what threatens the tier.
+  - Now one row per card per UTC day (the day's FIRST review) + a `repeats` counter;
+    surrogate `log_id` PK dropped (2 lifetime scans, no FK) and `idx_review_log_user_word`
+    with it (redundant once the day key leads with `user_word_id`).
+  - Effect on prod: **5,877 → 4,447 rows, 1.70 → 0.80 MB (−53%)**; all 5,877 original
+    reviews still accounted for in `sum(repeats)`. 92% of what collapsed was cram-frozen.
+  - `prune_review_log(p_keep=30)` (weekly pg_cron) is the **ceiling**, not a saving — it
+    removes 0 rows today; it bounds the table at *vocabulary × 30*.
+  - ⚠️ Cost is to the future FSRS fit, not to the app — see FSRS (#19) below.
 - **EN→JA `jmdict_lookup` is SLOW — ~0.8 s warm, ~3.1 s cold** (measured prod 2026-08-01)
   - Not the gloss scan (5 ms with the trigram index) — the cost is elsewhere in the
     function; plpgsql is opaque to `EXPLAIN`, so it needs decomposing by hand.
@@ -535,6 +547,8 @@ background mode and a review justification.
 ### Very low priority
 - **Real furigana (#16)** — ruby above kanji + peel-matching-kana alignment (`alignFurigana`). Group ruby correct meanwhile.
 - **FSRS (#19)** — SRS to D/S/R (power-law, fit to `review_log`). New `record_review()` body, same API. HLR fine for now.
+  - ⚠️ **`20260744` constrains which FSRS you can fit.** `review_log` now keeps one row per card per UTC day (the day's FIRST review) with a `repeats` counter instead of a row each. That is the conventional 4.5-style preprocessing — but **FSRS-5's short-term memory model consumes same-day reviews, and those grades are gone.** Decide before fitting; reverting only helps data logged *after* the revert.
+  - **Retention, once fitted:** a fit no longer needs full per-row history. 23% of rows are first-review seeds and 14% are cram-frozen — the natural candidates to aggregate. Better lever than any further index trimming.
 
 </details>
 
