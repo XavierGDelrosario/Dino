@@ -1132,21 +1132,32 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
 
   it("never quizzes GRAMMATICAL words — particles, conjunctions, interjections, determiners, expressions, affixes", async () => {
     // Migration 20260730: a placement/learn card showing は or しかし tests grammar, not
-    // vocabulary, and tells us nothing about the learner's LEVEL. The rule stays inclusive
-    // (a word with any content sense survives), so this asserts the grammar-ONLY entries
-    // are gone. Band 1 (N5) is where they cluster; a limit this large draws the WHOLE
-    // gated pool (the pool CTE takes limit×6), so absence here is absence, not luck.
+    // vocabulary, and tells us nothing about the learner's LEVEL. The rule is judged on the
+    // entry's PRIMARY sense (20260756), so this asserts the grammar entries are gone. Band 1
+    // (N5) is where they cluster.
+    //
+    // THE LIMIT MUST EXCEED THE WHOLE POOL or this test samples instead of enumerating, and
+    // absence becomes luck. It used to pass 400 against an N5 pool of 635 — これ surfaced in
+    // ~2 runs of 3, and the resulting intermittent red was read as flake for long enough
+    // that a genuine filter hole sat on main unfixed. The draw size is asserted below rather
+    // than assumed, so if a pool ever outgrows this the test says so instead of going quiet.
+    const LIMIT = 900; // < PostgREST's 1000-row response cap, > every band-1 pool measured
     const svc = serviceClient();
     if (!svc) return;
     const u = await makeUser();
     const draw = (((await svc.rpc("learn_words_at_band", {
-      p_source: "JA", p_target: "EN", p_band: 1, p_user_id: u.userId, p_limit: 400,
+      p_source: "JA", p_target: "EN", p_band: 1, p_user_id: u.userId, p_limit: LIMIT,
       p_exclude_seen: false,
     })).data ?? []) as { headword: string }[]).map((r) => r.headword);
     if (draw.length === 0) return; // proficiency/JMdict not ingested → skip
+    expect(draw.length, "pool outgrew LIMIT — raise it; this draw is a sample, not the pool")
+      .toBeLessThan(LIMIT);
 
     // これ/この (determiner+pronoun), しかし (conj), いいえ/さあ (int), ばかり (prt),
     // どういたしまして (exp) — all real N5-band entries the old affix-only filter let through.
+    // これ needed migration 20260756: `pn` was missing from the excluded set AND the rule
+    // kept any entry with ONE content sense, which これ met on a lone `adv` reading behind
+    // five pronoun senses. It now judges the PRIMARY sense.
     for (const grammatical of ["これ", "この", "しかし", "いいえ", "さあ", "ばかり", "どういたしまして"]) {
       expect(draw, `${grammatical} must not be quizzable`).not.toContain(grammatical);
     }
