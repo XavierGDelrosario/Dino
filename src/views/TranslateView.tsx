@@ -23,7 +23,7 @@ import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
-import { targetOptions, AUTO_DETECT } from "../services/language";
+import { targetOptions, AUTO_DETECT, resolveSourceLanguage } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
@@ -95,6 +95,12 @@ export function TranslateView({
   // in the SOURCE language — the drawing becomes input text — falling back to the
   // language being learned when source is auto-detect (nothing to detect yet).
   const recognitionLang = t.source === AUTO_DETECT ? t.learning : t.source;
+  // Read-aloud is the one INPUT-side affordance that has the text in hand, so on
+  // "Detect language" it resolves from what was actually typed instead of assuming
+  // the learning language — otherwise typing English while studying JA reads the
+  // English out with a Japanese voice. (Handwriting/OCR can't do this: they run
+  // BEFORE there is any text, which is why they keep recognitionLang.)
+  const speakLang = resolveSourceLanguage(t.input, t.source);
   const [hwAvailable, setHwAvailable] = useState(false);
   const [drawing, setDrawing] = useState(false);
   useEffect(() => {
@@ -349,10 +355,11 @@ export function TranslateView({
           {/* Read-aloud sits BOTTOM-right, clear of the top-right modality tools —
               flush, matching the output box (the textarea's resize grip, which used
               to own this corner, is gone; see .textarea in translate.css).
-              The input is spoken in the source language — resolved the same way
-              handwriting/speech resolve it, since "auto-detect" isn't a voice. */}
+              The input is spoken in the language of the INPUT ITSELF — on
+              "Detect language" that's detected from the typed text (see speakLang),
+              since "auto-detect" isn't a voice. */}
           <div className="io__speak">
-            <SpeakButton className="io__tool" text={t.input} lang={recognitionLang} />
+            <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
           </div>
         </div>
         <div className="translate__outwrap">
