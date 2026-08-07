@@ -1,20 +1,14 @@
-// =========================================================
-// Generic MediaWiki client — the "different ways to get input" seam for the generic
-// analysis surface (ArticleView). Any MediaWiki project exposes the SAME CORS-open
-// API (origin=*), so one client serves Wikipedia, Wikinews, … — pick the `site`.
+// Generic MediaWiki client — the input seam for the generic analysis surface
+// (ArticleView). Every MediaWiki project exposes the SAME CORS-open API, so one client
+// serves Wikipedia, Wikinews, … — pick the `site`.
 //
-// The Media tab currently browses **Japanese Wikinews** (a ~4k-article archive, no
-// new stories — fine as a study corpus): a batch of RANDOM headlines with a Refresh
-// for a new batch. Study fetches the full article text and hands it to ArticleView.
+// The Media tab browses Japanese Wikinews (a ~4k-article archive, no new stories, which
+// is fine as a study corpus): random headlines with a Refresh for a new batch.
 //
-// All wiki text is openly licensed (Wikipedia CC BY-SA, Wikinews CC BY 2.5), so we
-// show the real prose in the reader with attribution + a link back (never re-hosting
-// beyond fair use). Pure parsers are exported for unit tests.
-//
-// A fetched article is reduced to its NEWS BODY (`stripArticleApparatus`): the
-// citation lists and related-article links that Wikinews appends are apparatus,
-// not reading material, and they clutter the reader.
-// =========================================================
+// All wiki text is openly licensed (CC BY-SA / CC BY 2.5), so the real prose is shown
+// with attribution + a link back. A fetched article is reduced to its NEWS BODY by
+// `stripArticleApparatus` — citation lists and related-article links are apparatus,
+// not reading material.
 
 export type WikiSite = "wikipedia" | "wikinews";
 
@@ -102,16 +96,14 @@ export function parsePage(json: unknown): { title: string; extract: string } {
 }
 
 // ── Article body vs apparatus ──────────────────────────────────────────────
-// `explaintext` strips wiki MARKUP but keeps every SECTION, so a fetched article
-// still ends in citation lists (出典 / 情報源 — "『…』 — 南日本新聞, 2016年4月24日")
-// and related-article link lists. For a reader those are noise: newspaper names,
-// dates and headlines that aren't the story, and they can outweigh the prose.
+// `explaintext` strips wiki MARKUP but keeps every SECTION, so an article still ends in
+// citation lists (出典 / 情報源) and related-article links — newspaper names, dates and
+// headlines that aren't the story, and they can outweigh the prose.
 //
-// Sections are dropped by HEADING, never wholesale — a sampled article had a real
-// news section (日本選手の成績など), so "drop every section" would delete body text.
-// Headings are matched narrowly for the same reason: 関連 only counts as apparatus
-// in the fixed shapes Wikinews uses for link lists (関連記事 / 関連する記事 / 関連項目 /
-// ウィキニュース関連記事), not on its own.
+// Dropped by HEADING, never wholesale: a sampled article had a real news section
+// (日本選手の成績など), so "drop every section" would delete body text. Headings are
+// matched narrowly for the same reason — 関連 only counts as apparatus in the fixed
+// shapes Wikinews uses for link lists, not on its own.
 const APPARATUS_HEADINGS: RegExp[] = [
   /^(出典|情報源|参考資料|参考文献|参考|脚注|註|注釈|補足|典拠)$/,
   /関連(する)?(記事|項目|ニュース|報道|画像)/,

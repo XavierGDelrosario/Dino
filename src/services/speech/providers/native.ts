@@ -1,29 +1,22 @@
-// =========================================================
-// Native speech recognizer — @capacitor-community/speech-recognition, which uses
-// iOS SFSpeechRecognizer (on-device, free, Japanese supported). It's a proper npm
-// Capacitor plugin (auto-registered; permissions declared in Info.plist), so this
-// is a thin wrapper — no native code of our own. iOS-only today: available() is
-// false on web/desktop, so the registry falls through and the mic button hides.
-// =========================================================
+// Native speech recognizer — @capacitor-community/speech-recognition over iOS
+// SFSpeechRecognizer (on-device, free, Japanese supported). A proper npm Capacitor
+// plugin, so this is a thin wrapper with no native code of our own. iOS-only today:
+// available() is false on web/desktop, so the registry falls through and the mic hides.
 
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 import type { LangCode } from "../../language";
 import type { SpeechRecognizer, SpeechStreamHandle, SpeechStreamOptions } from "../types";
 
-/**
- * How long a gap in the partial stream counts as "the speaker finished". Long
- * enough to survive the pause mid-sentence that thinking produces, short enough
- * that a finished line appears while it is still worth reading.
- */
+/** How long a gap in the partial stream counts as "the speaker finished": long enough
+ *  to survive a mid-sentence pause, short enough that a line lands while still worth
+ *  reading. */
 const SILENCE_MS = 1400;
-/** How often to check that the recognizer is still alive. iOS ends the task by
- *  itself after roughly a minute and raises no event to hang a restart on, so the
- *  STATE is polled — cheap, and it never disturbs a healthy session. */
+/** iOS ends the task itself after roughly a minute and raises no event to hang a
+ *  restart on, so the STATE is polled — cheap, and it never disturbs a live session. */
 const HEALTH_MS = 5_000;
-/** Breathing room between stopping and starting the recognizer. Doing the two
- *  back-to-back rebuilds AVAudioEngine under a task that is still finishing, and
- *  the native exception takes the whole app down. */
+/** Breathing room between stop and start: back-to-back rebuilds AVAudioEngine under a
+ *  task that is still finishing, and the native exception takes the whole app down. */
 const RESTART_DELAY_MS = 400;
 
 /** App LangCode → BCP-47 speech locale, or null if we don't support it. */
@@ -83,20 +76,17 @@ export const nativeRecognizer: SpeechRecognizer = {
   },
 
   /**
-   * CONTINUOUS listening — the live transcript on device, on-device and offline,
-   * with no audio leaving the phone (unlike the web backend, which is Chrome
-   * shipping audio to Google).
+   * CONTINUOUS listening — on-device and offline, with no audio leaving the phone
+   * (unlike the web backend, which is Chrome shipping audio to Google).
    *
-   * The plugin exposes this as `partialResults: true`: start() returns immediately
-   * and a `partialResults` event fires with the hypothesis so far, rewritten on
-   * every syllable. There is no "final" event — so the UTTERANCE BOUNDARY is the
-   * `listeningState` → "stopped" that iOS raises when the speaker pauses. The last
-   * partial at that moment IS the finished utterance, and we then restart.
+   * `partialResults: true` makes start() return immediately and fire a hypothesis
+   * rewritten on every syllable. There is no "final" event, so the UTTERANCE BOUNDARY
+   * is the `listeningState` → "stopped" iOS raises when the speaker pauses; the last
+   * partial at that moment IS the finished utterance.
    *
-   * That restart is the load-bearing part, exactly as on web: SFSpeechRecognizer
-   * ends a session on silence and on its own internal timeout, so without
-   * restarting the transcript works while someone talks nonstop and dies the moment
-   * a conversation pauses — which is the entire use case.
+   * The RESTART after it is load-bearing, exactly as on web: SFSpeechRecognizer ends a
+   * session on silence and on its own timeout, so without restarting the transcript
+   * works while someone talks nonstop and dies the moment a conversation pauses.
    */
   async startStream({ lang, onPartial, onFinal, onError }: SpeechStreamOptions): Promise<SpeechStreamHandle> {
     const tag = toSpeechTag(lang);
@@ -116,10 +106,9 @@ export const nativeRecognizer: SpeechRecognizer = {
       onPartial("");
       if (!text) return;
       onFinal(text);
-      // Everything the engine has produced so far is now a line. iOS keeps ONE
-      // hypothesis running across a pause rather than starting a new one, so the
-      // next partial arrives with all of this still prefixed to it — without this
-      // mark, every committed sentence would be re-emitted inside the next.
+      // iOS keeps ONE hypothesis running across a pause, so the next partial arrives
+      // with all of this still prefixed. Without the mark, every committed sentence
+      // would be re-emitted inside the next.
       committed = heard;
     };
 
@@ -138,22 +127,15 @@ export const nativeRecognizer: SpeechRecognizer = {
 
     // THE BOUNDARY IS SELF-DETECTED, AND IT DOES NOT TOUCH THE SESSION.
     //
-    // Two things were learned on device, in this order. First, `listeningState:
-    // "stopped"` is not raised when iOS ends a dictation session on silence (the
+    // `listeningState: "stopped"` is NOT raised when iOS ends a session on silence (the
     // plugin emits it around explicit start/stop calls), so waiting for it meant
-    // partials overwrote each other and no line was ever committed. Silence is
-    // therefore measured here, from the gap between partials.
+    // partials overwrote each other and no line was ever committed — silence is
+    // measured here instead, from the gap between partials.
     //
-    // Second — and this is why the boundary only COMMITS — stopping and restarting
-    // the recognizer at each pause CRASHED THE APP: `stop()` immediately followed by
-    // `start()` tears down and rebuilds AVAudioEngine underneath a task that is
-    // still finishing, and the native exception kills the process. That path had
-    // never actually run before, because the event that triggered it never fired.
-    //
-    // So a pause now ends the LINE, not the session: the recognizer keeps running,
-    // its hypothesis keeps growing, and `committed` marks how much of it is already
-    // on screen. Restarting is reserved for a session that is genuinely dead, and
-    // even then it is done gently (see `restart`).
+    // And the boundary only COMMITS, because stopping and restarting at each pause
+    // CRASHED THE APP: stop() immediately followed by start() rebuilds AVAudioEngine
+    // under a task that is still finishing. So a pause ends the LINE, not the session;
+    // restarting is reserved for a session that is genuinely dead (see `restart`).
     let cycling = false;
     let silence: ReturnType<typeof setTimeout> | null = null;
     let health: ReturnType<typeof setInterval> | null = null;
@@ -172,9 +154,8 @@ export const nativeRecognizer: SpeechRecognizer = {
       heard = "";
       committed = ""; // a new session starts a new hypothesis
       try {
-        // Only stop something that is actually listening, and give the audio
-        // session time to tear down before starting again — doing the two
-        // back-to-back is what crashed the app.
+        // Only stop something actually listening, and let the audio session tear down
+        // before starting again — back-to-back is what crashed the app.
         if ((await SpeechRecognition.isListening()).listening) {
           await SpeechRecognition.stop();
           await new Promise((r) => setTimeout(r, RESTART_DELAY_MS));
@@ -188,30 +169,21 @@ export const nativeRecognizer: SpeechRecognizer = {
 
     handles.push(
       await SpeechRecognition.addListener("partialResults", ({ matches }) => {
-        // Ignore what a DYING session emits while a restart is in flight. iOS
-        // flushes one last hypothesis — the whole session — as the task closes, and
-        // by then `restart` has already cleared `committed`, so that flush read as
-        // brand-new speech: everything said in the last minute was appended a second
-        // time and then committed by the silence timer. That is the "it pasted what
-        // I said earlier" bug, and it fires on EVERY restart, which for a session
-        // over about a minute is routine rather than rare.
+        // Ignore what a DYING session emits mid-restart: iOS flushes one last
+        // hypothesis — the whole session — as the task closes, and `restart` has by
+        // then cleared `committed`, so the flush reads as brand-new speech and the last
+        // minute gets appended a second time.
         if (cycling || stopped) return;
         const full = matches?.[0] ?? "";
         if (!full) return;
         heard = full;
-        // Strip what is already on screen: iOS extends ONE hypothesis across a
-        // pause, so without this every committed sentence would reappear inside
-        // the next one.
-        //
-        // Cut by LENGTH rather than by a literal prefix match. iOS REVISES earlier
-        // words as more audio arrives (記者 → 汽車, a particle appearing mid-phrase),
-        // so `committed` regularly stops being a prefix of the hypothesis that
-        // contains it — and the old fallback for that case took the WHOLE hypothesis,
-        // re-emitting every line already committed. A revision rewrites words; it
-        // does not restart the utterance, so the boundary stays where it was.
-        // Trade-off: a revision that changes the LENGTH of the committed part shifts
-        // the cut by those few characters. Losing a character beats repeating a
-        // paragraph.
+        // Strip what is already on screen. Cut by LENGTH, not by a literal prefix
+        // match: iOS REVISES earlier words as more audio arrives (記者 → 汽車), so
+        // `committed` regularly stops being a prefix of the hypothesis containing it,
+        // and falling back to the whole hypothesis re-emits every committed line. A
+        // revision rewrites words without restarting the utterance, so the boundary
+        // holds; a revision that changes the committed part's LENGTH shifts the cut by
+        // a few characters, which beats repeating a paragraph.
         if (full.length < committed.length) committed = ""; // a new hypothesis, not a continuation
         const rest = full.slice(committed.length).trim();
         if (!rest) return;
@@ -229,9 +201,9 @@ export const nativeRecognizer: SpeechRecognizer = {
 
     await run();
 
-    // The only other way a session dies is quietly: iOS ends the task on its own
-    // after about a minute, and after an error. Poll for that rather than assuming
-    // an event — but poll the STATE, so a healthy session is never disturbed.
+    // The other way a session dies is quietly — iOS ends the task on its own after
+    // about a minute, and after an error. Poll the STATE for that, so a healthy
+    // session is never disturbed.
     health = setInterval(() => {
       if (stopped || cycling) return;
       void SpeechRecognition.isListening()
@@ -250,8 +222,8 @@ export const nativeRecognizer: SpeechRecognizer = {
         if (health) clearInterval(health);
         commit(); // keep the half-said line rather than dropping it
         void SpeechRecognition.stop().catch(() => {});
-        // remove OUR handles, not removeAllListeners() — that would also tear down
-        // any listener another part of the app has registered.
+        // OUR handles, not removeAllListeners() — that would tear down listeners
+        // another part of the app registered.
         handles.forEach((h) => void h.remove());
         handles.length = 0;
       },

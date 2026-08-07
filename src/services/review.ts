@@ -1,70 +1,37 @@
-// =========================================================
-// Review / spaced repetition (READ ranking + the record-a-review write).
+// Review / spaced repetition: the READ ranking + the record-a-review write.
 //
-// The model is a CONTINUOUS forgetting curve, not an interval schedule. Each
-// user_word carries a `stability` (memory strength, in days); recall
-// probability at time t is the Ebbinghaus/Duolingo-HLR shape
-//   R(t) = exp(-Δdays / stability).
-// There is NO stored next-review date — "due" is computed from that curve, not looked up.
+// A CONTINUOUS forgetting curve, not an interval schedule: each user_word carries a
+// `stability` (days) and R(t) = exp(-Δdays / stability). There is no stored due date.
 //
-// A session is dealt in TWO phases (migration 20260732; the SQL is the authority):
-//   DUE  — words whose R has fallen to the freshness line (≤ 0.9), most-overdue first.
-//          That line is the SAME one record_review freezes at, so the queue and the
-//          scheduler agree by construction: a card the scheduler would learn nothing
-//          from is never dealt. Confidence 5 is included here — a mature word that has
-//          actually decayed is the whole point, and it's how a known word can lapse.
-//   FILL — when nothing (or too little) is due, top the session up from the NOT-due pool,
-//          shakiest first: confidence ≤3 mostly, ~1 in 5 slots a confidence 4, and NEVER
-//          a confidence 5. Fill cards are fresh, so grading them is frozen (logged, no
-//          schedule change) — they are practice, not evidence.
+// A session is dealt in two phases (migration 20260732 is the authority):
+//   DUE  — R ≤ 0.9, most-overdue first. Same line record_review freezes at, so a card
+//          the scheduler would learn nothing from is never dealt. Confidence 5 included.
+//   FILL — tops the session up from the NOT-due pool, shakiest first (never confidence
+//          5). Grading a fill card is frozen — practice, not evidence.
 //
-// Why the gate exists: without it the queue dealt the top-N regardless of due-ness, and
-// the cram freeze made grading those cards a no-op — so the same few confidence-5 words
-// were replayed every session, forever. See 20260732's header.
+// The strength UPDATE math lives in record_review() server-side; this module owns only
+// the READ decay shape, and the two share exp(-Δ/S) — keep in sync. Swapping in FSRS is
+// a new function body, not a change to the { userWordId, grade } contract.
 //
-// Split of responsibility:
-//   * retrievability()  — the pure decay formula (ranking, fully unit-tested).
-//   * getReviewQueue()  — ranks the vocabulary by live R (read).
-//   * recordReview()    — delegates the atomic, server-clocked state update to
-//                         the `record_review` Postgres function (write).
-//
-// The strength UPDATE math lives server-side in record_review() (one atomic,
-// now()-stamped read-modify-write — see the migration); this module only owns
-// the READ decay shape. The two share the exp(-Δ/S) curve — keep them in sync.
-// Swapping in the in-depth algorithm (FSRS) is a new function body + this
-// formula; the { userWordId, grade } contract below does not change.
-//
-// TWO server-side properties the client can't see, both in 20260729 (read it before
-// reasoning about why a word did or didn't come back):
-//   * EASE — the gap between the user's level and the word's scales how fast a
-//     recalled word's stability grows, so beginner vocabulary you clearly know
-//     leaves the rotation instead of grinding round every few weeks. A lapse gets
-//     no ease, so a word you actually forget returns promptly.
-//   * FUZZ — every stability write is jittered, so words seeded or reviewed
-//     TOGETHER don't come due together. retrievability() below stays pure and
-//     deterministic (it re-reads the stored, already-fuzzed stability); the
-//     nondeterminism lives entirely at the write, plus a ±15% jitter on the
-//     queue's ordering so a tied cohort isn't replayed in the same block.
-// =========================================================
+// Two server-side properties invisible here (migration 20260729): EASE (the user↔word
+// level gap scales stability growth) and FUZZ (every stability write is jittered so a
+// cohort doesn't come due together). retrievability() stays pure — it re-reads the
+// already-fuzzed stability.
 
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
 import { type UserWord } from "./words/userWords";
 import type { LangCode } from "./language";
 
-/** The per-review grade the UI sends: a 1–5 self-rated recall confidence
- *  (1 = forgot … 5 = easy). No separate "again" — a forgotten card is grade 1. */
+/** 1–5 self-rated recall (1 = forgot … 5 = easy). No separate "again". */
 export const REVIEW_GRADES = [1, 2, 3, 4, 5] as const;
 export type ReviewGrade = (typeof REVIEW_GRADES)[number];
 
 const MS_PER_DAY = 86_400_000;
 
 /**
- * Current recall probability R(t) ∈ [0,1] under the exponential forgetting
- * curve R = exp(-Δdays / stability). A never-reviewed word (no stability, or no
- * last-reviewed date) returns 0 so it sorts to the FRONT of the review queue.
- *
- * MIRRORS the decay shape in record_review() (the init migration) — keep in sync.
+ * Current recall probability R(t) ∈ [0,1] = exp(-Δdays / stability).
+ * MIRRORS the decay shape in record_review() (init migration) — keep in sync.
  */
 export function retrievability(
   stability: number | null,
@@ -72,10 +39,9 @@ export function retrievability(
   originallyTranslatedDate: string | null,
   now: number = Date.now()
 ): number {
-  // A truly cold word (no stability) is most urgent → 0. A SEEDED word (#10
-  // calibration sets stability before any review) decays from its last review, or —
-  // if never reviewed — from when it was first translated, so the seed actually
-  // affects ranking instead of cold-starting at the front. Mirrors review_queue SQL.
+  // Cold (no stability) → 0, i.e. most urgent. A calibration-SEEDED word decays from
+  // its first-translated date when never reviewed, so the seed affects ranking rather
+  // than cold-starting at the front. Mirrors the review_queue SQL.
   if (stability == null || stability <= 0) return 0;
   const anchor = lastReviewedDate ?? originallyTranslatedDate;
   if (anchor == null) return 1; // seeded but undated → treat as fresh/known
@@ -89,8 +55,7 @@ export interface ReviewQueueItem extends UserWord {
   retrievability: number;
 }
 
-/** One row from the review_queue() SQL function (resolved meaning/readings +
- *  server-computed retrievability), shaped like a UserWord plus the score. */
+/** One row from the review_queue() SQL function: a UserWord plus the score. */
 interface ReviewQueueRow {
   user_word_id: string;
   user_id: string;
@@ -113,34 +78,23 @@ interface ReviewQueueRow {
 }
 
 /**
- * A review session: the DUE words (most-forgotten first), topped up with shaky NOT-due
- * ones when little or nothing is due — see the two-phase model in the module header. An
- * EMPTY result is a real answer, not an error: it means nothing is due and there is
- * nothing shaky left to practise (every remaining word is known cold). Scoped to one
- * sub-list when `listId` is given, else the whole vocabulary (ALL).
- *
- * The ranking + LIMIT run in the `review_queue` Postgres function, so only the ≤
- * `limit` cards cross the wire (not the whole vocabulary). The R = exp(-Δ/S)
- * formula there mirrors retrievability() below — keep them in sync.
- *
- * OUTPUT: ReviewQueueItem[] of length ≤ limit (may be empty).
+ * A review session: DUE words first, topped up with shaky NOT-due ones (module header).
+ * EMPTY is a real answer — nothing due, nothing shaky left. Scoped to `listId` when
+ * given, else the whole vocabulary. Ranking + LIMIT run in the `review_queue` function,
+ * so only ≤ `limit` cards cross the wire.
  */
 export async function getReviewQueue(params: {
   userId: string;
   listId?: string | null;
   limit: number;
-  /** Restrict the queue to EXACTLY these user_word_ids (the Lists view's filtered
-   *  subset). Passing [] yields an empty queue (filters matched nothing). When
-   *  omitted, the whole list/vocabulary is queued as before. */
+  /** Restrict to EXACTLY these ids (the Lists filtered subset); [] = empty queue. */
   userWordIds?: string[];
 }): Promise<ReviewQueueItem[]> {
   const { data, error } = await supabase.rpc("review_queue", {
     p_user_id: params.userId,
     p_limit: Math.max(0, params.limit),
     p_list_id: params.listId ?? undefined,
-    // Restrict to the Lists subset SERVER-side with the real LIMIT — no longer pull
-    // the whole ranked vocabulary (was capped at 100k) to filter + slice in JS.
-    // `undefined` → omitted → no restriction; `[]` → matches nothing → empty queue.
+    // undefined → no restriction; [] → matches nothing.
     p_user_word_ids: params.userWordIds ?? undefined,
   });
   if (error) throw toServiceError(error);
@@ -164,10 +118,8 @@ export async function getReviewQueue(params: {
     proficiencyBand: r.proficiency_band,
     partOfSpeech: r.part_of_speech,
     frequency: r.frequency,
-    // Sense enrichment (20260750) is NOT in the review_queue function's column list,
-    // so a review card carries none of it yet. Surfacing an example on the flashcard
-    // back means widening that SQL function — a deliberate next step, not a silent
-    // one, so these stay explicitly null rather than looking merely unwritten.
+    // Sense enrichment (20260750) isn't in review_queue's column list; surfacing an
+    // example on a card means widening that SQL function. Explicitly null, not forgotten.
     example: null,
     exampleGloss: null,
     definitionSource: null,
@@ -188,13 +140,9 @@ export interface ReviewResult {
 }
 
 /**
- * Records one review of a word, applying the grade. The schedule math (new
- * strength + confidence + the now() stamp + history log) runs atomically inside
- * the `record_review` Postgres function — the client never computes it, so the
- * algorithm can be swapped server-side without touching this contract.
- *
- * OUTPUT: the updated ReviewResult.
- * CONSTRAINTS: the word must belong to the caller (enforced by RLS in the RPC).
+ * Records one review. The schedule math (strength + confidence + now() + history log)
+ * runs atomically in `record_review`, so the algorithm can be swapped server-side.
+ * The word must belong to the caller (enforced by RLS in the RPC).
  */
 export async function recordReview(params: {
   userWordId: string;

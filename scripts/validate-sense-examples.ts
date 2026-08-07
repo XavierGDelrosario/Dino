@@ -1,33 +1,25 @@
-// =========================================================
 // The kuromoji gate for data/sense_examples/ja.tsv — run it BEFORE ingesting.
 //
-// WHY A GATE AT ALL. We author this corpus, so instead of making the parser smarter we
-// pick sentences that suit the parser we have. Every example and every definition
-// renders through ParagraphReader, which means each word in them is segmented by
-// kuromoji, furigana'd from kuromoji's reading, coloured by the user's knowledge and
-// tappable. A sentence kuromoji mis-segments therefore doesn't just look wrong — it
-// produces unaddable fragments and wrong furigana on a surface whose whole promise is
-// that you can tap any word in it. Rejecting and rewriting the sentence is cheap;
-// shipping it is not.
+// WHY A GATE: we author this corpus, so rather than making the parser smarter we pick
+// sentences that suit the parser we have. Examples and definitions render through
+// ParagraphReader, so every word in them is segmented, furigana'd, coloured and
+// tappable — a mis-segmented sentence doesn't just look wrong, it produces unaddable
+// fragments and wrong furigana on a surface whose whole promise is that you can tap any
+// word. Rewriting the sentence is cheap; shipping it is not.
 //
-// THE CHECKS (docs/TODO.md, "kuromoji-validation gate"):
-//   1. The target word survives as ONE token with the right lemma — catches the
-//      柔軟剤 / 電子レンジ fragment class the quality reports turned up.
-//   2. Its reading matches the AUTHORITATIVE one (JMdict), not just any reading —
-//      kuromoji mis-reads short fragments in isolation (行った→行う, 今→こん).
+// THE CHECKS:
+//   1. The target survives as ONE token with the right lemma (the 柔軟剤 fragment class).
+//   2. Its reading matches the AUTHORITATIVE one — kuromoji mis-reads short fragments.
 //   3. No orphan content words: every content-POS token resolves to a JMdict entry.
-//      One that doesn't means mis-segmentation.
 //   4. Token offsets round-trip into the source string.
-// Checks apply to the DEFINITION too, not only the example — same renderer, same risk.
+// All four apply to the DEFINITION too — same renderer, same risk.
 //
-// 1-3 need the dictionary, so they SELF-SKIP when no database is reachable (the same
-// pattern as quality-reports.integration.test.ts). Check 4 and the structural rules run
+// 1–3 need the dictionary and SELF-SKIP without one; 4 and the structural rules run
 // everywhere, which is what makes this usable as a plain unit test in CI.
 //
 // USAGE (from the repo root — kuromoji's dicPath is relative):
 //   npx tsx scripts/validate-sense-examples.ts
 //   DATABASE_URL='postgresql://…' npx tsx scripts/validate-sense-examples.ts   # full gate
-// =========================================================
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { Client } from "pg";
@@ -50,13 +42,10 @@ export interface Headword {
 }
 
 /**
- * Prove the REAL engine is running before trusting a single result.
- *
- * `analyzeJapanese` catches a kuromoji load failure and quietly degrades to
- * Intl.Segmenter — boundaries only, no readings, no lemmas. Every check here would then
- * pass vacuously and the gate would report a clean corpus it never actually parsed
- * (observed: the CJS/ESM interop bug fixed in analyze.ts). Segmenter output has no
- * readings, so one probe sentence separates them.
+ * Prove the REAL engine is running before trusting a single result. `analyzeJapanese`
+ * catches a kuromoji load failure and quietly degrades to Intl.Segmenter — boundaries
+ * only — so every check would pass vacuously and the gate would report a clean corpus
+ * it never parsed. Segmenter output has no readings, so one probe separates them.
  */
 export async function assertRealAnalyzer(): Promise<void> {
   const tokens = await analyze("今日は雨が降る", "JA");
@@ -69,10 +58,9 @@ export async function assertRealAnalyzer(): Promise<void> {
 }
 
 /**
- * Run the parser-independent checks over one field. PURE-ish (kuromoji only).
- *
- * `headword` is optional: without the dictionary we can still prove the offsets are
- * sane, which is the check that protects highlight ranges in the reader.
+ * Run the parser-independent checks over one field. `headword` is optional: without the
+ * dictionary the offsets can still be proven sane, which is the check protecting
+ * highlight ranges in the reader.
  */
 export async function checkField(
   row: SenseExample,
@@ -102,8 +90,8 @@ export async function checkField(
       (t) => t.text === writing || t.lemma === writing || (reading !== null && (t.text === reading || t.lemma === reading)),
     );
     if (!hit) {
-      // Present in the string but not as a token = kuromoji split it — the exact
-      // failure this check exists for, so say which it is.
+      // In the string but not as a token = kuromoji split it, which is the exact
+      // failure this check exists for — so say which it is.
       const split = text.includes(writing);
       at(
         "target-token",
@@ -112,15 +100,12 @@ export async function checkField(
           : `example does not contain the target ${writing}`,
       );
     } else if (hit.text === writing && hit.reading && reading && !sameReading(hit.reading, reading)) {
-      // Compare only on the UNINFLECTED surface: a conjugated 行った legitimately reads
-      // いった, not the lemma's いく. Same rule translateParagraph uses to decide whether
-      // the dictionary reading may override kuromoji's.
+      // Compared only on the UNINFLECTED surface — a conjugated 行った legitimately reads
+      // いった, not the lemma's いく (the same rule translateParagraph uses).
       //
-      // An authored example_reading SETTLES this. kuromoji cannot read 辛い as からい or
-      // 金 as かね in any context, so for those senses the disagreement is permanent and
-      // the corpus states the answer. It still has to be the RIGHT answer: the override
-      // is accepted only when it matches what JMdict says the sense reads, so it can
-      // overrule the analyzer but never the dictionary.
+      // An authored example_reading SETTLES a permanent disagreement (kuromoji cannot
+      // read 辛い as からい in any context). It still has to be the RIGHT answer: accepted
+      // only when it matches JMdict, so it can overrule the analyzer, never the dictionary.
       if (row.exampleReading === null) {
         at(
           "target-reading",
@@ -155,11 +140,10 @@ export async function checkField(
 
 /**
  * Every surface worth probing for one token — the SAME candidate ladder the edge
- * function resolves a lookup through (`lemmaCandidates` in _lib.ts), not a second
- * implementation of it. That matters here: IPADIC lexicalizes potential verbs as their
- * own entries (書ける, 勝てる) which JMdict has no headword for, so probing only the
- * surface and lemma reported 書け and 勝て as mis-segmented when both sentences were
- * perfectly natural. If the reader can resolve a token, the gate must accept it.
+ * resolves a lookup through, not a second implementation. That matters: IPADIC
+ * lexicalizes potential verbs (書ける) as entries JMdict has no headword for, so probing
+ * surface and lemma alone reported perfectly natural sentences as mis-segmented. If the
+ * reader can resolve a token, the gate must accept it.
  */
 function probeSurfaces(t: AnalyzedToken): string[] {
   const out = new Set<string>([t.text, ...lemmaCandidates(t.text, "JA")]);
@@ -173,14 +157,11 @@ function isResolvable(t: AnalyzedToken, resolves: (surface: string) => boolean):
 }
 
 /**
- * Compare two readings as SOUND, not as script.
- *
- * `analyze()` converts kuromoji's katakana readings to hiragana, because that is what
- * furigana wants. So for a katakana headword (テレビ, アメリカ) the analyzer says てれび
- * while JMdict says テレビ — identical pronunciation, different script, and a naive
- * comparison fails every loanword in the corpus. Folding both to hiragana before
- * comparing keeps the check meaningful for kanji headwords (辛い, 金 — the cases it
- * exists for) without inventing a reading conflict for katakana ones.
+ * Compare two readings as SOUND, not as script. `analyze()` hiraganizes kuromoji's
+ * katakana readings for furigana, so for a katakana headword the analyzer says てれび
+ * where JMdict says テレビ — same pronunciation, different script, and a naive compare
+ * fails every loanword. Folding both keeps the check meaningful for the kanji headwords
+ * it exists for without inventing a conflict for katakana ones.
  */
 function sameReading(a: string, b: string): boolean {
   const hira = (s: string) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));

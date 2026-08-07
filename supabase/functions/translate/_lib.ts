@@ -1,37 +1,28 @@
-// =========================================================
 // Pure, runtime-agnostic helpers for the `translate` edge function.
 //
-// Extracted so they can be UNIT-TESTED from the Node/Vitest suite — the edge
-// function itself runs in Deno and imports supabase-js by URL, so it can't be
-// imported into Vitest, and its top-level Deno.serve() would start a server on
-// import. Nothing here touches Deno, Request, env, or the network; index.ts does
-// all the I/O and calls these. Deno imports this as "./_lib.ts"; the Vitest spec
-// imports it as "../../supabase/functions/translate/_lib".
-// =========================================================
+// Extracted so they can be UNIT-TESTED from Node/Vitest — index.ts itself runs in Deno,
+// imports supabase-js by URL and starts a server at import. Nothing here touches Deno,
+// Request, env or the network; index.ts does all the I/O and calls these.
 
 /** One projected sense: translation + optional per-side readings + JMdict identity. */
 export interface ProviderResult {
   translation: string;
   inputReading?: string | null;
   translationReading?: string | null;
-  // JA->EN: the canonical JA headword (kanji if the entry has one, else kana) to
-  // store as `input`. null/undefined → use the search term as-is (EN->JA, MT).
+  // JA->EN: the canonical JA headword to store as `input`. null → use the search
+  // term as-is (EN->JA, MT).
   headword?: string | null;
-  // STABLE JMdict source identity (null for MT). JA->EN: sensePos = sense index;
+  // STABLE JMdict identity (null for MT). JA->EN: sensePos = sense index;
   // EN->JA: the match rank (informational).
   entryId?: string | null;
   sensePos?: number | null;
-  // Difficulty axis: corpus-frequency rank (lower = more common; null for MT).
+  /** Corpus-frequency rank (lower = more common; null for MT). */
   frequency?: number | null;
-  // Proficiency-label axis: the headword's curated band (JLPT/CEFR; null for MT
-  // or words the wordlist lacks). Ascending = harder. See services/proficiency.
+  /** Curated band (JLPT/CEFR), ascending = harder. null for MT / unlisted words. */
   proficiencyBand?: number | null;
-  // POS tags of the sense (null for MT).
   partOfSpeech?: string[] | null;
-  // Sense enrichment (migration 20260750), stamped by applySenseExamples AFTER the
-  // provider returns — an authored annotation of a sense, not something a provider
-  // knows. JA→EN only: for EN→JA `sensePos` is a match rank, not a sense index, so
-  // there is nothing safe to key on (see the migration header).
+  // Sense enrichment (20260750), stamped by applySenseExamples AFTER the provider
+  // returns. JA→EN only — EN→JA's sensePos is a match rank, so nothing safe to key on.
   example?: string | null;
   exampleGloss?: string | null;
   definitionSource?: string | null;
@@ -42,21 +33,12 @@ export interface ProviderResult {
 }
 
 /**
- * The STABLE cache identity of a projected sense — `words.dictionary_ref`.
- *
- * Direction-aware, because the two directions identify a row by different things:
- *   JA→EN  `<entryId>:<sensePos>` — a SENSE of a JMdict entry. Deliberately free of the
- *          headword, which is a projection output a logic change can move (the いく/行く
- *          problem, CLAUDE.md #1).
- *   EN→JA  `<input>:<entryId>`    — "for the English word X, the Japanese entry Y".
- *          There is no sense index here: jmdict_sense_pos in this direction is a match
- *          RANK the ranker computes, so it identifies nothing.
+ * The STABLE cache identity of a projected sense — `words.dictionary_ref`. Curation
+ * keys on it too (20260752), so an override survives any change to sense ORDER.
+ *   JA→EN  `<entryId>:<sensePos>` — free of the headword, which a projection change
+ *          can move (the いく/行く problem, CLAUDE.md #1).
+ *   EN→JA  `<input>:<entryId>` — sensePos here is a match RANK, so it identifies nothing.
  *   MT     `mt:<input>`.
- *
- * Exported because CURATION keys on it (20260752). The curation table addresses a row by
- * the same string the cache does, so a curated override lands on exactly one row and
- * survives any change to sense ORDER — which is the whole point, since on the EN→JA side
- * the order is a heuristic we recompute.
  */
 export function dictionaryRefFor(
   r: Pick<ProviderResult, "entryId" | "sensePos" | "headword">,
@@ -67,13 +49,10 @@ export function dictionaryRefFor(
 }
 
 /**
- * The key CURATION is stored and looked up under: the dictionary_ref, lowercased.
- *
- * The EN→JA ref embeds the TYPED search term, so `Car:1323080` and `car:1323080` are
- * different strings for the same lookup — 53 of 284 EN→JA rows on prod are keyed on a
- * capitalized input. Case-folding the curation key alone means one curation covers both
- * without touching cache identity (which `user_words` and the upsert depend on).
- * Japanese is unaffected: its refs are digits and colons.
+ * The key CURATION is stored under: the dictionary_ref, lowercased. The EN→JA ref
+ * embeds the TYPED term, so `Car:1323080` and `car:1323080` are the same lookup.
+ * Case-folding only the curation key leaves cache identity (which `user_words` and
+ * the upsert depend on) untouched.
  */
 export function curationKeyFor(ref: string): string {
   return ref.toLowerCase();
@@ -89,22 +68,17 @@ export interface WordRowInsert {
   translation_reading: string | null;
   part_of_speech: string[] | null;
   frequency: number | null;
-  // Curated proficiency band (JLPT/CEFR) of the headword; null when the wordlist
-  // lacks it or for MT rows. Projected from jmdict_lookup, like frequency.
   proficiency_band: number | null;
-  // Always null from projection — the NORMALIZED 1..5 difficulty override is a
-  // separate axis, unset today. Listed so the upsert row shape matches the table.
+  /** Always null from projection — a separate axis, unset today. Listed to match the table. */
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
-  // Per-sense enrichment (20260750): a Japanese example sentence, its English gloss,
-  // and a monolingual JA definition. NULL on every EN→JA and MT row.
+  // Per-sense enrichment (20260750). NULL on every EN→JA and MT row.
   example: string | null;
   example_gloss: string | null;
   definition_source: string | null;
   example_reading: string | null;
-  // Display order. NEVER null — every read sorts on it, so an un-curated sense stores
-  // its jmdict_sense_pos and the ordering is unchanged until somebody curates it.
+  /** Display order. NEVER null — every read sorts on it; un-curated = jmdict_sense_pos. */
   sense_rank: number;
   dictionary_ref: string;
   projection_version: number;
@@ -126,9 +100,8 @@ export function toGoogleLang(lang: string): string {
 }
 
 /**
- * The caller's user id from the request JWT's `sub` (signature verified upstream
- * by the gateway). null for the bare anon key / unauthenticated / malformed token
- * → callers fall back to default limits. Handles base64url (no-padding) payloads.
+ * The caller's user id from the request JWT's `sub` (signature verified upstream by the
+ * gateway). null for anon/malformed → callers fall back to default limits.
  */
 export function userIdFromAuth(authHeader: string | null): string | null {
   const token = (authHeader ?? "").replace(/^Bearer\s+/i, "");
@@ -145,10 +118,9 @@ export function userIdFromAuth(authHeader: string | null): string | null {
 }
 
 /**
- * CORS headers for a request Origin against an allow-list. Empty list → "*"
- * (dev convenience). Non-empty → echo the Origin if it's listed, else grant none
- * ("null", a non-usable value). NOTE: the local `supabase start` Kong gateway
- * rewrites this to "*"; the function's value is authoritative only in production.
+ * CORS headers for an Origin against an allow-list. Empty list → "*" (dev); otherwise
+ * echo a listed Origin, else "null". NOTE: the local Kong gateway rewrites this to "*",
+ * so the function's value is authoritative only in production.
  */
 export function corsHeaders(
   origin: string | null,
@@ -174,8 +146,7 @@ export function parseAllowedOrigins(raw: string | undefined | null): string[] {
 }
 
 // ── Learn / calibration request (level-based new-words quiz) ────────────────
-/** Default / max words per learn (or calibration) round. Bounded so one request
- *  can't fan out a huge batch projection. */
+/** Words per learn/calibration round. Bounded so one request can't fan out a huge batch. */
 export const DEFAULT_LEARN_LIMIT = 10;
 export const MAX_LEARN_LIMIT = 30;
 
@@ -185,11 +156,9 @@ export type ParsedLearn =
   | { ok: false; error: string };
 
 /**
- * Validate + normalize a `{ band, limit?, excludeSeen? }` learn request:
- *   - band  — must be an INTEGER 1..6 (the framework ordinal); anything else errors.
- *   - limit — clamped to [1, MAX_LEARN_LIMIT]; a missing/NaN/≤0 value → DEFAULT.
- *   - excludeSeen — defaults TRUE (the learn quiz wants only NEW words); only the
- *     calibration caller passes false to sample the whole band.
+ * Validate + normalize a `{ band, limit?, excludeSeen? }` learn request. band must be an
+ * integer 1..6 (the framework ordinal); limit clamps to [1, MAX]; excludeSeen defaults
+ * TRUE (learn wants only NEW words) — only calibration passes false.
  */
 export function parseLearnRequest(
   learn: { band?: unknown; limit?: unknown; excludeSeen?: unknown },
@@ -207,10 +176,9 @@ export function parseLearnRequest(
 }
 
 // ── SEGMENTS mode (the inline reader gloss) ────────────────────────────────
-// A paragraph arrives already split into SENTENCES, and each is translated as
-// its own unit so gloss[i] belongs to sentence[i]. Splitting one blob of
-// English back apart cannot guarantee that: MT merges and splits sentences.
-// See services/language/sentences.ts for the trade-off this buys.
+// A paragraph arrives pre-split into SENTENCES, each translated as its own unit so
+// gloss[i] belongs to sentence[i] — splitting one blob of English back apart can't
+// guarantee that, since MT merges and splits sentences.
 
 /** Upper bound on sentences per request — a guard on fan-out, not a UX limit. */
 export const MAX_SEGMENTS = 400;
@@ -227,16 +195,10 @@ export interface PreparedSegments {
 }
 
 /**
- * Normalize + DEDUPE a segments request.
- *
- * Dedupe is why this is worth a helper: a transcript or subtitle track repeats
- * the same line many times, and identical sentences translate identically, so
- * only the distinct set is sent to the provider and billed. Blank entries are
- * kept as positions (so indexes still line up with the caller's sentences) but
- * are never sent.
- *
- * NFC-normalizes like every other input boundary — cache-key correctness, and
- * it makes the dedupe see 2 spellings of the same Japanese string as one.
+ * Normalize + DEDUPE a segments request: only the distinct set is sent and billed
+ * (subtitle tracks repeat lines heavily). Blanks keep their position but are never
+ * sent. NFC like every input boundary — it also makes the dedupe see two spellings
+ * of the same Japanese string as one.
  */
 export function prepareSegments(raw: unknown[]): PreparedSegments {
   const normalized = raw.map((v) => (typeof v === "string" ? v.trim().normalize("NFC") : ""));
@@ -263,12 +225,10 @@ export function expandSegmentResults(
 }
 
 /**
- * Resolve the service-role key the edge client authenticates with. Prefers an
- * explicit SERVICE_ROLE_SECRET (a new `sb_secret_…` key, set when legacy API keys
- * are disabled) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY. Uses
- * truthiness (not `??`) so an EMPTY-STRING secret (an easy misconfig) falls back to
- * the legacy key instead of being used as a blank, broken credential. Returns
- * undefined only when neither is set (a real misconfiguration).
+ * The service-role key the edge client authenticates with. Prefers an explicit
+ * SERVICE_ROLE_SECRET (`sb_secret_…`, set when legacy keys are disabled) over the
+ * auto-injected legacy one. Truthiness, not `??`, so an EMPTY-STRING secret falls
+ * back rather than being used as a blank credential.
  */
 export function resolveServiceKey(
   env: { SERVICE_ROLE_SECRET?: string | null; SUPABASE_SERVICE_ROLE_KEY?: string | null },
@@ -277,17 +237,10 @@ export function resolveServiceKey(
 }
 
 /**
- * Project provider results into verified `words` rows. Stores the canonical
- * headword (kanji writing for JA->EN) as `input` so a kana search keeps the kanji.
- * DEDUPEs by (headword, translation): JMdict can yield several senses aggregating
- * to the SAME string (私 → "I; me" twice) — keep the first. Distinct translations
- * carry distinct dictionary_refs, so the dedupe also prevents a duplicate
- * onConflict key (a single ON CONFLICT can't update one row twice — Postgres
- * 21000). The STABLE dictionary_ref pins a row to its SOURCE sense, not the
- * mutable headword, so a re-projection UPDATEs in place instead of forking:
- *   MT (no entry):       'mt:<input>'
- *   JA-source (headword): '<entry>:<pos>'   (headword is a projection output)
- *   EN-source (no head):  '<input>:<entry>' (input is the stable search term)
+ * Project provider results into verified `words` rows. Stores the canonical headword as
+ * `input` so a kana search keeps the kanji. DEDUPEs by (headword, translation): JMdict
+ * can yield several senses aggregating to the SAME string (私 → "I; me" twice), and a
+ * single ON CONFLICT can't update one row twice (Postgres 21000). See dictionaryRefFor.
  */
 export function projectRows(
   results: ProviderResult[],
@@ -331,13 +284,10 @@ export function projectRows(
 }
 
 /**
- * BATCH projection: project several inputs' results into one flat upsert list,
- * de-duped GLOBALLY by dictionary_ref. The cross-input dedupe matters because a
- * single `INSERT … ON CONFLICT` can't touch the same conflict key twice — if two
- * search terms in the batch resolve to the SAME JMdict sense (e.g. a kanji and
- * its kana both present), keeping one row avoids Postgres 21000. Which input
- * "owns" the row for the response is resolved separately by groupByInput (which
- * matches headword/reading), so dropping the duplicate here loses nothing.
+ * BATCH projection into one flat upsert list, de-duped GLOBALLY by dictionary_ref: two
+ * search terms can resolve to the SAME sense (a kanji and its kana), and one ON CONFLICT
+ * can't touch a key twice. groupByInput decides which input owns the row for the
+ * response, so dropping the duplicate here loses nothing.
  */
 export function projectMany(
   perInput: { input: string; results: ProviderResult[] }[],
@@ -358,12 +308,9 @@ export function projectMany(
 }
 
 /**
- * Override a per-input attribute on every result with the value keyed by the
- * LOWERCASED input, or NULL when the input isn't in the map — never leaving the
- * matched translation's value. Pure; the DB read that builds `bySurface` stays in
- * the edge I/O shell. Used by the EN->JA overrides (english_frequency /
- * english_proficiency) so an English headword carries its OWN corpus frequency /
- * CEFR band, not the JA translation's JLPT/JA value.
+ * Override a per-input attribute with the value keyed by the LOWERCASED input, or NULL
+ * when absent — never leaving the matched translation's value. Used by EN->JA so an
+ * English headword carries its OWN frequency / CEFR band, not the JA translation's.
  */
 export function applyInputAttributeOverride(
   perInput: { input: string; results: ProviderResult[] }[],
@@ -380,17 +327,10 @@ export function applyInputAttributeOverride(
 }
 
 /**
- * Merge two ordered provider-result lists into one, PRIMARY first, deduped by
- * jmdict_entry_id, capped at `limit`. Used by the EN->JA path: WordNet's
- * synset-grouped results lead (higher quality, sense-disambiguated), and the
- * reverse-gloss jmdict_lookup results fill any remaining slots (coverage for
- * English words WordNet lacks / extra senses it missed). A result already present
- * by entryId is dropped (same JMdict entry → same `words` row / dictionary_ref).
- *
- * sensePos is RE-NUMBERED to the merged index so the order survives the cache read
- * (fetchVerified orders by jmdict_sense_pos). Safe for EN->JA: there sensePos is a
- * display RANK, not a JMdict sense index, and is NOT part of the dictionary_ref
- * ('<input>:<entry>'), so renumbering doesn't change a row's identity.
+ * Merge the EN->JA providers into one list, deduped by jmdict_entry_id, capped at
+ * `limit`. sensePos is RE-NUMBERED to the merged index so the order survives the cache
+ * read (fetchVerified sorts on it) — safe here, since EN->JA sensePos is a display rank
+ * and is not part of the dictionary_ref.
  */
 export function mergeProviderResults(
   semantic: ProviderResult[],
@@ -399,22 +339,12 @@ export function mergeProviderResults(
 ): ProviderResult[] {
   // INTERSECTION-BOOST, then GLOSS, then WordNet.
   //
-  // An entry BOTH providers return is high-confidence: WordNet asserts a semantic
-  // link AND the JA word's own gloss leads with the English input. Those lead,
-  // ordered by the GLOSS rank.
-  //
-  // WordNet-only rows now come LAST, where they used to come second. Measured on
-  // prod 2026-07-31: `wordnet_en_ja_lookup('run')` returns 言う · 機能 · 運転 … with
-  // 走る nowhere in the top eight, and 'light' leads with 好き. Two reasons, both
-  // structural — Japanese WordNet ships acknowledged errors in ~5% of entries, and
-  // it orders by PRINCETON sense rank, which ranks ENGLISH senses and says nothing
-  // about which Japanese lemma of a synset is the right translation. The same
-  // frequency pollution was already noted for cat→やつ over 猫.
-  //
-  // The gloss search, by contrast, now ranks by how PRIMARY the match is inside the
-  // entry (migration 20260742's headline_rank), which is a direct answer to "does
-  // this Japanese word MEAN this English word". So it leads, and WordNet does what
-  // it is actually good at: covering words the gloss search misses entirely.
+  // An entry BOTH providers return is high-confidence, so it leads, ordered by GLOSS rank.
+  // WordNet is LAST on purpose: it orders by PRINCETON sense rank, which ranks ENGLISH
+  // senses and says nothing about which JA lemma of a synset is the right translation
+  // (measured: 'run' → 言う·機能·運転 with 走る nowhere near the top). The gloss search
+  // ranks by how PRIMARY the match is inside the entry (20260742's headline_rank), which
+  // answers the actual question; WordNet covers what the gloss search misses entirely.
   const glossRank = new Map<string, number>();
   gloss.forEach((r, i) => { if (r.entryId != null && !glossRank.has(r.entryId)) glossRank.set(r.entryId, i); });
   const semanticIds = new Set(semantic.map((r) => r.entryId).filter((k): k is string => k != null));
@@ -440,16 +370,11 @@ export function mergeProviderResults(
 }
 
 // ── Per-language lookup seams ──────────────────────────────────────────────
-// Each language brings its OWN input/output concerns (EN: plural/tense lemmatization;
-// JA: kana/kanji output; ZH: Han; KO: Hangul). These two registries keep that knowledge
-// PLUGGABLE — adding a language is a new map/switch entry, NOT a new hard-coded branch
-// in resolveDictionary. Mirrors the client-side language/registry.ts + senses/difficulty
-// seams (the edge runs in Deno and can't import those, so it keeps its own copy here).
+// Adding a language is a new map entry here, not a branch in resolveDictionary. The
+// edge runs in Deno and can't import the client's language/ registry, hence the copy.
 
-// OUTPUT guard, keyed on TARGET language → the script a result's `translation` MUST
-// contain to be a real word in that language. A reverse-gloss lookup can drag in
-// off-script noise (romaji ＰＥＮ/ＢＩＳ for a JA target); drop it. A target with no
-// entry (e.g. EN) imposes no constraint → identity pass.
+// OUTPUT guard, keyed on TARGET language → the script a `translation` must contain to
+// be a real word in it. No entry (e.g. EN) → no constraint.
 const TARGET_SCRIPT: Record<string, RegExp> = {
   JA: /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u,
   // ZH: /\p{Script=Han}/u,
@@ -457,10 +382,9 @@ const TARGET_SCRIPT: Record<string, RegExp> = {
 };
 
 /**
- * Drop results whose `translation` isn't in the TARGET language's script. Real
- * loanwords are stored in-script (JA katakana ペン → kept); romaji/initialism noise
- * (ＰＥＮ, ＢＩＳ that a gloss merely MENTIONS) is removed. No-op for targets without a
- * TARGET_SCRIPT entry. Mirrors the reader's no-Japanese-script rule for QR/URL.
+ * Drop results whose `translation` isn't in the TARGET script. Loanwords are stored
+ * in-script (ペン kept); romaji/initialism noise a gloss merely MENTIONS (ＰＥＮ, ＢＩＳ)
+ * is removed. No-op for targets without a TARGET_SCRIPT entry.
  */
 export function dropOffScriptTranslations(
   results: ProviderResult[],
@@ -483,17 +407,11 @@ const SOURCE_SCRIPT: Record<string, RegExp> = {
  * Is this token not worth paying MT for? Word-level ONLY — never apply it to the
  * paragraph gloss, whose segments are sentences, not vocabulary.
  *
- * Prod evidence (2026-08-02): 73 of 306 cached MT rows were pure digits — `2026`,
- * `0120`, `1410612404000`, and an OCR blob — each a billed Google call that returned
- * the digits unchanged, then cached as a "word" the reader offered to save. Another
- * 177 rows were Latin-only words sent with source_lang=JA (`overflowing`, `stronger`,
- * `cooking`), which Google duly mistranslated into noise ("overlooking", "Japanese",
- * "0.092"). Both classes are decidable before the call, for free:
- *   · no letter anywhere → digits/punctuation/symbols only, nothing to translate
- *   · off-script for the source language → not a word in the language we claim
- * The dictionary path runs FIRST and is unaffected, so this only ever suppresses the
- * paid fallback: a skipped token returns "no result" and the reader greys it out —
- * which is the correct outcome for a page number.
+ * Two classes decidable for free before the call, both of which prod was billing for:
+ * no letter anywhere (page numbers, phone numbers, OCR blobs) and off-script for the
+ * source language (Latin words submitted as JA, which Google mistranslated into noise).
+ * The dictionary path runs first and is unaffected — a skipped token returns "no result"
+ * and the reader greys it out, which is correct for a page number.
  */
 export function shouldSkipMt(input: string, sourceLang: string): boolean {
   const text = input.trim();
@@ -504,24 +422,19 @@ export function shouldSkipMt(input: string, sourceLang: string): boolean {
 }
 
 /**
- * Did MT hand back what we sent it? Google echoes the input when it can't translate
- * (`2026` → `2026`, `immediately` → `immediately`), and caching that mints a
- * "verified" dictionary row whose meaning is the word itself. Compared case- and
- * width-insensitively so `URL` → `ＵＲＬ` counts as an echo too.
- *
- * The chars are already spent by the time we can check, so this is about not
- * POISONING THE CACHE, not about cost — `shouldSkipMt` is the cost guard.
+ * Did MT hand back what we sent it? Google echoes input it can't translate, and caching
+ * that mints a "verified" row whose meaning is the word itself. Case- and
+ * width-insensitive, so `URL` → `ＵＲＬ` counts. The chars are already spent by now:
+ * this is a CACHE-POISONING guard, not a cost one (that's shouldSkipMt).
  */
 export function isEchoTranslation(input: string, translation: string): boolean {
   const norm = (s: string) => s.normalize("NFKC").trim().toLowerCase();
   return norm(input) === norm(translation);
 }
 
-// Irregular English inflections the regular detachment rules below can't derive —
-// strong-verb past/participles + irregular plurals. Common forms only; the long tail
-// lives in Princeton WordNet's verb.exc/noun.exc (the eventual ingest upgrade). A key
-// that is ALSO a valid lemma (saw, rose, left, felt) is harmless: resolveDictionary
-// tries the SURFACE form first, so the direct sense wins before this map is consulted.
+// Irregular English inflections the detachment rules below can't derive. Common forms
+// only; the long tail is Princeton WordNet's verb.exc/noun.exc (a future ingest). A key
+// that is also a valid lemma (saw, rose, left) is harmless — the SURFACE is tried first.
 const EN_IRREGULARS: Record<string, string> = {
   // be / have / do
   was: "be", were: "be", been: "be", am: "be", are: "be", is: "be",
@@ -547,9 +460,8 @@ const EN_IRREGULARS: Record<string, string> = {
   teeth: "tooth", geese: "goose", mice: "mouse", oxen: "ox",
 };
 
-// morphy-style regular detachment rules: each yields candidate base forms by suffix.
-// Over-generates on purpose — the WordNet lookup VERIFIES each candidate, so a bogus
-// one (e.g. "buses"→"buse") simply returns no rows and is skipped.
+// morphy-style detachment rules → candidate base forms by suffix. Over-generates on
+// purpose: the lookup VERIFIES each candidate, so a bogus one returns no rows.
 function regularLemmaCandidates(w: string): string[] {
   const out: string[] = [];
   const add = (s: string) => { if (s.length >= 2 && s !== w) out.push(s); };
@@ -573,18 +485,12 @@ function regularLemmaCandidates(w: string): string[] {
 }
 
 /**
- * JA lemma candidates: the surface first, then its する-verb form when the surface ends
- * in す.
+ * JA lemma candidates: the surface, then its する-verb form when it ends in す.
  *
- * kuromoji/IPADIC files the stem of a する-verb under a 五段・サ行 lemma ending in す —
- * 接して → 接す, 察して → 察す — but JMdict's headword is 接する / 察する, so the lemma
- * misses the dictionary entirely and the word falls through to the paid MT fallback
- * (which answers with a bare, sentence-cased gloss like "Contact"). Offering 〜する as a
- * FALLBACK candidate resolves it to the real entry, with readings, senses and frequency.
- *
- * The surface is always tried FIRST, so genuine 五段 〜す verbs (出す, 話す, 返す, 消す)
- * still resolve to themselves; the する candidate is only consulted when the surface has
- * no entry, and a bogus one (出する) simply returns no rows.
+ * IPADIC files the stem of a する-verb under a 五段・サ行 lemma ending in す (接して →
+ * 接す) but JMdict's headword is 接する, so the lemma missed the dictionary and fell
+ * through to paid MT. The surface is tried FIRST, so genuine 五段 〜す verbs (出す, 話す)
+ * still resolve to themselves and a bogus candidate (出する) returns no rows.
  */
 function jaSuruCandidates(input: string): string[] {
   if (input.length < 2 || !input.endsWith("す")) return [input];
@@ -598,23 +504,14 @@ const JA_POTENTIAL_STEM: Record<string, string> = {
 };
 
 /**
- * The DICTIONARY form of a potential verb ("can ~"), or null if the input isn't one.
+ * The DICTIONARY form of a potential verb ("can ~"), or null. IPADIC lexicalizes the
+ * potential form (帰れる) as its own entry, which JMdict has no headword for, so it fell
+ * through to paid MT. 五段: strip the え-row stem + る, restore the う-row ending
+ * (帰れる → 帰る). 一段: 〜られる → 〜る.
  *
- * IPADIC files a potential form as its own lexical entry, so kuromoji's lemma for
- * 帰れる is 帰れる — which JMdict has no headword for, so it fell through to paid MT.
- * Prod had exactly this: 帰れる → "Can go home?", 戻れる → "Can go back", ゆける,
- * 奪える, とまれる, たどりつける — six billed calls for verbs the dictionary knows
- * perfectly well in their base form.
- *
- * 五段: strip the え-row stem + る and restore the う-row ending (帰れる → 帰る,
- * 行ける → 行く, 奪える → 奪う). 一段: 〜られる → 〜る (食べられる → 食べる).
- *
- * A 一段 verb is indistinguishable from a 五段 potential by surface alone (食べる and
- * 帰れる are both え-row + る), so the rule fires on both and 食べる speculatively offers
- * 食ぶ. That is harmless by construction: like the する candidate this is consulted only
- * AFTER the surface misses, so a real verb (見える, 消える, 食べる) resolves to itself and
- * never reaches the fallback, and a wrong guess just returns no rows. する → できる is
- * deliberately absent — it isn't derivable from the surface.
+ * A 一段 verb is indistinguishable from a 五段 potential by surface, so 食べる
+ * speculatively offers 食ぶ — harmless, since this is consulted only AFTER the surface
+ * misses. する → できる is absent: not derivable from the surface.
  */
 function jaPotentialCandidate(input: string): string | null {
   if (input.length < 3 || !input.endsWith("る")) return null;
@@ -633,17 +530,12 @@ function jaCandidates(input: string): string[] {
 
 /**
  * Lemma candidates for a query, keyed on SOURCE language — the per-language input seam.
- * Returns the SURFACE form first (morphy tries it before lemmatizing), then ordered
- * base-form candidates. The caller looks each up IN ORDER and keeps the first that
- * resolves, so the dictionary itself verifies the lemma (no separate lemma index).
- *   EN — WordNet-morphy: irregular map + regular detachment rules. Covers cats→cat,
- *        ran→run, studies→study, running→run, mice→mouse. Long-tail irregulars are the
- *        Princeton verb.exc/noun.exc upgrade (see docs/TODO.md).
- *   JA — arrives pre-lemmatized from kuromoji, but IPADIC's lemma can still be a form
- *        JMdict has no headword for: the stem of a する-verb (接して → 接す, entry 接する)
- *        and potential verbs, which IPADIC lexicalizes as-is (帰れる, entry 帰る).
- *        See jaSuruCandidates / jaPotentialCandidate.
- *   other — identity ([input]).
+ * SURFACE first, then ordered base forms; the caller keeps the first that resolves, so
+ * the dictionary itself verifies the lemma (no separate lemma index).
+ *   EN — morphy: irregular map + detachment rules (cats→cat, ran→run, running→run).
+ *   JA — pre-lemmatized by kuromoji, but IPADIC lemmas JMdict lacks still need the
+ *        する / potential fallbacks above.
+ *   other — identity.
  */
 export function lemmaCandidates(input: string, sourceLang: string): string[] {
   if (sourceLang.toUpperCase() === "JA") return jaCandidates(input);
@@ -661,16 +553,12 @@ export function lemmaCandidates(input: string, sourceLang: string): string[] {
 }
 
 /**
- * First-hit-wins resolution over lemma candidates, for the directions served by a
- * SINGLE provider (JA→EN and every non-EN→JA pair). The caller queries the UNION of
- * every input's candidates in one RPC (`byCand` is keyed by candidate); each input then
- * takes the senses of its FIRST candidate that resolved — so the surface form always
- * beats its fallback lemma (出す stays 出す; only 接す, which has no entry, falls back to
- * 接する). Results are re-keyed to the ORIGINAL input, which is what the reader looks
- * meanings up by. Inputs that resolve to nothing are omitted.
- *
- * (EN→JA has its own resolver — resolvePerInputWithCandidates — because it merges TWO
- * providers, WordNet + the gloss fallback, per candidate.)
+ * First-hit-wins resolution over lemma candidates, for the single-provider directions
+ * (JA→EN and every non-EN→JA pair). The caller queries the UNION of every input's
+ * candidates in one RPC (`byCand` keyed by candidate); each input takes its FIRST
+ * candidate that resolved, so the surface beats its fallback lemma. Re-keyed to the
+ * ORIGINAL input (what the reader looks up by); unresolved inputs are omitted.
+ * EN→JA uses resolvePerInputWithCandidates instead — it merges two providers.
  */
 export function resolvePerInputFirstHit(
   inputs: string[],
@@ -691,15 +579,12 @@ export function resolvePerInputFirstHit(
 }
 
 /**
- * BATCH lemmatization resolver — the paragraph/word-by-word counterpart of the
- * single-word candidate loop. Both WordNet and the gloss fallback are queried ONCE over
- * the UNION of every token's lemma candidates (`*ByCand` are keyed by candidate); this
- * picks each token's senses WITHOUT another round-trip:
- *   - winning lemma = the first of the token's candidates that WordNet resolves (after
- *     the off-script filter), else the surface form;
- *   - the gloss fallback uses THAT lemma;
- *   - results are re-keyed to the ORIGINAL token (the reader looks them up by surface).
- * Tokens with no senses are omitted. Mirrors single-word resolveDictionary exactly.
+ * BATCH EN→JA resolver — the paragraph counterpart of the single-word candidate loop.
+ * Both providers are queried ONCE over the UNION of every token's candidates, so this
+ * picks each token's senses with no extra round-trip: the winning lemma is the first
+ * candidate WordNet resolves (post off-script filter) else the surface, the gloss
+ * fallback uses THAT lemma, and results are re-keyed to the original token. Mirrors
+ * single-word resolveDictionary exactly.
  */
 export function resolvePerInputWithCandidates(
   inputs: string[],
@@ -726,12 +611,9 @@ export function resolvePerInputWithCandidates(
 }
 
 /**
- * Assign verified rows back to the SEARCH terms that asked for them, the same way
- * the single-word cache read matches: a row belongs to a term when the term equals
- * its stored headword (`input`) OR its reading (`input_reading`) — so a kana search
- * (ねこ) still collects its kanji-headword row (猫). Each term's rows come back
- * primary-sense first (jmdict_sense_pos asc, nulls last). A term with no match maps
- * to an empty array.
+ * Assign verified rows back to the terms that asked for them, matching like the
+ * single-word cache read: term == stored headword OR its reading, so a kana search
+ * (ねこ) still collects the kanji row (猫). Primary sense first; no match → [].
  */
 export function groupByInput<
   T extends { input: string; input_reading: string | null; jmdict_sense_pos: number | null },
@@ -754,23 +636,17 @@ export function groupByInput<
 // ── Single-word sense overrides (server-side twin of the client's
 // src/services/language/readingOverrides.ts — KEEP IN SYNC, cross-runtime dup).
 //
-// A no-context single-word lookup ranks senses by (frequency DESC, entry, sense).
-// When homograph entries share/borrow a surface's frequency the tiebreak picks the
-// WRONG primary — 前→さき (want まえ), 人→"-ian" suffix (want ひと), ところ→野老 yam
-// (want 所). The client fixed this for its own lookup path only; the LEARN /
-// CALIBRATION path builds cards in the edge, so it needs the same reorder here (so a
-// saved word gets the right meaning). Reorder only — never invents a sense.
+// A no-context lookup ranks senses by (frequency DESC, entry, sense), and when
+// homographs share a surface's frequency the tiebreak picks the WRONG primary
+// (前→さき, 人→"-ian", ところ→野老). Learn/calibration build cards in the edge, so
+// they need the same reorder. Reorder only — never invents a sense.
 
-// English GRAMMATICAL function words to SKIP in the EN→JA reverse-gloss search.
-// Two reasons, both true of every word here: (1) it has no standalone Japanese
-// VOCABULARY equivalent (JA uses particles/inflection, not articles/copulas/bare
-// prepositions), so a reverse-gloss result is pure noise; (2) it appears in a huge
-// fraction of glosses ("to" heads every verb gloss "to run"/"to eat"), so the
-// trigram-then-regex scan is pathological (measured: "the" → 8.8 s over the full
-// dict). Skipping the GLOSS lookup for these makes them instant; WordNet still runs
-// (it returns nothing for them, which is the correct answer). Deliberately excludes
-// function-ish words that DO have JA vocabulary (this→これ, up→上) — those keep both
-// paths. Extend by hand; lowercase.
+// English function words to SKIP in the EN→JA reverse-gloss search: each has no
+// standalone JA vocabulary equivalent, and each appears in a huge fraction of glosses
+// ("to" heads every verb gloss), making the trigram-then-regex scan pathological
+// (measured: "the" → 8.8 s over the full dict). WordNet still runs and correctly
+// returns nothing. Excludes function-ish words that DO have JA vocabulary (this→これ,
+// up→上). Extend by hand; lowercase.
 export const EN_JA_STOPWORDS: ReadonlySet<string> = new Set([
   "the", "a", "an", "and", "or", "but", "nor", "of", "to", "in", "on", "at",
   "by", "for", "with", "from", "as", "is", "are", "was", "were", "be", "been",
@@ -778,30 +654,19 @@ export const EN_JA_STOPWORDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * English words that are GRAMMAR, not vocabulary — a lookup should return nothing
- * rather than a bad match, and must never reach paid MT.
+ * English words that are GRAMMAR, not vocabulary: TERMINAL — they resolve to no senses
+ * and stop, never reaching paid MT. Skipping the gloss scan alone wasn't enough (prod
+ * cached `an`→1, `is`→ある, `my`→マイ from stray WordNet/gloss matches). Mirrors how the
+ * reader greys out Japanese particles by POS.
  *
- * Skipping the gloss scan (EN_JA_STOPWORDS) was not enough: it stops the pathological
- * scan but still lets whatever WordNet or a stray gloss match survive, so prod cached
- * `an` → 1, `is` → ある, `my` → マイ (the loanword, as in マイカー). None of those is
- * what the word means, and a miss then falls through to Google — paying for a wrong
- * answer to "the".
- *
- * Terminal instead: these resolve to NO senses and stop there. That mirrors what the
- * reader already does with Japanese particles, which are greyed out by POS rather than
- * looked up. A learner is not served by a dictionary entry for "an".
- *
- * DELIBERATELY CONSERVATIVE — only words with no useful standalone entry. Words that
- * are also content words stay OUT: "have"/"can"/"will"/"work" have real meanings, and
- * blocking them would be a worse bug than the one this fixes.
+ * DELIBERATELY CONSERVATIVE — words that are also content words ("have", "can", "work")
+ * stay OUT; blocking them would be a worse bug than the one this fixes.
  */
 export const EN_FUNCTION_WORDS: ReadonlySet<string> = new Set([
   ...EN_JA_STOPWORDS,
   // possessive determiners — JMdict has no entry; 私の is a phrase, not a headword
   "my", "your", "his", "her", "its", "our", "their",
-  // personal pronouns
   "i", "me", "you", "he", "she", "it", "we", "us", "they", "them", "him",
-  // demonstratives
   "this", "that", "these", "those",
 ]);
 
@@ -816,23 +681,18 @@ export function isMultiWord(input: string): boolean {
   return input.trim().split(/\s+/).length > 1;
 }
 
-// JMdict CONJUGATION CLASSES — the tags that mark an entry as an actual verb. Used to
-// bias an inflected English verb ("worked") toward 働く instead of the noun 仕事.
+// JMdict CONJUGATION CLASSES — the tags marking an entry as an actual verb, used to bias
+// an inflected English verb ("worked") toward 働く over the noun 仕事.
 //
-// ‼️ Bare `vs` is EXCLUDED, and that distinction is the whole fix. `vs` means "noun or
-// participle which takes する" — it is a NOUN entry (仕事 is ["n","vs"], 制作 likewise).
-// A first cut matched it and the bias did nothing: every noun in the list counted as a
-// verb, so 仕事 stayed first. Measured live before and after.
-//
-// `vi`/`vt` are excluded for the same reason — transitivity is a property, not a class,
-// and a real verb always carries a class alongside it (働く is ["v5k","vi"]).
+// ‼️ Bare `vs` is EXCLUDED and that is the whole fix: `vs` = "noun which takes する", so
+// 仕事 is ["n","vs"] and matching it made every such noun count as a verb. `vi`/`vt` are
+// out for the same reason — transitivity is a property, not a class (働く is ["v5k","vi"]).
 const VERB_POS = /^(v1|v2|v4|v5|vk|vn|vr|vz|vs-)/;
 
 /**
- * Does the SURFACE form say "this is a verb"? `-ed` / `-ing` are unambiguous in a way
- * the dictionary side cannot see: words.part_of_speech on an EN row holds the JMdict
- * POS of the matched JAPANESE sense, and there is no English POS source (docs/TODO.md).
- * The inflection is the one English POS signal we DO have, so use it.
+ * Does the SURFACE form say "this is a verb"? An EN row's part_of_speech holds the POS
+ * of the matched JAPANESE sense and there is no English POS source, so the `-ed`/`-ing`
+ * inflection is the one English POS signal we have.
  */
 export function inflectedAsVerb(surface: string, lemma: string): boolean {
   const s = surface.trim().toLowerCase();
@@ -841,13 +701,9 @@ export function inflectedAsVerb(surface: string, lemma: string): boolean {
 }
 
 /**
- * Same question, asked against a whole candidate list.
- *
- * `lemmaCandidates` returns [SURFACE, ...lemmas], so the lemma is NOT at a fixed
- * position — reading the last entry picked up whatever the regular-form generator
- * emitted last ("worke" for "worked") and the bias silently never fired. Take the
- * first candidate that actually differs from the surface; a word with no differing
- * candidate ("bed") never inflected, so it is not evidence of anything.
+ * Same question against a candidate list. The lemma is NOT at a fixed position in
+ * `lemmaCandidates` (reading the last entry picks up junk like "worke"), so take the
+ * first candidate that differs from the surface. No differing candidate = not inflected.
  */
 export function inflectedVerbSurface(surface: string, candidates: string[]): boolean {
   const s = surface.trim().toLowerCase();
@@ -856,12 +712,9 @@ export function inflectedVerbSurface(surface: string, candidates: string[]): boo
 }
 
 /**
- * Stable-sort verb senses ahead of the rest. Applied only when the surface is an
- * inflected verb form: "worked" resolved to work's senses and led with 仕事 (the noun),
- * because the gloss "work" sits at sense 0 / gloss 0 of BOTH and frequency broke the
- * tie. The inflection settles it — you cannot inflect a noun that way.
- *
- * A bias, not a filter: noun senses stay, just below. Nothing is dropped.
+ * Stable-sort verb senses ahead of the rest, only for an inflected surface: "worked"
+ * led with the noun 仕事 because "work" sits at gloss 0 of both and frequency broke the
+ * tie. A bias, not a filter — noun senses stay, just below.
  */
 export function preferVerbSenses<T extends { partOfSpeech?: string[] | null }>(rows: T[]): T[] {
   const isVerb = (r: T) => (r.partOfSpeech ?? []).some((p) => VERB_POS.test(p));
@@ -905,48 +758,37 @@ export function applyWritingOverride<T extends { input: string }>(
 }
 
 /**
- * Reorder a word's senses so the correct primary leads, for a single-word (no
- * context) result — writing override then reading override. No-op when the surface
- * has no override or no sense carries the preferred form. Used by the edge's card /
- * single-word assembly so learn/calibration + translate all agree on the primary.
+ * Reorder a single-word (no context) result so the correct primary leads — writing
+ * override, then reading override. Used by the edge's card / single-word assembly so
+ * learn, calibration and translate agree on the primary.
  */
 export function orderSensesForInput<
   T extends { input: string; inputReading: string | null; partOfSpeech?: string[] | null },
 >(input: string, words: T[]): T[] {
   const ordered = applyWritingOverride(input, applyReadingOverride(input, words));
-  // The verb bias is applied at READ time, not only when projecting, so it also fixes
-  // rows ALREADY in the cache. Doing it in the projection alone was measurably not
-  // enough: "worked" was cached at the current version with 仕事 first, so the cache
-  // answered and the projection never ran again — only another version bump would have
-  // reached it. Ordering here needs no bump and cannot go stale.
-  //
-  // Safe for every language: the test is an English -ed/-ing surface with a differing
-  // lemma, which no Japanese headword satisfies.
+  // At READ time, not only in the projection, so it also fixes rows ALREADY cached (a
+  // projection-only fix would need a version bump to reach them). Safe for every
+  // language: the test needs an -ed/-ing surface with a differing lemma.
   return inflectedVerbSurface(input, lemmaCandidates(input, "EN"))
     ? preferVerbSenses(ordered)
     : ordered;
 }
 
 // ── PostgREST list-filter chunking ─────────────────────────────────────────
-// Hand-mirrored from src/lib/urlFilter.ts (separate Deno runtime — same rule as
-// CURRENT_PROJECTION_VERSION). Keep the two in sync; tests/edge/url-filter.test.ts
-// fails on drift.
+// Hand-mirrored from src/lib/urlFilter.ts (separate Deno runtime); keep in sync —
+// tests/edge/url-filter.test.ts fails on drift.
 //
-// PostgREST puts filter values in the query string, so a long list makes a long
-// URL. Past some length the request cannot be sent at all — from Deno this
-// surfaces as "TypeError: error sending request", which is exactly what prod's
-// error_log recorded for quality report #3: a 712-char Japanese paste inlined 161
-// terms, the cache read never left the function, and every word in the reader went
-// grey. Percent-encoded Japanese is ~9 bytes per CHARACTER, which is why the
-// budget counts encoded bytes rather than items.
+// PostgREST puts filter values in the query string, and past some URL length the
+// request can't be sent at all (from Deno: "TypeError: error sending request", which
+// on prod silently greyed out every word of a 161-term paste). Percent-encoded
+// Japanese is ~9 bytes per CHARACTER, hence a byte budget rather than an item count.
 
 export const URL_FILTER_BUDGET_BYTES = 3000;
 const PER_VALUE_OVERHEAD = 4;
 
 /**
- * Split `values` so each chunk's encoded size stays within the budget.
- * `repeats` = how many times the list appears in ONE url (the words cache read
- * matches input AND input_reading, so it passes 2).
+ * Split `values` so each chunk's encoded size stays within budget. `repeats` = how many
+ * times the list appears in ONE url (the cache read matches input AND input_reading → 2).
  */
 export function chunkForUrlFilter(
   values: string[],

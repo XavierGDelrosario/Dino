@@ -1,18 +1,14 @@
-// =========================================================
-// Reader → AnalyzeData adapter (PURE, tested).
+// Reader → AnalyzeData adapter. PURE.
 //
-// Turns the paragraph reader's per-token knowledge state into the abstract
-// AnalyzeData the infographic renders: bar charts for Level (proficiency),
-// Frequency, and Confidence, plus a coverage donut (known / new / no-entry).
-// `summarizeUserWords` is the second adapter, over a SAVED LIST — same charts,
-// no coverage pie (a list is 100% known, so the split says nothing).
+// Turns the reader's per-token knowledge state into the abstract AnalyzeData the
+// infographic renders: Level, Frequency and Confidence bars plus a coverage donut.
+// `summarizeUserWords` is the second adapter, over a SAVED LIST — same charts, no
+// coverage pie (a list is 100% known, so the split says nothing).
 //
-// Counts UNIQUE content words (first occurrence wins) — a vocabulary summary of
-// the text, not a token count. Reads only fields already on the Word, so it's a
-// safe render-time call, like getProficiency / getDifficulty. Language-neutral:
-// the Level chart appears only when the source language has a proficiency
-// framework (JA→JLPT, EN→CEFR); everything else works for any language.
-// =========================================================
+// Counts UNIQUE content words, first occurrence wins: a vocabulary summary of the text,
+// not a token count. Reads only fields already on the Word, so it's safe at render
+// time. Language-neutral — the Level chart appears only where the source language has
+// a proficiency framework.
 
 import { isContentPos, type AnalyzedToken, type LangCode } from "../language";
 import { getProficiency, proficiencyFrameworkFor } from "../proficiency";
@@ -50,11 +46,8 @@ function freqBinKey(freq: number): string {
 
 const clampConf = (n: number) => Math.min(5, Math.max(0, Math.round(n)));
 
-/**
- * Per-bucket tally: total words, and how many are already known (saved). `known`
- * is left UNDEFINED by a caller for whom the split says nothing — a saved list is
- * 100% known by construction — which drops the knowledge overlay from that bar.
- */
+/** Per-bucket tally. `known` is left UNDEFINED by a caller for whom the split says
+ *  nothing (a saved list is 100% known), which drops the overlay from that bar. */
 interface Tally {
   total: number;
   known?: number;
@@ -73,12 +66,8 @@ function bumpTotal(m: Map<string, Tally>, key: string): void {
   m.set(key, e);
 }
 
-/**
- * The Frequency bar. Display order: unranked "—" pinned to the top, then rare →
- * common, so COMMON sits at the BOTTOM. Weight is common 0 (green) … rare 1 (blue).
- * A tally with `known` omitted (a set where knownness carries no information, e.g.
- * a saved list) leaves the bucket's `known` undefined, which hides the overlay.
- */
+/** The Frequency bar: unranked "—" pinned to the top, then rare → common, so COMMON
+ *  sits at the BOTTOM. Weight runs common 0 (green) … rare 1 (blue). */
 function frequencyBar(counts: Map<string, Tally>): InfographicSeries {
   const n = FREQ_BINS.length;
   const ranked: InfographicBucket[] = FREQ_BINS.map((b, i) => ({

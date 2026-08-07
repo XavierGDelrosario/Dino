@@ -1,29 +1,22 @@
-// =========================================================
 // The vocabulary FILTER MODEL — which of a user's words a set of criteria selects.
 //
-// Lives in services/ (pure TS, no React) rather than beside the Lists UI because the
-// rules are DOMAIN rules, not widget state: they read the proficiency framework, the
-// commonness banding, and the POS categories, and they are what a future
-// "review my N3 verbs" / "quiz low-confidence words added this week" flow filters on
-// (services/review.ts must be able to import this without reaching into components/).
-// The FilterMenu component only renders it; the view only sorts and pages.
+// In services/ rather than beside the Lists UI because these are DOMAIN rules, not
+// widget state: a future "review my N3 verbs" flow filters on them, so services/review
+// must be able to import this without reaching into components/. FilterMenu only
+// renders it; the view only sorts and pages.
 //
-// Two kinds of axis, and they take OPPOSITE resting states — which is the one thing
-// to keep straight when adding another:
+// Two kinds of axis, with OPPOSITE resting states — the thing to keep straight when
+// adding another:
+//  * SET axes (language, usage, POS) — checkboxes. EMPTY = INERT.
+//  * RANGE axes (added, reviewed, confidence) — a span with a full default.
+//    WIDE-OPEN = INERT; they narrow as you close them in.
 //
-//  * SET axes (language, usage, POS) — a set of checkboxes. EMPTY = INERT: nothing
-//    checked means "don't narrow on this", so the resting form shows the whole list.
-//  * RANGE axes (added, reviewed, confidence) — a span with a FULL default ("all
-//    time", 0–5). WIDE-OPEN = INERT; they narrow as you close them in.
+// PROFICIENCY is the deliberate hybrid: checking a language auto-checks all its bands,
+// so it's a set that starts FULL and all-checked is inert. A word with no curated band
+// drops out only once the user unchecks a band, keeping the (very common) unlabelled
+// words visible until a level is really asked for.
 //
-// PROFICIENCY is the deliberate hybrid: checking a language auto-checks all of its
-// bands, so it's a set that starts FULL. Hence all-checked = inert there, and a word
-// with no curated band drops out only once the user actually unchecks a band — which
-// keeps the (very common) unlabelled words visible until a level is really asked for.
-//
-// Attribute axes read fields already on a saved word (services/proficiency,
-// /difficulty, /language). No I/O — safe during render.
-// =========================================================
+// No I/O — safe during render.
 
 import { frequencyCommonness, type LevelValue } from "../difficulty";
 import { proficiencyFrameworkFor } from "../proficiency";
@@ -36,10 +29,8 @@ export type DatePeriod = "all" | "today" | "week" | "month" | "year";
 export const CONF_MIN = 0;
 export const CONF_MAX = 5;
 
-/** Pseudo-band for words with NO curated proficiency level (the "—" checkbox). Real
- *  framework bands are ≥ 1, so 0 is a safe sentinel that participates in the band set
- *  like any other — checked by default (so unlabelled words show), uncheckable to hide
- *  them once you're narrowing by level. */
+/** Pseudo-band for words with NO curated level (the "—" checkbox). Real bands are ≥ 1,
+ *  so 0 is a safe sentinel that participates in the band set like any other. */
 export const NO_BAND = 0;
 
 /** The word-like shape the filters read (a UserWord satisfies it). */
@@ -67,13 +58,10 @@ export interface WordFilters {
   added: DatePeriod;
   /** LAST REVIEWED within this period; "all" = any time (and never-reviewed words stay). */
   reviewed: DatePeriod;
-  /**
-   * The two confidence thumbs, stored RAW and allowed to CROSS — never clamped
-   * against each other. Clamping is what made the range stick when both thumbs
-   * landed on the same value (5–5): the moving thumb's update got cancelled, so it
-   * couldn't be dragged either way. The effective bounds are simply min/max of the
-   * two, so from any equal position a thumb moves freely in both directions.
-   */
+  /** The two confidence thumbs, stored RAW and allowed to CROSS — never clamped against
+   *  each other. Clamping made the range stick when both landed on the same value: the
+   *  moving thumb's update got cancelled, so it couldn't be dragged either way. The
+   *  effective bounds are min/max of the two. */
   confA: number;
   confB: number;
 }
@@ -106,8 +94,8 @@ export function periodCutoff(period: DatePeriod): number {
   return d.getTime();
 }
 
-/** All band values of a language's framework PLUS the "—" no-level band (what a
- *  freshly-checked language gets — every band, incl. unlabelled words, checked). */
+/** A framework's band values plus the "—" no-level band — what a freshly-checked
+ *  language gets. */
 export function allBandsOf(lang: LangCode): number[] {
   const bands = proficiencyFrameworkFor(lang)?.bands.map((b) => b.value);
   return bands ? [...bands, NO_BAND] : [];
@@ -118,11 +106,8 @@ export function toggle<T>(xs: readonly T[], value: T): T[] {
   return xs.includes(value) ? xs.filter((x) => x !== value) : [...xs, value];
 }
 
-/**
- * Check/uncheck a language: checking it AUTO-CHECKS every band of its framework
- * (which is what reveals the band row); unchecking drops the bands with it, so
- * re-checking later starts from the full set again.
- */
+/** Checking a language AUTO-CHECKS every band of its framework (which is what reveals
+ *  the band row); unchecking drops them, so re-checking starts from the full set. */
 export function toggleLang(f: WordFilters, lang: LangCode): WordFilters {
   const bands = { ...f.bands };
   if (f.langs.includes(lang)) delete bands[lang];
@@ -138,16 +123,11 @@ function bandsNarrow(lang: LangCode, checked: number[] | undefined): boolean {
 }
 
 /**
- * COMPILE the filters into a predicate, resolving everything that depends only on the
- * FILTERS (date cutoffs, confidence bounds, which languages narrow their bands) ONCE
- * — not per word. Callers filter a whole vocabulary with it:
- *
- *     words.filter(makeMatcher(filters))
- *
- * That matters because the pass is not once-per-click: dragging a confidence thumb
- * emits a new `filters` on every pointer event, so a per-word `new Date()` /
- * `bands.map()` / bounds object would allocate a few thousand times per frame on a
- * large vocabulary. PURE — safe during render.
+ * COMPILE the filters into a predicate — `words.filter(makeMatcher(filters))` —
+ * resolving everything that depends only on the FILTERS once, not per word. That
+ * matters because the pass isn't once-per-click: dragging a confidence thumb emits new
+ * filters on every pointer event, so a per-word `new Date()` or bounds object would
+ * allocate thousands of times per frame on a large vocabulary. PURE.
  */
 export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
   const langs = new Set(f.langs);
@@ -156,7 +136,7 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
   const addedCut = periodCutoff(f.added);
   const reviewedCut = periodCutoff(f.reviewed);
   const { lo, hi } = confBounds(f);
-  // Only the languages whose bands actually narrow (all-checked = inert; see header).
+  // Only languages whose bands actually narrow (all-checked = inert; see header).
   const narrowingBands = new Map<LangCode, Set<number>>();
   for (const lang of f.langs) {
     const checked = f.bands[lang];
@@ -167,11 +147,9 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
     if (langs.size > 0 && !langs.has(word.sourceLang)) return false;
 
     const bands = narrowingBands.get(word.sourceLang);
-    if (bands) {
-      // A word with no curated band maps to the "—" pseudo-band, so it survives iff
-      // "—" is still checked (default) and drops only when the user unchecks it.
-      if (!bands.has(word.proficiencyBand ?? NO_BAND)) return false;
-    }
+    // A word with no curated band maps to the "—" pseudo-band, so it survives while
+    // "—" is checked (the default) and drops only when the user unchecks it.
+    if (bands && !bands.has(word.proficiencyBand ?? NO_BAND)) return false;
 
     if (usage.size > 0) {
       const commonness = frequencyCommonness(word);
@@ -195,13 +173,12 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
   };
 }
 
-/** Does this ONE word survive the filters? Convenience over `makeMatcher` — use the
- *  matcher directly when filtering a whole list. PURE. */
+/** Does this ONE word survive? Use `makeMatcher` directly for a whole list. PURE. */
 export function matchesFilters(word: FilterTarget, f: WordFilters): boolean {
   return makeMatcher(f)(word);
 }
 
-/** How many axes are narrowing the list (0 = the filters are resting) — the button badge. */
+/** How many axes are narrowing the list (0 = resting) — the button badge. */
 export function activeFilterCount(f: WordFilters): number {
   const bandAxes = f.langs.filter((l) => bandsNarrow(l, f.bands[l])).length;
   const { lo, hi } = confBounds(f);

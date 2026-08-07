@@ -1,12 +1,8 @@
-// Unified translate flow. ONE input — kuromoji decides whether it's a single
-// word or a phrase/sentence (no manual Word/Paragraph toggle):
-//   · single word  → look up the dictionary form (so 行った resolves via 行く),
-//                     show ALL senses, save the primary on demand.
-//   · sentence     → the reader: each word colored by knowledge, hover for its
-//                     meanings. Each sense is addable INDIVIDUALLY (homographs
-//                     like 辛い → からい / つらい are separate senses, so you can
-//                     add exactly the one you mean), and "Add all" saves the
-//                     primary of every new word at once.
+// Unified translate flow. ONE input — kuromoji decides word vs sentence, no manual
+// toggle. A single word looks up its dictionary form (行った via 行く) and shows ALL
+// senses; a sentence opens the reader, where each word is colored by knowledge and
+// each sense is addable INDIVIDUALLY (so a homograph like 辛い lets you add exactly
+// the meaning you want), plus "Add all" for every new word's primary.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
 import { pushEntry, type TranslateHistoryEntry } from "../services/translateHistory";
@@ -42,43 +38,35 @@ export type TranslateMode = "word" | "paragraph";
 export type TranslateStatus = "idle" | "loading" | "done" | "error";
 
 export function useTranslate(userId: string) {
-  // SOURCE (input) defaults to the LEARNING language and TARGET (output) to the
-  // NATIVE language: you type the language you're studying and read its meaning in
-  // your own language (type Japanese → English gloss + word-by-word reader). The
-  // profile effect below pins both to the user's saved prefs once loaded. Both stay
-  // freely changeable in the LangBar (incl. switching source to Detect).
+  // SOURCE (input) defaults to the LEARNING language and TARGET (output) to the NATIVE
+  // one: you type what you're studying and read its meaning in your own language. The
+  // profile effect below pins both once prefs load; both stay changeable in the LangBar.
   const [source, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
   const [target, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
-  // Sticky: what you typed survives a tab switch. The RESULTS deliberately don't
-  // (they'd be a stale mirror of saved/confidence state) — you come back to your
-  // text with a clean slate and re-submit.
+  // Sticky: what you typed survives a tab switch. The RESULTS deliberately don't —
+  // they'd be a stale mirror of saved/confidence state.
   const [input, setInput] = useStickyState(userId, "translate.input", "");
-  // What you translated this session — same sticky cache as the input, so it
-  // survives a tab switch and dies with the page. Recorded on SUCCESS only (see
-  // the effect below), so a failed submit (quota 429, oversize 413, network)
-  // doesn't leave an entry that replays straight back into the same error.
+  // Recorded on SUCCESS only (see the effect below), so a failed submit (429, 413,
+  // network) doesn't leave an entry that replays straight back into the same error.
   const [history, setHistory] = useStickyState<TranslateHistoryEntry[]>(
     userId,
     "translate.history",
     [],
   );
-  // Set at submit time, consumed when the status reaches "done". A ref, not state:
-  // it must not re-render, and submit has several success exits — capturing once at
-  // the top and committing on the status transition covers them all without
-  // threading a record call through each `return`.
+  // Set at submit, consumed at status "done". A ref, not state: it must not re-render,
+  // and submit has several success exits — capturing once at the top covers them all
+  // without threading a record call through each `return`.
   const pendingEntry = useRef<TranslateHistoryEntry | null>(null);
   const [status, setStatus] = useState<TranslateStatus>("idle");
   const [mode, setMode] = useState<TranslateMode>("word");
   const [error, setError] = useState<string | null>(null);
 
-  // The language the user is LEARNING. The study surface (reader / add / quiz)
-  // always operates on THIS language's words — the input when the user types it,
-  // else the OUTPUT (so typing English while learning JA studies the Japanese
-  // translation's words, not the English input). Independent of the translate
-  // direction; swapping languages doesn't change what you're learning.
+  // The language the user is LEARNING. The study surface always operates on THIS
+  // language's words — the input when the user types it, else the OUTPUT, so typing
+  // English while learning JA studies the Japanese translation's words. Independent of
+  // the translate direction: swapping languages doesn't change what you're learning.
   const [learning, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
-  // The plain translation shown in the output box (the other language's rendering
-  // of what you typed). Set by submit; distinct from the study data.
+  // The plain translation in the output box. Set by submit; distinct from study data.
   const [output, setOutput] = useState("");
 
   // word mode
@@ -87,16 +75,15 @@ export function useTranslate(userId: string) {
 
   // paragraph mode
   const [para, setPara] = useState<ParagraphTranslation | null>(null);
-  // True while the word-by-word reader (kuromoji analysis + per-word lookups) is
-  // still loading AFTER the whole-sentence translation is already shown — lets the
-  // UI display the translation immediately with a spinner below for the reader.
+  // True while the reader (analysis + per-word lookups) is still loading AFTER the
+  // sentence translation is shown, so the UI can render that with a spinner below.
   const [readerLoading, setReaderLoading] = useState(false);
   const [analyzedInput, setAnalyzedInput] = useState("");
   // True while the ON-DEMAND sentence gloss is in flight (see loadGloss).
   const [glossLoading, setGlossLoading] = useState(false);
 
-  // Per-SENSE state, keyed by dictionary wordId — shared by both modes so the
-  // popover/results can add an exact sense (e.g. つらい without からい).
+  // Per-SENSE state, keyed by dictionary wordId — shared by both modes so the popover
+  // can add an exact sense (つらい without からい).
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [confidence, setConfidence] = useState<Map<string, number>>(new Map());
@@ -104,34 +91,29 @@ export function useTranslate(userId: string) {
   /** Senses whose knowledge state has already been fetched — see syncSenseState. */
   const syncedIds = useRef<Set<string>>(new Set());
 
-  // Destination for adds: a sub-list (also tags it) or null = just ALL. The
-  // The user's sub-lists (the add buttons' second-click menu offers these + "new").
+  // The user's sub-lists (the add buttons' menu offers these + "new"). A null
+  // destination means just ALL.
   const [lists, setLists] = useState<List[]>([]);
   useEffect(() => {
     listUserLists(userId).then(setLists).catch((e) => console.warn("useTranslate: failed to load sub-lists", e));
   }, [userId]);
 
-  // The user's effective restrictions (e.g. paragraph char limit). Defaults
-  // until loaded so the first submit still has a sane cap. The edge function
-  // re-enforces server-side — this copy is for instant UX feedback.
+  // The user's effective restrictions. Defaults until loaded, so the first submit still
+  // has a sane cap. The edge re-enforces server-side; this copy is for instant feedback.
   const [limits, setLimits] = useState<UserLimits>(DEFAULT_LIMITS);
   useEffect(() => {
     getUserLimits(userId).then(setLimits).catch((e) => console.warn("useTranslate: failed to load limits (using defaults)", e));
   }, [userId]);
 
-  // The user's calibrated level (#10), used to seed cold-start stability when
-  // adding un-quizzed words so a known vocabulary doesn't all start at 0. null
-  // until calibrated → seedStability returns null → today's cold-start behavior.
+  // Seeds cold-start stability for un-quizzed words, so a known vocabulary doesn't all
+  // start at 0. null until calibrated → seedStability returns null → plain cold start.
   const [level, setLevel] = useState<LevelValue | null>(null);
   useEffect(() => {
     getUserLevel(userId).then(setLevel).catch((e) => console.warn("useTranslate: failed to load level (no cold-start seeding)", e));
   }, [userId]);
 
-  // Default the directions from the user's profile prefs (Profile page). SOURCE
-  // (input) = the LEARNING language, TARGET (output) = the NATIVE language, so the
-  // user types what they study and reads the meaning in their own language. Falls
-  // back to the registry defaults for a fresh guest (no saved prefs). Both stay
-  // changeable in the LangBar.
+  // Default both directions from the profile prefs, falling back to the registry
+  // defaults for a fresh guest.
   const prefs = useLanguagePrefs(userId);
   useEffect(() => {
     setSource(prefs.learning);
@@ -153,9 +135,8 @@ export function useTranslate(userId: string) {
     [userId]
   );
 
-  // Submit is a BUTTON, never Enter (IME confirms kanji with Enter). Accepts
-  // optional overrides so swap() can translate the swapped text/langs immediately
-  // without waiting for the setState round-trip (state is still updated for the UI).
+  // Submit is a BUTTON, never Enter (the IME confirms kanji with Enter). The overrides
+  // let swap() translate the swapped text/langs without waiting for a setState round-trip.
   const submit = useCallback(async (override?: {
     text?: string;
     source?: SourceSelection;
@@ -189,16 +170,13 @@ export function useTranslate(userId: string) {
         return;
       }
 
-      // The STUDY orients on the LEARNING language; `native` is the OTHER side
-      // (the explanation language). If the user typed the learning language we
-      // study the input directly; otherwise we translate the input INTO the
-      // learning language and study THAT (so typing English while learning JA
-      // studies the Japanese translation, not the English input).
+      // The STUDY orients on the LEARNING language; `native` is the explanation side.
+      // Typing the learning language studies the input directly; otherwise the input is
+      // translated INTO the learning language and THAT is studied.
       const typedLearning = resolvedSource === learning;
-      // `native` (the explanation language) must NOT be the learning language. When
-      // the user typed the learning language, it's the target — unless that's also
-      // the learning language (e.g. target left on JA), in which case fall back to
-      // the other supported language so we never do a learning→learning lookup.
+      // `native` must NOT be the learning language, so when the target is also the
+      // learning language fall back to another supported one rather than ever doing a
+      // learning→learning lookup.
       const native: LangCode = !typedLearning
         ? resolvedSource
         : tgt !== learning
@@ -206,8 +184,7 @@ export function useTranslate(userId: string) {
           : SUPPORTED_LANGUAGES.find((l) => l.code !== learning)?.code ?? tgt;
       setNativeLang(native);
 
-      // Collect knowledge state for a set of senses (which are saved, at what
-      // confidence) so the UI can mark them up front.
+      // Which senses are saved, at what confidence, so the UI can mark them up front.
       const loadSenseState = async (ids: string[]) => {
         const tracked = ids.length
           ? await getUserWordStates({ userId, dictionaryWordIds: ids })
@@ -226,10 +203,9 @@ export function useTranslate(userId: string) {
         setSaving(new Set());
         setConfidence(conf);
         setUserWordIds(uw);
-        // This is the AUTHORITATIVE state for the new result and REPLACES what came
-        // before, so the live reader's incremental record starts over with it —
-        // otherwise a sense it had already fetched would be skipped for ever, even
-        // though this reset just dropped it.
+        // AUTHORITATIVE for the new result, REPLACING what came before — so the live
+        // reader's incremental record restarts here, or a sense it had already fetched
+        // would be skipped forever even though this reset dropped it.
         syncedIds.current = new Set(ids);
       };
 
@@ -240,10 +216,8 @@ export function useTranslate(userId: string) {
         const inputTokens = await analyze(text, resolvedSource);
         if (isSingleWord(inputTokens, resolvedSource)) {
           const enja = await lookupWord({ input: text, sourceLang: resolvedSource, targetLang: learning });
-          // Distinct candidate writings in the EN→JA rank order (relevance, then
-          // core-match, then frequency — see jmdict_lookup), capped. The ranking
-          // already surfaces the common, relevant equivalents (word → 言葉, bat →
-          // バット) ahead of rare/tangential ones, so we keep that order as-is.
+          // Distinct candidate writings in the EN→JA rank order, capped. That ranking
+          // already puts the common, relevant equivalents ahead of tangential ones.
           const candidates: string[] = [];
           const seenC = new Set<string>();
           for (const m of enja.meanings) {
@@ -257,8 +231,7 @@ export function useTranslate(userId: string) {
             return;
           }
           // Study each candidate learning→native; the TOP keeps all its senses, the
-          // rest contribute their primary. Deduped by wordId. ONE batched lookup
-          // for all candidates (1 DB read + 1 edge call) instead of N per-word calls.
+          // rest contribute their primary. ONE batched lookup, not N per-word calls.
           const byCandidate = await lookupWordsBatch({
             inputs: candidates,
             sourceLang: learning,
@@ -329,10 +302,9 @@ export function useTranslate(userId: string) {
         return;
       }
 
-      // Sentence → reader. Enforce the per-user paragraph char limit (free-tier
-      // guard) up front; the edge function re-checks as the hard gate. This guards
-      // the PAID whole-paragraph gloss — so skip it when skipGloss is set (the media
-      // summary makes no gloss call, so a long article is free to analyze in full).
+      // Sentence → reader. The per-user char limit guards the PAID gloss, so it's
+      // skipped under skipGloss (a long article is free to analyze in full). The edge
+      // re-checks as the hard gate.
       if (!override?.skipGloss && learningText.length > limits.paragraphCharLimit) {
         setError(
           `This text is ${learningText.length} characters; the limit is ${limits.paragraphCharLimit}. Please shorten it.`
@@ -345,12 +317,9 @@ export function useTranslate(userId: string) {
       setPara(null);
       setMeanings([]);
 
-      // Show the whole-sentence TRANSLATION as soon as it's known, then stream the
-      // word-by-word reader in below (kuromoji's first load + lookups are the slow
-      // part). For !typedLearning the output IS the learning translation (already
-      // known); for typedLearning it's the gloss, revealed via onGloss the moment it
-      // lands. Either way status flips to "done" (output visible) with readerLoading
-      // true (spinner under the reader) until the tokens/meanings arrive.
+      // Show the TRANSLATION as soon as it's known, then stream the reader in below
+      // (kuromoji's first load + the lookups are the slow part). Status flips to "done"
+      // with readerLoading true until the tokens/meanings arrive.
       const revealReader = () => { setReaderLoading(true); setStatus("done"); };
       if (!typedLearning) { setOutput(outputText); revealReader(); }
 
@@ -377,25 +346,10 @@ export function useTranslate(userId: string) {
     }
   }, [input, source, target, status, readerLoading, userId, limits, learning]);
 
-  /**
-   * Fetch the sentence-by-sentence translation for the paragraph ALREADY analyzed,
-   * and fold it into `para.sentences`.
-   *
-   * This exists so the reader's "Show translation" toggle can PAY ON DEMAND. A
-   * media article is analyzed with `skipGloss` (opening one must cost nothing —
-   * the summary never shows a translation), which used to mean an article could
-   * never show one at all. Now the first press of the toggle buys it, and only
-   * for a reader who actually asked; a reader who never toggles never spends.
-   *
-   * Idempotent + single-flight: a paragraph already glossed, or a request in
-   * flight, is a no-op — so double-clicking the toggle can't buy it twice.
-   * A failure is non-fatal: the reader keeps rendering, just without English.
-   */
-  // Commit the pending entry once a submit actually succeeds. Keyed on the status
-  // transition rather than called inside submit because submit has several success
-  // exits (echo, EN→JA candidates, word, reader) and only ONE failure path — this
-  // records all of the former and none of the latter. Clearing the ref makes it
-  // idempotent, so an unrelated re-render at status "done" can't double-add.
+  // Commit the pending entry once a submit succeeds. Keyed on the status transition
+  // rather than called inside submit, because submit has several success exits and only
+  // ONE failure path — this records all of the former and none of the latter. Clearing
+  // the ref makes it idempotent against an unrelated re-render at "done".
   useEffect(() => {
     if (status !== "done") return;
     const entry = pendingEntry.current;
@@ -405,10 +359,9 @@ export function useTranslate(userId: string) {
   }, [status, setHistory]);
 
   /**
-   * Re-run a history entry: restore the text AND the direction it was translated
-   * in, then submit. Both the LangBar and the request are set from the entry so
-   * what the user sees matches what actually ran — replaying with an override
-   * while the bar still showed the current direction would silently disagree.
+   * Re-run a history entry: restore the text AND the direction it was translated in,
+   * then submit. Both the LangBar and the request are set from the entry, so what the
+   * user sees matches what actually ran.
    */
   const replayHistory = useCallback(
     (entry: TranslateHistoryEntry) => {
@@ -422,6 +375,15 @@ export function useTranslate(userId: string) {
 
   const clearHistory = useCallback(() => setHistory([]), [setHistory]);
 
+  /**
+   * Fetch the sentence-by-sentence translation for the ALREADY-analyzed paragraph and
+   * fold it into `para.sentences`, so the reader's "Show translation" toggle can PAY ON
+   * DEMAND: an article analyzed with `skipGloss` costs nothing to open, and only a
+   * reader who presses the toggle buys a gloss.
+   *
+   * Idempotent + single-flight, so double-clicking can't buy it twice. A failure is
+   * non-fatal — the reader keeps rendering, just without English.
+   */
   const loadGloss = useCallback(async () => {
     if (glossLoading) return;
     const text = analyzedInput;
@@ -437,17 +399,14 @@ export function useTranslate(userId: string) {
     setGlossLoading(true);
     try {
       const spans = splitSentences(text);
-      // Through the CACHE: sentences already bought one at a time (by tapping their
-      // punctuation) are free here, so pressing the toggle after tapping a few costs
-      // only what is left. Never the reverse.
+      // Through the CACHE, so sentences already bought one at a time are free here.
       const glosses = await glossSentences({
         segments: spans.map((s) => s.text),
         sourceLang: learning,
         targetLang: nativeLang, // resolved by submit — the explanation language
       });
       const sentences = spans.map((s, i) => ({ ...s, gloss: glosses[i] ?? null }));
-      // Guard against a late response landing on a DIFFERENT paragraph (the user
-      // navigated on): only apply while the analyzed text is still the same.
+      // Guard a late response landing on a DIFFERENT paragraph (the user moved on).
       setPara((prev) => (prev && prev.tokens === para.tokens ? { ...prev, sentences } : prev));
     } catch (e) {
       setError(message(e));
@@ -457,12 +416,9 @@ export function useTranslate(userId: string) {
   }, [analyzedInput, para, glossLoading, limits, learning, nativeLang]);
 
   /**
-   * Buy the English for ONE sentence — the reader's punctuation affordance. Folds
-   * it into `para.sentences` so it shows under that line alone.
-   *
-   * The cheap half of loadGloss: one sentence, and free if it was already bought
-   * (here or by a whole-paragraph press). Idempotent — a sentence that already has
-   * a gloss is a no-op, so a second tap costs nothing.
+   * Buy the English for ONE sentence — the reader's punctuation affordance — and fold
+   * it into `para.sentences`. The cheap half of loadGloss, and idempotent: a sentence
+   * that already has a gloss is a no-op, so a second tap costs nothing.
    */
   const loadSentenceGloss = useCallback(
     async (index: number) => {
@@ -480,8 +436,8 @@ export function useTranslate(userId: string) {
         if (!gloss) return;
         setPara((prev) => {
           if (!prev || prev.tokens !== para.tokens) return prev; // moved on
-          // Seed every sentence from the cache while we're here: earlier taps and
-          // this one all show at once, without another request.
+          // Seed every sentence from the cache while we're here, so earlier taps and
+          // this one all show at once without another request.
           const sentences = spans.map((s, i) => ({
             ...s,
             gloss:
@@ -499,21 +455,16 @@ export function useTranslate(userId: string) {
   );
 
   /**
-   * Fill in the knowledge state (saved / confidence) for senses the LIVE reader has
-   * found, so it can colour them without a submit.
+   * Fill in the knowledge state for senses the LIVE reader has found, so it can colour
+   * them without a submit — otherwise a word known at 5/5 renders as "addable" while
+   * typing, which is worse than no colour: it says you don't have a word you do.
    *
-   * Colours are read from `saved`/`confidence`, which only submit used to populate —
-   * so while typing or dictating, a word already known at 5/5 rendered blue
-   * "addable", which is worse than no colour: it says you don't have a word you do.
+   * MERGES, never replaces: submit's loadSenseState owns the authoritative reset, so
+   * this can't wipe it or race an in-flight save's optimistic mark.
    *
-   * MERGES, never replaces. submit's loadSenseState owns the authoritative reset for
-   * a whole result; this only adds what it learned about a few more senses, so it
-   * can't wipe that — or race an in-flight save's optimistic mark.
-   *
-   * Free: one `user_words` read, no dictionary and no MT. Each sense is fetched ONCE
-   * (the live reader re-analyzes on every pause, and re-asking the same question on
-   * every keystroke is how a free path stops being free). Saves and reviews update
-   * the state directly, so a fetched sense never needs asking again.
+   * Free (one `user_words` read, no dictionary, no MT) and each sense is fetched ONCE —
+   * the live reader re-analyzes on every pause, and re-asking on every keystroke is how
+   * a free path stops being free.
    */
   const syncSenseState = useCallback(
     async (dictionaryWordIds: string[]) => {
@@ -596,15 +547,13 @@ export function useTranslate(userId: string) {
     [userId, saved, saving, markSaved, level]
   );
 
-  /** Add/tag a set of senses to ALL (no listId) or into a sub-list. Idempotent,
-   *  so it both creates the entry (first call) and adds the tag (second call).
-   *  Backs the AddToListButton (single word + "Add all"). Throws on failure so
-   *  the button can stay in its menu/idle state. */
+  /** Add/tag senses to ALL (no listId) or into a sub-list. Idempotent, so it both
+   *  creates the entry and adds the tag. Throws on failure, so the button can stay
+   *  in its menu/idle state. */
   const addWords = useCallback(
     async (words: Word[], listId?: string) => {
       setError(null);
-      // One batched RPC instead of N saves (all-or-nothing in a single
-      // transaction); then mark each saved sense from the returned rows.
+      // One batched RPC instead of N saves (all-or-nothing in a single transaction).
       const saved = await saveDictionaryWords({
         userId,
         words,
@@ -619,12 +568,6 @@ export function useTranslate(userId: string) {
     },
     [userId, markSaved, level]
   );
-
-  /** #12 — expand the paragraph into RELATED domain words at the user's level:
-   *  pool the word map over the content words, then resolve the top candidates to
-   *  quizzable Words (dropping ones already in the vocabulary). The caller opens a
-   *  quiz over the result. Returns [] when there's nothing (un-embedded seeds, or
-   *  all already known). */
 
   /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
   const markUnknown = useCallback(
@@ -660,13 +603,10 @@ export function useTranslate(userId: string) {
     [],
   );
 
-  // Distinct CONTENT words' PRIMARY senses, partitioned in ONE pass by whether
-  // they're saved: addable (not yet saved — "Add all" + text-quiz targets) vs
-  // reviewable (already saved — re-quiz a studied paragraph via SRS).
-  // Particles/auxiliaries are excluded via POS.
-  // addableCards carries ALL senses of each NEW word (primary first) so the quiz
-  // can cycle meanings + add a chosen one; addablePrimaries is the primary-only
-  // view kept for the count and the "Add all" path.
+  // Distinct CONTENT words' PRIMARY senses (particles/auxiliaries excluded by POS),
+  // partitioned in ONE pass into addable (not yet saved) and reviewable. addableCards
+  // carries ALL senses of each new word so the quiz can cycle meanings and add a chosen
+  // one; addablePrimaries is the primary-only view for the count and "Add all".
   const { addablePrimaries, reviewablePrimaries, addableCards } = useMemo(() => {
     const addable: Word[] = [];
     const reviewable: Word[] = [];
@@ -676,10 +616,9 @@ export function useTranslate(userId: string) {
       for (const tok of para.tokens) {
         if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
         seen.add(tok.text);
-        // Lead with the sense the SENTENCE used: kuromoji read this surface in
-        // context, so a homograph (辛い → からい / つらい) shows the meaning that's
-        // actually on the page instead of whichever the dictionary ranked first.
-        // No-op unless the reading genuinely separates the senses.
+        // Lead with the sense the SENTENCE used — kuromoji read this surface in
+        // context, so a homograph shows the meaning actually on the page. No-op
+        // unless the reading genuinely separates the senses.
         const senses = orderSensesByContextReading(para.meanings.get(tok.text) ?? [], tok.reading);
         const primary = senses[0];
         if (!primary) continue;
@@ -690,11 +629,10 @@ export function useTranslate(userId: string) {
     return { addablePrimaries: addable, reviewablePrimaries: reviewable, addableCards: cards };
   }, [para, saved]);
 
-  // "Show in context" (the quiz's reveal panel): word → the source sentences it
-  // appeared in. Split HERE rather than reading `para.sentences`, because the split
-  // is pure and free while only the GLOSS costs money — so an analysis run with
-  // skipGloss (the Media article path) has `para.sentences` empty yet still deserves
-  // context. Any glosses already loaded are folded back in by sentence offset.
+  // "Show in context": word → the sentences it appeared in. Split HERE rather than
+  // read from `para.sentences`, because splitting is free and only the GLOSS costs — so
+  // a skipGloss analysis has empty `sentences` yet still deserves context. Glosses
+  // already loaded are folded back in by sentence offset.
   const contextByWord = useMemo(() => {
     if (!para || !analyzedInput) return new Map<string, WordContext[]>();
     const glossAt = new Map(para.sentences.map((s) => [s.start, s.gloss]));
