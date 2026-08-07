@@ -1,14 +1,11 @@
-// Google-Translate-style surface:
-//   · a language bar (source · ⇄ swap · target) — swap also moves the output
-//     into the input and re-translates;
-//   · two boxes side by side: input (left, editable) and output (right, the plain
-//     translation);
-//   · a centered Translate button below;
-//   · then the STUDY section: add-to-list / quiz / review controls + the
-//     word-by-word reader (hover a word for its meanings).
-// Submit is a BUTTON (never Enter — IME safety). A quiz/review session is a FULL
-// takeover so nothing can interfere mid-session.
-import { useEffect, useState } from "react";
+// Google-Translate-style surface: a language bar (source · ⇄ swap · target, where swap
+// also moves the output into the input and re-translates), the input and output boxes,
+// a Translate button, then the STUDY section — add/quiz/review controls plus the
+// word-by-word reader.
+//
+// Submit is a BUTTON, never Enter (IME safety). A quiz/review session is a FULL
+// takeover, so nothing can interfere mid-session.
+import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
@@ -18,9 +15,9 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { HistoryMenu } from "../components/translate/HistoryMenu";
-import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon } from "../components/common/icons";
 import { SpeakButton } from "../components/common/SpeakButton";
-import { isOcrAvailable, capturePhoto, recognizeText } from "../services/ocr";
+import { isOcrAvailable, capturePhoto, recognizeText, type OcrSource } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
 import { targetOptions, AUTO_DETECT, resolveSourceLanguage } from "../services/language";
@@ -46,21 +43,14 @@ export function TranslateView({
 }) {
   const t = useTranslate(userId);
 
-  // Placed before the other early returns so the mic session is torn down with the
-  // view (the hook's cleanup stops it) rather than being left open behind a tab.
-  // (Rendered below — see the `listening` branch.)
-
-  // EXPERIMENT: the reader, live under the input. Free by construction
-  // (dictionaryOnly + skipGloss) and limited to sentences the user has finished —
-  // see useLiveReader. It YIELDS to a submitted result: once Translate has run,
-  // that paragraph is what's on screen, and the live one would be a duplicate.
+  // The reader, live under the input: free by construction and limited to finished
+  // sentences (see useLiveReader). It YIELDS to a submitted result — that paragraph is
+  // authoritative and may carry a gloss the live one never buys, so a second reader
+  // under it would be a stale duplicate.
   const live = useLiveReader({
     text: t.input,
     source: t.source,
     learning: t.learning,
-    // Off while a submit is in flight, and off once a submitted paragraph is on
-    // screen — that result is authoritative (it may carry a gloss the live one
-    // never buys), so a second reader under it would just be a stale duplicate.
     enabled:
       t.status !== "loading" &&
       !(t.status === "done" && t.mode === "paragraph" && t.para !== null),
@@ -80,26 +70,23 @@ export function TranslateView({
     if (!initialText) return;
     t.setInput(initialText);
     setCredit(initialSource ?? null);
-    // A handed-in text can be a FULL article — skip the whole-paragraph gloss so a
-    // long one renders the reader instead of tripping the char limit. The reader's
-    // "Show translation" toggle buys the gloss on demand if it's wanted.
-    // (No caller today: Media reads in place, in ArticleView. Kept as the seam for
-    // the next source that hands text in — a share sheet, a paste, an extension.)
+    // A handed-in text can be a FULL article, so skip the gloss and let a long one
+    // render the reader instead of tripping the char limit; the "Show translation"
+    // toggle buys it on demand. (No caller today — Media reads in place in ArticleView
+    // — this is the seam for the next source that hands text in.)
     void t.submit({ text: initialText, skipGloss: true });
     onInitialConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialText]);
 
-  // Handwriting input (native on-device recognizer): show the draw affordance only
-  // where a backend is usable (iOS ML Kit today; hidden on web/desktop). Recognize
-  // in the SOURCE language — the drawing becomes input text — falling back to the
-  // language being learned when source is auto-detect (nothing to detect yet).
+  // Recognize (handwriting, OCR) in the SOURCE language — the result becomes input text
+  // — falling back to the learning language under auto-detect, since there is nothing
+  // to detect yet.
   const recognitionLang = t.source === AUTO_DETECT ? t.learning : t.source;
-  // Read-aloud is the one INPUT-side affordance that has the text in hand, so on
-  // "Detect language" it resolves from what was actually typed instead of assuming
-  // the learning language — otherwise typing English while studying JA reads the
-  // English out with a Japanese voice. (Handwriting/OCR can't do this: they run
-  // BEFORE there is any text, which is why they keep recognitionLang.)
+  // Read-aloud is the one input-side affordance that HAS the text, so under "Detect" it
+  // resolves from what was actually typed; otherwise typing English while studying JA
+  // reads it out with a Japanese voice. Handwriting/OCR run before any text exists,
+  // which is why they keep recognitionLang.
   const speakLang = resolveSourceLanguage(t.input, t.source);
   const [hwAvailable, setHwAvailable] = useState(false);
   const [drawing, setDrawing] = useState(false);
@@ -107,10 +94,9 @@ export function TranslateView({
     void isHandwritingAvailable(recognitionLang).then(setHwAvailable);
   }, [recognitionLang]);
 
-  // Voice input: the mic dictates STRAIGHT INTO the box above, one utterance at a
-  // time, and `live` (the reader under the input) colours it as it lands — so
-  // speech reuses the whole typing surface instead of a parallel transcript screen.
-  // The speaker's pause becomes a sentence break; see services/speech/dictation.
+  // Voice input dictates STRAIGHT INTO the box above, one utterance at a time, and the
+  // live reader colours it as it lands — so speech reuses the whole typing surface
+  // instead of a parallel transcript screen. A speaker's pause becomes a sentence break.
   const dictation = useDictation({
     lang: t.learning,
     value: t.input,
@@ -132,13 +118,26 @@ export function TranslateView({
   // an uncropped confirm can skip the canvas round-trip entirely).
   const [photo, setPhoto] = useState<{ url: string; base64: string } | null>(null);
 
-  const onCamera = async () => {
+  // How many buttons the tool column renders — the boxes size themselves from it.
+  // Keep these conditions IDENTICAL to the buttons' own `&&` guards below; a count
+  // that drifts from what renders is a box too short (buttons overlap read-aloud) or
+  // too tall (a gap of dead space under the text).
+  const ioToolCount =
+    (t.input.trim() !== "" ? 1 : 0) + // clear
+    (hwAvailable ? 1 : 0) + // draw
+    (dictation.available || import.meta.env.DEV ? 1 : 0) + // mic
+    (ocrAvailable ? 2 : 0); // camera + photo library
+
+  /** Camera or photo library — identical from here on: crop, then recognize. The
+   *  source only decides which sheet opens, so the two buttons share this path. */
+  const onCamera = async (source: OcrSource = "camera") => {
     setOcrError(null);
     setOcrBusy(true);
     try {
-      // Photo FIRST, recognition after the crop — Vision reads everything in frame,
-      // so the facing page and the header would otherwise land in the input too.
-      const image = await capturePhoto();
+      // Photo FIRST, recognition after the crop: Vision reads everything in frame, so
+      // the facing page and header would otherwise land in the input too — worse for a
+      // library image, where a screenshot carries the whole UI around the text.
+      const image = await capturePhoto({ source });
       if (image) {
         setPhoto({ url: `data:image/${image.format};base64,${image.base64}`, base64: image.base64 });
       }
@@ -164,8 +163,8 @@ export function TranslateView({
         t.setInput(text);
         await t.submit({ text });
       } else {
-        // Keep the photo on screen? No — a failed read usually means the crop was
-        // wrong, and the message is more useful next to the camera button.
+        // The photo is dismissed: a failed read usually means the crop was wrong, and
+        // the message is more useful next to the camera button.
         setOcrError(tr("ocr.noText"));
       }
     } catch (err) {
@@ -176,14 +175,10 @@ export function TranslateView({
     }
   };
 
-  // Snapshot a paragraph's NEW words ONCE when its result arrives. The live
-  // addablePrimaries empties as words get saved, which would otherwise unmount the
-  // "Add all" button mid-interaction (so its ✓→+ →menu flow couldn't play out).
-  // Colour the LIVE reader by what the user already knows. Its meanings come from
-  // the free dictionary path, but the saved/confidence state behind the red→green
-  // colouring was only ever loaded by submit — so until you pressed a button, a word
-  // you know perfectly showed as blue "addable". One user_words read per new sense,
-  // deduped inside the hook; no dictionary call and no MT.
+  // Colour the LIVE reader by what the user already knows. Its meanings come from the
+  // free dictionary path, but the saved/confidence state behind the colouring was only
+  // ever loaded by submit — so until you pressed a button, a word you know perfectly
+  // showed as "addable". One user_words read per new sense, deduped inside the hook.
   const { syncSenseState } = t; // destructured so the effect depends on IT, not all of `t`
   useEffect(() => {
     if (!live.para) return;
@@ -192,22 +187,22 @@ export function TranslateView({
     void syncSenseState(ids);
   }, [live.para, syncSenseState]);
 
-  // Whether the reader should come up with its English already showing — set only
-  // when the user asked for it via "Show translation" (see askForTranslation). The
-  // plain Translate button clears it, so the reader stays Japanese-first by default.
+  // Whether the reader comes up with its English already showing — set only when the
+  // user asked via "Show translation" (see askForTranslation), so the plain Translate
+  // button leaves the reader source-first.
   const [openGloss, setOpenGloss] = useState(false);
+  // Snapshot a paragraph's NEW words ONCE when its result arrives: the live
+  // addablePrimaries empties as words save, which would unmount the "Add all" button
+  // mid-interaction, so it is deliberately excluded from the deps.
   const [addAllWords, setAddAllWords] = useState<Word[]>([]);
   useEffect(() => {
     if (t.status === "done" && t.mode === "paragraph") setAddAllWords(t.addablePrimaries);
     else if (t.status !== "done") setAddAllWords([]);
-    // Snapshot only when a fresh result/paragraph arrives — NOT as words save
-    // (addablePrimaries is intentionally excluded so the button stays mounted).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.status, t.mode, t.para]);
 
-  // Quiz/review = full takeover: the entire translate surface is hidden. Use the
-  // normal .review column (NOT the wide .translate breakout) so the card is the same
-  // size as Review / Learn / Calibration.
+  // Quiz/review = full takeover. The normal .review column, NOT the wide .translate
+  // breakout, so the card matches Review / Learn / Calibration.
   if (quiz) {
     return (
       <section className="review">
@@ -241,10 +236,9 @@ export function TranslateView({
 
   return (
     <section className="translate">
-      {/* Language bar, with the session-history clock parked at the right edge of
-          the same row. The clock is absolutely positioned so .langbar keeps its own
-          centring (margin-inline:auto) — in the flow it would drag the source/target
-          selects off-centre, and shift them the moment the first entry appeared. */}
+      {/* The history clock is absolutely positioned so .langbar keeps its own centring:
+          in the flow it would drag the selects off-centre, and shift them the moment
+          the first entry appeared. */}
       <div className="translate__toolbar">
         <LangBar
           source={t.source}
@@ -266,10 +260,20 @@ export function TranslateView({
         )}
       </div>
 
-      {/* Two boxes: input (left) | output (right). The input carries a top-right
-          tool bar (handwriting now; speech/camera will join it). Drawing opens as
-          an OVERLAY over both boxes, so the page never grows or scrolls. */}
-      <div className="translate__io">
+      {/* Input (left) | output (right), with the input's tools in its top-right corner.
+          Drawing opens as an OVERLAY over both boxes, so the page never grows. */}
+      {/* --io-tools = how many buttons the column ACTUALLY renders right now, which
+          decides the boxes' minimum height (see .translate__box). It has to be counted
+          rather than assumed: the column grew to five on native (clear · draw · mic ·
+          camera · library) and at 2rem apiece that is 11.4rem of buttons against an
+          8rem box, so the bottom ones collided with read-aloud in the opposite corner.
+          Hardcoding a taller box instead would leave web — which shows one or two of
+          these — with a mostly-empty input, and would break again the next time a
+          modality is added. Set on the shared row so BOTH boxes stay the same height. */}
+      <div
+        className="translate__io"
+        style={{ "--io-tools": ioToolCount } as CSSProperties}
+      >
         <div className="translate__inputwrap">
           <textarea
             className="textarea translate__box"
@@ -278,10 +282,9 @@ export function TranslateView({
               t.setInput(e.target.value);
               if (credit) setCredit(null);
             }}
-            // A Japanese IME holds intermediate romaji/kana in the field while
-            // converting, so live analysis pauses for the duration — tokenizing a
-            // half-converted string produces garbage that flickers as you pick the
-            // kanji. Same reason submit is a button and never Enter.
+            // A Japanese IME holds intermediate kana in the field mid-conversion, so
+            // live analysis pauses for the duration — tokenizing that flickers garbage
+            // as you pick the kanji. Same reason submit is a button, never Enter.
             onCompositionStart={() => live.setComposing(true)}
             onCompositionEnd={() => live.setComposing(false)}
             placeholder={tr("translate.inputPlaceholder")}
@@ -290,10 +293,9 @@ export function TranslateView({
           />
           {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
             <div className="io__tools">
-              {/* Order, top to bottom: clear · draw · mic · picture. Clear first
-                  because it acts on what is already in the box; then the three ways
-                  to PUT something in it, in ascending order of how much they take
-                  over the screen (a pad, a listening session, the camera). */}
+              {/* Order: clear · draw · mic · picture. Clear first because it acts on
+                  what's already there; then the three ways to PUT something in, in
+                  ascending order of how much screen they take over. */}
               {t.input.trim() !== "" && (
                 <button
                   className="io__tool"
@@ -319,17 +321,14 @@ export function TranslateView({
                 </button>
               )}
               {/* The mic DICTATES into the box above — press once to start, again to
-                  stop — rather than opening a screen of its own. Each pause commits an
-                  utterance, and the reader under the input colours it as it lands.
-                  Streaming is implemented on BOTH backends (native on-device, and Web
-                  Speech in Chrome), so `available` is what gates it; the DEV clause
-                  keeps it reachable in a browser that has neither, via the mock. */}
+                  stop — rather than opening a screen of its own. Both backends stream,
+                  so `available` is what gates it; the DEV clause keeps it reachable via
+                  the mock in a browser that has neither. */}
               {(dictation.available || import.meta.env.DEV) && (
                 <button
-                  /* Listening is a MODE the user has to be able to see and leave, so
-                     it says so twice: the red pulsing .io__tool--rec, and a stop
-                     square in place of the mic. An accent border alone (what
-                     aria-pressed gets) reads the same as hover. */
+                  /* Listening is a MODE the user must be able to see and leave, so it
+                     says so twice — the red pulse and a stop square in place of the
+                     mic. An accent border alone reads the same as hover. */
                   className={`io__tool${dictation.listening ? " io__tool--rec" : ""}`}
                   onClick={dictation.available ? dictation.toggle : dictation.startMock}
                   aria-pressed={dictation.listening}
@@ -340,24 +339,38 @@ export function TranslateView({
                 </button>
               )}
               {ocrAvailable && (
-                <button
-                  className="io__tool"
-                  onClick={onCamera}
-                  disabled={ocrBusy}
-                  aria-label={tr("ocr.capture")}
-                  title={tr("ocr.capture")}
-                >
-                  {ocrBusy ? "…" : <CameraIcon />}
-                </button>
+                <>
+                  <button
+                    className="io__tool"
+                    onClick={() => void onCamera("camera")}
+                    disabled={ocrBusy}
+                    aria-label={tr("ocr.capture")}
+                    title={tr("ocr.capture")}
+                  >
+                    {ocrBusy ? "…" : <CameraIcon />}
+                  </button>
+                  {/* Photo LIBRARY gets its own button rather than an action sheet on
+                      the camera: most text worth scanning is already on the phone and
+                      can't be re-photographed, so hiding it behind a second step would
+                      bury the more common source behind the rarer one. */}
+                  <button
+                    className="io__tool"
+                    onClick={() => void onCamera("library")}
+                    disabled={ocrBusy}
+                    aria-label={tr("ocr.library")}
+                    title={tr("ocr.library")}
+                  >
+                    {ocrBusy ? "…" : <ImageIcon />}
+                  </button>
+                </>
               )}
             </div>
           )}
           {/* Read-aloud sits BOTTOM-right, clear of the top-right modality tools —
               flush, matching the output box (the textarea's resize grip, which used
-              to own this corner, is gone; see .textarea in translate.css).
-              The input is spoken in the language of the INPUT ITSELF — on
-              "Detect language" that's detected from the typed text (see speakLang),
-              since "auto-detect" isn't a voice. */}
+              to own this corner, is gone; see .textarea in translate.css). The input is
+              spoken in the language of the INPUT ITSELF, since "auto-detect" is not a
+              voice — see speakLang. */}
           <div className="io__speak">
             <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
           </div>
@@ -388,11 +401,13 @@ export function TranslateView({
           </div>
         )}
 
-        {/* Crop the photo before recognizing it — same overlay slot as handwriting,
-            so the page never grows. Cancel drops the photo (the camera can be
-            reopened); confirm sends just the selection to OCR. */}
+        {/* Crop the photo before recognizing it. Unlike the handwriting pad this is a
+            FULL-SCREEN modal (--modal): the handwriting pad fits inside the two boxes,
+            but a photo is capped at 60vh plus a hint and an action row, so it overflowed
+            them — and the box-sized backdrop left the page text below showing straight
+            through the picture. Cancel drops the photo; confirm sends the selection. */}
         {photo && (
-          <div className="translate__overlay">
+          <div className="translate__overlay translate__overlay--modal">
             <ImageCropper
               src={photo.url}
               busy={ocrBusy}

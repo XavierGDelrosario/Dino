@@ -11,6 +11,16 @@
      lighter tint, and the saturated one is available for solid fills that carry white. */
   --accent: #a78bfa;
   --accent-strong: #7c3aed;
+  /* ADDABLE / "new" words — a word with a dictionary entry that isn't in the
+     vocabulary yet. Its OWN token, not --accent, because it is a KNOWLEDGE STATE,
+     not chrome: it sits in one scale with the red→green confidence ramp
+     (.tok--c0…c5) and has to be legible as a distinct step in it. Painting it with
+     the brand accent tied it to every button border and active chip on screen, so
+     "you can add this" looked like "this is a control". Blue is far from both ends
+     of that ramp and carries no success/failure reading of its own.
+     Used by the reader (.tok--new) and the coverage "New" slice/row in
+     AnalyzeInfographic — keep those two in step or one screen contradicts the other. */
+  --word-new: #5b9dff;
   --border: #2c313c;
   --radius: 14px;
 }
@@ -109,6 +119,29 @@ html {
     user-select: text;
     -webkit-touch-callout: default;
   }
+}
+
+/* HANDWRITING: selection OFF EVERYWHERE for as long as the pad is open.
+   `is-drawing` is set on <html> by HandwritingCanvas while it is mounted.
+
+   Why a document-level lock and not just the overlay: drawing is a DRAG, and a drag
+   that begins on the canvas but ends anywhere else still extends a selection through
+   whatever it crosses — including the textarea underneath, which the (pointer: coarse)
+   block above deliberately opts BACK IN to selection so its caret works. So the
+   overlay alone cannot win: the element that needs silencing is the one being swept,
+   not the one being drawn on. Hence the whole document, and hence `!important` — it
+   has to outrank that opt-in.
+
+   It is safe precisely because it is temporary: while the pad is open the fields
+   behind it are covered and non-interactive, and the class is removed on unmount, so
+   the textarea gets its caret and selection back the moment drawing ends. Do NOT
+   promote this to a permanent rule — on iOS a textarea with user-select: none loses
+   its caret. */
+.is-drawing,
+.is-drawing * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
 }
 
 body {
@@ -328,6 +361,15 @@ body {
 .profile__title {
   font-size: 1.2rem;
   margin: 0 0 0.25rem;
+}
+/* The exit, pinned to the top-left of the auth form. `align-self: start` so it is a
+   back LINK the width of its text, not a full-width row that reads as a button in a
+   column of them; the negative margin closes the flex gap so it sits above the title
+   as a header rather than floating as a first field. */
+.authpage__back {
+  align-self: flex-start;
+  margin-bottom: -0.35rem;
+  font-size: 0.85rem;
 }
 .authpage__alt {
   margin: 0;

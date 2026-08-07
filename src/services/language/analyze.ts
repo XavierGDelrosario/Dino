@@ -1,27 +1,19 @@
-// =========================================================
 // Morphological analysis seam.
 //
-// `analyze` is the single interface the rest of the app depends on for word
-// segmentation + (where available) readings and lemmas. Japanese is handled by
-// kuromoji, loaded LAZILY (dynamic import) so its ~12MB dictionary engine stays
-// out of the main bundle until Japanese is actually analyzed; every other
-// language falls back to plain Intl.Segmenter segmentation with no reading/lemma.
+// `analyze` is the single interface the app depends on for word segmentation +
+// (where available) readings and lemmas. Japanese goes to kuromoji, loaded LAZILY so
+// its ~12MB dictionary stays out of the main bundle; every other language falls back
+// to plain Intl.Segmenter segmentation with no reading/lemma.
 //
-// This `analyze()` interface IS the swap boundary: changing the Japanese engine
-// (a different analyzer, furigana alignment, or relocating it server-side) only
-// touches the JA branch below — callers never move. It lives inline because today
-// it's a few lines; lift it into its own module only if that swap grows into a
-// whole subsystem.
+// This interface IS the swap boundary: changing the Japanese engine, or moving it
+// server-side, only touches the JA branch below — callers never move.
 //
-// kuromoji's dictionary is static data — NOT bundled, NOT database storage:
-//   * Node / tests: read from the installed package (node_modules/kuromoji/dict).
-//   * Browser: SERVE the dict — copy node_modules/kuromoji/dict → public/dict so
-//     the default "/dict/" path resolves (e.g. via vite-plugin-static-copy).
+// kuromoji's dictionary is static data, neither bundled nor in the database: Node and
+// tests read it from node_modules/kuromoji/dict; the browser needs it COPIED to
+// public/dict so the default "/dict/" path resolves.
 //
-// CAVEAT: kuromoji is a statistical model (IPADIC). It greatly improves
-// segmentation and gives lemmas, but readings of short/ambiguous fragments can
-// still be wrong (e.g. 行った in isolation → 行う, 今 → こん). Good, not infallible.
-// =========================================================
+// CAVEAT: IPADIC is a statistical model. Segmentation and lemmas are good, but the
+// reading of a short/ambiguous fragment can be wrong (行った alone → 行う, 今 → こん).
 
 import type { IpadicFeatures, Tokenizer } from "kuromoji";
 import type { LangCode } from "./registry";
@@ -52,14 +44,12 @@ const CONTENT_POS = new Set([
 ]);
 
 /**
- * Is this a content word worth treating as vocabulary? JA: a content POS (not a
- * particle/auxiliary/symbol). English closed-class words carry the synthetic
- * FUNCTION_WORD_POS and are excluded the same way (see language/functionWords).
+ * Is this a content word worth treating as vocabulary? English closed-class words carry
+ * the synthetic FUNCTION_WORD_POS and are excluded the same way.
  *
- * `null` still means CONTENT — that failure mode is load-bearing: a language with no
- * analyser at all must still show its words rather than none. So a new language is
- * over-inclusive (every token is vocabulary) until it earns a POS source or a
- * closed-class list, never silently empty.
+ * `null` still means CONTENT, and that failure mode is load-bearing: a language with no
+ * analyser must show its words rather than none, so a new language is over-inclusive
+ * until it earns a POS source — never silently empty.
  */
 export function isContentPos(pos: string | null): boolean {
   return pos === null || CONTENT_POS.has(pos);
@@ -76,8 +66,8 @@ export function isSingleWord(tokens: AnalyzedToken[], lang: LangCode): boolean {
   if (lang.toUpperCase() === "JA") {
     const content = tokens.filter((t) => t.pos !== null && CONTENT_POS.has(t.pos));
     const hasParticle = tokens.some((t) => t.pos === "助詞");
-    // A lone number+counter (三本) is a composite, not a single dictionary word — route
-    // it to the reader so it shows as さんぼん pointing at the counter, not a failed lookup.
+    // A lone number+counter (三本) is a composite, not a dictionary word — route it to
+    // the reader so it shows さんぼん pointing at the counter, not a failed lookup.
     const hasComposite = tokens.some((t) => t.composite);
     return content.length <= 1 && !hasParticle && !hasComposite;
   }
@@ -85,19 +75,10 @@ export function isSingleWord(tokens: AnalyzedToken[], lang: LangCode): boolean {
 }
 
 /**
- * The DICTIONARY-FORM lookup key for an already-analyzed single word: the LEMMA of
- * its content token (行った → 行く), since the dictionary is keyed on dictionary
- * forms and an inflected surface matches nothing. Falls back to the surface text.
- *
- * The same rule the paragraph reader applies per token (lookup.ts `keyOf`), factored
- * out so every single-word surface (Translate, the Lists add form) resolves inflections
- * identically instead of each re-deriving it.
- *
- * NOTE: only kuromoji (JA) produces lemmas — for a language analyzed by
- * `Intl.Segmenter` every token's lemma is null, so an English "ran"/"running" comes
- * back UNCHANGED. English inflection is not handled anywhere in the app today.
- *
- * OUTPUT: the lemma, or `fallback`. PURE.
+ * The DICTIONARY-FORM lookup key for an already-analyzed single word: the LEMMA of its
+ * content token (行った → 行く), since the dictionary is keyed on dictionary forms.
+ * Falls back to the surface. Same rule the reader applies per token (lookup.ts `keyOf`),
+ * factored out so every single-word surface resolves inflections identically.
  */
 export function dictionaryFormOf(tokens: AnalyzedToken[], fallback: string): string {
   const content = tokens.find((t) => t.pos !== null && isContentPos(t.pos));
@@ -105,11 +86,8 @@ export function dictionaryFormOf(tokens: AnalyzedToken[], fallback: string): str
 }
 
 /**
- * `dictionaryFormOf` for raw text: analyze, then take the lemma when the text is a
- * SINGLE word (a phrase is returned unchanged — it belongs in the paragraph reader,
- * which lemmatizes per token itself).
- *
- * OUTPUT: the dictionary form to look up. Analyzes, so it may lazily load kuromoji.
+ * `dictionaryFormOf` for raw text. A phrase is returned unchanged — it belongs in the
+ * paragraph reader, which lemmatizes per token itself. May lazily load kuromoji.
  */
 export async function dictionaryForm(text: string, lang: LangCode): Promise<string> {
   const tokens = await analyze(text, lang);
@@ -122,20 +100,50 @@ function needsMorphology(lang: LangCode): boolean {
   return lang.toUpperCase() === "JA";
 }
 
-/** Plain segmentation with no enrichment — the non-JA path and the JA fallback.
- *  The one enrichment it DOES do is the closed-class tag: without a POS tagger it's
- *  the only thing standing between an English paste and a vocabulary list full of
- *  "the" and "was". Languages with no list keep `pos: null` (content by default). */
+// SYNTHETIC pos for tokens that are not vocabulary in ANY language — the non-JA
+// counterpart of FOREIGN_POS below, which already keeps bare Latin and digits out of
+// the Japanese reader. Without it, `segmentOnly`'s only filter is the closed-class
+// list, so anything not spelled like a grammar word counts as a word to learn:
+// observed live, a stray "G" was offered as vocabulary, and letter-spaced text
+// ("G o o g l e", which is what OCR returns for a wordmark) became SIX addable words.
+// Like the other synthetic poses the token stays VISIBLE as plain text; only its
+// vocabulary-ness is dropped.
+const NON_WORD_POS = "non-word";
+
+/**
+ * The synthetic POS for a token that can't be vocabulary, or null to leave it alone.
+ *
+ * Two rules, both script-aware so this stays safe for languages we can't analyse:
+ *   · NO LETTER AT ALL — "2026", "0120", "%". The same test `shouldSkipMt` uses
+ *     server-side before paying for a translation (a page number is not a word).
+ *   · A SINGLE LATIN LETTER — "G", "x". Deliberately Latin-only: a lone Han character
+ *     IS a word (日, 山) and so is a lone kana, so this must never widen to \p{L}.
+ *     The only single-letter English words, "a" and "I", are already function words.
+ *
+ * This does NOT demote a full proper noun like "Google" — telling that from a
+ * sentence-initial content word ("Cats") needs a real tagger (docs/TODO.md).
+ */
+function nonVocabularyPos(text: string): string | null {
+  const s = text.normalize("NFC").trim();
+  if (!/\p{L}/u.test(s)) return NON_WORD_POS;
+  if (/^\p{Script=Latin}$/u.test(s)) return NON_WORD_POS;
+  return null;
+}
+
+/** Plain segmentation — the non-JA path and the JA fallback. Its enrichments are the
+ *  junk filter and the closed-class tag: without a POS tagger that's all that stands
+ *  between an English paste and a vocabulary list full of "the", "was" and "G". */
 function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
   return tokenizeWords(text, lang).map((t: WordToken) => ({
     ...t,
     reading: null,
-    // The reader looks a word up by `lemma ?? text`, so this is what collapses
-    // cat/cats and ran/runs onto one dictionary entry — and what stops a homograph
-    // surface (sat → SAT the assault team) winning over the verb. Null where no rule
-    // is safe, which just restores look-up-as-written. See language/lemmaEn.
+    // The reader looks up by `lemma ?? text`, so this collapses cat/cats onto one
+    // entry and stops a homograph surface (sat → SAT the assault team) beating the
+    // verb. Null where no rule is safe, restoring look-up-as-written.
     lemma: readerLemma(t.text, lang),
-    pos: functionWordPos(t.text, lang),
+    // Junk first: it is language-independent, so it applies even where no
+    // closed-class list exists.
+    pos: nonVocabularyPos(t.text) ?? functionWordPos(t.text, lang),
   }));
 }
 
@@ -143,53 +151,33 @@ function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
 
 const UNKNOWN = "*"; // kuromoji's placeholder for "no value" on a feature
 
-// A SYNTHETIC pos (not a kuromoji tag) for embedded non-Japanese tokens — Latin
-// acronyms (QR, URL), bare Arabic numerals (3) — that kuromoji tags as 名詞-固有名詞 /
-// 名詞-数. They aren't Japanese vocabulary, so we mark them non-content (isContentPos
-// → false) to render as plain, non-lookup text — but KEEP them visible (unlike
-// dropped punctuation). Katakana loanwords (コード) contain Japanese script and are
-// unaffected; this only catches tokens with NO kana/kanji.
+// SYNTHETIC pos (not a kuromoji tag) for embedded non-Japanese tokens — Latin acronyms
+// (QR, URL), bare digits — which kuromoji tags as nouns. Not Japanese vocabulary, so
+// they render as plain non-lookup text but stay VISIBLE (unlike dropped punctuation).
+// Only catches tokens with NO kana/kanji, so katakana loanwords are unaffected.
 const FOREIGN_POS = "外国語";
 const HAS_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
 
-// SYNTHETIC poses for PROPER NAMES — people (kuromoji 名詞-固有名詞-人名: 佐野, 田中,
-// 太郎) and organizations (名詞-固有名詞-組織: トヨタ自動車, ソニー, 任天堂, 国連, 自民党,
-// 朝日新聞). A name is not vocabulary — nobody studies 佐野 or 朝日新聞 — so a news
-// article shouldn't fill the reader with addable blue words or pad the article word
-// list with the actors in one story. Like FOREIGN_POS they stay VISIBLE as plain
-// text; only their vocabulary-ness is dropped. Typing a name into Translate still
-// looks it up (isSingleWord counts content tokens, and zero passes its `<= 1` test),
-// which is the right split: explicit lookup is a question the user asked, a name
-// inside a paste is not.
+// SYNTHETIC poses for PROPER NAMES — people (名詞-固有名詞-人名) and organizations
+// (…-組織: ソニー, 自民党, 朝日新聞). Nobody studies 佐野 or 朝日新聞, so a news article
+// shouldn't fill the reader with addable words naming the actors in one story. Like
+// FOREIGN_POS they stay VISIBLE as plain text; only their vocabulary-ness is dropped.
+// Typing a name into Translate still looks it up (isSingleWord counts content tokens,
+// and zero passes its `<= 1` test) — explicit lookup is a question the user asked.
 //
-// 組織 was previously left alone on the belief that it doubled as IPADIC's
-// unknown-KATAKANA bucket (so demoting it would hide loanwords). MEASURED against
-// the bundled IPADIC and that is not so: unknown/modern katakana lands in 名詞-一般
-// (スマホ・サブスク・コロナ・メタバース・リスキリング・エヌビディア・テスラ all verified),
-// while 組織 holds actual organizations. Only mis-segmented fragments leak in (タイパ
-// → タイ+パ), which are junk with no dictionary entry either way.
-//
-// The other 固有名詞 subcategories keep their content POS:
-//   * 地域 (東京, 日本, アメリカ, 中国) — real vocabulary a learner wants.
-//   * 一般 (富士山) — likewise, plus IPADIC's catch-all for unknown kanji words.
-// Multi-token org names are only partly caught: 日本放送協会 segments as
-// 日本(地域)+放送+協会, so its pieces stay addable as the ordinary words they are.
+// Demoting 組織 is safe: unknown/modern katakana lands in 名詞-一般 (verified for
+// スマホ・サブスク・コロナ・テスラ), not 組織, so loanwords aren't hidden. The other
+// 固有名詞 subcategories keep their content POS — 地域 (東京, アメリカ) and 一般 (富士山,
+// plus IPADIC's catch-all for unknown kanji words) are real vocabulary.
 const PERSON_NAME_POS = "人名";
 const ORGANIZATION_POS = "組織";
 
-// …with ONE exemption inside 組織: public institutions. Measured over 120 random
-// Wikinews articles, the 組織 demotion drops 1.8% of content tokens and ~18% of those
-// are civics vocabulary a news reader genuinely needs — 労働省, 気象庁, 衆議院, 警視庁,
-// 警察庁, 消防庁, 海上保安庁, 最高裁, 農林水産省 — not brands. They read as compounds
-// (気象 + 庁), so a learner can decode and reuse them, unlike 読売新聞 or 吉野家.
-//
-// Matched by SUFFIX because that is what generalizes: every ministry ends 省, every
-// agency 庁, the legislature 議院/院, the courts 裁, bureaus 局, boards 委員会. 学院 is
-// excluded — it is the tail of university names (明治学院), which are proper names.
-// Party names (自民党) and 東証 stay demoted: those are named entities, not compounds.
-// JMdict's editorial `common` flag would separate the two groups more exactly (気象庁
-// true / 読売新聞 false, where corpus frequency does not discriminate at all), but it
-// isn't carried on `words` — a column + projection bump, deferred as not worth it.
+// …with ONE exemption inside 組織: public institutions. The demotion drops 1.8% of
+// content tokens and ~18% of those are civics vocabulary a news reader needs — 気象庁,
+// 衆議院, 警視庁, 最高裁 — which read as compounds (気象 + 庁) a learner can decode and
+// reuse, unlike 読売新聞. Matched by SUFFIX because that generalizes: every ministry
+// ends 省, every agency 庁, the courts 裁, boards 委員会. 学院 is excluded (it tails
+// university names); party names stay demoted, being entities rather than compounds.
 const INSTITUTION_SUFFIX = /(庁|省|局|院|裁|委員会)$/;
 const INSTITUTION_EXCEPT = /学院$/;
 const FIXED_INSTITUTIONS = new Set(["国連", "赤十字"]);
@@ -210,9 +198,9 @@ function katakanaToHiragana(s: string): string {
   return s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 }
 
-// Build the tokenizer once (loads + parses the dictionary, ~hundreds of ms) and
-// reuse the promise. The dynamic import is what keeps kuromoji in its own lazy
-// chunk. On failure we clear the cache so a later call can retry.
+// Build the tokenizer once (loading + parsing the dictionary takes ~hundreds of ms) and
+// reuse the promise; the dynamic import keeps kuromoji in its own lazy chunk. On failure
+// the cache is cleared so a later call can retry.
 let tokenizerPromise: Promise<Tokenizer<IpadicFeatures>> | null = null;
 function getJaTokenizer(): Promise<Tokenizer<IpadicFeatures>> {
   if (!tokenizerPromise) {
@@ -220,12 +208,10 @@ function getJaTokenizer(): Promise<Tokenizer<IpadicFeatures>> {
       .then(
         (mod) =>
           new Promise<Tokenizer<IpadicFeatures>>((resolve, reject) => {
-            // kuromoji is CommonJS. Vite and Vitest interop it so `builder` sits on the
-            // namespace, but a plain Node ESM loader (tsx — how scripts/ run) puts it on
-            // `.default`, and destructuring `{ builder }` there yields undefined. That
-            // threw "builder is not a function", which analyzeJapanese CATCHES and turns
-            // into a silent Intl.Segmenter fallback — so a Node caller got segmentation
-            // with no readings or lemmas and no error. Accept both shapes.
+            // kuromoji is CommonJS: Vite and Vitest interop it so `builder` sits on the
+            // namespace, but a plain Node ESM loader (tsx, how scripts/ run) puts it on
+            // `.default`. Destructuring the wrong one threw, analyzeJapanese CAUGHT it,
+            // and a Node caller silently got segmentation with no readings or lemmas.
             const builder = mod.builder ?? (mod as unknown as { default?: typeof mod }).default?.builder;
             if (typeof builder !== "function") {
               reject(new Error("kuromoji: no builder export found on the module"));
@@ -246,10 +232,9 @@ function getJaTokenizer(): Promise<Tokenizer<IpadicFeatures>> {
 }
 
 /**
- * Kick off the kuromoji dictionary load WITHOUT analyzing anything, so the first
- * real Japanese analysis doesn't pay the ~12MB load latency. Safe to call eagerly
- * (e.g. on app idle): it shares the same cached promise as analyze(), is a no-op
- * once warm, and swallows load errors (analyze() retries + degrades on its own).
+ * Kick off the kuromoji dictionary load WITHOUT analyzing, so the first real analysis
+ * doesn't pay the ~12MB latency. Safe to call eagerly: shares analyze()'s cached
+ * promise, is a no-op once warm, and swallows errors (analyze() retries and degrades).
  */
 export function warmJapaneseAnalyzer(): void {
   getJaTokenizer().catch(() => {
@@ -260,26 +245,23 @@ export function warmJapaneseAnalyzer(): void {
 async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
   const tokenizer = await getJaTokenizer();
   const out: AnalyzedToken[] = [];
-  // Kept raw tokens, PARALLEL to `out` (both push only for non-dropped tokens), so the
-  // counter post-pass can read kuromoji's pos_detail (not carried on AnalyzedToken).
+  // Raw tokens kept PARALLEL to `out` (both push only for non-dropped tokens), so the
+  // counter post-pass can read kuromoji's pos_detail, which AnalyzedToken doesn't carry.
   const kept: IpadicFeatures[] = [];
   for (const t of tokenizer.tokenize(text)) {
-    // Drop punctuation, symbols, and whitespace — anything with NO letter/digit.
-    // Stricter than the POS check alone: kuromoji tags ASCII quotes/punctuation it
-    // doesn't recognize as 名詞 (unknown noun), which would otherwise render as a
-    // highlightable, addable "word" (e.g. a lone " shown blue in the reader).
+    // Drop anything with NO letter/digit. Stricter than the POS check alone, because
+    // kuromoji tags unrecognized ASCII punctuation as 名詞 — a lone " would otherwise
+    // render as an addable word.
     if (t.pos === "記号" || !/[\p{L}\p{N}]/u.test(t.surface_form)) continue;
     const start = t.word_position - 1;
     const reading =
       t.reading && t.reading !== UNKNOWN ? katakanaToHiragana(t.reading) : null;
     const lemma = t.basic_form && t.basic_form !== UNKNOWN ? t.basic_form : null;
     let pos = t.pos && t.pos !== UNKNOWN ? t.pos : null;
-    // DEPENDENT verbs (kuromoji 動詞 非自立 / 接尾) are grammatical, not vocabulary:
-    // the いる in ～ている, くる in ～てくる, みる in ～てみる, etc. Without this they'd
-    // be treated as the standalone verbs 居る/来る/見る. Relabel them as auxiliaries
-    // (助動詞) so the reader renders them as plain text and they don't count as a
-    // separate content word (so 食べている stays one word — 食べる — not 食べ + いる).
-    // Standalone いる ("to exist") is 動詞 自立 and is unaffected.
+    // DEPENDENT verbs (動詞 非自立/接尾) are grammar, not vocabulary — the いる in
+    // ～ている, くる in ～てくる. Relabelled as auxiliaries so the reader renders them as
+    // plain text and 食べている counts as one word (食べる), not 食べ + いる. Standalone
+    // いる ("to exist") is 動詞 自立 and is unaffected.
     if (pos === "動詞" && (t.pos_detail_1 === "非自立" || t.pos_detail_1 === "接尾")) {
       pos = "助動詞";
     }
@@ -306,17 +288,16 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     kept.push(t);
   }
   applyCounterReadings(out, kept);
-  // Re-merge whole words IPADIC over-segmented (大規模 → 大＋規模) BEFORE the reader
-  // looks tokens up — a curated compound-aware pass (kuromoji.js has no user dict).
+  // Re-merge whole words IPADIC over-segmented (大規模 → 大＋規模) BEFORE lookup — a
+  // curated compound pass, since kuromoji.js has no user dictionary.
   return mergeJapaneseCompounds(mergeCounterTokens(out, kept));
 }
 
-// Merge a kanji number run + its counter into ONE composite token (三本 → text 三本,
-// reading さんぼん as whole-span group ruby, lemma 本 so the lookup resolves to the
-// counter's sense). Runs AFTER applyCounterReadings, so it just concatenates the already-
-// corrected per-token readings — which is what finally places multi-token jukujikun ruby
-// correctly (二十歳 → はたち over 二十歳, not scattered). Only ALL-KANJI runs merge: a bare
-// digit (3本) has no number reading, so it stays separate with the counter's fixed reading.
+// Merge a kanji number run + its counter into ONE composite token (三本 → reading さんぼん
+// as whole-span group ruby, lemma 本 so lookup resolves to the counter's sense). Runs
+// AFTER applyCounterReadings, so it concatenates already-corrected readings — which is
+// what places multi-token jukujikun ruby correctly (二十歳 → はたち, not scattered). Only
+// ALL-KANJI runs merge: a bare digit (3本) has no number reading.
 function mergeCounterTokens(out: AnalyzedToken[], kept: IpadicFeatures[]): AnalyzedToken[] {
   const numbersByCounter = new Map<number, number[]>(); // counter index → number-token indices
   for (let i = 0; i < kept.length; i++) {
@@ -357,11 +338,10 @@ function mergeCounterTokens(out: AnalyzedToken[], kept: IpadicFeatures[]): Analy
 }
 
 // Fix 助数詞 (counter) furigana: kuromoji gives a counter its CITATION reading (三本 →
-// ホン), never the euphonic form (さんぼん). Detect a run of number tokens (名詞-数)
-// immediately followed by a counter (名詞-接尾-助数詞) and rewrite both readings via the
-// per-language counter resolver. The standalone noun 本 (名詞-一般) is NOT a counter, so
-// it's untouched. A pure overwrite on `out`: an unknown counter / unparseable number /
-// no resolver leaves the engine's reading as-is (graceful degradation).
+// ホン), never the euphonic さんぼん. Rewrites both readings via the per-language counter
+// resolver when a number run is immediately followed by a counter. The standalone noun
+// 本 is NOT a counter and is untouched; an unknown counter or unparseable number leaves
+// the engine's reading as-is.
 function applyCounterReadings(out: AnalyzedToken[], kept: IpadicFeatures[]): void {
   const resolver = getCounterResolver("JA");
   if (!resolver) return;
@@ -380,12 +360,12 @@ function applyCounterReadings(out: AnalyzedToken[], kept: IpadicFeatures[]): voi
     const r = resolver.resolve(value, c.surface_form);
     if (!r) continue;
     out[i].reading = r.counterReading;
-    // Number readings only annotate KANJI tokens — a bare digit (3本) needs no furigana;
-    // the counter reading (ぼん) is corrected regardless.
+    // Number readings only annotate KANJI tokens — a bare digit needs no furigana. The
+    // counter reading is corrected regardless.
     if (r.numberReading !== null) {
       if (r.replacesRun) {
-        // Jukujikun spanning the whole number (二十歳 → はたち): full reading on the
-        // FIRST kanji token, blank the rest, so the joined reading is correct.
+        // Jukujikun spanning the whole number (二十歳 → はたち): the full reading goes on
+        // the FIRST kanji token, the rest blank, so the joined reading is correct.
         let placed = false;
         for (const k of numIdx) {
           if (!HAS_JAPANESE.test(kept[k].surface_form)) continue;
@@ -403,14 +383,10 @@ function applyCounterReadings(out: AnalyzedToken[], kept: IpadicFeatures[]): voi
 // --- Public seam ------------------------------------------------------------
 
 /**
- * Segment `text` into words, enriched with reading + lemma where the language
- * supports it (currently Japanese, via kuromoji). Async because the Japanese
- * analyzer loads a dictionary on first use.
- *
- * OUTPUT: AnalyzedToken[] in reading order, each with offsets into `text`.
- * CONSTRAINTS: if the Japanese analyzer can't load (unsupported runtime / missing
- * dictionary), it degrades to segmentation-only (reading/lemma null) rather than
- * throwing — readings are a progressive enhancement, never a hard dependency.
+ * Segment `text` into words in reading order, each with offsets into `text` and, where
+ * the language supports it, a reading + lemma. Async because the Japanese analyzer
+ * loads a dictionary on first use. If that load fails it degrades to segmentation-only
+ * rather than throwing — readings are a progressive enhancement, not a dependency.
  */
 export async function analyze(text: string, lang: LangCode): Promise<AnalyzedToken[]> {
   if (needsMorphology(lang)) {

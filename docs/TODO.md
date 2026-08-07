@@ -11,23 +11,13 @@ Housekeeping (Production Rules · Awaiting merge · Admin) parked at the **botto
 <summary><h2>🚀 Features to add</h2></summary>
 
 Post-launch: media study · input modalities · AI.
+- **Nothing here is built.** What ships already and has room to grow lives in 🧱 **Extendable Features** below — check there before starting anything that sounds adjacent.
 - Rule: **free on-device on native (#18); paid/heavy on web.** See CLAUDE.md `#18`.
 - ⚠️ Input modalities ship **iOS-only first** (financial). Delivery-scope only — `analyze()` + services stay platform-neutral; Android additive later.
 - By surface: 📱 App · 🧩 Extension · shared 🌐 Websites + ⚙️ General.
 - Core (`analyze()` → `services/` → account) is identical across surfaces; only intake differs.
 
 ### 📱 App — in-app surfaces (web + native)
-
-#### Handwriting — "draw the character" `[iOS first]`
-- **iOS:** ML Kit Digital Ink. On-device, free, JA. ~20 MB model, wifi-once.
-- **Web:** no free Google ink API. Options: `inputtools.google.com` (ToS-gray) · canvas raster → Cloud Vision.
-- Stroke capture is trivial; recognition is the hard part.
-
-#### Speech-to-text
-- **Web:** Web Speech API (`ja-JP`). Free, Chrome-only.
-- **iOS:** `Speech` / `SpeechAnalyzer`. Free, on-device, offline.
-- **Android:** `SpeechRecognizer` (API 33+).
-- On-device isn't billed by duration → silence-trim only matters for paid Cloud Speech.
 
 #### Camera / OCR — photo → text
 - **iOS:** Apple Vision. Mode A live (`TextOcrPlugin.swift`, per-line boxes). Device verify needed.
@@ -86,15 +76,6 @@ Post-launch: media study · input modalities · AI.
 - Keep the inline reader for **user-pasted** text (private use, no license).
 - **Re-hostable sources** (store + serve OK): Wikipedia (CC BY-SA, MediaWiki API, topic-rich) · VOA (public domain, graded EN) · Wikinews (CC BY). Avoid CC **NC/ND** (commercial). Aozora (PD JA lit) for advanced.
 - **Third-party news** (NHK): analysis + link-out only. Long-term: pursue a license.
-
-#### Media tab — in-depth analysis for longer works `[extends the reader "Quick summary"]`
-- **Built already:** the reader's **"Quick summary"** (`AnalyzeInfographic` + `services/analyze/summarize.ts`) — a light per-paragraph readout: Known/New coverage pie (with %s) + tabbed Confidence / Frequency / Difficulty bars + a "show knowledge" overlay. Abstract + reusable across surfaces.
-- **The Media tab is the DEEP version for whole articles/episodes/seasons** — same data core, more actionable representations:
-  - **Comprehension headline** — one number: known ÷ in-dictionary words → a verdict against reading thresholds (~95% comfortable · ~98% fluent · <90% hard), e.g. "91% — challenging · 14 new words to reach 95%". The highest-value single stat.
-  - **"Study these first" list** — new words ranked by **frequency** (New × common = high ROI; rare-new = skip) → a **"Quiz these N → 95%"** CTA that feeds #9 / the pre-study flow.
-  - **Frequency × knowledge quadrant/scatter** — the one genuinely new insight: common+unknown = study now · rare+unknown = skip · (crosses both axes; a per-axis bar can't show it).
-  - Optional: **effort estimate** (N new words to hit 95%) · **level match** ("this text ≈ N3; you're ≈ N3").
-- **Reuse** the abstract `AnalyzeInfographic` where a chart fits; the new pieces are mostly new *summaries* over the same per-word data, not new infra.
 
 #### Media ingestion — subtitles/scripts → new words `[extends #9]`
 - **How:** per-source adapter → plain text → existing reader/quiz. Core free (kuromoji + JMdict). LLM/STT optional, not the scraper.
@@ -226,6 +207,59 @@ Media features multiply **sentence-gloss** calls. Word-by-word = free (JMdict ca
 - ⚠️ **A bulk backfill must NOT go through the edge function** — 2.92M chars would blow the 2M/mo `GLOBAL_MONTHLY_CHAR_QUOTA` and 429 every real user mid-run. It'd be an offline service-role script (like `ingest-jmdict.ts`) calling Google direct, batching multiple `q` per request (~128 segments / 30k chars → ~150–250 requests). The lazy path is fine on the edge but wants its own meter, not the user's.
 - **Legal (Wikinews specifically):** CC BY 2.5 → storing the prose AND serving a derivative translation are both permitted with attribution + link-back (already rendered by `ArticleView`). No ShareAlike clause in 2.5. Contrast the NHK posture above (derived + link-out only).
 - **Checked, not worth special-casing:** only **323 / 4,118 (7.8%)** ja.wikinews articles have an English sister article via `langlinks`, and those are independently written, not aligned translations.
+
+</details>
+
+---
+
+<details open>
+<summary><h2>🧱 Extendable Features</h2></summary>
+
+**Shipped and working — the entries below are room to GROW, not work to start.** Distinct
+from 🚀 Features to add (nothing built yet) and 🐞 Bugs (something is wrong). Reading one
+of these should answer "what would the next version of this look like", and every item
+names what already exists so nobody rebuilds it.
+
+### Media tab — in-depth analysis for longer works `[extends the reader "Quick summary"]`
+- **Built:** the Media tab itself (`MediaView` — random Japanese Wikinews browse, ★ saved articles) → **"Study"** opens the article analysis (`ArticleView`: graphs + word table + reading mode + an article-sourced flashcard quiz), plus the reader's **"Quick summary"** (`AnalyzeInfographic` + `services/analyze/summarize.ts`) — Known/New coverage pie + tabbed Confidence / Frequency / Difficulty bars + a "show knowledge" overlay. Abstract and reused across surfaces.
+- **The expansion is the DEEP version for whole articles/episodes/seasons** — same data core, more actionable representations:
+  - **Comprehension headline** — one number: known ÷ in-dictionary words → a verdict against reading thresholds (~95% comfortable · ~98% fluent · <90% hard), e.g. "91% — challenging · 14 new words to reach 95%". The highest-value single stat.
+  - **"Study these first" list** — new words ranked by **frequency** (New × common = high ROI; rare-new = skip) → a **"Quiz these N → 95%"** CTA that feeds #9 / the pre-study flow.
+  - **Frequency × knowledge quadrant/scatter** — the one genuinely new insight: common+unknown = study now · rare+unknown = skip · (crosses both axes; a per-axis bar can't show it).
+  - Optional: **effort estimate** (N new words to hit 95%) · **level match** ("this text ≈ N3; you're ≈ N3").
+- **Reuse** the abstract `AnalyzeInfographic` where a chart fits; the new pieces are mostly new *summaries* over the same per-word data, not new infra.
+
+### Voice — live listener language handling `[listener · design call]`
+- **Built:** the live transcript (`useLiveTranscript` + `useLiveReader`), and read-aloud everywhere a word appears (`SpeakButton` + `services/voice`, on flashcards, list rows, and both translate boxes; renders nothing when the platform has no voice for the language).
+- The transcript recognizes the **learning** language, not the input/source selector.
+  That is deliberate — you listen to the language you study, so following `source`
+  would stop it hearing Japanese the moment someone set source to English — but three
+  things are unfinished:
+  - **The "native" side is GUESSED.** `useLiveTranscript` picks
+    `SUPPORTED_LANGUAGES.find(l => l.code !== learning)`, so it is positional: right
+    for JA↔EN only because JA is first and EN second. `useTranslate` resolves native
+    properly from what the user typed + the target selector; thread that through
+    instead. **Do before a third language ships.**
+  - **No language control inside the transcript** — it follows the Translate tab's
+    learning selector, so switching means backing out. Fine at two languages.
+  - **One language per session.** A bilingual conversation (the actual case in Japan)
+    is recognized entirely as the learning language, so the other speaker's turns come
+    out as garbage. On-device recognizers do no language identification, so the honest
+    options are a manual toggle or accepting it — not a quick fix.
+- ⚠ **Untested on a device** — it compiles and is unit-covered, but nobody has spoken at a phone yet (see App Store submission).
+
+### Speech-to-text — dictation into the translate box
+- **Built:** the mic in the Translate tab dictates into the input (`useDictation` + `services/speech`) — press to start, again to stop, each pause commits an utterance and the reader under the input colours it as it lands. Streaming on **both** backends (native on-device + Web Speech in Chrome), with a mock so the affordance stays reachable in a browser that has neither.
+- **Web:** Web Speech API (`ja-JP`). Free, Chrome-only — so no dictation in Safari/Firefox.
+- **iOS:** `Speech` / `SpeechAnalyzer`. Free, on-device, offline.
+- **Android:** `SpeechRecognizer` (API 33+) — the additive half of the iOS-first scope call.
+- On-device isn't billed by duration → silence-trim only matters for paid Cloud Speech.
+
+### Handwriting — "draw the character" `[iOS first]`
+- **Built:** the draw affordance + canvas (`HandwritingCanvas` + `services/handwriting`), shown only where a backend is usable; recognized text appends into the input and flows through the existing `analyze()` → JMdict pipeline unchanged.
+- **iOS:** ML Kit Digital Ink. On-device, free, JA. ~20 MB model, wifi-once.
+- **Web:** no free Google ink API — the reason the button is hidden there. Options: `inputtools.google.com` (ToS-gray) · canvas raster → Cloud Vision.
+- Stroke capture is trivial; recognition is the hard part.
 
 </details>
 
@@ -426,70 +460,41 @@ Pipeline, ingest, projection, resolver, learn/calibration: **DONE + LIVE** (prod
 - **UI badge — half done.** `WordInfo.tsx` renders `getProficiency()`, wired into **ListRow** + **FlashcardCard**. Remaining: **translate result head** + **reader hovercard**.
 - **Live-verify the Learn tab** on a device (unit + RPC tests pass; only the device run is unverified).
 
-### Version drift — JA vs EN capability parity `[reference · measured 2026-08-04]`
-What each direction actually supports today. The core (words/user_words/lists/SRS/quiz
-surfaces) is language-agnostic and identical for both — every asymmetry below sits in the
-**analysis + enrichment** layers. Quality *ceilings* are the 🇯🇵/🇬🇧 sections above; this is
-presence/absence.
+### JA vs EN divergence — what's left to BUILD `[EN as a learning target]`
+The core (words/user_words/lists/SRS/quiz surfaces) is language-agnostic and identical both
+ways; every gap below is in the **analysis** layer. Quality *ceilings* are the 🇯🇵/🇬🇧
+sections above.
 
-| Capability | 🇯🇵 JA | 🇬🇧 EN |
+**Root cause, one line:** `analyze()` routes JA to kuromoji and everything else to
+`segmentOnly` → `reading: null, lemma: null`, plus a POS only for known closed-class words.
+Everything open below follows from that, and only bites when English is the **learning
+target** — typing English while learning JA studies the Japanese translation, which was
+always on kuromoji's path.
+
+| Open gap | Blocked on | Note |
 |---|---|---|
-| Dictionary lookup | JMdict (`jmdict_lookup`) | WordNet synsets → gloss fallback |
-| MT fallback (Google) | ✅ | ✅ |
-| Corpus frequency | `data/frequency/ja.tsv` | `en.tsv` |
-| Proficiency bands | JLPT (5) | CEFR (6) |
-| Leveling profile | anchors **+ POS offsets** | anchors only — no EN POS source |
-| Client morphology | kuromoji: reading + lemma + POS | **none** — segmentation only |
-| Grammar-word filtering | ✅ via POS (助詞/助動詞) | ✅ via curated closed-class list (`functionWords.ts`) |
-| Lemmatization | client + edge | **edge only** (`lemmaCandidates`) |
-| Furigana / readings | ✅ | n/a (phonetic script) |
-| Reading + writing overrides | `readingOverrides.ts` | n/a |
-| Compound / counter handling | `compounds.ts` | ✗ |
-| Potential-verb + する candidates | ✅ (edge) | n/a |
-| Proper-noun demotion (人名/組織) | ✅ (kuromoji POS) | ✗ (no POS) |
-| Context sense ordering (`senseOrder`) | ✅ (needs a reading) | ✗ (reading always null) |
-| Sense examples + JA definition (`20260750`) | ✅ JA→EN only | ✗ by design |
-| Learn tab band pool | ✅ | ✗ — "only JA→EN (JLPT) is populated" (`learn.ts`) |
-| Media tab | Japanese Wikinews (`SITE`/`LANG` consts) | ✗ |
+| **EN POS tagger** | — | The widest blast radius: unblocks the two rows below and replaces surface matching with something that can tell the modal *can* from the noun *can*. |
+| EN POS offsets in the leveling profile | the tagger | The one remaining leveling asymmetry (JA has anchors **+** offsets; EN anchors only). |
+| Proper-noun demotion | the tagger | JA demotes 人名/組織 via kuromoji POS; EN can't. |
+| Reader-side lemma | — | *running* never resolves to *run* client-side; the edge lemmatizes for LOOKUP only. Also filed under *English as a learning target* — **fix it there, not twice.** |
+| Case folding | — | The reader keys meanings on the raw surface, so sentence-initial `Cats` forks from `cats`. Small and independent of the tagger. |
+| Compound handling | — | JA has `compounds.ts`; EN has nothing (*bus stop* → two words). Marginal — file only if it shows up in real use. |
+| EN media source | — | The Media tab is hardwired to Japanese Wikinews (`LANG = "JA"`, `MediaView.tsx:30`). An EN source is additive, not a rewrite. |
 
-**The root cause is one line.** `analyze()` routes JA to kuromoji and everything else to
-`segmentOnly`, which returns `reading: null, lemma: null` — and, since 2026-08-04, a POS
-only for known closed-class words. Measured on *"The cats were running quickly to the
-station."* — every token came back fully null, against `猫|名詞|ねこ|猫 · が|助詞 ·
-走っ|動詞|はしっ|走る` for the JA equivalent. **Reading and lemma are still null for every
-non-JA token**, which is what the two remaining consequences below rest on.
+**Not gaps — do not file these.** Furigana, the reading/writing override tables, context
+sense ordering (`senseOrder`), and potential-verb/する candidates all key on a **reading**,
+which English does not have; sense examples + JA definitions (`20260750`) are JA→EN by
+design. These are structurally n/a, not unbuilt, and listing them as absences invites
+someone to "fix" a non-problem.
 
-**~~No function-word filter~~ — FIXED 2026-08-04** (`services/language/functionWords.ts`).
-`isContentPos(null)` returns **true**, so with no POS every English token passed the
-content gate: the reader offered *The→の · to→に · and→そして · was/were→する* as
-vocabulary. Measured before/after on the sentence above — **13 words offered → 6**
-(*cats · running · quickly · station · very · cold*), quiz button 8 → 6.
-- Fixed the way JA already handles 人名/組織/外国語: a **synthetic non-content POS** on
-  closed-class words, so `isContentPos` itself is untouched and still fails *open* on
-  `null`. That property is load-bearing — a language with no analyser must show its words
-  rather than none — and a spec pins it (`ES` keeps every token as content).
-- The list **under-reaches on purpose.** Matching is by surface with no POS to
-  disambiguate, and the costs are asymmetric: a function word slipping through is noise, a
-  content word wrongly demoted is a word the learner can never add. Hence *can · may ·
-  will* (a can, the month **May**, a will) and *have · do* are excluded by name — don't
-  "complete" the list without re-reading the header.
-- Only bites when English is the **learning target**; typing English while learning JA
-  studies the Japanese translation, which was always on kuromoji's path.
-
-Two consequences remain:
-- **No reader-side lemma.** *running* never resolves to *run* client-side (the edge
-  lemmatizes for LOOKUP only) — already filed under *English as a learning target*.
-- **Reading-keyed features are structurally unavailable to EN**, not merely unbuilt:
-  `senseOrder`, furigana and the override tables all key on a reading EN doesn't have.
-
-**Still the widest-blast-radius fix: a real EN POS tagger.** The closed-class list closed
-the reader bug, but a tagger is still the precondition for **EN POS offsets in the leveling
-profile** (the one remaining leveling asymmetry), and it would replace surface matching with
-something that can tell the modal *can* from the noun *can*.
-
-**Adjacent, still open:** the reader keys meanings on the raw surface, so `The` and `the`
-fork into two vocabulary entries. Moot for the words now demoted, but a sentence-initial
-content word (`Cats` vs `cats`) still duplicates.
+**Already at parity** (was drift, now closed — don't re-derive): dictionary lookup, MT
+fallback, corpus frequency, proficiency bands, the Learn-tab band pool (`20260745` added the
+EN/CEFR branch — measured live: 915 · 1,973 · 748 candidates at A1 · B1 · C2), and
+grammar-word filtering (`services/language/functionWords.ts`, 2026-08-04).
+- ⚠️ The function-word list **under-reaches on purpose** — surface matching with no POS, and
+  the costs are asymmetric (a function word slipping through is noise; a content word
+  wrongly demoted can never be added). *can · may · will · have · do* are excluded **by
+  name**. Don't "complete" it without reading that file's header.
 
 ### English as a learning target
 Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE. Left, cheap-first:
@@ -504,23 +509,6 @@ Works today (EN→JA reverse-JMdict, uk-correct). EN frequency + CEFR bands LIVE
 - **Gates the captcha rollout** (see Security).
 - TODO: collision messaging ("this email signs in with Google — use that") · claim/merge story · guest-carry decision for sign-in-Google · verify auto-link live.
 - Cases: `linkIdentity` needs `security_manual_linking_enabled` · email + later-Google auto-links only if email CONFIRMED · Google-first then email/password has no set-password UI · guest → sign-in-Google switches uid, so guest words don't carry.
-
-### Live listener — language handling `[listener · design call]`
-The transcript recognizes the **learning** language, not the input/source selector.
-That is deliberate — you listen to the language you study, so following `source`
-would stop it hearing Japanese the moment someone set source to English — but three
-things are unfinished:
-- **The "native" side is GUESSED.** `useLiveTranscript` picks
-  `SUPPORTED_LANGUAGES.find(l => l.code !== learning)`, so it is positional: right
-  for JA↔EN only because JA is first and EN second. `useTranslate` resolves native
-  properly from what the user typed + the target selector; thread that through
-  instead. **Do before a third language ships.**
-- **No language control inside the transcript** — it follows the Translate tab's
-  learning selector, so switching means backing out. Fine at two languages.
-- **One language per session.** A bilingual conversation (the actual case in Japan)
-  is recognized entirely as the learning language, so the other speaker's turns come
-  out as garbage. On-device recognizers do no language identification, so the honest
-  options are a manual toggle or accepting it — not a quick fix.
 
 ### App Store submission `[iOS release]`
 Code-side items are done: Sign in with Apple (`session.ts` linkApple/signInWithApple
@@ -626,6 +614,17 @@ Not a to-do — standing rules + hosted toggles for the live instance. Items 2�
 **Quota / limit-hit events**
 - Log every 413 (`paragraphCharLimit`) + 429 (`monthlyCharQuota` · `GLOBAL_MONTHLY_CHAR_QUOTA` · `MT_DISABLED`), with cap + user.
 
+**Email send tracker — the one paid-ish service with NO meter** `[detect: over-traffic + silent failure]`
+- **Nothing is tracked today, on either side.** (a) `/support` is a static page showing an address — no form, no send path, so a support request never touches our backend and is unmeasurable by construction. (b) Auth mail (reset · confirmation) is sent by **GoTrue → Brevo SMTP**, which we never see: no table, no counter, and `requestPasswordReset` resolves **identically** whether Brevo delivered it or rejected it. (c) `provider_status`'s `brevo` row is MANUAL free text (`quota_note` / `credential_expires_at`) — a reminder, not a measurement.
+- **Why it bites:** Brevo free is **300 sends/day** (confirmed live via `/v3/account`: `{"type":"free","credits":300,"creditsType":"sendLimit"}`), and the auth rate limit was raised 2→30/hr for testing. A burst — or a bot hammering reset-for-email — exhausts the day's credits, after which **password resets and sign-up confirmations simply stop**, the app reports success to every user, and nothing anywhere says otherwise. This is the "too much traffic + a service quietly stopped working" case with no detector.
+- ‼️ **It has already happened, and we only found out by asking Brevo's API on 2026-08-07.** Last 30 days: **5 requests · 1 delivered · 4 error.** Every error reads *"Sending has been rejected because the sender you used xaviergdelrosario@gmail.com is not valid. Validate your sender or authenticate your domain"* — an UNVALIDATED sender (the valid one is `dinolanguagestudy@gmail.com`), all on 2026-07-13, fixed the same session (the 03:25 send delivered). So it is not an open outage — the point is that **four auth emails failed and no surface in the app knew**, and a 30-day 80% error rate went unnoticed for three weeks.
+- **Build (cheap, in this order):**
+  1. **Poll Brevo → store daily.** `GET /v3/account` (credits left) + `/v3/smtp/statistics/aggregatedReport` (requests · delivered · error · hardBounces · spamReports) on a schedule → a small `email_usage (day, requests, delivered, errors, bounces, credits_left)` table. `BREVO_API_KEY` already lives in `.env.deploy` and the v3 key works. This is exactly the "live usage-vs-quota polling (Brevo…)" follow-up `ProviderHealthPanel` already names in its own description — it turns the hand-typed `quota_note` into a real number.
+  2. **Count what WE originate.** Log each reset/confirmation trigger app-side (who · when · which kind). The gap between "we asked for N" and "Brevo reports M requests" is the silent-failure signal, and neither number alone shows it. **Fold this into the Auth/account audit above — one append-only table, not two.**
+  3. **Thresholds on the dashboard, not paging infra:** credits-left < N · error-or-bounce rate over a window · requests-today approaching 300. The admin page is the alerting surface we already have.
+- **Support requests are a separate, unbuilt thing.** Measuring them needs `/support` to become a form → edge function → table (which also buys spam control and a reply trail). That is a product decision, not instrumentation — decide it before pointing a "support volume" panel at nothing.
+- **Same shape as the other providers, and email is the last one uninstrumented:** MT chars are metered (`translation_usage` + `global_translation_usage`), edge health is listed below — email is the outlier that only has a sticky note.
+
 **Auth / account audit**
 - Append-only: sign-up · upgrade · sign-in/out · reset. Who + when, never passwords.
 - Deletion already covered by `account_deletion_log`.
@@ -650,5 +649,6 @@ Not a to-do — standing rules + hosted toggles for the live instance. Items 2�
 **API health: auto-pull real usage**
 - Auto: Google MT chars (`admin_provider_health` reads `global_translation_usage` live).
 - Still manual (`credential_expires_at` + `quota_note`): **Brevo** send count (v3 key works — `BREVO_API_KEY` in `.env.deploy`) · **Google** quota + OAuth secret expiry · **Supabase** billing caps.
+- The Brevo half is specified in full under **Email send tracker** above (endpoints, table, thresholds, and the measured 4-of-5-failed evidence) — do it there rather than twice.
 
 </details>

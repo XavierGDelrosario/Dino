@@ -32,6 +32,7 @@ import {
 } from "../services/language";
 import { errorMessage as message } from "../lib/errorMessage";
 import { useLanguagePrefs } from "./useLanguagePrefs";
+import { updateUserLanguages } from "../services/session";
 import type { Word } from "../services/words/repository";
 
 export type TranslateMode = "word" | "paragraph";
@@ -120,6 +121,30 @@ export function useTranslate(userId: string) {
     setTarget(prefs.native);
     setLearning(prefs.learning);
   }, [prefs]);
+
+  /**
+   * Change the language being studied — and PERSIST it, because "I'm learning: X" is
+   * the profile's learning language, not a per-tab setting.
+   *
+   * It used to be local state seeded from the profile and never written back, so the
+   * app held two answers to one question: this picker, and the profile row that Learn,
+   * the placement quiz and Media all read. Switch to English here and the placement
+   * quiz still dealt Japanese cards, with nothing on screen explaining why — the quiz
+   * was reading a value the user had, as far as they could tell, already changed.
+   *
+   * Optimistic: the local state moves first so the picker never lags, and a failed
+   * write is logged rather than surfaced — the session still behaves as asked, it just
+   * won't be remembered, which is not worth an error dialog mid-translation.
+   */
+  const changeLearning = useCallback(
+    (lang: LangCode) => {
+      setLearning(lang);
+      updateUserLanguages({ userId, learningLanguage: lang }).catch((e) =>
+        console.warn("useTranslate: failed to persist the learning language", e),
+      );
+    },
+    [userId],
+  );
 
   // The explanation language the reader's words were studied in (set by submit);
   // domain expansion looks related words up in the same learning→native direction.
@@ -650,7 +675,10 @@ export function useTranslate(userId: string) {
     source, setSource, target, setTarget, input, setInput,
     status, mode, error,
     // the language being learned (study/add/quiz target)
-    learning, setLearning,
+    // setLearning PERSISTS to the profile — see changeLearning. Every other surface
+    // (Learn, the placement quiz, Media) reads that row, so a local-only change would
+    // silently disagree with them.
+    learning, setLearning: changeLearning,
     // Google-Translate-style output box + swap (langs + text + re-translate)
     output, swap,
     // shared per-sense state

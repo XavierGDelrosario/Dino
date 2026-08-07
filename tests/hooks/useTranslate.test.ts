@@ -26,7 +26,7 @@ vi.mock("@/services/entitlements", async (importOriginal) => ({
 }));
 vi.mock("@/services/review", () => ({ recordReview: vi.fn() }));
 vi.mock("@/services/calibration", () => ({ getUserLevel: vi.fn(), seedStability: vi.fn() }));
-vi.mock("@/services/session", () => ({ getUserProfile: vi.fn() }));
+vi.mock("@/services/session", () => ({ getUserProfile: vi.fn(), updateUserLanguages: vi.fn() }));
 vi.mock("@/services/difficulty", () => ({ getDifficulty: vi.fn() }));
 vi.mock("@/services/domain", () => ({ expandDomain: vi.fn() }));
 vi.mock("@/services/contentSafety", () => ({ isExplicitSuggestion: vi.fn() }));
@@ -40,7 +40,7 @@ import { getUserWordStates } from "@/services/words/userWords";
 import { listUserLists } from "@/services/lists";
 import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
-import { getUserProfile } from "@/services/session";
+import { getUserProfile, updateUserLanguages } from "@/services/session";
 import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE } from "@/services/language";
 
 beforeEach(() => {
@@ -58,6 +58,35 @@ describe("useTranslate — defaults", () => {
     await waitFor(() => expect(result.current.source).toBe(DEFAULT_LEARNING_LANGUAGE));
     expect(result.current.target).toBe(DEFAULT_NATIVE_LANGUAGE);
     expect(result.current.learning).toBe(DEFAULT_LEARNING_LANGUAGE);
+  });
+});
+
+// "I'm learning: X" IS the profile's learning language, not a per-tab setting. It used
+// to be local state seeded from the profile and never written back, so Learn, the
+// placement quiz and Media kept reading the OLD value: switching to English here still
+// dealt Japanese placement cards, with nothing on screen to explain it.
+describe("useTranslate — setLearning persists to the profile", () => {
+  it("writes the new learning language to the profile", async () => {
+    vi.mocked(updateUserLanguages).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await waitFor(() => expect(result.current.learning).toBe(DEFAULT_LEARNING_LANGUAGE));
+
+    act(() => result.current.setLearning("EN"));
+
+    expect(result.current.learning).toBe("EN"); // optimistic — the picker never lags
+    expect(updateUserLanguages).toHaveBeenCalledWith({ userId: "user-1", learningLanguage: "EN" });
+  });
+
+  it("keeps the session on the chosen language even if the write fails", async () => {
+    // Not worth an error dialog mid-translation: the session behaves as asked, it just
+    // won't be remembered.
+    vi.mocked(updateUserLanguages).mockRejectedValue(new Error("offline"));
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await waitFor(() => expect(result.current.learning).toBe(DEFAULT_LEARNING_LANGUAGE));
+
+    act(() => result.current.setLearning("EN"));
+
+    expect(result.current.learning).toBe("EN");
   });
 });
 
