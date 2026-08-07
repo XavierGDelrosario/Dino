@@ -1083,6 +1083,53 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
     expect(await learn(1000, true)).not.toContain(first);
   });
 
+  it("drops a headword after ONE of its entries is saved (surface exclusion, migration 20260755)", async () => {
+    // The test above has to save EVERY entry behind a headword to retire it. That
+    // was the bug: exclusion keyed on jmdict_entry_id while the pool returns a
+    // WRITING, so owning 神 under one of its 4 entries left the other 3 looking new
+    // and the same card came back session after session (measured on prod: 36 of the
+    // 60 words a 10-card N3 draw samples from were already in the vocabulary).
+    // v6 also excludes by surface, so ONE save is enough.
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const pool = (((await svc.rpc("learn_words_at_band", {
+      p_source: "JA", p_target: "EN", p_band: 1, p_user_id: u.userId, p_limit: 400,
+      p_exclude_seen: false,
+    })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+    if (pool.length === 0) return; // proficiency/JMdict not ingested → skip
+
+    // A headword JMdict splits across several entries — the case that leaked.
+    let split: { headword: string; entryIds: string[] } | null = null;
+    for (const headword of pool.slice(0, 60)) {
+      const senses = ((await svc.rpc("jmdict_lookup", {
+        p_input: headword, p_source: "JA", p_target: "EN",
+      })).data ?? []) as { jmdict_entry_id: string }[];
+      const entryIds = [...new Set(senses.map((s) => s.jmdict_entry_id))];
+      if (entryIds.length > 1) { split = { headword, entryIds }; break; }
+    }
+    if (!split) return; // no multi-entry headword in this dictionary build → skip
+
+    // Save exactly ONE of them — the other entries are still unseen by id.
+    const seeded = await svc.from("words").insert({
+      input: split.headword, translation: `learn-surface-${split.entryIds[0]}`,
+      source_lang: "JA", target_lang: "EN", is_verified: true,
+      jmdict_entry_id: split.entryIds[0],
+    }).select("word_id").single();
+    await u.client.rpc("save_dictionary_word", {
+      p_user_id: u.userId,
+      p_dictionary_word_id: (seeded.data as { word_id: string }).word_id,
+    });
+
+    const after = (((await svc.rpc("learn_words_at_band", {
+      p_source: "JA", p_target: "EN", p_band: 1, p_user_id: u.userId, p_limit: 400,
+    })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+    expect(after, `${split.headword} is owned — its other entries must not requiz it`)
+      .not.toContain(split.headword);
+    // Excluding one word must not empty the pool.
+    expect(after.length).toBeGreaterThan(100);
+  });
+
   it("never quizzes GRAMMATICAL words — particles, conjunctions, interjections, determiners, expressions, affixes", async () => {
     // Migration 20260730: a placement/learn card showing は or しかし tests grammar, not
     // vocabulary, and tells us nothing about the learner's LEVEL. The rule stays inclusive
