@@ -20,6 +20,9 @@ import { useI18n } from "../../i18n";
 
 const PAD_SIZE = 280;
 
+/** Ink colour. White on the dark pad (`.hw__pad`) — keep the two in step. */
+const INK = "#ffffff";
+
 function drawStroke(ctx: CanvasRenderingContext2D, points: InkPoint[]) {
   if (points.length === 0) return;
   ctx.beginPath();
@@ -53,9 +56,21 @@ export function HandwritingCanvas({
     ctx.lineWidth = 6;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "#1b1b1b";
+    ctx.strokeStyle = INK;
     for (const s of strokes) drawStroke(ctx, s.points);
   }, [strokes]);
+
+  // Selection is OFF across the document for as long as the pad is open — a stroke
+  // is a drag, and a drag that leaves the canvas sweeps a selection through whatever
+  // it crosses, including the textarea behind the overlay. See `.is-drawing` in
+  // common.css for why the overlay's own rule can't cover that. Cleanup runs on every
+  // unmount path (✕, a picked candidate, leaving the tab), so nothing can strand the
+  // document in a non-selectable state.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("is-drawing");
+    return () => root.classList.remove("is-drawing");
+  }, []);
 
   // ABSOLUTE timestamp (ms since the page's time origin), so `t` increases
   // monotonically ACROSS strokes — ML Kit needs that for multi-stroke characters;
@@ -77,9 +92,17 @@ export function HandwritingCanvas({
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current) return;
     drawing.current.points.push(point(e));
-    // Live-draw the in-progress trace so the pen feels responsive.
+    // Live-draw the in-progress trace so the pen feels responsive. The repaint effect
+    // only runs on COMMITTED strokes, so set the pen here too — otherwise the live
+    // trace draws in the canvas default (black), invisible on the dark pad until the
+    // stroke ends and the effect repaints it white.
     const ctx = canvasRef.current?.getContext("2d");
-    if (ctx) drawStroke(ctx, drawing.current.points);
+    if (!ctx) return;
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = INK;
+    drawStroke(ctx, drawing.current.points);
   };
 
   const endStroke = () => {

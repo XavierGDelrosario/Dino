@@ -110,6 +110,7 @@ export const en = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "Scan text from a photo",
+  "ocr.library": "Scan text from a saved image",
   "ocr.cropHint": "Drag to select just the text you want.",
   "ocr.cropAria": "Crop selection",
   "ocr.photoAria": "Captured photo",
@@ -288,13 +289,16 @@ export const en = {
 
   // text quiz
   "quiz.back": "← Back to reader",
+  "quiz.backLevel": "← Back to levels",
   "quiz.emptyReview": "No saved words in this text to review yet.",
   "quiz.emptyLearn": "No new words in this text to quiz — you know them all. 🎉",
+  "quiz.emptyLearnLevel": "No new words left at this level — you know them all. 🎉",
   "quiz.doneReview": "Reviewed {n} {noun}.",
   "quiz.doneLearn": "Added {n} new {noun} to your vocabulary.",
   "quiz.again": "Quiz again",
   "quiz.scopeReview": "Reviewing words from this text",
   "quiz.scopeLearn": "Quizzing new words from this text",
+  "quiz.scopeLearnLevel": "Quizzing new words at this level",
   "quiz.addToList": "Add this meaning to your list",
   "quiz.added": "Added to your list",
   "quiz.showContext": "Show in context",
@@ -519,6 +523,7 @@ export const ja: Record<MessageKey, string> = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "写真から文字を読み取る",
+  "ocr.library": "保存した画像から文字を読み取る",
   "ocr.cropHint": "読み取りたい部分をドラッグして選んでください。",
   "ocr.cropAria": "切り取り範囲",
   "ocr.photoAria": "撮影した写真",
@@ -681,13 +686,16 @@ export const ja: Record<MessageKey, string> = {
   "pos.expression": "表現",
 
   "quiz.back": "← リーダーに戻る",
+  "quiz.backLevel": "← レベル選択に戻る",
   "quiz.emptyReview": "このテキストに復習する保存済みの単語がまだありません。",
   "quiz.emptyLearn": "このテキストにクイズする新しい単語はありません — すべて習得済みです。🎉",
+  "quiz.emptyLearnLevel": "このレベルにクイズする新しい単語はありません — すべて習得済みです。🎉",
   "quiz.doneReview": "{n}{noun}を復習しました。",
   "quiz.doneLearn": "{n}個の新しい{noun}を語彙に追加しました。",
   "quiz.again": "もう一度クイズ",
   "quiz.scopeReview": "このテキストの単語を復習中",
   "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
+  "quiz.scopeLearnLevel": "このレベルの新しい単語をクイズ中",
   "quiz.addToList": "この意味をリストに追加",
   "quiz.added": "リストに追加済み",
   "quiz.showContext": "文脈を表示",

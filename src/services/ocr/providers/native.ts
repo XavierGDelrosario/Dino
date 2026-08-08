@@ -12,7 +12,7 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import type { LangCode } from "../../language";
-import type { OcrImage, OcrRecognizer, OcrResult } from "../types";
+import type { OcrImage, OcrRecognizer, OcrResult, OcrSource } from "../types";
 
 interface TextOcrPlugin {
   recognize(opts: { image: string; lang: string }): Promise<OcrResult>;
@@ -47,11 +47,15 @@ export const nativeRecognizer: OcrRecognizer = {
     return toVisionLanguage(lang) !== null;
   },
 
-  async captureImage(): Promise<OcrImage | null> {
+  async captureImage({ source = "camera" }: { source?: OcrSource } = {}): Promise<OcrImage | null> {
     try {
       const photo = await Camera.getPhoto({
         resultType: CameraResultType.Base64,
-        source: CameraSource.Camera,
+        // CameraSource.Photos opens the library picker directly. NOT `Prompt`, which
+        // is Capacitor's own "Camera or Photos?" action sheet — the two entry points
+        // are separate buttons in the UI, so a sheet would ask a question the user
+        // has already answered.
+        source: source === "library" ? CameraSource.Photos : CameraSource.Camera,
         correctOrientation: true,
         quality: 85,
       });
@@ -59,9 +63,11 @@ export const nativeRecognizer: OcrRecognizer = {
       // line of text. The in-app cropper (ImageCropper) is free-form instead.
       return photo.base64String ? { base64: photo.base64String, format: photo.format || "jpeg" } : null;
     } catch (err) {
-      // Backing out of the camera is a no-op → null. But a denied permission or
-      // a device with no camera (e.g. the iOS simulator) is a REAL failure: don't
-      // swallow it, or the UI misreports it as "no text found in the photo".
+      // Backing out of the camera or the picker is a no-op → null. But a denied
+      // permission or a device with no camera (e.g. the iOS simulator) is a REAL
+      // failure: don't swallow it, or the UI misreports it as "no text found in the
+      // photo". The two sources ask for DIFFERENT permissions (camera vs photo
+      // library), so one being denied says nothing about the other.
       if (isUserCancellation(err)) return null;
       throw err;
     }
@@ -73,9 +79,9 @@ export const nativeRecognizer: OcrRecognizer = {
     return TextOcr.recognize({ image: base64, lang: tag });
   },
 
-  async capture({ lang }): Promise<OcrResult | null> {
+  async capture({ lang, source }): Promise<OcrResult | null> {
     if (!toVisionLanguage(lang)) return null;
-    const image = await this.captureImage();
+    const image = await this.captureImage({ source });
     if (!image) return null;
     return this.recognizeImage({ base64: image.base64, lang });
   },

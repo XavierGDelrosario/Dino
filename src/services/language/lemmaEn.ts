@@ -1,51 +1,28 @@
-// =========================================================
-// English lemma for the READER — verb tense + plural (PURE, tested).
+// English lemma for the READER — verb tense + plural. PURE.
 //
-// WHAT WAS BROKEN. The reader looks a token up by `lemma ?? text` (lookup.ts
-// `keyOf`), and English tokens had no lemma, so every inflected form was looked up
-// as itself. Measured on "The cat sat while the cats ran. He runs and they were
-// running. She studies what he studied.":
-//   · DUPLICATION — cat/cats and ran/runs/running each resolved to a DIFFERENT
-//     words row, so one word became several quiz cards with identical meanings.
-//   · WRONG WORD — a surface that is a homograph of something else wins outright:
-//     sat → 特殊急襲部隊 (SAT, the Special Assault Team), studied → わざとらしい
-//     (the adjective "studied" = affected). Both are valid entries for that
-//     spelling, and both are the wrong word for the sentence.
+// The reader looks a token up by `lemma ?? text`, and without a lemma every inflected
+// form resolved as itself: cat/cats became separate quiz cards with identical meanings,
+// and a homograph surface won outright (sat → 特殊急襲部隊 the assault team, studied →
+// わざとらしい). Both valid entries for that spelling, both the wrong word.
 //
-// WHY THIS CAN'T JUST MIRROR THE EDGE. supabase/functions/translate/_lib.ts has a
-// fuller lemmatizer, but it works by OVER-GENERATING candidates and letting the
-// database throw the bogus ones away ("buses"→"buse" simply returns no rows). The
-// reader has no such verifier: `keyOf` picks exactly one key and there is NO
-// fallback to the surface if it resolves to nothing. So the cost is asymmetric in
-// the same way the closed-class list is — a missed lemma leaves today's behaviour,
-// a WRONG lemma silently resolves the word to something else.
+// WHY THIS CAN'T JUST MIRROR THE EDGE: _lib.ts has a fuller lemmatizer, but it
+// OVER-GENERATES candidates and lets the database discard the bogus ones. The reader
+// has no verifier — `keyOf` picks exactly one key with no fallback — so the cost is
+// asymmetric: a missed lemma keeps today's behaviour, a WRONG lemma silently resolves
+// the word to something else. Hence: emit a lemma only where the transformation is
+// unambiguous AND the surface is unlikely to be its own word.
 //
-// Hence: emit a lemma only where the transformation is unambiguous AND the surface
-// is unlikely to be its own word. Everything else returns null and is looked up as
-// written, exactly as before.
-//
-// DELIBERATELY NOT HANDLED (the edge still covers these for LOOKUP; they only stay
-// duplicated in the reader):
-//   · regular -ing / -ed — "walking"→walk vs "making"→make needs a verifier to pick
-//     between strip-3 and strip-3+e, and worse, -ing forms are frequently NOUNS in
-//     their own right (building · meeting · painting · feeling). Demoting those to
-//     the verb would lose the word the learner actually met.
-//   · -es plurals — "buses"→bus and "cases"→case share the -ses ending and cannot be
-//     told apart by suffix. The edge tries both; we can't.
-//   · irregulars whose surface is a common word — saw · left · found · felt · lost ·
-//     won · rose · ground · lay · met · read. Mapping "left"→leave would cost the
-//     direction sense. These are listed in EN_IRREGULAR_EXCLUDED so the omission is
-//     visible rather than looking like a gap someone should fill.
-// =========================================================
+// DELIBERATELY NOT HANDLED (the edge still covers these for LOOKUP):
+//   · regular -ing/-ed — needs a verifier to choose strip-3 vs strip-3+e, and -ing
+//     forms are frequently nouns in their own right (building, meeting, feeling).
+//   · -es plurals — "buses"→bus and "cases"→case can't be told apart by suffix.
+//   · irregulars whose surface is a common word (see EN_IRREGULAR_EXCLUDED), where
+//     mapping "left"→leave would cost the direction sense.
 
 import type { LangCode } from "./registry";
 
-/**
- * Irregular past/participle → base, and irregular plural → singular.
- *
- * INCLUSION: the surface must not itself be a common English word. That is the whole
- * safety rule here — see EN_IRREGULAR_EXCLUDED for the ones it rejects.
- */
+/** Irregular past/participle → base, plural → singular. INCLUSION RULE: the surface
+ *  must not itself be a common English word (see EN_IRREGULAR_EXCLUDED). */
 const EN_IRREGULARS: Readonly<Record<string, string>> = {
   // strong verbs — past / past participle → base
   ran: "run", sat: "sit", went: "go", gone: "go", took: "take", taken: "take",
@@ -66,11 +43,8 @@ const EN_IRREGULARS: Readonly<Record<string, string>> = {
   teeth: "tooth", geese: "goose", mice: "mouse", oxen: "ox",
 };
 
-/**
- * Irregular forms the edge maps but this module must NOT: each is a common word in
- * its own right, so lemmatizing it would cost the learner that sense. Exported so the
- * exclusion is testable and obviously intentional, not an oversight.
- */
+/** Irregulars the edge maps but this module must NOT — each is a common word in its own
+ *  right. Exported so the exclusion is testable and obviously intentional. */
 export const EN_IRREGULAR_EXCLUDED: readonly string[] = [
   "saw", "left", "found", "felt", "lost", "won", "rose", "ground", "lay",
   "met", "read", "held", "kept", "led", "sent", "spent", "built", "made",
@@ -85,13 +59,8 @@ const NOT_A_PLURAL = new Set([
   "clothes", "scissors", "glasses", "means", "focus", "campus", "virus", "status",
 ]);
 
-/**
- * A confident dictionary form for `surface`, or null to look it up as written.
- *
- * Case is preserved on the way in and the lemma comes back lowercase, which is what
- * the dictionary is keyed on; the reader re-exposes results under the original
- * surface either way.
- */
+/** A confident dictionary form for `surface`, or null to look it up as written. The
+ *  lemma comes back lowercase, which is what the dictionary is keyed on. */
 export function englishLemma(surface: string): string | null {
   const w = surface.normalize("NFC").toLowerCase();
   if (w.length < 3) return null; // too short for any rule to be safe
@@ -99,17 +68,16 @@ export function englishLemma(surface: string): string | null {
   const irregular = EN_IRREGULARS[w];
   if (irregular) return irregular;
 
-  // Gate EVERY -s rule, not just the plain one: "series"/"species" end in -ies and
-  // would otherwise become "sery"/"specy" before this check was ever reached.
+  // Gates EVERY -s rule, not just the plain one: "series"/"species" end in -ies and
+  // would otherwise become "sery"/"specy" before this check was reached.
   if (NOT_A_PLURAL.has(w)) return null;
 
-  // -ies → -y. Unambiguous for both plurals and 3rd-person/past: studies → study,
-  // cities → city. (-ied is handled the same way: studied → study.)
+  // -ies/-ied → -y: unambiguous for plurals and 3rd-person/past alike.
   if (w.endsWith("ies") && w.length > 4) return `${w.slice(0, -3)}y`;
   if (w.endsWith("ied") && w.length > 4) return `${w.slice(0, -3)}y`;
 
-  // Regular plural / 3rd-person -s. Skipped after -ss (glass, pass) and -es, whose
-  // two readings can't be told apart without a verifier (see the header).
+  // Regular plural / 3rd-person -s. Skipped after -ss and -es, whose two readings
+  // can't be told apart without a verifier (see the header).
   if (
     w.endsWith("s") &&
     !w.endsWith("ss") &&

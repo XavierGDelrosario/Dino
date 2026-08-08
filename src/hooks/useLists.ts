@@ -1,10 +1,6 @@
-// Drives the Lists view: the user's sub-lists + the words in the selected list.
-// The selected list is either a sub-list id or null = the virtual ALL list
-// (a user's whole vocabulary IS their user_words rows — there is no ALL row).
-//
-// Every mutation re-reads from the services (no optimistic cache) — simple and
-// always-correct at POC scale. Errors surface in `error` rather than throwing
-// to the view.
+// Drives the Lists view: the user's sub-lists + the words in the selected one, where
+// null = the virtual ALL list (the whole vocabulary IS the user_words rows; there is no
+// ALL row). Errors surface in `error` rather than throwing to the view.
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   listUserLists,
@@ -35,9 +31,9 @@ export type ListStatus = "loading" | "ready" | "error";
 
 export function useLists(userId: string) {
   const [lists, setLists] = useState<List[]>([]);
-  // null = ALL. Sticky so returning to Lists keeps the chip you were on — but the
-  // list can be deleted from elsewhere while you're away, so it's validated
-  // against `lists` once they load (below) rather than trusted.
+  // null = ALL. Sticky, so returning to Lists keeps the chip you were on — but a list
+  // can be deleted elsewhere while you're away, so it's validated against `lists`
+  // once they load rather than trusted.
   const [selectedListId, setSelectedListId] = useStickyState<string | null>(
     userId, "lists.selectedListId", null,
   );
@@ -50,18 +46,17 @@ export function useLists(userId: string) {
   // Bumped on every (re)load so a superseded in-flight load (list switch)
   // stops writing state instead of racing the newer one.
   const loadSeq = useRef(0);
-  // user_word_ids removed by a mutation WHILE the background stream is still
-  // running — the stream filters these out so a not-yet-loaded page can't
-  // resurrect a just-deleted/untagged word. Cleared at the start of each load.
+  // Removed by a mutation WHILE the background stream is still running: the stream
+  // filters these out, so a not-yet-loaded page can't resurrect a just-deleted word.
+  // Cleared at the start of each load.
   const suppressedIds = useRef<Set<string>>(new Set());
 
   const loadLists = useCallback(async () => {
     try {
       const ls = await listUserLists(userId);
       setLists(ls);
-      // A restored selection can point at a list deleted from another surface (or
-      // another device) while we were away — fall back to ALL rather than paging a
-      // list that no longer exists.
+      // A restored selection can point at a list deleted on another surface or device
+      // — fall back to ALL rather than paging a list that no longer exists.
       setSelectedListId((id) => (id === null || ls.some((l) => l.listId === id) ? id : null));
     } catch (e) {
       setError(message(e));

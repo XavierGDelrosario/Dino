@@ -21,6 +21,8 @@ import type { List } from "../services/lists";
 import "../components/flashcards/flashcards.css";
 
 export type QuizMode = "learn" | "review";
+/** Where a session's cards came from. Affects COPY only — the loop is identical. */
+export type QuizSource = "text" | "level";
 
 // A common word can appear in a dozen sentences; the panel is a memory jog, not a
 // concordance, so show the first few and let the reader supply the rest.
@@ -36,6 +38,7 @@ export function TextQuizView({
   onClose,
   onNewQuiz,
   context,
+  source = "text",
 }: {
   userId: string;
   /** One entry per word — its full sense list (primary first) so meanings cycle. */
@@ -47,6 +50,11 @@ export function TextQuizView({
   /** The user's sub-lists, for the add-to-list menu. */
   lists: List[];
   mode?: QuizMode;
+  /** WHERE the cards came from — it only changes the copy. The default wording says
+   *  "this text", which is true for the reader and an article but a lie on the Learn
+   *  tab, whose cards are drawn from a proficiency BAND and never came from a passage
+   *  the user can see. */
+  source?: QuizSource;
   /** Sync the reader's saved/confidence state as each word is learned/reviewed. */
   onGraded?: OnGraded;
   /** Create a sub-list, returning its id (then the word is tagged into it). */
@@ -88,14 +96,18 @@ export function TextQuizView({
 
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
-      {t("quiz.back")}
+      {t(source === "level" ? "quiz.backLevel" : "quiz.back")}
     </button>
   );
 
   if (q.status === "empty") {
     return (
       <div className="review__msg">
-        <p>{mode === "review" ? t("quiz.emptyReview") : t("quiz.emptyLearn")}</p>
+        <p>
+          {mode === "review"
+            ? t("quiz.emptyReview")
+            : t(source === "level" ? "quiz.emptyLearnLevel" : "quiz.emptyLearn")}
+        </p>
         {close}
       </div>
     );
@@ -131,7 +143,9 @@ export function TextQuizView({
     <section className="review">
       <div className="review__head">
         <p className="review__scope">
-          {mode === "review" ? t("quiz.scopeReview") : t("quiz.scopeLearn")}
+          {mode === "review"
+            ? t("quiz.scopeReview")
+            : t(source === "level" ? "quiz.scopeLearnLevel" : "quiz.scopeLearn")}
         </p>
         <FlipButton flip={flip} />
       </div>

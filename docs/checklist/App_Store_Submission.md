@@ -141,7 +141,21 @@ declares mild profanity.
       offered — `linkApple`/`signInWithApple` are already implemented.
 - [ ] Custom domain, so the support/privacy URLs and auth email are not on
       `pages.dev`.
-- [ ] Screenshots: 6.7" and 5.5" required; 1024px app icon.
+- [ ] Screenshots — **6.9" iPhone `1320 × 2868`** (also accepted: 1290 × 2796, 1260 × 2736).
+      Apple scales that one set down for every smaller iPhone, so it is the only iPhone
+      slot to fill. The old "6.7" **and** 5.5"" pair is retired — 5.5" (iPhone 8 Plus)
+      is gone. sRGB PNG/JPEG, **no alpha**, 1–10 per tier. Separately: a 1024px icon,
+      also no alpha and no pre-rounded corners.
+      - ⚠️ A phone screenshot only passes if the phone IS a Pro Max. A 6.1" iPhone
+        captures at 1179 × 2556 and App Store Connect refuses it. Otherwise capture the
+        same build from the Simulator: `xcrun simctl io booted screenshot shot.png`.
+      - ‼️ **The target is `TARGETED_DEVICE_FAMILY = "1,2"` — iPhone AND iPad.** That
+        obliges a 13" iPad set (`2064 × 2752`) too, and review will run the app on an
+        iPad. Nobody has ever run DINO on one. Decide before submitting: produce the
+        iPad shots and test the layout, or set the family to `"1"` and ship
+        iPhone-only for v1 (the lower-risk call).
+      - Screenshot the analysis / word-table views rather than a screen of Wikinews
+        prose: that text is CC BY 2.5, and attribution follows it into marketing.
 - [ ] Signing certificate + provisioning profile, then a TestFlight build.
 - [ ] **Run the live listener on a real device.** It compiles and is unit-covered but
       nobody has spoken at a phone yet — if it does not hold up, cut the feature from

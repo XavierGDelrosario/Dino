@@ -135,6 +135,19 @@ export function CameraIcon({ size }: { size?: number }) {
   );
 }
 
+/** Photo library — a framed picture (mountain + sun), the platform-conventional
+ *  "pick an existing image". Deliberately unlike CameraIcon's body-and-lens so the
+ *  two sit next to each other in the tool column without reading as one control. */
+export function ImageIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-5-5L5 21" />
+    </Svg>
+  );
+}
+
 /** Read aloud (text-to-speech). The waves are separate paths so a "speaking"
  *  state can animate them without touching the cone. */
 export function SpeakerIcon({ size }: { size?: number }) {

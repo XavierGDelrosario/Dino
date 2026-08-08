@@ -21,13 +21,16 @@ import "./AnalyzeInfographic.css";
 
 const COVERAGE: Record<string, string> = {
   known: "#3ecb6c",
-  new: "var(--accent, #a78bfa)",
+  // Same token the reader paints an addable word with (--word-new). A chart of what
+  // you do and don't know has to use the SAME blue the words themselves do, or the
+  // pie and the paragraph under it disagree about which ones are new.
+  new: "var(--word-new, #5b9dff)",
   none: "var(--muted, #8a91a0)",
 };
 
 function bucketColor(kind: SeriesKind, b: InfographicBucket): string {
   if (b.muted) return "var(--muted, #8a91a0)";
-  if (b.key === "new") return COVERAGE.new; // the accent — the coverage "New" slice + the Confidence "New" row
+  if (b.key === "new") return COVERAGE.new; // addable-blue — coverage "New" slice + Confidence "New" row
   if (kind === "confidence") return CONFIDENCE_HEX[Number(b.key)] ?? "var(--muted, #8a91a0)";
   if (kind === "coverage") return COVERAGE[b.key] ?? "var(--muted, #8a91a0)";
   return ordinalColor(b.weight ?? 0.5);

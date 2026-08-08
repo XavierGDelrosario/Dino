@@ -2,7 +2,9 @@
 // OCR facade — import from "./ocr".
 //
 //   isOcrAvailable(lang?)        is camera OCR usable on this platform?
-//   capturePhoto()               take a photo ONLY (so the UI can crop it first)
+//   capturePhoto({ source })     get a photo ONLY (so the UI can crop it first) —
+//                                source "camera" (default) or "library"
+//   pickPhoto()                  the same, from the photo library
 //   recognizeText({ base64 })    recognize an image → reading-order text
 //   captureText({ lang })        take a photo → recognize → reading-order text
 //   captureResult({ lang })      same, but the full OcrResult (text + geometry),
@@ -15,7 +17,7 @@
 // =========================================================
 
 import type { LangCode } from "../language";
-import type { OcrImage, OcrResult } from "./types";
+import type { OcrImage, OcrResult, OcrSource } from "./types";
 import { resolveRecognizer } from "./registry";
 import { blocksToText } from "./readingOrder";
 
@@ -27,12 +29,20 @@ export async function isOcrAvailable(lang?: LangCode): Promise<boolean> {
   return lang ? recognizer.supports(lang) : true;
 }
 
-/** Take a photo WITHOUT recognizing it, so the UI can offer a crop step first.
- *  Null if the user cancelled the camera or there's no backend. */
-export async function capturePhoto(): Promise<OcrImage | null> {
+/** Get a photo WITHOUT recognizing it, so the UI can offer a crop step first —
+ *  from the camera (default) or the device's photo library.
+ *  Null if the user cancelled or there's no backend. */
+export async function capturePhoto(opts: { source?: OcrSource } = {}): Promise<OcrImage | null> {
   const recognizer = await resolveRecognizer();
   if (!recognizer) return null;
-  return recognizer.captureImage();
+  return recognizer.captureImage({ source: opts.source });
+}
+
+/** Pick an existing image from the photo library (same crop → recognize path as a
+ *  fresh photo). Sugar for `capturePhoto({ source: "library" })` — named because
+ *  the call site reads as an intent, not a flag. */
+export async function pickPhoto(): Promise<OcrImage | null> {
+  return capturePhoto({ source: "library" });
 }
 
 /** Recognize an already-captured (possibly cropped) image → blocks + geometry. */

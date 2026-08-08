@@ -138,6 +138,14 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
 
   return (
     <section className="authpage">
+      {/* Way out, at the TOP — the rest of the app puts "back" last, but this page had
+          none at all, and on native there is no browser chrome to fall back on: opening
+          Sign in and changing your mind left you stuck on the form. It also can't go at
+          the bottom here, where three links already sit (forgot · switch mode · the
+          upgrade note) — a fourth would read as a fourth choice rather than the exit.
+          Signing in is optional in DINO (a guest is a real account), so leaving must be
+          as reachable as continuing. */}
+      <Link to="/" className="account__link authpage__back">{t("profile.back")}</Link>
       <h2 className="authpage__title">{mode === "signup" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h2>
       <InputField type="email" value={email} onChange={setEmail}
         placeholder={t("auth.emailPlaceholder")} ariaLabel={t("auth.emailPlaceholder")} autoComplete="email" />

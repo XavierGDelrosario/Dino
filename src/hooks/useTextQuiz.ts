@@ -1,11 +1,10 @@
-// Drives an "extract-and-quiz" session over the NEW content words found in a
-// pasted text (the words not yet in the user's vocabulary — see useTranslate's
-// addableCards). Each CARD is one word's full sense list (primary first); the
-// user can cycle its meanings with ←/→ and add a chosen one. Unlike useReview
-// (which quizzes ALREADY-saved words), each grade here both ADDS the selected
-// sense to the vocabulary and records the first review, so studying a piece of
-// media feeds spaced repetition seeded by how you scored it. A ＋ button adds the
-// currently-selected sense (default: the first) without grading.
+// Drives an "extract-and-quiz" session over the NEW content words in a pasted text
+// (useTranslate's addableCards). Each CARD is one word's full sense list, primary
+// first, and the user can cycle meanings with ←/→ and add a chosen one.
+//
+// Unlike useReview, which quizzes ALREADY-saved words, each grade here both ADDS the
+// selected sense and records the first review — so studying media feeds spaced
+// repetition seeded by how you scored it. The ＋ button adds without grading.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
 import { recordReview, type ReviewGrade } from "../services/review";
@@ -43,18 +42,17 @@ export function useTextQuiz(
   // wordIds already added to the vocabulary this session (via ＋ or a grade), so
   // the add button can show its ✓ state.
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  // Sense wordIds known to be IN the user's vocabulary — seeded with the words
-  // already saved when the session opened (fetched below) and grown as new ones are
-  // saved. A save of a word already here is a no-op re-add and must NOT count as
-  // "added" (the fix for the inflated "Added N words" count). A ref so async
-  // save callbacks always read the latest membership without a stale closure.
+  // Sense wordIds known to be IN the vocabulary — seeded from what was already saved
+  // when the session opened, grown as new ones are. A save of a word already here is a
+  // no-op re-add and must NOT count as "added". A ref, so async save callbacks read
+  // the latest membership without a stale closure.
   const inVocabRef = useRef<Set<string>>(new Set());
   // Distinct words genuinely NEW to the vocabulary this session (the honest count).
   const [addedCount, setAddedCount] = useState(0);
 
-  // Level calibration (#10) is a SILENT byproduct of the learn quiz — no UI. Each
-  // first-encounter grade is a (difficulty, grade) sample; on finish we estimate
-  // the user's level and persist it. Accumulated in a ref so it survives re-renders.
+  // Level calibration is a SILENT byproduct of the quiz — no UI. Each first-encounter
+  // grade is a (difficulty, grade) sample; on finish the level is estimated and
+  // persisted. A ref, so it survives re-renders.
   const samples = useRef<CalibrationSample[]>([]);
 
   // The word set is a SNAPSHOT taken when the session opens; restart re-walks it.
@@ -68,9 +66,9 @@ export function useTextQuiz(
     setSavedIds(new Set());
     samples.current = [];
     setStatus(cards.length ? "reviewing" : "empty");
-    // NOTE: inVocabRef is intentionally NOT cleared here — a "Quiz again" over the
-    // SAME cards keeps the words added in the first pass marked as owned, so
-    // re-grading them doesn't re-inflate addedCount. A NEW card set re-seeds it below.
+    // inVocabRef is intentionally NOT cleared: a "Quiz again" over the SAME cards keeps
+    // the first pass's words marked as owned, so re-grading can't re-inflate
+    // addedCount. A NEW card set re-seeds it below.
   }, [cards.length]);
 
   // Re-arm if the caller opens the quiz with a different set.
@@ -78,9 +76,9 @@ export function useTextQuiz(
     restart();
   }, [restart]);
 
-  // Seed the in-vocab set with the words ALREADY saved when this card set opens, so
-  // grading one of them isn't counted as a new add. One local query over the card
-  // sense ids; fail-open (an empty set just means every save counts, the old behavior).
+  // Seed with the words ALREADY saved when this card set opens, so grading one isn't
+  // counted as a new add. One local query; fail-open (an empty set just means every
+  // save counts).
   useEffect(() => {
     const ids = cards.flat().map((w) => w.wordId);
     if (ids.length === 0) {

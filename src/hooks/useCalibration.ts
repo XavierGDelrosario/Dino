@@ -46,8 +46,25 @@ const GRAMMATICAL_POS = new Set([
 const isAffixOnly = (w: Word): boolean =>
   !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => GRAMMATICAL_POS.has(p));
 
-export function useCalibration(userId: string) {
-  const langs = useRef<{ learning: LangCode; native: LangCode }>({
+/**
+ * @param langs the pair to place the user in. OPTIONAL, and passing it matters: the
+ *   quiz is launched from a screen that already HAS a language picker (Learn), and
+ *   without this it re-read the profile instead — so choosing English there and
+ *   pressing "Find my level" still dealt Japanese cards, because the profile column
+ *   was untouched (null → the registry default). One screen, two answers. Omit it
+ *   only where the caller genuinely has no opinion; then the profile decides.
+ */
+export function useCalibration(
+  userId: string,
+  langs?: { learning: LangCode; native: LangCode },
+) {
+  // Destructured to PRIMITIVES on purpose: callers pass `{ learning, native }` inline,
+  // which is a new object every render, so depending on it below would reload the deck
+  // forever. The two codes are stable values.
+  const learningPref = langs?.learning;
+  const nativePref = langs?.native;
+
+  const langsRef = useRef<{ learning: LangCode; native: LangCode }>({
     learning: DEFAULT_LEARNING_LANGUAGE,
     native: DEFAULT_NATIVE_LANGUAGE,
   });
@@ -80,8 +97,8 @@ export function useCalibration(userId: string) {
       bands.map((b) =>
         fetchLearnWords({
           band: b,
-          source: langs.current.learning,
-          target: langs.current.native,
+          source: langsRef.current.learning,
+          target: langsRef.current.native,
           limit: PER_BAND_FETCH,
           excludeSeen: true,
         }),
@@ -114,13 +131,18 @@ export function useCalibration(userId: string) {
     setStatus("loading");
     setError(null);
     try {
-      const p = await getUserProfile(userId).catch(() => null);
-      langs.current = profileToLangs(p);
-      if (!proficiencyFrameworkFor(langs.current.learning)) {
+      // The CALLER's pair wins when it has one — it is what the user picked on the
+      // screen they pressed the button from. Only fall back to the profile when the
+      // caller has no opinion.
+      langsRef.current =
+        learningPref && nativePref
+          ? { learning: learningPref, native: nativePref }
+          : profileToLangs(await getUserProfile(userId).catch(() => null));
+      if (!proficiencyFrameworkFor(langsRef.current.learning)) {
         setStatus("unavailable");
         return;
       }
-      const base = await getVocabRatings(userId, langs.current.learning);
+      const base = await getVocabRatings(userId, langsRef.current.learning);
       if (!base) {
         setStatus("unavailable");
         return;
@@ -149,7 +171,7 @@ export function useCalibration(userId: string) {
       setError(message(e));
       setStatus("error");
     }
-  }, [userId, fetchAround]);
+  }, [userId, fetchAround, learningPref, nativePref]);
 
   useEffect(() => {
     void load();
@@ -203,7 +225,7 @@ export function useCalibration(userId: string) {
     void setUserLevel(userId, l.level).catch((e) => console.warn("calibration: persist level failed", e));
   }, [userId, live, recompute]);
 
-  const framework = proficiencyFrameworkFor(langs.current.learning);
+  const framework = proficiencyFrameworkFor(langsRef.current.learning);
   const bandLabel = live && live.band > 0 && framework ? labelForBand(framework, live.band) : null;
 
   return {

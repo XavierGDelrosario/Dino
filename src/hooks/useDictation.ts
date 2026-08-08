@@ -1,29 +1,18 @@
-// =========================================================
 // Dictation: the mic writes STRAIGHT INTO the translate input box.
 //
-// This replaces the live-transcript takeover (`useLiveTranscript` +
-// `LiveTranscriptView`), which was deleted with it. That screen rendered its own
-// parallel reader over an append-only list of utterances and was, by construction,
-// unable to translate anything: it passed `skipGloss` + `dictionaryOnly` so a
-// running listener could never buy MT, and the "purchase English for this line"
-// path it assumed was never built. So it coloured words and nothing else.
+// Writing into the box gets the whole existing surface for free — `useLiveReader`
+// already reads it live, so dictated text is coloured, sentence-split and hoverable
+// with no new rendering code; the box is EDITABLE, so a mis-heard word or a missing 。
+// is fixable; and Translate is the normal button, so the normal PAID gloss applies.
+// (This replaced a live-transcript takeover that was free by construction but, for the
+// same reason, could never translate anything.)
 //
-// Writing into the box instead gets the whole existing surface for free:
-//   · `useLiveReader` already reads the box live — dictated text is coloured,
-//     sentence-split and hoverable with no new rendering code at all;
-//   · the box is EDITABLE, so a mis-heard word or a missing 。 is fixable, which a
-//     streaming transcript never allowed;
-//   · Translate is the normal button, so the normal PAID gloss applies.
+// ⚠️ COST — a deliberate reversal: dictation spends exactly like typing, and speech
+// produces text far faster than a keyboard. Bounded by the same paragraphCharLimit and
+// monthly quota as any other input, and nothing is spent until Translate is pressed.
 //
-// ⚠️ COST — this is a deliberate reversal. The old listener could run for an hour
-// and never spend: it was free by construction. Dictation spends exactly like
-// typing does, and speech produces text far faster than a keyboard. That is bounded
-// by the same `paragraphCharLimit` + monthly quota as any other input, and nothing
-// is spent until Translate is pressed — but it IS a change, not an oversight.
-//
-// The recognizer seam (`services/speech`) is untouched: this is a second consumer
-// of the same `startStream` contract the transcript used.
-// =========================================================
+// The recognizer seam (`services/speech`) is untouched — this is a second consumer of
+// the same `startStream` contract.
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isSpeechStreamAvailable,

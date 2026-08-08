@@ -1,30 +1,18 @@
-// =========================================================
 // In-memory client cache for the global `words` dictionary reads.
 //
-// WHY this is safe to cache client-side (and `user_words` is NOT): `words` is the
-// SHARED, verified dictionary cache — READ-ONLY to clients (only the edge function
-// writes it) and effectively immutable within a browser session. The only way a
-// row changes is a server-side re-projection (a deferred admin feature), and even
-// then the change is benign (a better reading/ranking, never a wrong meaning). So
-// a session-lifetime memo can never serve user-visible-wrong data; the worst case
-// is a slightly stale furigana until the next page load clears it.
+// Safe to cache (where `user_words` is NOT) because `words` is READ-ONLY to clients and
+// effectively immutable within a session: the only way a row changes is a server-side
+// re-projection, and that change is benign — a better reading or ranking, never a wrong
+// meaning. `user_words` mutates constantly (every save, edit and review), so it stays
+// live. Worst case here is a slightly stale furigana until the next page load.
 //
-// `user_words` (a user's vocabulary + mastery) mutates constantly — save, edit,
-// delete, every review changes confidence — so it is deliberately NOT cached
-// here; those reads stay live (see useLists' read-after-mutation).
+// Keyed by (input, source, target) — the SEARCH term, matching how repository.ts
+// queries `words` — and holds the full sense list in the order the DB returned it.
 //
-// The cache is keyed by (input, source, target) — the SEARCH term the caller
-// passed, matching how repository.ts queries `words` (.eq("input", …)). It stores
-// the full sense list for a key (verified-first, the same order the DB returns).
-//
-// NEGATIVE results are never cached: an empty read means "not in the cache yet",
-// and the caller then asks the edge function, which POPULATES `words`. Caching the
-// empty would wrongly mask that fresh data for the rest of the session.
-//
-// The ONE exception is the dictionary-miss set at the bottom — a different kind of
-// negative, and deliberately a separate store rather than a relaxation of the rule
-// above. See its own note.
-// =========================================================
+// NEGATIVE results are never cached: an empty read means "not in the cache yet", and
+// the caller then asks the edge function, which POPULATES `words`. Caching the empty
+// would mask that fresh data for the rest of the session. The dictionary-miss set at
+// the bottom is a different kind of negative — see its own note.
 
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
@@ -36,11 +24,9 @@ const MAX_ENTRIES = 2000;
 
 const store = new Map<string, Word[]>();
 
-// JSON.stringify of the tuple: unambiguous (each part is quoted/escaped) and plain
-// ASCII, so distinct keys can't collide and the source stays text (no separator
-// control chars). NFC-normalize the input here too — the single chokepoint that
-// GUARANTEES a consistent key (composed vs decomposed Japanese can't fork it),
-// regardless of whether a caller remembered to normalize. Idempotent + cheap.
+// JSON.stringify of the tuple: each part is quoted/escaped, so distinct keys can't
+// collide and no separator control char is needed. NFC here is the single chokepoint
+// that GUARANTEES a consistent key, whether or not a caller remembered to normalize.
 const keyFor = (input: string, source: LangCode, target: LangCode) =>
   JSON.stringify([source, target, nfc(input)]);
 
@@ -73,27 +59,22 @@ export function setCachedSenses(
 // ---------------------------------------------------------------------------
 // Dictionary misses — for PROBES only.
 //
-// The reader guesses at compounds kuromoji may have over-segmented (柔軟 ＋ 剤 →
-// could 柔軟剤 be a word?) and asks the DICTIONARY-ONLY path. Most guesses are
-// wrong, and re-analyzing the same text re-asks every one of them.
+// The reader guesses at compounds kuromoji may have over-segmented ("could 柔軟剤 be a
+// word?") via the DICTIONARY-ONLY path. Most guesses are wrong, and re-analyzing the
+// same text re-asks every one of them.
 //
-// Why this negative IS cacheable when the one above isn't: a normal empty read
-// means "not fetched yet", and the follow-up edge call POPULATES `words`, so the
-// emptiness is temporary. A dictionary-only probe miss is the authoritative
-// answer — the dictionary has no such entry — and that call populates NOTHING
-// (no MT write by design). So it cannot become true later in the session, and
-// remembering it masks nothing.
+// Why THIS negative is cacheable when the one above isn't: a normal empty read is
+// temporary (the follow-up edge call populates `words`), whereas a dictionary-only
+// probe miss is the authoritative answer and that call populates NOTHING. It can't
+// become true later in the session, so remembering it masks nothing.
 //
-// Kept in memory, NOT the DB, on purpose: recomputing is one free batched lookup,
-// whereas a stored negative would go stale the moment JMdict is re-ingested (a row
-// claiming 柔軟剤 isn't a word would outlive the ingest that adds it) and would need
-// the very invalidation machinery that the `words` cache already makes expensive.
-// A session-lifetime memo drops the staleness problem entirely: a page load is the
+// In memory, NOT the DB: recomputing is one free batched lookup, while a stored
+// negative would go stale the moment JMdict is re-ingested and would need the very
+// invalidation machinery the `words` cache already makes expensive. A page load is the
 // invalidation.
 //
-// USE ONLY from the probe path. Consulting this from a normal lookup would suppress
-// a word the edge could still resolve via MT — the exact mistake the rule above
-// exists to prevent.
+// USE ONLY from the probe path — consulting it from a normal lookup would suppress a
+// word the edge could still resolve via MT.
 // ---------------------------------------------------------------------------
 
 /** Separate cap: probe misses are far more numerous than hits (most guesses are

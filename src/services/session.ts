@@ -1,11 +1,8 @@
-// =========================================================
 // Session & user identity.
 //
-// The POC uses Supabase ANONYMOUS auth: each visitor gets a real auth.uid()
-// (so RLS works) without a login screen — the "guest profile" from DinoPOC.md.
-// Upgrading to Google login later only changes how the auth user is created;
-// the public.users row and everything keyed on userId stay the same.
-// =========================================================
+// Supabase ANONYMOUS auth: every visitor gets a real auth.uid() (so RLS works) with no
+// login screen — the "guest profile". Upgrading to a real account only changes how the
+// auth user is created; the public.users row and everything keyed on userId stay put.
 
 import { Browser } from "@capacitor/browser";
 import { supabase } from "../config/supabaseClient";
@@ -56,20 +53,13 @@ export async function getAuthStatus(): Promise<AuthStatus | null> {
 }
 
 /**
- * Upgrade the CURRENT anonymous guest to a permanent email/password account. This
- * sets the email + password on the SAME auth.uid(), so every user_words / list /
- * review row (all keyed on that uid) carries over automatically — no data migration.
+ * Upgrade the CURRENT anonymous guest to a permanent email/password account: sets the
+ * email + password on the SAME auth.uid(), so every user_words / list / review row
+ * carries over with no data migration. Keeps the public.users email in sync.
  *
- * OUTPUT: the new AuthStatus (isAnonymous=false).
- * CONSTRAINTS: normalizes the email; keeps the public.users row's email in sync.
- * Local dev has email confirmations OFF, so the email applies immediately; with
- * confirmations ON in prod, the email change is pending until confirmed.
+ * No captcha here — updateUser isn't one of the endpoints GoTrue gates (only those that
+ * MINT a user or session are), and this guest already passed it at anonymous sign-in.
  */
-// NOTE (captcha): this upgrades an EXISTING session via updateUser (PUT /user),
-// which GoTrue does NOT captcha-gate — only the endpoints that MINT a user or a
-// session do (signup / token / recover). That's fine: the guest whose session this
-// upgrades already passed the captcha at anonymous sign-in, so the sybil surface is
-// already covered. Nothing to pass here.
 export async function upgradeToAccount(
   params: { email: string; password: string },
 ): Promise<{ status: AuthStatus; emailPending: boolean }> {
@@ -77,20 +67,16 @@ export async function upgradeToAccount(
   const { data, error } = await supabase.auth.updateUser({ email, password: params.password });
   if (error) throw toServiceError(error, "Could not create your account");
   if (!data.user) throw toServiceError(null, "Could not create your account");
-  // With email confirmations ON (prod), the email change is PENDING until the user
-  // clicks the link — `user.email` isn't the new address yet. Locally (confirmations
-  // off) it applies immediately. Only sync the profile email once it's actually applied.
+  // With email confirmations ON (prod) the change is PENDING until the link is clicked,
+  // so `user.email` isn't the new address yet. Only sync once it has actually applied.
   const applied = (data.user.email || "").toLowerCase() === email;
   if (applied) await ensureUserProfile(data.user.id, email);
   return { status: toStatus(data.user as SupaUser), emailPending: !applied };
 }
 
 /**
- * Sign in to an EXISTING account (e.g. returning on a new device). This switches the
- * session to that account's uid — words saved as the current guest stay with the
- * guest (use upgradeToAccount to keep them). Ensures the account's public.users row.
- *
- * OUTPUT: the AuthStatus for the signed-in account.
+ * Sign in to an EXISTING account, switching the session to that account's uid — words
+ * saved as the current guest stay with the guest (use upgradeToAccount to keep them).
  */
 export async function signIn(params: { email: string; password: string }): Promise<AuthStatus> {
   const email = params.email.trim().toLowerCase();
@@ -107,20 +93,17 @@ export async function signIn(params: { email: string; password: string }): Promi
 }
 
 /**
- * OAuth, shared by every provider (Google, Apple). `link…` UPGRADES the current
- * guest by linking the identity
- * to the SAME uid (data preserved) — use it from the create-account page. `signInWithGoogle`
- * signs into the Google account as its own user (switches uid) — use it from sign-in.
+ * OAuth, shared by every provider. `link…` UPGRADES the current guest by linking the
+ * identity to the SAME uid (data preserved) — use it from create-account; `signInWith…`
+ * signs into the provider account as its own user (switching uid) — use it from sign-in.
  *
- * WEB: a full-page redirect to Google → back to the app origin, where the client
- * picks up the session (onAuthStateChange). NATIVE (Capacitor/iOS): a redirect would
- * escape the WebView to Safari and never return, so we instead get the provider URL
- * (skipBrowserRedirect), open it in an in-app browser, and complete the login when
- * Google redirects back to our custom URL scheme — see services/nativeAuth.ts.
+ * WEB: a full-page redirect out and back to the app origin, where onAuthStateChange
+ * picks up the session. NATIVE: a redirect would escape the WebView to Safari and never
+ * return, so we take the provider URL (skipBrowserRedirect), open it in an in-app
+ * browser, and finish on our custom URL scheme — see services/nativeAuth.ts.
  *
- * Requires the Google provider enabled with OAuth creds in the Supabase project
- * (config.toml [auth.external.google]); unconfigured → errors. On native, also
- * requires NATIVE_OAUTH_REDIRECT in the redirect allow-list + Info.plist scheme.
+ * Requires the provider enabled with OAuth creds in the Supabase project; unconfigured
+ * → errors. Native also needs NATIVE_OAUTH_REDIRECT allow-listed + an Info.plist scheme.
  */
 async function startOAuth(
   start: (opts: {
@@ -135,8 +118,8 @@ async function startOAuth(
     : (typeof window !== "undefined" ? window.location.origin : "");
   const { data, error } = await start({ redirectTo, skipBrowserRedirect: native });
   if (error) throw toServiceError(error, failMessage);
-  // Native: open the provider URL in an in-app browser; the appUrlOpen listener
-  // (nativeAuth) finishes the login. Web: the call already redirected the page.
+  // Native: the appUrlOpen listener (nativeAuth) finishes the login from here.
+  // Web: the call already redirected the page.
   if (native && data?.url) await Browser.open({ url: data.url });
 }
 
@@ -154,20 +137,14 @@ export async function signInWithGoogle(): Promise<void> {
 }
 
 /**
- * Sign in with Apple — the same two calls as Google, and REQUIRED rather than
- * optional: the App Store guidelines make Sign in with Apple mandatory for an app
- * that offers another third-party login (we offer Google), so shipping to iOS
- * without it is a rejection.
+ * Sign in with Apple — same flow as Google, and REQUIRED rather than optional: App
+ * Store guidelines make it mandatory for an app offering another third-party login, so
+ * shipping to iOS without it is a rejection.
  *
- * Identical flow to Google: web redirects to Apple and back to the origin; native
- * opens the provider URL in an in-app browser and finishes on the custom scheme.
- *
- * Two things Apple needs that Google doesn't, and neither is code:
- *   · the Supabase project's Apple provider must carry a Services ID + the signing
- *     key (config.toml [auth.external.apple] locally);
- *   · Apple's "Hide My Email" returns a private relay address, so an account may
- *     have no reachable email — nothing here assumes one, and password reset simply
- *     doesn't apply to an Apple-only account.
+ * Two non-code things Apple needs that Google doesn't: the Supabase project's Apple
+ * provider must carry a Services ID + signing key, and "Hide My Email" returns a
+ * private relay address — so an account may have no reachable email, and password
+ * reset simply doesn't apply to an Apple-only account.
  */
 export async function linkApple(): Promise<void> {
   await startOAuth(
@@ -183,12 +160,9 @@ export async function signInWithApple(): Promise<void> {
 }
 
 /**
- * Stamp the current user's `users` row with the Terms/Privacy acceptance (the
- * moment + the CURRENT_TERMS_VERSION). Called from the signup flow once the user
- * ticks the agreement box. RLS scopes the write to the caller's own row. For
- * Google signup this must run BEFORE the OAuth redirect (the uid is preserved by
- * linkGoogle, so the stamp survives the redirect); for email it runs after the
- * upgrade. Safe no-op if there's no session.
+ * Stamp the current user's row with the Terms/Privacy acceptance. For an OAuth signup
+ * this must run BEFORE the redirect — linkGoogle preserves the uid, so the stamp
+ * survives it; for email it runs after the upgrade. Safe no-op with no session.
  */
 export async function recordTermsAgreement(): Promise<void> {
   const { data } = await supabase.auth.getUser();
@@ -202,32 +176,25 @@ export async function recordTermsAgreement(): Promise<void> {
 }
 
 /**
- * Does this account still owe Terms acceptance? True when its stored
- * `terms_version` is missing or behind CURRENT_TERMS_VERSION — i.e. a Google
- * signup that bypassed the signup checkbox, or anyone after the Terms were
- * updated. The caller (App) only checks this for permanent accounts; guests are
- * never gated. Reads the caller's own row (RLS).
+ * Does this account still owe Terms acceptance? True when its stored `terms_version` is
+ * missing or behind CURRENT_TERMS_VERSION — an OAuth signup that bypassed the checkbox,
+ * or anyone after a Terms update. Only checked for permanent accounts; guests aren't gated.
  */
 export async function needsTermsAcceptance(userId: string): Promise<boolean> {
   const profile = await getUserProfile(userId);
   return !profile || profile.termsVersion !== CURRENT_TERMS_VERSION;
 }
 
-/**
- * Sign out and return to a FRESH anonymous guest (no login wall — the app keeps
- * working). Returns the new guest's userId.
- */
+/** Sign out into a FRESH anonymous guest (no login wall). Returns the new userId. */
 export async function signOut(): Promise<string> {
   await supabase.auth.signOut().catch(() => {});
   return ensureSession();
 }
 
 /**
- * Send a password-reset email. The link returns the user to the app in a
- * PASSWORD_RECOVERY session (useSession surfaces it as `recovering`), where
- * setNewPassword finishes the reset. `redirectTo` is the app origin and must be in
- * the project's auth URL allow-list (config.toml `additional_redirect_urls` locally;
- * Supabase dashboard → Authentication → URL Configuration in prod).
+ * Send a password-reset email. The link returns the user in a PASSWORD_RECOVERY session
+ * (useSession surfaces it as `recovering`), where setNewPassword finishes the reset.
+ * `redirectTo` must be in the project's auth URL allow-list.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
@@ -240,10 +207,10 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 
 /**
- * Permanently delete the caller's account — BOTH their public-schema data AND
- * their Supabase auth identity — via the `delete-account` edge function (the auth
- * row removal needs the service role; a client can't do it). On success we sign
- * out, so `useSession` self-heals into a fresh guest. Irreversible.
+ * Permanently delete the caller's account — BOTH their public-schema data AND their
+ * auth identity — via the `delete-account` edge function (removing the auth row needs
+ * the service role). Signs out on success, so `useSession` self-heals into a fresh
+ * guest. Irreversible.
  */
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.functions.invoke("delete-account", { body: {} });
@@ -261,29 +228,19 @@ export async function setNewPassword(password: string): Promise<void> {
 // The `users` table row, derived from the generated schema types.
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
-/**
- * Current authenticated user id, or null if there is no session yet.
- * OUTPUT: auth.uid() string, or null.
- * CONSTRAINTS: read-only; does not create a session.
- */
+/** Current auth.uid(), or null if there's no session. Read-only; creates nothing. */
 export async function getCurrentUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
 }
 
 /**
- * Guarantees an authenticated user (signing in anonymously if needed) AND a
- * matching public.users row. Call once on app start; returns the user id that
- * every service expects.
+ * Guarantees an authenticated user (signing in anonymously if needed) AND a matching
+ * public.users row. Call once on app start; returns the userId every service expects.
  *
- * OUTPUT: the userId.
- * CONSTRAINTS: synthesizes a placeholder email for anonymous users; relies on
- * users-table RLS allowing the own-row upsert.
- *
- * Concurrent calls SHARE one in-flight sign-in (the promise is reused until it
- * settles, then cleared). React StrictMode double-invokes the bootstrap effect;
- * without this, two `signInAnonymously` calls race and the resolved userId can
- * mismatch the active session's JWT → 403 on the first user_words write.
+ * Concurrent calls SHARE one in-flight sign-in. React StrictMode double-invokes the
+ * bootstrap effect, and without this two `signInAnonymously` calls race — the resolved
+ * userId can then mismatch the active session's JWT → 403 on the first write.
  */
 let inflightSession: Promise<string> | null = null;
 export function ensureSession(): Promise<string> {
@@ -293,9 +250,8 @@ export function ensureSession(): Promise<string> {
 }
 
 async function runEnsureSession(): Promise<string> {
-  // Probe the stored session. getUser can either return an error OR throw
-  // (network blip, or StrictMode racing two refreshes of a stale token), so
-  // treat ANY failure as "no usable session".
+  // getUser can return an error OR throw (a network blip, or StrictMode racing two
+  // refreshes of a stale token), so treat ANY failure as "no usable session".
   let user: { id: string; email?: string | null } | null = null;
   try {
     const { data, error } = await supabase.auth.getUser();
@@ -304,14 +260,13 @@ async function runEnsureSession(): Promise<string> {
     user = null;
   }
 
-  // No user, OR a stale/invalid stored session — e.g. localStorage still holds a
-  // token for an auth user wiped by a `supabase db reset`. Purge the stale
-  // session and sign in fresh so the app self-heals instead of dead-ending on
-  // "couldn't start a session".
+  // No user, or a stale stored session (e.g. localStorage still holds a token for an
+  // auth user wiped by `supabase db reset`). Purge it and sign in fresh, so the app
+  // self-heals instead of dead-ending on "couldn't start a session".
   if (!user) {
     await supabase.auth.signOut().catch(() => {});
-    // The sybil-relevant call: this MINTS an auth.users row for every visitor, so
-    // it's the one the captcha guards (undefined token when captcha is off).
+    // The sybil-relevant call: this MINTS an auth.users row for every visitor, so it's
+    // the one the captcha guards (token is undefined when captcha is off).
     const captchaToken = await getCaptchaToken();
     const { data, error: signErr } = await supabase.auth.signInAnonymously({
       options: { captchaToken },
@@ -322,10 +277,9 @@ async function runEnsureSession(): Promise<string> {
     user = data.user;
   }
 
-  // Anonymous users have an EMPTY-STRING email (not null), so use `||` not `??`:
-  // synthesize a UNIQUE per-uid placeholder, otherwise every guest would insert
-  // the same "" and collide on the users_email UNIQUE constraint (23505). A real
-  // email replaces it on upgrade.
+  // Anonymous users have an EMPTY-STRING email, not null, so `||` not `??`: without a
+  // unique per-uid placeholder every guest inserts the same "" and collides on the
+  // users_email UNIQUE constraint (23505). A real email replaces it on upgrade.
   const email = user.email || `${user.id}@guest.dino`;
   await ensureUserProfile(user.id, email);
 
@@ -340,11 +294,7 @@ async function ensureUserProfile(userId: string, email: string): Promise<void> {
   if (error) throw toServiceError(error);
 }
 
-/**
- * Reads a user's profile, or null if it does not exist.
- * OUTPUT: UserProfile | null.
- * CONSTRAINTS: RLS-scoped — only the caller's own row.
- */
+/** A user's profile, or null if it doesn't exist. RLS-scoped to the caller's own row. */
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from("users")
@@ -366,10 +316,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   };
 }
 
-/**
- * Update the caller's language preferences (native / learning). RLS scopes the
- * write to the caller's own row. Pass only the fields to change.
- */
+/** Update the caller's language preferences. Pass only the fields to change. */
 export async function updateUserLanguages(params: {
   userId: string;
   nativeLanguage?: string;

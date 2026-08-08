@@ -173,10 +173,11 @@
   color: var(--text);
 }
 
+/* addable: has a dictionary entry, not in the vocabulary yet — see --word-new */
 .tok--new {
-  color: var(--accent);
+  color: var(--word-new);
   cursor: pointer;
-  border-bottom: 2px dotted var(--accent);
+  border-bottom: 2px dotted var(--word-new);
 }
 
 /* known: colored by confidence, red (just added / forgotten) → green (mastered) */
@@ -325,7 +326,26 @@
 .translate__box {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 8rem;
+  /* TALL ENOUGH FOR ITS OWN BUTTONS. The column at the top-right and read-aloud at the
+     bottom-right share this edge, so the box has to fit both stacks plus air between:
+       tools   = n × 2rem (.io__tool) + (n−1) × 0.35rem (gap) + 0.4rem (top offset)
+       speak   = 2rem + 0.4rem (bottom offset)
+       + 0.4rem so they never touch
+     `n` is --io-tools, set by TranslateView from the buttons it actually renders (1 on
+     web with just Clear, 5 on native). 8rem stays the floor so a bare box is never
+     cramped. Adding a modality now widens the box automatically — but the constants
+     above must stay in step with .io__tool/.io__tools/.io__speak. */
+  --io-tool-stack: calc(
+    var(--io-tools, 1) * 2rem + (var(--io-tools, 1) - 1) * 0.35rem + 0.4rem + 2.4rem + 0.4rem
+  );
+  min-height: max(8rem, var(--io-tool-stack));
+  /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
+     that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
+     the bottom — so one gutter clears them all, at the top AND the bottom, and the
+     two boxes stay symmetric. Without it, text ran underneath the buttons and was
+     simply unreadable: 0.4rem offset + a 2rem button + 0.4rem of air. Keep this in
+     step with .io__tools/.io__speak `right` and .io__tool `width`. */
+  padding-right: 2.8rem;
   /* Cap the height so a long input/translation scrolls inside the box instead of
      growing the page. Applies to both the textarea and the output panel. */
   max-height: min(24rem, 55vh);
@@ -352,7 +372,11 @@ textarea.translate__box::-webkit-scrollbar {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.8rem 0.9rem;
+  /* Right value = .translate__box's button gutter (see there). Spelled out per side
+     because this rule comes AFTER .translate__box, so a `0.8rem 0.9rem` shorthand
+     here would silently reset the gutter and put the translation back under the
+     read-aloud button. */
+  padding: 0.8rem 2.8rem 0.8rem 0.9rem;
   font-size: 1.05rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -838,6 +862,42 @@ textarea.translate__box::-webkit-scrollbar {
   justify-content: center;
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg, #16181d) 78%, transparent);
+  /* Nothing in here is text you'd copy — it's a pad and its buttons — and a stroke
+     that strays off the canvas would otherwise sweep the hint line and the candidate
+     chips into a selection. `touch-action: none` stops a stray drag scrolling the
+     page for the same reason the canvas sets it. (The document-level lock in
+     common.css covers what sits BEHIND the overlay; this covers the overlay itself.) */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* FULL-SCREEN variant — the photo cropper.
+   The base overlay is absolute inside .translate__io, so it is only ever as tall as
+   the two boxes (8–24rem). That is right for the handwriting pad (280px, fits), but a
+   photo is capped at 60vh plus a hint line and an action row, so it overflowed those
+   bounds — and because the backdrop is the overlay itself, everything the cropper
+   spilled over had NO backdrop at all and the page text read straight through the
+   picture. Fixed positioning makes the backdrop the viewport instead.
+   `position: fixed` is safe here only because `.translate` centres with margins and
+   NOT transform (see its rule) — a transformed ancestor would make it the containing
+   block and put us right back inside the boxes. */
+.translate__overlay--modal {
+  position: fixed;
+  inset: 0;
+  /* Above the tallest thing that can be open behind it (ListMenu is 60). */
+  z-index: 70;
+  border-radius: 0;
+  padding: 1rem;
+  overflow-y: auto;
+  /* Near-opaque: dimming is for a small pad you can see around, but a cropper is a
+     mode — half-visible prose behind the photo is exactly the complaint. */
+  background: color-mix(in srgb, var(--bg, #16181d) 96%, transparent);
+  /* Centre, but never at the cost of the top: on a short screen plain `center`
+     overflows equally in both directions and the top becomes unscrollable. Browsers
+     without `safe` keep the line above. */
+  align-items: center;
+  align-items: safe center;
 }
 
 /* Compact button variant used inside the pad (no global .btn--sm yet). */
@@ -868,11 +928,17 @@ textarea.translate__box::-webkit-scrollbar {
   font-size: 0.85rem;
 }
 
+/* A dark SLATE, not white paper. The pad was #fafafa with near-black ink — the one
+   bright rectangle in an otherwise dark app, which glares when you open it and puts
+   the ink at the opposite polarity from every other glyph on screen. Ink is white
+   (`INK` in HandwritingCanvas.tsx — keep the two in step). Deliberately its own
+   near-black rather than var(--surface): the pad must read as a writing surface
+   distinct from the panel it sits in, and strokes need maximum contrast. */
 .hw__pad {
   display: block;
   width: 280px;
   height: 280px;
-  background: #fafafa;
+  background: #0b0d11;
   border: 1px dashed var(--border);
   border-radius: 8px;
   touch-action: none;

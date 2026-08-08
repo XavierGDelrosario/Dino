@@ -270,6 +270,38 @@ describe("analyze — non-Japanese falls back to segmentation only", () => {
     // Same call as the JA proper-noun rule: typing it IS a question the user asked.
     expect(isSingleWord(await analyze("the", "EN"), "EN")).toBe(true);
   });
+
+  // Observed live: a stray "G" was offered as a word to learn, and letter-spaced text
+  // — which is what OCR returns for a wordmark — turned "G o o g l e" into SIX of them.
+  // The JA reader never had this (FOREIGN_POS covers bare Latin/digits); segmentOnly's
+  // only filter was the closed-class list, and "G" isn't a grammar word.
+  it("never offers a single Latin letter as vocabulary", async () => {
+    const toks = await analyze("G o o g l e is a company", "EN");
+    const content = toks.filter((t) => isContentPos(t.pos)).map((t) => t.text);
+    expect(content).toEqual(["company"]);
+    // Demoted, not dropped — the letters still render as plain text.
+    expect(toks.map((t) => t.text)).toContain("G");
+  });
+
+  it("never offers a letterless token (a page number, a date) as vocabulary", async () => {
+    const toks = await analyze("chapter 2026 of 12", "EN");
+    const content = toks.filter((t) => isContentPos(t.pos)).map((t) => t.text);
+    expect(content).toEqual(["chapter"]);
+  });
+
+  // The junk rule is script-aware on purpose: it must not silence languages whose
+  // words ARE single characters.
+  it("keeps a single Han character as vocabulary (the rule is Latin-only)", async () => {
+    const toks = await analyze("日 山", "ZH");
+    expect(toks.filter((t) => isContentPos(t.pos)).map((t) => t.text)).toEqual(["日", "山"]);
+  });
+
+  // Not fixed here, and deliberately: separating a proper noun from a sentence-initial
+  // content word needs a real tagger (docs/TODO.md). Pinned so the gap is visible.
+  it("KNOWN GAP: a full proper noun is still offered (needs a POS tagger)", async () => {
+    const toks = await analyze("Google is big", "EN");
+    expect(toks.filter((t) => isContentPos(t.pos)).map((t) => t.text)).toContain("Google");
+  });
 });
 
 // The dictionary-form rule the paragraph reader, Translate, and the Lists add form
