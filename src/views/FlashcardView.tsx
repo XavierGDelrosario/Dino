@@ -106,15 +106,16 @@ export function FlashcardView({
           card is static and graded from the bar below. */}
       <div {...(r.flipped || r.submitting ? {} : swipe.props)}>
         <div className="swipecard__in" key={card.userWordId}>
-          <FlashcardCard word={card} flipped={r.flipped} onFlip={r.flip} reversed={flip.reversed} />
+          <FlashcardCard
+            word={card}
+            flipped={r.flipped}
+            onFlip={r.flip}
+            reversed={flip.reversed}
+            // Same slot as the text/level quiz — a change to "the flashcard quiz"
+            // applies to every flashcard surface.
+            flag={<ReportFlagButton input={card.input} wordId={card.dictionaryWordId} size={15} />}
+          />
         </div>
-      </div>
-
-      {/* Same flag, same place as the text/level quiz — a change to "the flashcard
-          quiz" applies to every flashcard surface, and a card that is wrong here is
-          wrong for exactly the same reasons. */}
-      <div className="quizreport">
-        <ReportFlagButton input={card.input} wordId={card.dictionaryWordId} size={15} />
       </div>
 
       <ErrorText message={r.error} />

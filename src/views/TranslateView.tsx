@@ -534,24 +534,30 @@ export function TranslateView({
                       label={tr("translate.addAll", { n: addAllWords.length, noun: noun(addAllWords.length) })}
                       onAdd={t.addWords}
                       onCreateList={t.createNamedList}
-                      className="btn reader__addall"
+                      className="btn"
                     />
                   )}
-                  {t.addableCount > 0 && (
+                  {/* ONE quiz slot, not two. New words come first — that is what a
+                      reader is here for — and only once there are none left does the
+                      same position offer the saved words instead. Showing both put
+                      three buttons in a row for a text that was mostly known, and the
+                      review one won attention it had not earned. */}
+                  {t.addableCount > 0 ? (
                     <button
                       className="btn"
                       onClick={() => setQuiz({ cards: t.addableCards, mode: "learn" })}
                     >
                       {tr("translate.quizNew", { n: t.addableCount, noun: noun(t.addableCount) })}
                     </button>
-                  )}
-                  {t.reviewableCount > 0 && (
-                    <button
-                      className="btn"
-                      onClick={() => setQuiz({ cards: t.reviewablePrimaries.map((w) => [w]), mode: "review" })}
-                    >
-                      {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
-                    </button>
+                  ) : (
+                    t.reviewableCount > 0 && (
+                      <button
+                        className="btn"
+                        onClick={() => setQuiz({ cards: t.reviewablePrimaries.map((w) => [w]), mode: "review" })}
+                      >
+                        {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
+                      </button>
+                    )
                   )}
                 </div>
               )}

@@ -340,7 +340,11 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-height: 220px;
+  /* 220px + ~one reveal-button's worth of height (a .btn is ~2.75rem tall). The card
+     had to grow anyway once the flag took the bottom-left corner: at 220px a long
+     meaning on the back reached the corners, and the term is vertically centred, so
+     extra height buys clearance at BOTH ends rather than just the bottom. */
+  min-height: 264px;
   padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
@@ -354,6 +358,15 @@
 .flashcard__info {
   position: absolute;
   top: 0.6rem;
+  left: 0.6rem;
+}
+
+/* Bottom-left: the report flag (see FlashcardCard's `flag` slot). Diagonally
+   opposite the add-to-list cluster so the two never crowd, and low enough that the
+   card's text — which is centred — never reaches it. */
+.flashcard__flag {
+  position: absolute;
+  bottom: 0.6rem;
   left: 0.6rem;
 }
 

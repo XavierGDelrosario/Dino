@@ -138,17 +138,25 @@
 }
 
 /* "Add all" + "Quiz" actions above the reader */
+/* EVERY control in this row is the same height. They are peers — add these words,
+   quiz these words — and two .btn siblings at different heights read as a mistake.
+   .reader__addall used to shrink itself (0.9rem / 0.5rem 1rem against .btn's 1rem /
+   0.7rem 1.4rem) AND opt out of the row's centring with align-self: flex-start, so the
+   pair sat at two heights on two baselines. Those overrides are gone; do not add
+   per-button padding or font-size here, that is exactly what re-creates it.
+
+   `stretch` is the belt to that braces: the add button is WRAPPED (.addwrap carries its
+   popover), so the wrapper is the flex item, and stretching it — plus the flex below,
+   which makes the button fill it — keeps a wrapped control level with a bare one. */
 .reader__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
 }
 
-.reader__addall {
-  align-self: flex-start;
-  font-size: 0.9rem;
-  padding: 0.5rem 1rem;
+.reader__actions .addwrap {
+  display: flex;
 }
 
 /* "Add to: [list]" destination picker */

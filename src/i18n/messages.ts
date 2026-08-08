@@ -79,7 +79,7 @@ export const en = {
   "translate.historyClearAria": "Clear this session's translation history",
   "translate.learning": "I'm learning:",
   "translate.learningAria": "Language I'm learning",
-  "translate.addAll": "+ Add all {n} new {noun}",
+  "translate.addAll": "+ Add {n} new {noun}",
   "translate.quizNew": "Quiz {n} new {noun}",
   "translate.reviewSaved": "Review {n} saved {noun}",
 
@@ -499,7 +499,7 @@ export const ja: Record<MessageKey, string> = {
   "translate.historyClearAria": "今回の翻訳履歴を消去",
   "translate.learning": "学習中の言語：",
   "translate.learningAria": "学習する言語",
-  "translate.addAll": "新しい{noun}{n}個をすべて追加",
+  "translate.addAll": "新しい{noun}{n}個を追加",
   "translate.quizNew": "新しい{noun}{n}個をクイズ",
   "translate.reviewSaved": "保存済みの{noun}{n}個を復習",
 
