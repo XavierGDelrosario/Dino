@@ -97,8 +97,18 @@ export function TranslateView({
   // Voice input dictates STRAIGHT INTO the box above, one utterance at a time, and the
   // live reader colours it as it lands — so speech reuses the whole typing surface
   // instead of a parallel transcript screen. A speaker's pause becomes a sentence break.
+  //
+  // It recognizes the INPUT language, not the language being learned. The mic is a way
+  // to fill the input box without typing, so it has to hear whatever that box expects:
+  // asking "how do I say this in Japanese?" means SPEAKING ENGLISH, and a recognizer
+  // pinned to the learning language turned that into nonsense. Same rule handwriting and
+  // OCR already follow (recognitionLang) — every input modality hears the input side.
+  //
+  // NOT the same as the live listener, which deliberately recognizes the LEARNING
+  // language: there you are listening to Japanese being spoken at you, here you are the
+  // one speaking into the box.
   const dictation = useDictation({
-    lang: t.learning,
+    lang: recognitionLang,
     value: t.input,
     onChange: (next) => {
       t.setInput(next);
