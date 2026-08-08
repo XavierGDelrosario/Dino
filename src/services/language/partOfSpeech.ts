@@ -53,6 +53,12 @@ function categoryOf(code: string): PosCategory | null {
   if (code === "pref") return "prefix";
   if (code === "suf") return "suffix";
   if (code === "adj-pn") return "determiner"; // pre-noun adjectival (この, その)
+  // WordNet codes, carried on EN→JA rows since 20260759 — the ENGLISH word's class.
+  // Verified against the corpus: JMdict uses no bare "a" or "r", so these cannot
+  // collide with a Japanese tag. ("n" and "v" already fall through to the prefix
+  // rules below and mean the same thing in both vocabularies.)
+  if (code === "a") return "adjective";
+  if (code === "r") return "adverb";
   // Prefix families.
   if (code === "adv" || code === "adv-to") return "adverb";
   if (code.startsWith("adj")) return "adjective"; // adj-i, adj-na, adj-no, …

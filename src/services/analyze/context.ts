@@ -15,6 +15,7 @@
 // =========================================================
 
 import { isContentPos, type AnalyzedToken } from "../language";
+import { wordKey } from "../lookup";
 import type { SentenceGloss } from "../lookup";
 import type { Word } from "../words/repository";
 
@@ -50,7 +51,7 @@ export function contextByWord(input: ContextInput): Map<string, WordContext[]> {
 
   for (const token of tokens) {
     if (!isContentPos(token.pos)) continue;
-    const senses = meaningsByWord.get(token.text);
+    const senses = meaningsByWord.get(wordKey(token));
     if (!senses || senses.length === 0) continue; // no entry → never a card
     const key = senses[0].wordId;
 

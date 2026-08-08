@@ -40,9 +40,9 @@ import { Client } from "pg";
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 /** A language's leveling sources: one query yielding (band, frequency, pos_group) rows,
- *  plus the framework name. `pos_group` is NULL when the language has no POS source —
- *  English is exactly that case today (words.part_of_speech on an EN row holds JMdict
- *  JAPANESE tags describing the translation), so it gets band anchors and no offsets. */
+ *  plus the framework name. `pos_group` is NULL when a language has no USEFUL POS
+ *  correction; English is that case, but not for the reason this comment used to give
+ *  (see the EN entry below). */
 interface LevelingSource {
   framework: string;
   /** Rows: { band, frequency, pos_group | null } over the language's LEVELLED words. */
@@ -69,9 +69,28 @@ const SOURCES: Record<string, LevelingSource> = {
   },
   EN: {
     framework: "CEFR",
-    // CEFR wordlist ∩ the English frequency table. NO pos_group: there is no English POS
-    // source (see the header), so English gets anchors only — and its ease therefore
-    // relies on the curated band, which is the conservative outcome.
+    // CEFR wordlist ∩ the English frequency table. NO pos_group — and the reason changed
+    // in 2026-08. It used to be "there is no English POS source"; that was wrong, and
+    // migration 20260760 fixed it (wordnet_synsets.pos gives every EN→JA row the ENGLISH
+    // word's class). The reason now is that the correction MEASURES AS NOISE.
+    //
+    // Measured on prod over the 8,316 CEFR words carrying both a band and a frequency,
+    // as how much each class's frequency overstates its band (the same quantity the JA
+    // profile stores), in Zipf×100:
+    //
+    //     adjective  +7      noun  +3      verb  -9      adverb  -11
+    //
+    // Japanese, same measurement: affixes +58, verbs -75. English is ~6× smaller —
+    // within noise on a signal whose overall frequency↔band R² is 0.24. The cause is
+    // structural rather than incidental, so more data will not move it: frequency is
+    // counted PER SURFACE, and a Japanese verb spreads its count over dozens of
+    // conjugated surfaces while an English one spreads over three or four. There is
+    // simply much less for a per-POS offset to correct.
+    //
+    // And the calculator only applies offsets in the SAFE (harder) direction, so of the
+    // four only adjective +7 and noun +3 would survive at all — a 0.07-Zipf nudge. So
+    // English stays band-led, which is the conservative outcome; this is a decision from
+    // evidence, not a missing-data gap waiting to be filled.
     sql: `
       SELECT p.surface AS text,
              p.band    AS band,
@@ -163,7 +182,7 @@ async function main(): Promise<void> {
         `${o.raw >= 0 ? "+" : ""}${o.raw.toFixed(1)} vs its band  → offset ${o.offset}  (${dir})`,
     );
   }
-  if (offsets.length === 0) console.log(`  no POS source for ${lang} → no offsets (band-led ease)`);
+  if (offsets.length === 0) console.log(`  no POS offsets for ${lang} → band-led ease`);
 
   // 3. Write the profile (upsert — re-running after a re-ingest just refreshes it, and
   //    because the scheduler reads this at REVIEW time, the new values apply immediately
