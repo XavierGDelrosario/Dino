@@ -21,6 +21,9 @@ import { nfcTrim } from "../lib/text";
  *  feedback; the value is not security-critical (the report is the user's own text). */
 export const REPORT_MAX_CHARS = 500;
 
+/** SQLSTATE the RPC raises when a user passes its 30-per-24h cap (migration 20260757). */
+const REPORT_LIMIT_SQLSTATE = "54000";
+
 export interface QualityReportInput {
   /** What was being looked at — the headword, filled in by the calling surface. */
   input: string;
@@ -50,5 +53,17 @@ export async function reportQualityIssue(params: QualityReportInput): Promise<vo
     p_description: description || undefined,
     p_word_id: params.wordId ?? undefined,
   });
-  if (error) throw toServiceError(error);
+  if (error) {
+    // The daily cap is the one failure here a user can act on, so it gets copy of its
+    // own — thrown WITHOUT a code, which is how a service says "this message is meant
+    // for the reader" (see lib/errorMessage). Everything else keeps its SQLSTATE and is
+    // rendered as generic copy, because a raw Postgres message helps nobody.
+    if (error.code === REPORT_LIMIT_SQLSTATE) {
+      throw new ServiceError(
+        "You've filed a lot of reports today — thanks. Try again tomorrow.",
+        "validation",
+      );
+    }
+    throw toServiceError(error);
+  }
 }
