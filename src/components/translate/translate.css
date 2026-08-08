@@ -828,17 +828,31 @@ textarea.translate__box::-webkit-scrollbar {
 
 /* Input modality tools, pinned to the input box's top-right corner (pencil now;
    speech + camera will sit alongside). */
-.io__tools {
+/* The right-hand RAIL of the input box: modality tools at the top, read-aloud at the
+   bottom, in ONE flex column.
+
+   Why a rail and not two pinned corners. The tools were absolute at top-right and
+   read-aloud absolute at bottom-right, so keeping them apart meant keeping the box
+   taller than the sum of both stacks — arithmetic that was right and STILL produced a
+   photo-library button sitting under the speaker, three reports running. Flex items are
+   laid out sequentially and cannot overlap each other, so the guarantee is now
+   structural: the box's min-height only decides how much air sits between the groups,
+   and being wrong about it costs a cramped gap, never a hidden control. */
+.io__rail {
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
+  bottom: 0.4rem;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  /* ONE column, always. An earlier fix let the buttons wrap into a second column when
-     they ran out of room — safe, but it looked like a mistake, and a safety net you can
-     see is a design. The box is sized to fit the whole stack instead (see
-     .translate__box's --io-tool-stack, which now carries real headroom). */
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.io__tools {
+  display: flex;
+  flex-direction: column;
   flex-wrap: nowrap;
   gap: 0.35rem;
 }
@@ -852,6 +866,11 @@ textarea.translate__box::-webkit-scrollbar {
   right: 0.4rem;
   bottom: 0.4rem;
   z-index: 2;
+}
+
+/* …except inside the rail, where the column places it. */
+.io__rail .io__speak {
+  position: static;
 }
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors
