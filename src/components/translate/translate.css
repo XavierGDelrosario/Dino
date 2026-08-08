@@ -372,10 +372,16 @@
        + 0.4rem so they never touch
      `n` is --io-tools, set by TranslateView from the buttons it actually renders (1 on
      web with just Clear, 5 on native). 8rem stays the floor so a bare box is never
-     cramped. Adding a modality now widens the box automatically — but the constants
-     above must stay in step with .io__tool/.io__tools/.io__speak. */
+     cramped. Adding a modality now grows the box automatically — but the constants
+     above must stay in step with .io__tool/.io__tools/.io__speak.
+
+     ‼️ The last term is 1rem of HEADROOM, not decoration. It was 0.4rem, which made the
+     sum exactly equal to the space needed at five buttons — and an exact fit is one
+     rounded pixel away from an overlap, which is precisely what put the photo-library
+     button under the speaker. The column no longer wraps as a fallback, so this slack
+     IS the guarantee: keep it. */
   --io-tool-stack: calc(
-    var(--io-tools, 1) * 2rem + (var(--io-tools, 1) - 1) * 0.35rem + 0.4rem + 2.4rem + 0.4rem
+    var(--io-tools, 1) * 2rem + (var(--io-tools, 1) - 1) * 0.35rem + 0.4rem + 2.4rem + 1.4rem
   );
   min-height: max(8rem, var(--io-tool-stack));
   /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
@@ -826,21 +832,14 @@ textarea.translate__box::-webkit-scrollbar {
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
-  /* HARD FLOOR, so the column can never reach read-aloud. .translate__box's min-height
-     already sizes the box to fit both stacks, but that arithmetic left ZERO slack at
-     five buttons (14.6rem needed, 14.6rem given), so a single rounded pixel put the
-     last tool — the photo library — under the speaker. Bounding the column instead of
-     trusting the sum makes the overlap impossible rather than merely unlikely:
-     2.4rem of read-aloud + 0.4rem of air. */
-  bottom: 2.8rem;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  /* …and if the buttons ever DO outgrow that height, they wrap into a second column to
-     the LEFT (wrap-reverse, in a column flow) instead of overflowing downward. A tool
-     that moves sideways is findable; one hidden behind another is not. */
-  flex-wrap: wrap-reverse;
-  align-content: flex-start;
+  /* ONE column, always. An earlier fix let the buttons wrap into a second column when
+     they ran out of room — safe, but it looked like a mistake, and a safety net you can
+     see is a design. The box is sized to fit the whole stack instead (see
+     .translate__box's --io-tool-stack, which now carries real headroom). */
+  flex-wrap: nowrap;
   gap: 0.35rem;
 }
 
