@@ -77,6 +77,43 @@ describe("useTranslate — setLearning persists to the profile", () => {
     expect(updateUserLanguages).toHaveBeenCalledWith({ userId: "user-1", learningLanguage: "EN" });
   });
 
+  it("a profile that resolves AFTER the pick does not overwrite it", async () => {
+    // The race this guards, pinned deterministically instead of left to load.
+    // `prefs` opens on the registry defaults and is REPLACED when the profile lands.
+    // If that lands after the user has chosen, an unguarded effect re-runs and snaps
+    // the picker back — pick English fast enough after opening Translate and it
+    // reverts to Japanese on its own. It also made this suite flaky: under parallel
+    // load the profile resolved after the act() and the assertion saw the clobber.
+    type Profile = Awaited<ReturnType<typeof getUserProfile>>;
+    let landProfile!: (p: Profile) => void;
+    vi.mocked(getUserProfile).mockReturnValue(
+      new Promise<Profile>((resolve) => { landProfile = resolve; }),
+    );
+    vi.mocked(updateUserLanguages).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setLearning("EN"));
+    expect(result.current.learning).toBe("EN");
+
+    // The profile now lands, and it says JA.
+    await act(async () => {
+      landProfile({ userId: "user-1", learningLanguage: "JA", nativeLanguage: "EN" } as Profile);
+    });
+
+    expect(result.current.learning).toBe("EN"); // the user's choice wins
+  });
+
+  it("still applies the saved profile when the user has NOT chosen", async () => {
+    // The other half: the guard must not latch on the effect's first run, which
+    // carries the DEFAULTS — that would mean a saved profile never applied at all.
+    vi.mocked(getUserProfile).mockResolvedValue({
+      userId: "user-1", learningLanguage: "EN", nativeLanguage: "JA",
+    } as Awaited<ReturnType<typeof getUserProfile>>);
+
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await waitFor(() => expect(result.current.learning).toBe("EN"));
+  });
+
   it("keeps the session on the chosen language even if the write fails", async () => {
     // Not worth an error dialog mid-translation: the session behaves as asked, it just
     // won't be remembered.
