@@ -5,7 +5,7 @@
 //
 // Submit is a BUTTON, never Enter (IME safety). A quiz/review session is a FULL
 // takeover, so nothing can interfere mid-session.
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
@@ -117,16 +117,6 @@ export function TranslateView({
   // The photo waiting to be cropped (data: URL for display + the original bytes, so
   // an uncropped confirm can skip the canvas round-trip entirely).
   const [photo, setPhoto] = useState<{ url: string; base64: string } | null>(null);
-
-  // How many buttons the tool column renders — the boxes size themselves from it.
-  // Keep these conditions IDENTICAL to the buttons' own `&&` guards below; a count
-  // that drifts from what renders is a box too short (buttons overlap read-aloud) or
-  // too tall (a gap of dead space under the text).
-  const ioToolCount =
-    (t.input.trim() !== "" ? 1 : 0) + // clear
-    (hwAvailable ? 1 : 0) + // draw
-    (dictation.available || import.meta.env.DEV ? 1 : 0) + // mic
-    (ocrAvailable ? 2 : 0); // camera + photo library
 
   /** Camera or photo library — identical from here on: crop, then recognize. The
    *  source only decides which sheet opens, so the two buttons share this path. */
@@ -262,18 +252,7 @@ export function TranslateView({
 
       {/* Input (left) | output (right), with the input's tools in its top-right corner.
           Drawing opens as an OVERLAY over both boxes, so the page never grows. */}
-      {/* --io-tools = how many buttons the column ACTUALLY renders right now, which
-          decides the boxes' minimum height (see .translate__box). It has to be counted
-          rather than assumed: the column grew to five on native (clear · draw · mic ·
-          camera · library) and at 2rem apiece that is 11.4rem of buttons against an
-          8rem box, so the bottom ones collided with read-aloud in the opposite corner.
-          Hardcoding a taller box instead would leave web — which shows one or two of
-          these — with a mostly-empty input, and would break again the next time a
-          modality is added. Set on the shared row so BOTH boxes stay the same height. */}
-      <div
-        className="translate__io"
-        style={{ "--io-tools": ioToolCount } as CSSProperties}
-      >
+      <div className="translate__io">
         <div className="translate__inputwrap">
           <textarea
             className="textarea translate__box"
@@ -291,16 +270,7 @@ export function TranslateView({
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {/* ONE RAIL down the right edge: the modality tools at the top, read-aloud at
-              the bottom, laid out by flexbox rather than by two absolute corners whose
-              gap had to be computed. Sizing the box to fit both stacks kept ALMOST
-              working — the sum was right and the button still landed under the speaker
-              — so this stops depending on the sum at all. Items in a flex column are
-              laid out sequentially and cannot paint over one another, whatever the
-              button count, rem base or rounding. The box's min-height now only decides
-              how much AIR sits between the two groups. */}
-          <div className="io__rail">
-            {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
+          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
             <div className="io__tools">
               {/* Order: clear · draw · mic · picture. Clear first because it acts on
                   what's already there; then the three ways to PUT something in, in
@@ -374,12 +344,12 @@ export function TranslateView({
                 </>
               )}
             </div>
-            )}
-            {/* Bottom of the rail. The input is spoken in the language of the INPUT
-                ITSELF, since "auto-detect" is not a voice — see speakLang. */}
-            <div className="io__speak">
-              <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
-            </div>
+          )}
+          {/* Read-aloud, bottom-right of the box — the opposite corner from the input
+              modalities. The input is spoken in the language of the INPUT ITSELF, since
+              "auto-detect" is not a voice; see speakLang. */}
+          <div className="io__speak">
+            <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
           </div>
         </div>
         <div className="translate__outwrap">
