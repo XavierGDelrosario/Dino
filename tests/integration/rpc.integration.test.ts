@@ -395,56 +395,65 @@ describe.skipIf(!ENABLED)("rpc: record_review — p_reviewed_at", () => {
 // because both the card and its log row must be aged onto an earlier day — otherwise
 // the replay collapses into today's row (20260744) and there is nothing to read.
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: record_review — replay interval", () => {
-  it("computes elapsed_days from the REPLAY instant, not the sync time", async () => {
+  /**
+   * Set a card up so a later review lands on a DIFFERENT UTC day: seed one review, then
+   * age both the card and its log row. Without the second half, 20260744 collapses the
+   * next review into today's row and there is nothing new to read.
+   *
+   * Returns the newest elapsed_days after `replay` runs, or null when this environment
+   * can't backdate (no direct DB access) — the caller then skips, as its neighbours do.
+   */
+  async function elapsedAfterReplay(
+    input: string,
+    replay: (client: Awaited<ReturnType<typeof makeUser>>["client"], w: string) => Promise<void>,
+  ): Promise<number | null> {
     const svc = serviceClient();
-    if (!svc) return;
+    if (!svc) return null;
     const u = await makeUser();
-    const w = await makeStandaloneWord(u, { input: "間隔", meaning: "interval" });
+    const w = await makeStandaloneWord(u, { input, meaning: "m" });
     await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
 
-    // Age the card AND its log row to 10 days ago, so the replay below lands on a
-    // different UTC day and writes its own row.
-    if (!(await backdateReview(w, 10))) return; // no direct DB access → skip
-    await svc
+    if (!(await backdateReview(w, 10))) return null;
+    const aged = await svc
       .from("review_log")
       .update({ reviewed_at: new Date(Date.now() - 10 * 86_400_000).toISOString() })
       .eq("user_word_id", w);
+    if (aged.error) return null; // couldn't age the log row → nothing to compare against
 
-    // A grade given 2 days ago, replayed now: the user waited 8 days, not 10.
-    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
-    const { error } = await u.client.rpc("record_review", {
-      p_user_word_id: w, p_grade: 4, p_reviewed_at: twoDaysAgo,
-    });
+    await replay(u.client, w);
+
+    const { data, error } = await svc
+      .from("review_log").select("elapsed_days, reviewed_at").eq("user_word_id", w);
     expect(error).toBeNull();
+    const rows = (data ?? []) as { elapsed_days: number | null; reviewed_at: string }[];
+    if (rows.length < 2) return null; // the ageing didn't take on this DB → skip
+    rows.sort((a, b) => Date.parse(b.reviewed_at) - Date.parse(a.reviewed_at));
+    return rows[0].elapsed_days;
+  }
 
-    const { data: log } = await svc
-      .from("review_log").select("elapsed_days, reviewed_at").eq("user_word_id", w)
-      .order("reviewed_at", { ascending: false }).limit(1);
-    const row = log![0] as { elapsed_days: number };
-    expect(row.elapsed_days).toBeGreaterThan(7);
-    expect(row.elapsed_days).toBeLessThan(9);
+  it("computes elapsed_days from the REPLAY instant, not the sync time", async () => {
+    // A grade given 2 days ago on a card last reviewed 10 days ago: 8 days waited.
+    const elapsed = await elapsedAfterReplay("間隔", async (client, w) => {
+      const { error } = await client.rpc("record_review", {
+        p_user_word_id: w,
+        p_grade: 4,
+        p_reviewed_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      });
+      expect(error).toBeNull();
+    });
+    if (elapsed === null) return;
+    expect(elapsed).toBeGreaterThan(7);
+    expect(elapsed).toBeLessThan(9);
   });
 
-  it("stamping at SYNC time instead would have measured 10 days — the bug this prevents", async () => {
-    // The counterfactual, asserted: the same setup WITHOUT p_reviewed_at records the
-    // full 10 days, which is the wrong interval a naive replay would produce.
-    const svc = serviceClient();
-    if (!svc) return;
-    const u = await makeUser();
-    const w = await makeStandaloneWord(u, { input: "対照", meaning: "control" });
-    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
-    if (!(await backdateReview(w, 10))) return;
-    await svc
-      .from("review_log")
-      .update({ reviewed_at: new Date(Date.now() - 10 * 86_400_000).toISOString() })
-      .eq("user_word_id", w);
-
-    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4 }); // no timestamp
-
-    const { data: log } = await svc
-      .from("review_log").select("elapsed_days").eq("user_word_id", w)
-      .order("reviewed_at", { ascending: false }).limit(1);
-    expect((log![0] as { elapsed_days: number }).elapsed_days).toBeGreaterThan(9);
+  it("stamping at SYNC time instead measures 10 days — the bug this prevents", async () => {
+    // The counterfactual: the identical setup WITHOUT p_reviewed_at records the full
+    // interval to now, which is the wrong number a naive replay would produce.
+    const elapsed = await elapsedAfterReplay("対照", async (client, w) => {
+      await client.rpc("record_review", { p_user_word_id: w, p_grade: 4 });
+    });
+    if (elapsed === null) return;
+    expect(elapsed).toBeGreaterThan(9);
   });
 });
 
