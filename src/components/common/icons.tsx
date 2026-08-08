@@ -135,6 +135,17 @@ export function CameraIcon({ size }: { size?: number }) {
   );
 }
 
+/** Report a problem — a flag on a pole. Outline-only like its neighbours, so it reads
+ *  as an action rather than a warning badge. */
+export function FlagIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </Svg>
+  );
+}
+
 /** Photo library — a framed picture (mountain + sun), the platform-conventional
  *  "pick an existing image". Deliberately unlike CameraIcon's body-and-lens so the
  *  two sit next to each other in the tool column without reading as one control. */

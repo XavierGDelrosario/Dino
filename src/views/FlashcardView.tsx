@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { useReview } from "../hooks/useReview";
 import { useQuizFlip } from "../hooks/useQuizFlip";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { ReportFlagButton } from "../components/common/ReportFlagButton";
 import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
@@ -109,6 +110,12 @@ export function FlashcardView({
         </div>
       </div>
 
+      {/* Same flag, same place as the text/level quiz — a change to "the flashcard
+          quiz" applies to every flashcard surface, and a card that is wrong here is
+          wrong for exactly the same reasons. */}
+      <div className="quizreport">
+        <ReportFlagButton input={card.input} wordId={card.dictionaryWordId} size={15} />
+      </div>
 
       <ErrorText message={r.error} />
 

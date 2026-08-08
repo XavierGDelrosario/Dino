@@ -287,6 +287,13 @@ export const en = {
   "pos.determiner": "determiner",
   "pos.expression": "expression",
 
+  // report an issue (the flag on a word / flashcard → quality_reports)
+  "report.flag": "Report a problem with this word",
+  "report.title": "Report an issue",
+  "report.placeholder": "What's wrong with it? (optional)",
+  "report.send": "Send",
+  "report.sent": "Thanks — sent to our quality reports.",
+
   // text quiz
   "quiz.back": "← Back to reader",
   "quiz.backLevel": "← Back to levels",
@@ -685,6 +692,11 @@ export const ja: Record<MessageKey, string> = {
   "pos.determiner": "連体詞",
   "pos.expression": "表現",
 
+  "report.flag": "この単語の問題を報告",
+  "report.title": "問題を報告",
+  "report.placeholder": "何が問題でしたか？（任意）",
+  "report.send": "送信",
+  "report.sent": "ありがとうございます — 品質レポートに送信しました。",
   "quiz.back": "← リーダーに戻る",
   "quiz.backLevel": "← レベル選択に戻る",
   "quiz.emptyReview": "このテキストに復習する保存済みの単語がまだありません。",

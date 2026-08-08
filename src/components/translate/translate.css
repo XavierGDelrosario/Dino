@@ -193,7 +193,18 @@
 .tok--c5 { color: #3ecb6c; } /* mastered */
 
 /* hover popover anchored under a word */
+/* The flag pinned to the card corner. Absolute so it does not take a row in the flex
+   column (the headword must stay on the first line), and the headword reserves room
+   for it — see .hovercard__word. */
+.hovercard__flag {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  z-index: 1;
+}
+
 .hovercard {
+  position: relative; /* anchor for .hovercard__flag */
   z-index: 50;
   width: 260px;
   max-width: 90vw;
@@ -211,6 +222,7 @@
 }
 
 .hovercard__word {
+  padding-right: 1.6rem; /* clear of .hovercard__flag */
   font-size: 1.25rem;
   font-weight: 600;
   flex: 0 0 auto; /* header stays pinned; the senses list below scrolls */

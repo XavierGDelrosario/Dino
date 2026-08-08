@@ -5,6 +5,7 @@
 // parent (useTranslate).
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isContentPos, type AnalyzedToken } from "../../services/language";
+import { ReportFlagButton } from "../common/ReportFlagButton";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import type { SentenceGloss } from "../../services/lookup";
@@ -368,6 +369,19 @@ function ParagraphReaderImpl({
           onMouseEnter={cancelHide}
           onMouseLeave={scheduleHide}
         >
+          {/* Flag, TOP-RIGHT of the card: the word itself is the subject of the
+              report, so the control belongs beside it rather than under the senses,
+              and the senses list is scrollable — anything below it can scroll away.
+              Reports the hovered word and, when it has exactly one sense, that senses
+              id; with several the user has not told us WHICH is wrong, so the report
+              carries the headword alone rather than guessing. */}
+          <span className="hovercard__flag">
+            <ReportFlagButton
+              input={hover.word}
+              wordId={hoveredSenses.length === 1 ? hoveredSenses[0].wordId : null}
+              size={14}
+            />
+          </span>
           <div className="hovercard__word">
             {hover.word}
             {/* THIS occurrence's context reading (君 reads きみ here), else sense 0's. */}

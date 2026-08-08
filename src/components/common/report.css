@@ -1,0 +1,83 @@
+/* Report-an-issue: the flag button, and the dialog it opens. */
+
+/* The flag itself is DELIBERATELY quiet — muted until hovered. It sits on a word you
+   are reading and a card you are studying, and it is the rarest action on either; a
+   full-contrast icon there would compete with the meanings for attention. */
+.reportbtn {
+  color: var(--muted);
+}
+.reportbtn:hover,
+.reportbtn:focus-visible {
+  color: var(--text);
+}
+
+/* The quiz flag sits BELOW the card, hard left — clear of the grade bar (centred) and
+   of the card corners, which already carry info / listen / add. Its own row so it
+   cannot collide with the meaning-cycle arrows on a multi-sense card. */
+.quizreport {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.35rem;
+}
+
+/* Centred on the SCREEN, not on whatever opened it: the reader's popover is pinned to
+   a word near the edge of the text and a flashcard sits mid-page, so anchoring to the
+   trigger would put the dialog somewhere different (and sometimes off-screen) each
+   time. `fixed` also escapes both — the popover clips its overflow, and the card is a
+   transform-animated flip container. */
+.reportdlg {
+  position: fixed;
+  inset: 0;
+  z-index: 80; /* above the cropper modal (70), which can't be open at the same time */
+  display: flex;
+  align-items: center;
+  align-items: safe center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--bg, #16181d) 82%, transparent);
+}
+
+.reportdlg__panel {
+  width: min(26rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.reportdlg__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+/* What is being reported, echoed back so the user can see the dialog caught the right
+   word — the flag is small and sits among several other controls. Truncates rather
+   than wrapping: a long article sentence must not push the actions off-screen. */
+.reportdlg__target {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportdlg__box {
+  min-height: 5.5rem;
+  resize: none;
+}
+
+.reportdlg__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.reportdlg__sent {
+  margin: 0;
+  color: var(--muted);
+}
