@@ -615,6 +615,32 @@ export function resolvePerInputWithCandidates(
  * single-word cache read: term == stored headword OR its reading, so a kana search
  * (ねこ) still collects the kanji row (猫). Primary sense first; no match → [].
  */
+/** Han range — "did the user type kanji". */
+const HAS_KANJI = /[\u4E00-\u9FFF]/u;
+
+/**
+ * Put the rows whose HEADWORD is exactly what was searched first. Stable: it only
+ * partitions, so whatever ordering the caller established survives inside each group.
+ *
+ * The cache read matches `input` OR `input_reading`, which is what lets a kana search
+ * find the kanji rows — but it runs in reverse too. A `uk` entry headwords as its KANA
+ * and carries the KANJI in input_reading, so searching 質 also matched the たち rows,
+ * and those outranked the real 質 rows on frequency (577 vs 465). The result: 質 answered
+ * "nature; disposition" and "quality" never appeared. This is the cache-side half of
+ * migration 20260758, which made jmdict_lookup prefer the written form; without it the
+ * fix is invisible, because a cached word never reaches the lookup.
+ *
+ * Kanji-guarded for the same reason as the SQL: on kana input a kana-headword entry
+ * would leapfrog the kanji entry a searcher usually wants (ねこ must still answer 猫).
+ */
+export function preferWrittenForm<T extends { input: string }>(rows: T[], term: string): T[] {
+  if (rows.length < 2 || !HAS_KANJI.test(term)) return rows;
+  const exact: T[] = [];
+  const rest: T[] = [];
+  for (const r of rows) (r.input === term ? exact : rest).push(r);
+  return exact.length === 0 || rest.length === 0 ? rows : [...exact, ...rest];
+}
+
 export function groupByInput<
   T extends { input: string; input_reading: string | null; jmdict_sense_pos: number | null },
 >(rows: T[], inputs: string[]): Map<string, T[]> {
@@ -628,7 +654,8 @@ export function groupByInput<
         if (bp == null) return -1;
         return ap - bp;
       });
-    out.set(input, matched);
+    // The searched form wins over a uk entry that merely lists it (see above).
+    out.set(input, preferWrittenForm(matched, input));
   }
   return out;
 }
