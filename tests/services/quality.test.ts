@@ -61,11 +61,22 @@ describe("reportQualityIssue", () => {
     expect(stub.rpc).not.toHaveBeenCalled();
   });
 
-  it("surfaces the RPC's error (e.g. the daily cap) as a ServiceError", async () => {
+  // The daily cap is the one failure a user can act on, so it gets its own copy —
+  // thrown WITHOUT a code, which is how a service marks a message as meant for the
+  // reader rather than for a log (see lib/errorMessage).
+  it("turns the daily cap into copy a user can act on", async () => {
     stub.rpc.mockResolvedValue({
       data: null,
       error: { message: "report limit reached", code: "54000" },
     });
-    await expect(reportQualityIssue({ input: "猫" })).rejects.toThrow(/report limit reached/);
+    await expect(reportQualityIssue({ input: "猫" })).rejects.toThrow(/lot of reports today/);
+  });
+
+  it("keeps any OTHER failure as a coded ServiceError (rendered as generic copy)", async () => {
+    stub.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "permission denied for function", code: "42501" },
+    });
+    await expect(reportQualityIssue({ input: "猫" })).rejects.toMatchObject({ code: "42501" });
   });
 });
