@@ -365,25 +365,19 @@
 .translate__box {
   flex: 1 1 0;
   min-width: 0;
-  /* TALL ENOUGH FOR ITS OWN BUTTONS. The column at the top-right and read-aloud at the
-     bottom-right share this edge, so the box has to fit both stacks plus air between:
-       tools   = n × 2rem (.io__tool) + (n−1) × 0.35rem (gap) + 0.4rem (top offset)
-       speak   = 2rem + 0.4rem (bottom offset)
-       + 0.4rem so they never touch
-     `n` is --io-tools, set by TranslateView from the buttons it actually renders (1 on
-     web with just Clear, 5 on native). 8rem stays the floor so a bare box is never
-     cramped. Adding a modality now grows the box automatically — but the constants
-     above must stay in step with .io__tool/.io__tools/.io__speak.
-
-     ‼️ The last term is 1rem of HEADROOM, not decoration. It was 0.4rem, which made the
-     sum exactly equal to the space needed at five buttons — and an exact fit is one
-     rounded pixel away from an overlap, which is precisely what put the photo-library
-     button under the speaker. The column no longer wraps as a fallback, so this slack
-     IS the guarantee: keep it. */
-  --io-tool-stack: calc(
-    var(--io-tools, 1) * 2rem + (var(--io-tools, 1) - 1) * 0.35rem + 0.4rem + 2.4rem + 1.4rem
-  );
-  min-height: max(8rem, var(--io-tool-stack));
+  /* TALL ENOUGH FOR SIX BUTTONS, as a constant.
+     The right edge carries the tool column at the top (clear · draw · mic · camera ·
+     library today) and read-aloud at the bottom, so the box must fit both:
+       6 × 2rem (.io__tool) + 5 × 0.35rem (gap) + 0.4rem (top) + 2.4rem (read-aloud
+       + its offset) = 16.55rem, so 18rem leaves ~1.4rem spare at six buttons and
+       ~3.9rem at today's five.
+     Sized for SIX rather than five so the next modality needs no arithmetic — and
+     ROUNDED UP rather than fitted. This replaced a version that derived the height
+     from a live count of the rendered buttons: it was exact, and being exact is what
+     let a rounded pixel put the last tool under the speaker three times. A constant
+     with room to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even
+     on a 667px screen — so it never fights this.) */
+  min-height: 18rem;
   /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
      that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
      the bottom — so one gutter clears them all, at the top AND the bottom, and the
@@ -828,29 +822,13 @@ textarea.translate__box::-webkit-scrollbar {
 
 /* Input modality tools, pinned to the input box's top-right corner (pencil now;
    speech + camera will sit alongside). */
-/* The right-hand RAIL of the input box: modality tools at the top, read-aloud at the
-   bottom, in ONE flex column.
-
-   Why a rail and not two pinned corners. The tools were absolute at top-right and
-   read-aloud absolute at bottom-right, so keeping them apart meant keeping the box
-   taller than the sum of both stacks — arithmetic that was right and STILL produced a
-   photo-library button sitting under the speaker, three reports running. Flex items are
-   laid out sequentially and cannot overlap each other, so the guarantee is now
-   structural: the box's min-height only decides how much air sits between the groups,
-   and being wrong about it costs a cramped gap, never a hidden control. */
-.io__rail {
+/* Input modality tools, pinned to the box's top-right corner. Read-aloud sits in the
+   opposite corner (.io__speak); .translate__box is tall enough for both — see there. */
+.io__tools {
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
-  bottom: 0.4rem;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 0.35rem;
-}
-
-.io__tools {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
@@ -866,11 +844,6 @@ textarea.translate__box::-webkit-scrollbar {
   right: 0.4rem;
   bottom: 0.4rem;
   z-index: 2;
-}
-
-/* …except inside the rail, where the column places it. */
-.io__rail .io__speak {
-  position: static;
 }
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors
