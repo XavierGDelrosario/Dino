@@ -724,6 +724,23 @@ export type Database = {
           detail: string | null
         }[]
       }
+      // Migration 20260757 — the USER-facing counterpart of admin_report_quality_issue.
+      // Description and word id are optional; the RPC stores a blank note as NULL.
+      report_quality_issue: {
+        Args: { p_input: string; p_description?: string; p_word_id?: string }
+        Returns: {
+          id: number
+          reported_at: string
+          reported_by: string | null
+          input: string
+          description: string | null
+          status: string
+          resolved_at: string | null
+          resolved_by: string | null
+          source: string
+          dictionary_word_id: string | null
+        }
+      }
       admin_report_quality_issue: {
         Args: { p_input: string; p_description: string }
         Returns: {

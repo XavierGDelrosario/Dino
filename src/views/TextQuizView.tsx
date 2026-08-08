@@ -9,6 +9,7 @@ import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
 import { useQuizFlip } from "../hooks/useQuizFlip";
 import { highlightSegments, type WordContext } from "../services/analyze/context";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { ReportFlagButton } from "../components/common/ReportFlagButton";
 import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
@@ -208,6 +209,14 @@ export function TextQuizView({
       </div>
       </div>
 
+      {/* Report a problem with THIS card, bottom-left under it. Outside the card on
+          purpose: inside, it would be one more thing competing with the answer during
+          a recall test, and the card already owns its top corners (info, listen, add).
+          Reports the exact SENSE being shown — the meaning is what a quiz card is
+          about, so a wrong one is the likeliest thing to report. */}
+      <div className="quizreport">
+        <ReportFlagButton input={card.input} wordId={card.wordId} size={15} />
+      </div>
 
       {/* "Show in context" — the sentence(s) this word came from, under the card.
           A hint you opt into: it stays collapsed by default so the card is still a

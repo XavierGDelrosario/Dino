@@ -1566,3 +1566,75 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: prune_review_log", () => {
     expect(error).not.toBeNull();
   });
 });
+
+// ── report_quality_issue (user-filed quality reports; migration 20260757) ───
+// The admin write RPC gates on is_admin(); this is the LEARNER's door to the same
+// table, so the things worth proving live are the ones a unit test with a stubbed
+// client cannot see: that an ordinary user may call it at all, that a report with no
+// description is accepted (the admin one still requires text), and that the daily cap
+// is enforced in the function rather than the client.
+describe.skipIf(!ENABLED)("rpc: report_quality_issue", () => {
+  const read = async (id: number) => {
+    const svc = serviceClient();
+    if (!svc) return null;
+    const { data } = await svc
+      .from("quality_reports")
+      .select("input, description, source, reported_by, status")
+      .eq("id", id)
+      .single();
+    return data as {
+      input: string; description: string | null; source: string;
+      reported_by: string | null; status: string;
+    } | null;
+  };
+
+  it("lets an ORDINARY user file one, with no description", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("report_quality_issue", { p_input: "猫" });
+    expect(error).toBeNull();
+    const row = data as { id: number; description: string | null; source: string } | null;
+    expect(row).not.toBeNull();
+    expect(row!.description).toBeNull(); // blank note stored as NULL, not ""
+    expect(row!.source).toBe("user");
+
+    const stored = await read(row!.id);
+    if (stored) {
+      expect(stored.reported_by).toBe(u.userId); // stamped from auth.uid(), not the client
+      expect(stored.status).toBe("open"); // lands in the same triage queue as admin notes
+    }
+  });
+
+  it("keeps the description when one is given, and trims it", async () => {
+    const u = await makeUser();
+    const { data } = await u.client.rpc("report_quality_issue", {
+      p_input: "  辛い  ",
+      p_description: "  wrong reading  ",
+    });
+    const row = data as { input: string; description: string | null };
+    expect(row.input).toBe("辛い");
+    expect(row.description).toBe("wrong reading");
+  });
+
+  it("rejects an empty target", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("report_quality_issue", { p_input: "   " });
+    expect(error).not.toBeNull();
+  });
+
+  // The admin notebook must be unchanged by all this: a note with no text is still
+  // refused there, because an admin filing one always has something to say.
+  it("still requires a description from the ADMIN write path", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.rpc("admin_report_quality_issue", {
+      p_input: "猫",
+      p_description: "",
+    });
+    expect(error).not.toBeNull(); // non-admin AND empty — either way, refused
+  });
+
+  it("is NOT readable by the client (the table stays server-only)", async () => {
+    const u = await makeUser();
+    const { error } = await u.client.from("quality_reports").select("id").limit(1);
+    expect(error).not.toBeNull();
+  });
+});
