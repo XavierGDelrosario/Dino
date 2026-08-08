@@ -331,12 +331,12 @@ describe.skipIf(!ENABLED)("rpc: record_review — p_reviewed_at", () => {
     expect(error).toBeNull();
     const stamped = Date.parse((data as { last_reviewed_date: string }).last_reviewed_date);
     expect(stamped).toBeLessThanOrEqual(Date.now() + 60_000);
-
-    // …and the logged interval is the real one, not 400 days.
-    const { data: log } = await u.client
-      .from("review_log").select("elapsed_days").eq("user_word_id", w)
-      .order("reviewed_at", { ascending: false }).limit(1);
-    expect((log![0] as { elapsed_days: number }).elapsed_days).toBeLessThan(1);
+    // NOT asserted from review_log: both reviews land on the same UTC day, so
+    // 20260744's UNIQUE (user_word_id, reviewed_on) collapses the second into the
+    // first and only bumps `repeats` — the row still holds the FIRST review's values
+    // (elapsed_days NULL, since a first-ever review has no interval). The
+    // elapsed_days property is proven in the service-role block below, where the
+    // rows can be aged onto different days.
   });
 
   it("CLAMPS a timestamp before last_reviewed_date — time cannot run backwards", async () => {
@@ -370,15 +370,9 @@ describe.skipIf(!ENABLED)("rpc: record_review — p_reviewed_at", () => {
       p_user_word_id: w, p_grade: 4, p_reviewed_at: twoDaysAgo,
     });
     expect(error).toBeNull();
-    // Stamped at the review, not at replay time.
+    // Stamped at the review, not at replay time — the whole point of p_reviewed_at.
     const stamped = Date.parse((data as { last_reviewed_date: string }).last_reviewed_date);
     expect(Math.abs(stamped - Date.parse(twoDaysAgo))).toBeLessThan(60_000);
-    // …and the interval reflects the 8 days the user actually waited, not 10.
-    const { data: log } = await u.client
-      .from("review_log").select("elapsed_days").eq("user_word_id", w)
-      .order("reviewed_at", { ascending: false }).limit(1);
-    expect((log![0] as { elapsed_days: number }).elapsed_days).toBeGreaterThan(7);
-    expect((log![0] as { elapsed_days: number }).elapsed_days).toBeLessThan(9);
   });
 
   it("a duplicated replay still collapses to ONE row with repeats = 2", async () => {
@@ -393,6 +387,64 @@ describe.skipIf(!ENABLED)("rpc: record_review — p_reviewed_at", () => {
       .from("review_log").select("repeats").eq("user_word_id", w);
     expect(log ?? []).toHaveLength(1);
     expect((log![0] as { repeats: number }).repeats).toBe(2);
+  });
+});
+
+// The property the whole feature rests on: the interval is measured from the instant
+// the grade was GIVEN, not from when it reached the server. Needs the service role
+// because both the card and its log row must be aged onto an earlier day — otherwise
+// the replay collapses into today's row (20260744) and there is nothing to read.
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: record_review — replay interval", () => {
+  it("computes elapsed_days from the REPLAY instant, not the sync time", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "間隔", meaning: "interval" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+
+    // Age the card AND its log row to 10 days ago, so the replay below lands on a
+    // different UTC day and writes its own row.
+    if (!(await backdateReview(w, 10))) return; // no direct DB access → skip
+    await svc
+      .from("review_log")
+      .update({ reviewed_at: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .eq("user_word_id", w);
+
+    // A grade given 2 days ago, replayed now: the user waited 8 days, not 10.
+    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    const { error } = await u.client.rpc("record_review", {
+      p_user_word_id: w, p_grade: 4, p_reviewed_at: twoDaysAgo,
+    });
+    expect(error).toBeNull();
+
+    const { data: log } = await svc
+      .from("review_log").select("elapsed_days, reviewed_at").eq("user_word_id", w)
+      .order("reviewed_at", { ascending: false }).limit(1);
+    const row = log![0] as { elapsed_days: number };
+    expect(row.elapsed_days).toBeGreaterThan(7);
+    expect(row.elapsed_days).toBeLessThan(9);
+  });
+
+  it("stamping at SYNC time instead would have measured 10 days — the bug this prevents", async () => {
+    // The counterfactual, asserted: the same setup WITHOUT p_reviewed_at records the
+    // full 10 days, which is the wrong interval a naive replay would produce.
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "対照", meaning: "control" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    if (!(await backdateReview(w, 10))) return;
+    await svc
+      .from("review_log")
+      .update({ reviewed_at: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .eq("user_word_id", w);
+
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4 }); // no timestamp
+
+    const { data: log } = await svc
+      .from("review_log").select("elapsed_days").eq("user_word_id", w)
+      .order("reviewed_at", { ascending: false }).limit(1);
+    expect((log![0] as { elapsed_days: number }).elapsed_days).toBeGreaterThan(9);
   });
 });
 
