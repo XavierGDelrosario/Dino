@@ -24,6 +24,8 @@ import {
   isContentPos,
   dictionaryFormOf,
   resolveSourceLanguage,
+  detectLanguage,
+  searchTermFor,
   SUPPORTED_LANGUAGES,
   DEFAULT_LEARNING_LANGUAGE,
   DEFAULT_NATIVE_LANGUAGE,
@@ -178,13 +180,29 @@ export function useTranslate(userId: string) {
     setReaderLoading(false);
     setError(null);
     try {
-      const resolvedSource = resolveSourceLanguage(text, src);
+      // ROMAJI → KANA, for the LOOKUP only. Typing "neko" while the source says Japanese
+      // found nothing: jmdict_lookup misses on Latin, and the edge's off-script guard
+      // then (correctly) refuses to buy an MT translation of Latin submitted as JA — so
+      // the answer was silence. Converting to ねこ first makes it an ordinary query.
+      //
+      // Only when the source is EXPLICITLY Japanese. Under auto-detect "neko" is
+      // genuinely ambiguous with English (as are same, mono, kite, ka…), and guessing
+      // would break real English lookups to fix a rarer case. Returns the input
+      // untouched unless the WHOLE string converts, so "cat" and "PDF" are unaffected.
+      // The typed text is what stays in the box and what the echo below returns; only
+      // the search term changes.
+      const searchText = searchTermFor(text, src);
+      const resolvedSource = resolveSourceLanguage(searchText, src);
 
-      // Input language == output language → nothing to TRANSLATE: echo the input,
-      // make no API calls and render no reader. (You study by typing the LEARNING
-      // language while the output sits on your native/explanation language, so the
-      // input and output sides differ; when they're the same there's nothing to do.)
-      if (resolvedSource === tgt) {
+      // NOTHING TO TRANSLATE → echo the input, make no API calls, render no reader.
+      // Two ways to get here, and the second is why the dropdown alone is not enough:
+      // the source selector may say Japanese while the text is plainly English, and
+      // translating EN→EN is a paid call whose best possible answer is the input. The
+      // edge rejects source === target with a 400 anyway, so without this the user got
+      // an error where the correct response was "here it is, unchanged".
+      // Detection runs on searchText, so converted romaji reads as Japanese and does
+      // NOT trip this.
+      if (resolvedSource === tgt || detectLanguage(searchText) === tgt) {
         setOutput(text);
         setMeanings([]);
         setPara(null);
@@ -238,9 +256,9 @@ export function useTranslate(userId: string) {
       // equivalents (bat → バット AND 蝙蝠), each studied as a learning-language word.
       // (Translating to one string would collapse to just the top equivalent.)
       if (!typedLearning) {
-        const inputTokens = await analyze(text, resolvedSource);
+        const inputTokens = await analyze(searchText, resolvedSource);
         if (isSingleWord(inputTokens, resolvedSource)) {
-          const enja = await lookupWord({ input: text, sourceLang: resolvedSource, targetLang: learning });
+          const enja = await lookupWord({ input: searchText, sourceLang: resolvedSource, targetLang: learning });
           // Distinct candidate writings in the EN→JA rank order, capped. That ranking
           // already puts the common, relevant equivalents ahead of tangential ones.
           const candidates: string[] = [];
@@ -287,7 +305,7 @@ export function useTranslate(userId: string) {
       let learningText: string;
       let outputText: string; // the plain text shown in the output box
       if (typedLearning) {
-        learningText = text;
+        learningText = searchText;
         outputText = ""; // filled from the learning→native study below (the gloss)
       } else {
         const disp = await translate({
