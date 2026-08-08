@@ -299,7 +299,7 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
   });
 });
 
-// ── record_review p_reviewed_at (offline replay, migration 20260757) ────────
+// ── record_review p_reviewed_at (offline replay, migration 20260759) ────────
 // The clamp is the security property: a client names the instant a queued grade was
 // given, so it must not be able to fabricate an interval it never waited through.
 describe.skipIf(!ENABLED)("rpc: record_review — p_reviewed_at", () => {
@@ -457,7 +457,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: record_review — replay interva
   });
 });
 
-// ── server_now (the offline clock anchor, migration 20260757) ───────────────
+// ── server_now (the offline clock anchor, migration 20260759) ───────────────
 describe.skipIf(!ENABLED)("rpc: server_now", () => {
   it("returns the server clock and is callable by a client", async () => {
     const u = await makeUser();
@@ -1735,7 +1735,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: prune_review_log", () => {
   });
 });
 
-// ── report_quality_issue (user-filed quality reports; migration 20260757) ───
+// ── report_quality_issue (user-filed quality reports; migration 20260759) ───
 // The admin write RPC gates on is_admin(); this is the LEARNER's door to the same
 // table, so the things worth proving live are the ones a unit test with a stubbed
 // client cannot see: that an ordinary user may call it at all, that a report with no

@@ -189,7 +189,7 @@ export async function getReviewQueue(params: {
 }
 
 /**
- * The server's clock, for anchoring offline timestamps (migration 20260757).
+ * The server's clock, for anchoring offline timestamps (migration 20260759).
  *
  * One extra round-trip per DECK FETCH — not per card — which buys the property the
  * whole offline-timestamp design rests on: the anchor is the server's instant, so a
@@ -224,7 +224,7 @@ export interface ReviewResult {
  * which must not re-queue what it is replaying.
  *
  * `reviewedAt` names the instant the grade was given, for a replay. The server clamps
- * it to [last_reviewed_date, now()] — see migration 20260757.
+ * it to [last_reviewed_date, now()] — see migration 20260759.
  */
 export async function sendReview(params: {
   userWordId: string;

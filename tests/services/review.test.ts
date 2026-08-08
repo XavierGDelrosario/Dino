@@ -146,7 +146,7 @@ describe("recordReview", () => {
     const res = await recordReview({ userWordId: "uw1", grade: 4 });
 
     // p_reviewed_at is left UNDEFINED online, which is what makes the server stamp
-    // now() — its own clock. Only an offline replay names an instant (20260757).
+    // now() — its own clock. Only an offline replay names an instant (20260759).
     expect(stub.rpc).toHaveBeenCalledWith("record_review", {
       p_user_word_id: "uw1",
       p_grade: 4,

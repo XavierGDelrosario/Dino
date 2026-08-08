@@ -51,7 +51,7 @@ REVOKE EXECUTE ON FUNCTION server_now() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION server_now() TO anon, authenticated;
 
 COMMENT ON FUNCTION server_now() IS
-  'The server clock, for anchoring offline review timestamps (see 20260757).';
+  'The server clock, for anchoring offline review timestamps (see 20260759).';
 
 DROP FUNCTION IF EXISTS record_review(UUID, INT);
 
@@ -232,4 +232,4 @@ GRANT  EXECUTE ON FUNCTION record_review(UUID, INT, TIMESTAMPTZ) TO anon, authen
 COMMENT ON FUNCTION record_review(UUID, INT, TIMESTAMPTZ) IS
   'Records one review. p_reviewed_at names the instant it happened (offline replay); '
   'NULL means now(). Clamped to [last_reviewed_date, now()] so a client clock cannot '
-  'fabricate an interval — see migration 20260757.';
+  'fabricate an interval — see migration 20260759.';
