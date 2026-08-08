@@ -44,11 +44,12 @@ describe("summarizeReader", () => {
   });
 
   it("bins confidence 0..5 for known words, taking the max over saved senses", () => {
+    // Keys are wordKey(token) — lowercased — so the fixture uses that form.
     const tokens = [tok("A"), tok("B"), tok("C")];
     const meaningsByWord = new Map([
-      ["A", [makeWord({ wordId: "a" })]],
-      ["B", [makeWord({ wordId: "b" })]],
-      ["C", [makeWord({ wordId: "c1" }), makeWord({ wordId: "c2" })]],
+      ["a", [makeWord({ wordId: "a" })]],
+      ["b", [makeWord({ wordId: "b" })]],
+      ["c", [makeWord({ wordId: "c1" }), makeWord({ wordId: "c2" })]],
     ]);
     const { data } = summarizeReader({
       tokens,

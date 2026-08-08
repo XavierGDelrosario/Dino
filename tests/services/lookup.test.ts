@@ -28,7 +28,7 @@ import { findWordTranslations, findWordTranslationsBatch } from "@/services/word
 import { translate, translateBatch, glossSentences } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
-import { lookupWord, lookupWordsBatch, translateParagraph } from "@/services/lookup";
+import { lookupWord, lookupWordsBatch, translateParagraph , wordKey} from "@/services/lookup";
 import { __clearWordsCache } from "@/services/words/cache";
 import type { Word } from "@/services/words/repository";
 
@@ -239,7 +239,7 @@ describe("translateParagraph", () => {
 
     const res = await translateParagraph({ input: "行った", targetLang: "EN" });
     expect(res.tokens.find((t) => t.text === "行った")?.reading).toBe("いった"); // surface reading kept
-    expect(res.meanings.get("行った")?.[0].translation).toBe("to go"); // meanings re-keyed under surface
+    expect(res.meanings.get("行く")?.[0].translation).toBe("to go"); // keyed by wordKey = the LEMMA (see lookup.wordKey)
   });
 
   it("keeps the kuromoji reading when the word has no dictionary entry", async () => {
@@ -263,7 +263,7 @@ describe("translateParagraph", () => {
     const res = await translateParagraph({ input: "行った", targetLang: "EN" });
 
     // Meaning found via the LEMMA, then re-keyed under the surface text.
-    expect(res.meanings.get("行った")?.[0].translation).toBe("to go");
+    expect(res.meanings.get("行く")?.[0].translation).toBe("to go");
     // Reading is the SURFACE reading from kuromoji — NOT the lemma reading いく.
     expect(res.tokens.find((t) => t.text === "行った")?.reading).toBe("いった");
   });
@@ -278,7 +278,7 @@ describe("translateParagraph", () => {
 
     const res = await translateParagraph({ input: "行った", targetLang: "EN" });
 
-    expect(res.meanings.get("行った")?.[0].translation).toBe("to go"); // seeded via lemma
+    expect(res.meanings.get("行く")?.[0].translation).toBe("to go"); // seeded via lemma
     expect(res.tokens.find((t) => t.text === "行った")?.reading).toBe("いった"); // surface reading kept
   });
 
@@ -550,5 +550,34 @@ describe("translateParagraph — katakana the dictionary doesn't have", () => {
     const calls = mockTranslateBatch.mock.calls.map((c) => c[0]);
     expect(calls.find((c) => c.inputs.includes("猫"))?.dictionaryOnly).toBeUndefined();
     expect(calls.find((c) => c.inputs.includes("ゼレンスキー"))?.dictionaryOnly).toBe(true);
+  });
+});
+
+// One word, one entry. The surface used to be the key, so it forked on CASE
+// ("Cats" at the start of a sentence vs "cats" mid-sentence) and on INFLECTION
+// (cat vs cats) — one word became two hover cards, two quiz cards and two rows in the
+// word list, with identical meanings, which reads as a bug rather than a distinction.
+describe("wordKey — one word, one entry", () => {
+  it("collapses case", () => {
+    expect(wordKey({ text: "Cats" })).toBe(wordKey({ text: "cats" }));
+  });
+
+  it("collapses an inflection via the lemma", () => {
+    expect(wordKey({ text: "cats", lemma: "cat" })).toBe(wordKey({ text: "cat" }));
+  });
+
+  it("collapses BOTH at once — sentence-initial and plural", () => {
+    expect(wordKey({ text: "Cats", lemma: "cat" })).toBe(wordKey({ text: "cat" }));
+  });
+
+  it("keeps genuinely different words apart", () => {
+    expect(wordKey({ text: "cat" })).not.toBe(wordKey({ text: "dog" }));
+  });
+
+  // Safe for Japanese: kuromoji supplies the lemma, and lowercasing is a no-op on
+  // kana and kanji.
+  it("is a no-op on Japanese beyond the lemma it already uses", () => {
+    expect(wordKey({ text: "行った", lemma: "行く" })).toBe("行く");
+    expect(wordKey({ text: "猫" })).toBe("猫");
   });
 });

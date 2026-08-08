@@ -1,14 +1,27 @@
 /* Report-an-issue: the flag button, and the dialog it opens. */
 
-/* The flag itself is DELIBERATELY quiet — muted until hovered. It sits on a word you
-   are reading and a card you are studying, and it is the rarest action on either; a
-   full-contrast icon there would compete with the meanings for attention. */
+/* The flag is DELIBERATELY quiet — a muted glyph, not a button. It sits on a word you
+   are reading and a card you are studying, and it is the rarest action on either, so a
+   full-contrast control there competes with the meanings for attention.
+
+   It has to UNDO the host class to get there. Callers pass .iconbtn (defined over in
+   lists.css), which paints a filled --surface-2 box with a border — fine for a list row
+   crowded with actions, wrong on the reader hovercard, where it landed as a heavy chip
+   among the senses and read as if it belonged to another surface. Overriding here keeps
+   one flag that looks right everywhere, rather than a per-caller class. */
 .reportbtn {
+  background: none;
+  border: none;
+  padding: 0.15rem;
   color: var(--muted);
+  opacity: 0.75;
 }
 .reportbtn:hover,
 .reportbtn:focus-visible {
-  color: var(--text);
+  background: none;
+  border: none;
+  color: var(--accent);
+  opacity: 1;
 }
 
 /* Centred on the SCREEN, not on whatever opened it: the reader's popover is pinned to

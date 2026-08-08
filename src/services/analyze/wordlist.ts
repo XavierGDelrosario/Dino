@@ -12,6 +12,7 @@
 // =========================================================
 
 import { isContentPos } from "../language";
+import { wordKey } from "../lookup";
 import { getProficiency } from "../proficiency";
 import { getDifficulty } from "../difficulty";
 import type { Word } from "../words/repository";
@@ -55,7 +56,7 @@ export function articleWordList(input: ReaderAnalysisInput): ArticleWord[] {
     // the reader displayed. The dedupe below keys on the resulting primary's wordId;
     // in practice IPADIC returns one fixed reading per surface, so the same word
     // still collapses to one row rather than splitting per occurrence.
-    const senses = orderSensesByContextReading(meaningsByWord.get(t.text) ?? [], t.reading);
+    const senses = orderSensesByContextReading(meaningsByWord.get(wordKey(t)) ?? [], t.reading);
     if (senses.length === 0) continue; // no dictionary entry — disregard
     const primary = senses[0];
 

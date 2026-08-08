@@ -62,3 +62,27 @@ describe("partOfSpeechCategory", () => {
     expect(partOfSpeechCategory(["unc", "xyz"])).toBeNull();
   });
 });
+
+// English POS reaches the client as WordNet codes on EN→JA rows (migration 20260759).
+// Before that, an English row carried the JAPANESE tags of its translation — "a" the
+// article was labelled {n}, because アンペア is a noun.
+describe("partOfSpeechCategory — WordNet codes on English rows", () => {
+  it("maps the two codes JMdict never uses", () => {
+    expect(partOfSpeechCategory(["a"])).toBe("adjective"); // beautiful
+    expect(partOfSpeechCategory(["r"])).toBe("adverb"); // quickly
+  });
+
+  it("shares n and v with JMdict, which mean the same thing in both", () => {
+    expect(partOfSpeechCategory(["n"])).toBe("noun");
+    expect(partOfSpeechCategory(["v"])).toBe("verb");
+  });
+
+  // The collision that would break this: a bare "a"/"r" in JMdict. Verified against the
+  // corpus — 0 senses use either — so the two vocabularies can share one column.
+  it("still maps the Japanese adjective/adverb tags unchanged", () => {
+    expect(partOfSpeechCategory(["adj-i"])).toBe("adjective");
+    expect(partOfSpeechCategory(["adj-na"])).toBe("adjective");
+    expect(partOfSpeechCategory(["adv"])).toBe("adverb");
+    expect(partOfSpeechCategory(["v5r"])).toBe("verb");
+  });
+});

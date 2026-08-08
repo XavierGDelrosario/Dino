@@ -11,6 +11,7 @@
 // a proficiency framework.
 
 import { isContentPos, type AnalyzedToken, type LangCode } from "../language";
+import { wordKey } from "../lookup";
 import { getProficiency, proficiencyFrameworkFor } from "../proficiency";
 import type { Word } from "../words/repository";
 import type { UserWord } from "../words/userWords";
@@ -132,10 +133,10 @@ export function summarizeReader(input: ReaderAnalysisInput): ReaderSummary {
   let sourceLang: LangCode | null = null;
 
   for (const t of tokens) {
-    if (!isContentPos(t.pos) || seen.has(t.text)) continue;
+    if (!isContentPos(t.pos) || seen.has(wordKey(t))) continue;
     seen.add(t.text);
 
-    const senses = meaningsByWord.get(t.text) ?? [];
+    const senses = meaningsByWord.get(wordKey(t)) ?? [];
     if (senses.length === 0) continue; // no dictionary entry — counted in `total`, not the pie
     const primary = senses[0];
     if (!sourceLang) sourceLang = primary.sourceLang;

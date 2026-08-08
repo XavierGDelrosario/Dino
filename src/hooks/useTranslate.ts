@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
 import { pushEntry, type TranslateHistoryEntry } from "../services/translateHistory";
 import { nfc, nfcTrim } from "../lib/text";
-import { lookupWord, lookupWordsBatch, translateParagraph, type ParagraphTranslation } from "../services/lookup";
+import { lookupWord, lookupWordsBatch, translateParagraph, wordKey, type ParagraphTranslation } from "../services/lookup";
 import { translate, glossSentences, getCachedGloss } from "../services/translation";
 import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
@@ -675,12 +675,12 @@ export function useTranslate(userId: string) {
     if (para) {
       const seen = new Set<string>();
       for (const tok of para.tokens) {
-        if (!isContentPos(tok.pos) || seen.has(tok.text)) continue;
+        if (!isContentPos(tok.pos) || seen.has(wordKey(tok))) continue;
         seen.add(tok.text);
         // Lead with the sense the SENTENCE used — kuromoji read this surface in
         // context, so a homograph shows the meaning actually on the page. No-op
         // unless the reading genuinely separates the senses.
-        const senses = orderSensesByContextReading(para.meanings.get(tok.text) ?? [], tok.reading);
+        const senses = orderSensesByContextReading(para.meanings.get(wordKey(tok)) ?? [], tok.reading);
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);

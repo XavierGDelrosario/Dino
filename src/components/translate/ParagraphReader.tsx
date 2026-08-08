@@ -8,7 +8,7 @@ import { isContentPos, type AnalyzedToken } from "../../services/language";
 import { ReportFlagButton } from "../common/ReportFlagButton";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
-import type { SentenceGloss } from "../../services/lookup";
+import { wordKey, type SentenceGloss } from "../../services/lookup";
 import { AddToListButton } from "./AddToListButton";
 import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { summarizeReader } from "../../services/analyze/summarize";
@@ -81,7 +81,11 @@ function ParagraphReaderImpl({
   onCreateList: (name: string) => Promise<string>;
 }) {
   const { t: tr } = useI18n();
-  const [hover, setHover] = useState<{ word: string; reading: string | null; rect: DOMRect } | null>(null);
+  // `key` is the token's wordKey, carried so the card looks its senses up exactly as
+  // the inline word did — a capitalised or inflected surface would otherwise hover empty.
+  const [hover, setHover] = useState<
+    { word: string; key: string; reading: string | null; rect: DOMRect } | null
+  >(null);
   // Inline translation: OFF by default — the reader is for reading the Japanese.
   // Toggling it prints each sentence's English directly beneath it, so the eye never
   // leaves the line it's reading.
@@ -132,11 +136,14 @@ function ParagraphReaderImpl({
   // Stable handlers, so memoizing the token spans below isn't invalidated by hover.
   // `reading` is the TOKEN's reading — the right furigana for THIS occurrence of a
   // homograph (君 → きみ here), not an arbitrary sense's reading.
-  const show = useCallback((word: string, reading: string | null, el: HTMLElement) => {
-    clearTimeout(hideTimer.current);
-    anchorEl.current = el;
-    setHover({ word, reading, rect: el.getBoundingClientRect() });
-  }, []);
+  const show = useCallback(
+    (word: string, key: string, reading: string | null, el: HTMLElement) => {
+      clearTimeout(hideTimer.current);
+      anchorEl.current = el;
+      setHover({ word, key, reading, rect: el.getBoundingClientRect() });
+    },
+    [],
+  );
   const scheduleHide = useCallback(() => {
     hideTimer.current = setTimeout(() => setHover(null), 120);
   }, []);
@@ -172,7 +179,7 @@ function ParagraphReaderImpl({
   const spans = useCallback(
     (from: number, to: number, key: string): JSX.Element[] => {
       const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
-        const senses = isContentPos(token.pos) ? meaningsByWord.get(token.text) ?? [] : [];
+        const senses = isContentPos(token.pos) ? meaningsByWord.get(wordKey(token)) ?? [] : [];
         if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
         const savedSenses = senses.filter((s) => saved.has(s.wordId));
         if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
@@ -252,7 +259,7 @@ function ParagraphReaderImpl({
           <span
             key={`${key}-tok-${i}`}
             className={cls}
-            onMouseEnter={interactive ? (e) => show(t.text, t.reading, e.currentTarget) : undefined}
+            onMouseEnter={interactive ? (e) => show(t.text, wordKey(t), t.reading, e.currentTarget) : undefined}
             onMouseLeave={interactive ? scheduleHide : undefined}
           >
             {t.text}
@@ -314,7 +321,7 @@ function ParagraphReaderImpl({
 
   // Cap at 12 senses (matches WordResults' MAX_SHOWN). The hovercard is transient, so
   // there's no "show more" — just trim the noisy tail.
-  const hoveredSenses = (hover ? meaningsByWord.get(hover.word) ?? [] : []).slice(0, 12);
+  const hoveredSenses = (hover ? meaningsByWord.get(hover.key) ?? [] : []).slice(0, 12);
 
   // Place the card below the word, flipping above when there's more room there, and cap
   // its height to the space available on the chosen side (with a floor, so it's never a

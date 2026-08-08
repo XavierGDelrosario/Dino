@@ -166,9 +166,14 @@ function joinGloss(
  * POS-less row in the shared cache forever.
  *
  * IDENTIFIED by having no part-of-speech: POS comes from the dictionary projection, so
- * a sense without one came from MT (exact on all prod rows — empty `part_of_speech` ⟺ a
- * `mt:` ref). Frequency would be the WRONG test: ゼロ and フェロー are real JMdict
- * entries carrying no wordfreq score.
+ * a sense without one came from MT. Frequency would be the WRONG test: ゼロ and フェロー
+ * are real JMdict entries carrying no wordfreq score.
+ *
+ * That "no POS ⟺ MT" equivalence holds for JA→EN only, which is all this needs — the
+ * surface test below is katakana-only, and an EN→JA row's input is English. Since
+ * migration 20260760 an EN→JA row's POS is the ENGLISH word's class from WordNet, so a
+ * lemma WordNet lacks now projects a dictionary row with NULL POS. Don't lift this
+ * identification to the other direction.
  *
  * SCOPED to katakana, and to the READER. The same rule over every script would gut dev
  * and local, where the `-common-` subset leaves real words (唐揚げ) MT-covered; and
@@ -247,6 +252,27 @@ async function mergeDictionaryCompounds(
  * with positions plus a word → meanings lookup; rendering is the frontend's call.
  * Adds nothing to the user's vocabulary. Assumes one language per paragraph.
  */
+/**
+ * The key a token's meanings are stored and looked up under — by everything: the
+ * reader, the quiz picker, the word list, the summary.
+ *
+ * Two tokens that are the SAME WORD must land on one entry, and the surface alone
+ * doesn't do that. It forked on case ("Cats" at the start of a sentence vs "cats" in
+ * the middle) and on inflection ("cat" vs "cats"), so one word became two hover cards,
+ * two quiz cards and two rows in the word list — with identical meanings, which reads
+ * as a bug rather than a distinction.
+ *
+ * LEMMA FIRST, then lowercased. The lemma is what collapses cat/cats; the lowercasing
+ * is what collapses Cats/cats. Both are safe for Japanese: kuromoji already supplies a
+ * lemma, and lowercasing is a no-op on kana and kanji.
+ *
+ * ‼️ Display still uses `token.text` — this is the KEY, not the label. A word is shown
+ * exactly as it was written; only its meanings are shared.
+ */
+export function wordKey(token: { text: string; lemma?: string | null }): string {
+  return nfc(token.lemma ?? token.text).toLowerCase();
+}
+
 export async function translateParagraph(params: {
   input: string;
   targetLang: LangCode;
@@ -377,13 +403,14 @@ export async function translateParagraph(params: {
     }
   }
 
-  // 4. Key by the ORIGINAL surface so the frontend looks up with token.text directly;
-  //    lemma resolution stays internal.
+  // 4. Key by the shared wordKey (lemma, lowercased) so every surface of one word —
+  //    "Cats", "cats", "cat" — resolves to a single entry. Callers use the same helper.
   const meanings = new Map<string, Word[]>();
   for (const token of tokens) {
-    if (!meanings.has(token.text)) {
+    const key = wordKey(token);
+    if (!meanings.has(key)) {
       const senses = meaningsByKey.get(keyOf(token)) ?? [];
-      meanings.set(token.text, isJunkKatakana(token.text, senses) ? [] : senses);
+      meanings.set(key, isJunkKatakana(token.text, senses) ? [] : senses);
     }
   }
 
