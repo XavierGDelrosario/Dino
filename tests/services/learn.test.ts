@@ -36,6 +36,17 @@ describe("fetchLearnWords", () => {
     expect(cards).toEqual([[cat], [dog]]);
   });
 
+  // The edge rejects source === target with a 400 raised BEFORE the learn branch, so
+  // supabase-js reported only "Edge Function returned a non-2xx status code" and nothing
+  // reached error_log. Reached live: defaults are learning JA + native EN, so an
+  // EN-native picking English on the Learn tab collapsed the pair to EN→EN.
+  it("refuses a same-language pair without calling the edge at all", async () => {
+    await expect(fetchLearnWords({ band: 1, source: "EN", target: "EN" })).rejects.toThrow(
+      /must differ/,
+    );
+    expect(stub.functions.invoke).not.toHaveBeenCalled();
+  });
+
   it("forwards excludeSeen when given (the calibration quiz passes false)", async () => {
     stub.functions.invoke.mockResolvedValue({ data: { cards: [] }, error: null });
     await fetchLearnWords({ band: 2, source: "JA", target: "EN", limit: 8, excludeSeen: false });

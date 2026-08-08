@@ -39,6 +39,18 @@ export async function fetchLearnWords(params: {
   limit?: number;
   excludeSeen?: boolean;
 }): Promise<Word[][]> {
+  // A pair needs two different languages, and the edge enforces it with a 400 raised
+  // BEFORE the learn branch — which supabase-js reports only as "Edge Function returned
+  // a non-2xx status code", with nothing in error_log because the request never reached
+  // the part that logs. Fail here instead, where the message can name the cause. Callers
+  // should not be able to construct this (see LearnView's picker, which swaps), so this
+  // is a backstop for the next surface that grows a language selector.
+  if (params.source === params.target) {
+    throw new ServiceError(
+      `Cannot draw words for ${params.source}→${params.target}: the language you're studying and the one it's explained in must differ.`,
+      "validation",
+    );
+  }
   const { data, error } = await supabase.functions.invoke<{ cards?: Word[][] }>("translate", {
     body: {
       learn: { band: params.band, limit: params.limit, excludeSeen: params.excludeSeen },

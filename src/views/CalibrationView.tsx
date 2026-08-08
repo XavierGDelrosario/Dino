@@ -14,6 +14,7 @@ import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n } from "../i18n";
 import type { List } from "../services/lists";
+import type { LangCode } from "../services/language";
 import "../components/flashcards/flashcards.css";
 import "./learn.css";
 import "./calibration.css";
@@ -23,13 +24,18 @@ export function CalibrationView({
   lists,
   onCreateList,
   onClose,
+  langs,
 }: {
   userId: string;
   lists: List[];
   onCreateList: (name: string) => Promise<string>;
   onClose: () => void;
+  /** The pair to place the user in. Pass it from a screen that has its own language
+   *  picker (Learn) — otherwise the quiz falls back to the profile and can contradict
+   *  the choice the user just made to get here. */
+  langs?: { learning: LangCode; native: LangCode };
 }) {
-  const c = useCalibration(userId);
+  const c = useCalibration(userId, langs);
   const { t } = useI18n();
   const { status, current, revealed, reveal, rate } = c;
 
