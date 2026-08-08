@@ -137,26 +137,45 @@
   margin-top: 0.6rem;
 }
 
-/* "Add all" + "Quiz" actions above the reader */
-/* EVERY control in this row is the same height. They are peers — add these words,
-   quiz these words — and two .btn siblings at different heights read as a mistake.
-   .reader__addall used to shrink itself (0.9rem / 0.5rem 1rem against .btn's 1rem /
-   0.7rem 1.4rem) AND opt out of the row's centring with align-self: flex-start, so the
-   pair sat at two heights on two baselines. Those overrides are gone; do not add
-   per-button padding or font-size here, that is exactly what re-creates it.
+/* "+ Add N new words" + "Quiz N new words", above the reader.
+   ONE LINE, ALWAYS, and equal in both dimensions. They are peers — add these words,
+   quiz these words — so a pair at different heights, or one dropped onto a second row,
+   reads as a mistake rather than a layout.
 
-   `stretch` is the belt to that braces: the add button is WRAPPED (.addwrap carries its
-   popover), so the wrapper is the flex item, and stretching it — plus the flex below,
-   which makes the button fill it — keeps a wrapped control level with a bare one. */
+   HOW IT FITS instead of wrapping: nowrap + `flex: 1 1 0` gives them an equal share of
+   whatever width there is and lets them SHRINK together; the label wraps to a second
+   line inside the button before anything is clipped, and `stretch` keeps both buttons
+   the height of the taller one when that happens. The reduced inline padding and the
+   clamped font-size are what buy the room on a phone — they are set on the ROW, for
+   both children at once, which is the part that matters: the previous bug here was
+   .reader__addall carrying its own font-size and padding (0.9rem / 0.5rem 1rem against
+   .btn's 1rem / 0.7rem 1.4rem) plus align-self: flex-start, so the two sat at two
+   heights on two baselines. Never style one of these buttons alone.
+
+   The add button is WRAPPED (.addwrap carries its popover), so the WRAPPER is the flex
+   item — hence the width:100% below, or the button would not fill the share it was
+   given and the pair would differ again. */
 .reader__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   align-items: stretch;
 }
 
+.reader__actions > * {
+  flex: 1 1 0;
+  min-width: 0; /* a flex item's default min-width: auto refuses to shrink past its text */
+}
+
 .reader__actions .addwrap {
   display: flex;
+}
+
+.reader__actions .btn {
+  width: 100%;
+  padding-inline: 0.6rem;
+  font-size: clamp(0.8rem, 3.2vw, 1rem);
+  line-height: 1.25;
 }
 
 /* "Add to: [list]" destination picker */
