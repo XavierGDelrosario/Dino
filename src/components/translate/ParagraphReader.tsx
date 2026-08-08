@@ -22,9 +22,23 @@ const SUMMARY_MIN_WORDS = 12;
 
 // The marks that can BE a per-sentence control. Deliberately NOT `splitSentences`' full
 // set: ASCII "." is also a decimal point, and a button mid-number reads as a typo.
-const TERMINATOR = /[。．！？!?…]/u;
+// The marks that can BE a per-sentence control — the SAME set `splitSentences` ends a
+// sentence on, ASCII "." INCLUDED.
+//
+// "." was excluded at first because it is also a decimal point, and turning one into a
+// button mid-number reads as a typo. That reasoning broke ENGLISH outright: every
+// English sentence ends in ".", so no line ever looked punctuated, none got its own
+// translate control, and the whole text fell through to the block gloss meant for
+// UNPUNCTUATED input (dictation, headlines).
+//
+// No digit guard is needed here even though `splitSentences` has one. Both regexes are
+// only ever tested AT a sentence boundary — `gap` looks at the character a sentence ENDS
+// on, ENDS_TERMINATED at the end of a sentence own text — and those boundaries were
+// chosen by `splitSentences`, which already refused to split between digits. A "." that
+// reaches here is a real terminator by construction; 3.14 never arrives as a boundary.
+const TERMINATOR = /[。．.！？!?…]/u;
 // The same, anchored, allowing closers that belong to the sentence (「…だ。」).
-const ENDS_TERMINATED = /[。．！？!?…][」』）〉》】)"'”’]*$/u;
+const ENDS_TERMINATED = /[。．.！？!?…][」』）〉》】)"'”’]*$/u;
 
 function ParagraphReaderImpl({
   text,
