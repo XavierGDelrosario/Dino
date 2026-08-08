@@ -45,6 +45,7 @@ import {
   isEchoTranslation,
   dictionaryRefFor,
   curationKeyFor,
+  preferWrittenForm,
 } from "./_lib.ts";
 
 // Stamp written onto every projected `words` row. BUMP whenever the source data (a
@@ -683,7 +684,10 @@ async function fetchVerified(
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as WordRow[];
+  // PostgREST cannot express "the row whose headword IS the search term first", and the
+  // set here is one word's senses, so the last key is applied in memory. Without it a uk
+  // entry found via input_reading keeps the primary slot — the 質 → たち report.
+  return preferWrittenForm((data ?? []) as WordRow[], input);
 }
 
 /** Mirrors fetchVerified's ORDER BY, for rows returned inline by upsert().select(), so

@@ -34,6 +34,7 @@ import {
   inflectedAsVerb,
   inflectedVerbSurface,
   preferVerbSenses,
+  preferWrittenForm,
 } from "../../supabase/functions/translate/_lib";
 
 /** Build a JWT-shaped token (unpadded base64url payload, like a real JWT). */
@@ -962,5 +963,51 @@ describe("orderSensesForInput — verb bias applies to CACHED rows too", () => {
       { input: "行った", inputReading: "いった", translation: "carried out", partOfSpeech: ["v5u"] },
     ];
     expect(orderSensesForInput("行った", ja).map((s) => s.translation)).toEqual(["went", "carried out"]);
+  });
+});
+
+// ── preferWrittenForm (the cache-side half of migration 20260758) ──────────
+// The cache read matches `input` OR `input_reading`, which is what lets a kana search
+// find the kanji rows — but it runs in reverse too: a `uk` entry headwords as its KANA
+// and carries the KANJI in input_reading, so searching 質 also matched the たち rows,
+// and those beat the real 質 rows on frequency (577 vs 465). 質 answered "nature;
+// disposition" and "quality" never appeared.
+describe("preferWrittenForm", () => {
+  const row = (input: string, translation: string) => ({ input, translation });
+
+  it("puts the row actually written that way first", () => {
+    const rows = [row("たち", "nature; disposition"), row("質", "quality; value")];
+    expect(preferWrittenForm(rows, "質").map((r) => r.translation)).toEqual([
+      "quality; value",
+      "nature; disposition",
+    ]);
+  });
+
+  it("is STABLE — it partitions, it does not re-sort", () => {
+    const rows = [
+      row("たち", "a"), row("質", "quality"), row("たち", "b"), row("質", "logical quality"),
+    ];
+    expect(preferWrittenForm(rows, "質").map((r) => r.translation)).toEqual([
+      "quality", "logical quality", "a", "b",
+    ]);
+  });
+
+  // Kanji-guarded on purpose: on kana input a kana-headword entry would leapfrog the
+  // kanji entry a searcher usually wants.
+  it("leaves KANA input alone (ねこ must still answer 猫)", () => {
+    const rows = [row("猫", "cat"), row("ねこ", "some uk entry")];
+    expect(preferWrittenForm(rows, "ねこ").map((r) => r.input)).toEqual(["猫", "ねこ"]);
+  });
+
+  it("is a no-op when every row matches, or none does", () => {
+    const all = [row("質", "quality"), row("質", "pawn")];
+    expect(preferWrittenForm(all, "質")).toBe(all);
+    const none = [row("たち", "nature")];
+    expect(preferWrittenForm(none, "質")).toBe(none);
+  });
+
+  it("leaves a single row untouched", () => {
+    const one = [row("たち", "nature")];
+    expect(preferWrittenForm(one, "質")).toBe(one);
   });
 });
