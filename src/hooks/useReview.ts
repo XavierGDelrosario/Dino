@@ -47,6 +47,9 @@ export function useReview(
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
+  /** Grades taken offline and waiting to reach the server. Non-zero is the signal the
+   *  UI needs to say "saved on this device" rather than implying the schedule updated. */
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Loads a session over an explicit id set. `ids === undefined` means "no
   // subset" — rank the whole list/vocabulary and take the weakest N (a fresh,
@@ -102,9 +105,21 @@ export function useReview(
       setSubmitting(true);
       setError(null);
       try {
-        // The only call that hits record_review() — the as-yet-unverified RPC.
-        // On failure we KEEP the card so the user can retry the same grade.
-        await recordReview({ userWordId: card.userWordId, grade: g });
+        // The only call that hits record_review(). With no network the grade is QUEUED
+        // and this resolves with `queued: true` rather than throwing, so the session
+        // keeps moving — offline, the card is done from the user's point of view.
+        // A real refusal still throws, and still KEEPS the card so the grade can be
+        // retried (see isUnreachable in services/review.ts for where the line is).
+        const res = await recordReview({
+          userWordId: card.userWordId,
+          grade: g,
+          current: {
+            stability: card.stability,
+            confidenceRating: card.confidenceRating,
+            lastReviewedDate: card.lastReviewedDate,
+          },
+        });
+        if (res.queued) setPendingCount((n) => n + 1);
         setReviewedCount((n) => n + 1);
         const next = index + 1;
         if (next >= queue.length) {
@@ -133,6 +148,8 @@ export function useReview(
     position: index + 1,
     total: queue.length,
     reviewedCount,
+    /** Of `reviewedCount`, how many are queued offline rather than recorded. */
+    pendingCount,
     /** Fresh, re-ranked session (next most-needed words). Also the error-retry. */
     newQuiz,
     /** Re-run the exact words from the session just finished. */

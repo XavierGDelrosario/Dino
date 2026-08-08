@@ -851,8 +851,12 @@ export type Database = {
           writing: string
         }[]
       }
+      server_now: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       record_review: {
-        Args: { p_grade: number; p_user_word_id: string }
+        Args: { p_grade: number; p_user_word_id: string; p_reviewed_at?: string }
         Returns: {
           confidence_rating: number
           custom_translation: string | null

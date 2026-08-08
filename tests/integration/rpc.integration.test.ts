@@ -299,6 +299,174 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
   });
 });
 
+// ── record_review p_reviewed_at (offline replay, migration 20260759) ────────
+// The clamp is the security property: a client names the instant a queued grade was
+// given, so it must not be able to fabricate an interval it never waited through.
+describe.skipIf(!ENABLED)("rpc: record_review — p_reviewed_at", () => {
+  /** A word with one review behind it, so there is a last_reviewed_date to clamp against. */
+  async function reviewedWord(u: Awaited<ReturnType<typeof makeUser>>, input: string) {
+    const w = await makeStandaloneWord(u, { input, meaning: "m" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 3 });
+    return w;
+  }
+
+  it("omitting it is identical to the old two-arg call (now())", async () => {
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "既定", meaning: "default" });
+    const { data, error } = await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    expect(error).toBeNull();
+    const row = data as { stability: number; last_reviewed_date: string };
+    expect(row.stability).toBeGreaterThan(0);
+    // Stamped ~now, not some other instant.
+    expect(Math.abs(Date.parse(row.last_reviewed_date) - Date.now())).toBeLessThan(60_000);
+  });
+
+  it("CLAMPS a future timestamp to now() — no fabricated interval", async () => {
+    const u = await makeUser();
+    const w = await reviewedWord(u, "未来");
+    const future = new Date(Date.now() + 400 * 86_400_000).toISOString(); // +400 days
+    const { data, error } = await u.client.rpc("record_review", {
+      p_user_word_id: w, p_grade: 5, p_reviewed_at: future,
+    });
+    expect(error).toBeNull();
+    const stamped = Date.parse((data as { last_reviewed_date: string }).last_reviewed_date);
+    expect(stamped).toBeLessThanOrEqual(Date.now() + 60_000);
+    // NOT asserted from review_log: both reviews land on the same UTC day, so
+    // 20260744's UNIQUE (user_word_id, reviewed_on) collapses the second into the
+    // first and only bumps `repeats` — the row still holds the FIRST review's values
+    // (elapsed_days NULL, since a first-ever review has no interval). The
+    // elapsed_days property is proven in the service-role block below, where the
+    // rows can be aged onto different days.
+  });
+
+  it("CLAMPS a timestamp before last_reviewed_date — time cannot run backwards", async () => {
+    const u = await makeUser();
+    const w = await reviewedWord(u, "過去");
+    const { data: before } = await u.client
+      .from("user_words").select("last_reviewed_date").eq("user_word_id", w).single();
+    const prev = Date.parse((before as { last_reviewed_date: string }).last_reviewed_date);
+
+    const { data, error } = await u.client.rpc("record_review", {
+      p_user_word_id: w,
+      p_grade: 5,
+      p_reviewed_at: new Date(prev - 30 * 86_400_000).toISOString(), // 30 days BEFORE
+    });
+    expect(error).toBeNull();
+    const stamped = Date.parse((data as { last_reviewed_date: string }).last_reviewed_date);
+    expect(stamped).toBeGreaterThanOrEqual(prev);
+  });
+
+  it("accepts a genuine past instant — the replay case actually works", async () => {
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "再生", meaning: "replay" });
+    // Seed a first review, then age the card so a replay has room between the two.
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    await u.client.from("user_words")
+      .update({ last_reviewed_date: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .eq("user_word_id", w);
+
+    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    const { data, error } = await u.client.rpc("record_review", {
+      p_user_word_id: w, p_grade: 4, p_reviewed_at: twoDaysAgo,
+    });
+    expect(error).toBeNull();
+    // Stamped at the review, not at replay time — the whole point of p_reviewed_at.
+    const stamped = Date.parse((data as { last_reviewed_date: string }).last_reviewed_date);
+    expect(Math.abs(stamped - Date.parse(twoDaysAgo))).toBeLessThan(60_000);
+  });
+
+  it("a duplicated replay still collapses to ONE row with repeats = 2", async () => {
+    // At-least-once delivery leans on this: the drain may send the same grade twice.
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "重複", meaning: "duplicate" });
+    const at = new Date().toISOString();
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4, p_reviewed_at: at });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 4, p_reviewed_at: at });
+
+    const { data: log } = await u.client
+      .from("review_log").select("repeats").eq("user_word_id", w);
+    expect(log ?? []).toHaveLength(1);
+    expect((log![0] as { repeats: number }).repeats).toBe(2);
+  });
+});
+
+// The property the whole feature rests on: the interval is measured from the instant
+// the grade was GIVEN, not from when it reached the server. Needs the service role
+// because both the card and its log row must be aged onto an earlier day — otherwise
+// the replay collapses into today's row (20260744) and there is nothing to read.
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: record_review — replay interval", () => {
+  /**
+   * Set a card up so a later review lands on a DIFFERENT UTC day: seed one review, then
+   * age both the card and its log row. Without the second half, 20260744 collapses the
+   * next review into today's row and there is nothing new to read.
+   *
+   * Returns the newest elapsed_days after `replay` runs, or null when this environment
+   * can't backdate (no direct DB access) — the caller then skips, as its neighbours do.
+   */
+  async function elapsedAfterReplay(
+    input: string,
+    replay: (client: Awaited<ReturnType<typeof makeUser>>["client"], w: string) => Promise<void>,
+  ): Promise<number | null> {
+    const svc = serviceClient();
+    if (!svc) return null;
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input, meaning: "m" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+
+    if (!(await backdateReview(w, 10))) return null;
+    const aged = await svc
+      .from("review_log")
+      .update({ reviewed_at: new Date(Date.now() - 10 * 86_400_000).toISOString() })
+      .eq("user_word_id", w);
+    if (aged.error) return null; // couldn't age the log row → nothing to compare against
+
+    await replay(u.client, w);
+
+    const { data, error } = await svc
+      .from("review_log").select("elapsed_days, reviewed_at").eq("user_word_id", w);
+    expect(error).toBeNull();
+    const rows = (data ?? []) as { elapsed_days: number | null; reviewed_at: string }[];
+    if (rows.length < 2) return null; // the ageing didn't take on this DB → skip
+    rows.sort((a, b) => Date.parse(b.reviewed_at) - Date.parse(a.reviewed_at));
+    return rows[0].elapsed_days;
+  }
+
+  it("computes elapsed_days from the REPLAY instant, not the sync time", async () => {
+    // A grade given 2 days ago on a card last reviewed 10 days ago: 8 days waited.
+    const elapsed = await elapsedAfterReplay("間隔", async (client, w) => {
+      const { error } = await client.rpc("record_review", {
+        p_user_word_id: w,
+        p_grade: 4,
+        p_reviewed_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      });
+      expect(error).toBeNull();
+    });
+    if (elapsed === null) return;
+    expect(elapsed).toBeGreaterThan(7);
+    expect(elapsed).toBeLessThan(9);
+  });
+
+  it("stamping at SYNC time instead measures 10 days — the bug this prevents", async () => {
+    // The counterfactual: the identical setup WITHOUT p_reviewed_at records the full
+    // interval to now, which is the wrong number a naive replay would produce.
+    const elapsed = await elapsedAfterReplay("対照", async (client, w) => {
+      await client.rpc("record_review", { p_user_word_id: w, p_grade: 4 });
+    });
+    if (elapsed === null) return;
+    expect(elapsed).toBeGreaterThan(9);
+  });
+});
+
+// ── server_now (the offline clock anchor, migration 20260759) ───────────────
+describe.skipIf(!ENABLED)("rpc: server_now", () => {
+  it("returns the server clock and is callable by a client", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("server_now");
+    expect(error).toBeNull();
+    expect(Math.abs(Date.parse(data as string) - Date.now())).toBeLessThan(120_000);
+  });
+});
+
 // ── save_dictionary_word (needs a service-role-seeded verified `words` row) ──
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word", () => {
   it("saves a verified sense into the vocabulary (idempotent) deriving input/langs, tagging a list", async () => {
@@ -1567,7 +1735,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: prune_review_log", () => {
   });
 });
 
-// ── report_quality_issue (user-filed quality reports; migration 20260757) ───
+// ── report_quality_issue (user-filed quality reports; migration 20260759) ───
 // The admin write RPC gates on is_admin(); this is the LEARNER's door to the same
 // table, so the things worth proving live are the ones a unit test with a stubbed
 // client cannot see: that an ordinary user may call it at all, that a report with no

@@ -117,8 +117,23 @@ export function useTranslate(userId: string) {
 
   // Default both directions from the profile prefs, falling back to the registry
   // defaults for a fresh guest.
+  //
+  // Applied whenever the profile resolves — but NEVER over an explicit choice.
+  //
+  // `prefs` starts at the registry defaults and is replaced when the profile load
+  // lands, so an unguarded effect re-runs at that moment and overwrites whatever the
+  // user picked in between: choose English quickly enough after opening Translate and
+  // the load snaps it back to Japanese, which is the exact thing changeLearning exists
+  // to prevent. (It also made the setLearning test flaky — under load the profile
+  // resolves after the act(), so the assertion saw the clobbered value.)
+  //
+  // Guarded on the USER having chosen, not on having run once: the effect's first run
+  // carries the DEFAULTS, so a run-once latch would mean the saved profile never
+  // applied at all.
   const prefs = useLanguagePrefs(userId);
+  const userPickedLearning = useRef(false);
   useEffect(() => {
+    if (userPickedLearning.current) return;
     setSource(prefs.learning);
     setTarget(prefs.native);
     setLearning(prefs.learning);
@@ -140,6 +155,9 @@ export function useTranslate(userId: string) {
    */
   const changeLearning = useCallback(
     (lang: LangCode) => {
+      // Claim the choice BEFORE the state write, so a profile load that resolves in
+      // the same tick can no longer overwrite it (see the prefs effect above).
+      userPickedLearning.current = true;
       setLearning(lang);
       updateUserLanguages({ userId, learningLanguage: lang }).catch((e) =>
         console.warn("useTranslate: failed to persist the learning language", e),

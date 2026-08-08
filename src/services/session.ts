@@ -252,18 +252,31 @@ export function ensureSession(): Promise<string> {
 async function runEnsureSession(): Promise<string> {
   // getUser can return an error OR throw (a network blip, or StrictMode racing two
   // refreshes of a stale token), so treat ANY failure as "no usable session".
+  // The LOCAL session first — getSession reads storage and never touches the network,
+  // so it is the only probe that can succeed offline.
   let user: { id: string; email?: string | null } | null = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (!error) user = data.user;
-  } catch {
-    user = null;
+  let offline = false;
+  const { data: local } = await supabase.auth.getSession();
+
+  if (local.session?.user) {
+    // We hold a session. Ask the server whether it is still good, but treat the two
+    // failure modes as DIFFERENT things — see the note on `invalidSession` below.
+    const probe = await probeSession();
+    if (probe === "valid") user = local.session.user;
+    else if (probe === "unreachable") { user = local.session.user; offline = true; }
+    // "invalid" leaves user null → the self-heal below runs, which is correct: the
+    // server has positively told us this session is no good.
   }
 
-  // No user, or a stale stored session (e.g. localStorage still holds a token for an
-  // auth user wiped by `supabase db reset`). Purge it and sign in fresh, so the app
-  // self-heals instead of dead-ending on "couldn't start a session".
   if (!user) {
+    // No session at all, or one the server REJECTED (e.g. localStorage still holds a
+    // token for an auth user wiped by `supabase db reset`). Purge and sign in fresh so
+    // the app self-heals instead of dead-ending on "couldn't start a session".
+    //
+    // ‼️ Reaching here on a mere network failure is what made an offline launch
+    // destructive: signOut() clears the stored session, the sign-in that follows also
+    // fails, and a guest — whose whole vocabulary is keyed to that anonymous uid — comes
+    // back online as a brand-new user with nothing. Hence the probe above.
     await supabase.auth.signOut().catch(() => {});
     // The sybil-relevant call: this MINTS an auth.users row for every visitor, so it's
     // the one the captcha guards (token is undefined when captcha is off).
@@ -280,10 +293,52 @@ async function runEnsureSession(): Promise<string> {
   // Anonymous users have an EMPTY-STRING email, not null, so `||` not `??`: without a
   // unique per-uid placeholder every guest inserts the same "" and collides on the
   // users_email UNIQUE constraint (23505). A real email replaces it on upgrade.
-  const email = user.email || `${user.id}@guest.dino`;
-  await ensureUserProfile(user.id, email);
+  //
+  // Skipped when offline: it is an upsert of a row that already exists, so it can wait
+  // for reconnect rather than failing a boot that has everything else it needs.
+  if (!offline) {
+    const email = user.email || `${user.id}@guest.dino`;
+    await ensureUserProfile(user.id, email);
+  }
 
   return user.id;
+}
+
+/**
+ * Is the stored session still good, as far as the SERVER is concerned?
+ *
+ * The distinction this draws is the whole point: `getUser()` failing because the token
+ * was revoked and `getUser()` failing because there is no network look identical at the
+ * call site, and treating them alike is what let an offline launch wipe a guest.
+ *
+ *   "valid"       — the server answered and accepted the token.
+ *   "invalid"     — the server answered and REJECTED it (401/403). Safe to purge.
+ *   "unreachable" — we never got an answer. Keep what we have and carry on offline.
+ *
+ * Anything ambiguous resolves to "unreachable", because the cost is asymmetric: a
+ * wrongly-kept dead session self-heals on the next successful call, while a wrongly-
+ * purged live one can lose a guest's entire vocabulary.
+ */
+type SessionProbe = "valid" | "invalid" | "unreachable";
+
+async function probeSession(): Promise<SessionProbe> {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error && data.user) return "valid";
+    if (error && isRejection(error)) return "invalid";
+    return "unreachable";
+  } catch {
+    // A thrown fetch is a network failure, never a verdict.
+    return "unreachable";
+  }
+}
+
+/** Did the server actually reject the token, as opposed to never being reached? */
+function isRejection(error: { status?: number; name?: string }): boolean {
+  if (error.status === 401 || error.status === 403) return true;
+  // supabase-js surfaces a dropped connection as AuthRetryableFetchError; anything
+  // retryable is by definition not a verdict.
+  return error.name === "AuthApiError" && error.status !== undefined && error.status < 500;
 }
 
 /** Upserts the caller's own public.users row (RLS: user_id = auth.uid()). */

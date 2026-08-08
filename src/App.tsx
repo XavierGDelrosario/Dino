@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "./hooks/useSession";
 import { needsTermsAcceptance } from "./services/session";
 import { warmJapaneseAnalyzer } from "./services/language";
+import { watchForReconnect } from "./services/offline/sync";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
@@ -42,6 +43,14 @@ export function App() {
   // accept before using the app. Guests are never gated. Fail open on a check error.
   // One header menu open at a time (globe ↔ profile): opening one closes the other.
   const [openMenu, setOpenMenu] = useState<"lang" | "profile" | null>(null);
+
+  // Replay any grades taken offline. Runs once a session exists (the writes are
+  // RLS-scoped, so there is nothing to send without one) and again on every reconnect.
+  // Best-effort by construction: a failed drain leaves the queue intact for next time.
+  useEffect(() => {
+    if (!userId) return;
+    return watchForReconnect();
+  }, [userId]);
 
   const [needsTerms, setNeedsTerms] = useState(false);
   useEffect(() => {

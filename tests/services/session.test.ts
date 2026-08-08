@@ -35,9 +35,15 @@ describe("getCurrentUserId", () => {
   });
 });
 
+/** A stored session the server goes on to accept — the ordinary online boot. */
+function storedSession(user: { id: string; email?: string | null }) {
+  stub.auth.getSession.mockResolvedValue({ data: { session: { user } }, error: null });
+  stub.auth.getUser.mockResolvedValue({ data: { user }, error: null });
+}
+
 describe("ensureSession", () => {
   it("uses the existing session and upserts the users row (no anon sign-in)", async () => {
-    stub.auth.getUser.mockResolvedValue({ data: { user: { id: "u1", email: "real@x.com" } } });
+    storedSession({ id: "u1", email: "real@x.com" });
     stub.queueFrom("users", { data: null, error: null }); // profile upsert
 
     expect(await ensureSession()).toBe("u1");
@@ -59,11 +65,17 @@ describe("ensureSession", () => {
     expect(upsert?.args[0]).toEqual({ user_id: "guest-1", email: "guest-1@guest.dino" });
   });
 
-  it("self-heals a stale session (getUser errors) by signing out and re-signing in", async () => {
-    // localStorage held a token for a wiped user → getUser rejects it.
+  it("self-heals a session the SERVER REJECTS by signing out and re-signing in", async () => {
+    // localStorage held a token for a wiped user; the server answered 403. A verdict,
+    // so purging is right. The status is what makes it a verdict — see the offline
+    // cases below, where the absence of one is the whole distinction.
+    stub.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "stale" } } },
+      error: null,
+    });
     stub.auth.getUser.mockResolvedValue({
       data: { user: null },
-      error: { message: "user not found" },
+      error: { name: "AuthApiError", status: 403, message: "user not found" },
     });
     stub.auth.signInAnonymously.mockResolvedValue({
       data: { user: { id: "fresh-guest", email: null } },
@@ -76,10 +88,65 @@ describe("ensureSession", () => {
     expect(stub.auth.signInAnonymously).toHaveBeenCalled();
   });
 
+  // ── Offline boot ────────────────────────────────────────────────────────────
+  // Regression cover for a bug that could DESTROY a guest's data: any getUser()
+  // failure used to count as "no usable session", so launching with no network ran
+  // signOut() — clearing the stored session — then failed to sign in and threw. A
+  // guest's whole vocabulary is keyed to that anonymous uid.
+
+  it("keeps the stored session when the server is UNREACHABLE (never signs out)", async () => {
+    stub.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "guest-offline", email: "" } } },
+      error: null,
+    });
+    stub.auth.getUser.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    expect(await ensureSession()).toBe("guest-offline");
+    expect(stub.auth.signOut).not.toHaveBeenCalled();
+    expect(stub.auth.signInAnonymously).not.toHaveBeenCalled();
+  });
+
+  it("treats a RETRYABLE fetch error as unreachable, not as a rejection", async () => {
+    stub.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "guest-offline" } } },
+      error: null,
+    });
+    // supabase-js surfaces a dropped connection as this, with no HTTP status.
+    stub.auth.getUser.mockResolvedValue({
+      data: { user: null },
+      error: { name: "AuthRetryableFetchError", message: "Failed to fetch" },
+    });
+
+    expect(await ensureSession()).toBe("guest-offline");
+    expect(stub.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it("skips the profile upsert while offline (it can wait for reconnect)", async () => {
+    stub.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: "guest-offline", email: "" } } },
+      error: null,
+    });
+    stub.auth.getUser.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await ensureSession();
+    // Upserting here would fail the boot on a row that already exists.
+    expect(stub.callsFor("users", "upsert")).toHaveLength(0);
+  });
+
+  it("still signs in fresh when offline AND there is no stored session", async () => {
+    // Nothing to preserve, so the normal path runs — and correctly fails.
+    stub.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    stub.auth.signInAnonymously.mockResolvedValue({
+      data: { user: null },
+      error: new Error("Failed to fetch"),
+    });
+    await expect(ensureSession()).rejects.toThrow();
+  });
+
   it("synthesizes a unique guest email when the anon email is EMPTY STRING (not null)", async () => {
     // Supabase anonymous users carry email "" — must still synthesize, else every
     // guest collides on the users_email unique constraint (23505).
-    stub.auth.getUser.mockResolvedValue({ data: { user: { id: "guest-2", email: "" } } });
+    storedSession({ id: "guest-2", email: "" });
     stub.queueFrom("users", { data: null, error: null });
 
     await ensureSession();
