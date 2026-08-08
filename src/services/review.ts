@@ -22,12 +22,37 @@ import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
 import { type UserWord } from "./words/userWords";
 import type { LangCode } from "./language";
+import { offlineStore } from "./offline/store";
+import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
+import { enqueue, newId } from "./offline/queue";
+import { loadDeck, saveDeck } from "./offline/deck";
 
 /** 1–5 self-rated recall (1 = forgot … 5 = easy). No separate "again". */
 export const REVIEW_GRADES = [1, 2, 3, 4, 5] as const;
 export type ReviewGrade = (typeof REVIEW_GRADES)[number];
 
 const MS_PER_DAY = 86_400_000;
+
+/**
+ * Did the request fail because the server was UNREACHABLE, as opposed to answering
+ * with a refusal?
+ *
+ * The same distinction `probeSession` draws in session.ts, and it matters for the same
+ * reason: only an unreachable server may fall back to the offline path. A server that
+ * answered "no" — an invalid grade, a word that isn't yours, an RLS denial — must
+ * surface, or the queue would retry a permanent failure forever and the reader would
+ * silently deal cards from a stale deck instead of showing the error.
+ *
+ * PostgREST errors carry a SQLSTATE `code`; a dropped connection is a bare TypeError
+ * from fetch with none. Anything that reached the database is a verdict.
+ */
+function isUnreachable(error: unknown): boolean {
+  if (error instanceof TypeError) return true; // fetch itself failed
+  const e = error as { code?: string; status?: number; message?: string } | null;
+  if (!e) return false;
+  if (e.code || (typeof e.status === "number" && e.status > 0)) return false;
+  return /fetch|network|offline|connection/i.test(e.message ?? "");
+}
 
 /**
  * Current recall probability R(t) ∈ [0,1] = exp(-Δdays / stability).
@@ -97,10 +122,22 @@ export async function getReviewQueue(params: {
     // undefined → no restriction; [] → matches nothing.
     p_user_word_ids: params.userWordIds ?? undefined,
   });
-  if (error) throw toServiceError(error);
+  if (error) {
+    // Unreachable → deal from the cached deck. Any other error is a real failure and
+    // must surface: an offline fallback that swallowed, say, an RLS denial would show
+    // a stale session's cards instead of an error.
+    if (isUnreachable(error)) {
+      const cached = await loadDeck(offlineStore(), {
+        userId: params.userId,
+        listId: params.listId ?? null,
+      });
+      if (cached) return cached.items.slice(0, Math.max(0, params.limit));
+    }
+    throw toServiceError(error);
+  }
 
   const rows = (data ?? []) as ReviewQueueRow[];
-  return rows.map((r) => ({
+  const items = rows.map((r) => ({
     userWordId: r.user_word_id,
     userId: r.user_id,
     input: r.input,
@@ -126,6 +163,45 @@ export async function getReviewQueue(params: {
     exampleReading: null,
     retrievability: r.retrievability,
   }));
+
+  // Cache the deck for a later offline session, anchored to the SERVER's clock so an
+  // offline grade can be timestamped without ever reading the device's (see clock.ts).
+  // Best-effort: a storage failure must not fail a review that is working fine online.
+  //
+  // Only the UNRESTRICTED queue is cached. An explicit `userWordIds` set is the Lists
+  // filtered-subset path — a transient selection, not the session someone would come
+  // back to offline, and caching it would let a stale filter deal the wrong cards.
+  if (params.userWordIds === undefined) {
+    try {
+      const anchor = anchorAt(await serverTime());
+      setAnchor(anchor); // in-memory; see the note in clock.ts on why it isn't persisted
+      await saveDeck(offlineStore(), {
+        userId: params.userId,
+        listId: params.listId ?? null,
+        anchor,
+        items,
+      });
+    } catch {
+      /* deck caching is an enhancement; never fail the online path for it */
+    }
+  }
+  return items;
+}
+
+/**
+ * The server's clock, for anchoring offline timestamps (migration 20260757).
+ *
+ * One extra round-trip per DECK FETCH — not per card — which buys the property the
+ * whole offline-timestamp design rests on: the anchor is the server's instant, so a
+ * device whose clock is simply wrong cannot poison the reviews measured from it.
+ *
+ * Falls back to local time if the call fails. That costs accuracy, never correctness:
+ * record_review clamps whatever it is given to [last_reviewed_date, now()].
+ */
+async function serverTime(): Promise<number> {
+  const { data, error } = await supabase.rpc("server_now");
+  const parsed = error || !data ? NaN : Date.parse(data as string);
+  return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
 /** The post-review mastery state returned by record_review(). */
@@ -137,20 +213,28 @@ export interface ReviewResult {
   confidenceRating: number;
   /** Server timestamp of this review. */
   lastReviewedDate: string;
+  /** True when the grade was QUEUED offline: the values above are the pre-review ones
+   *  and the real schedule lands on sync. Absent on the normal online path. */
+  queued?: boolean;
 }
 
 /**
- * Records one review. The schedule math (strength + confidence + now() + history log)
- * runs atomically in `record_review`, so the algorithm can be swapped server-side.
- * The word must belong to the caller (enforced by RLS in the RPC).
+ * Send a review to the server. ALWAYS hits the network and never queues — this is the
+ * raw write, used by `recordReview` below and by the offline drain (offline/sync.ts),
+ * which must not re-queue what it is replaying.
+ *
+ * `reviewedAt` names the instant the grade was given, for a replay. The server clamps
+ * it to [last_reviewed_date, now()] — see migration 20260757.
  */
-export async function recordReview(params: {
+export async function sendReview(params: {
   userWordId: string;
   grade: ReviewGrade;
+  reviewedAt?: string;
 }): Promise<ReviewResult> {
   const { data, error } = await supabase.rpc("record_review", {
     p_user_word_id: params.userWordId,
     p_grade: params.grade,
+    p_reviewed_at: params.reviewedAt ?? undefined,
   });
   if (error || !data) throw toServiceError(error, "Failed to record review");
 
@@ -167,4 +251,49 @@ export async function recordReview(params: {
     confidenceRating: row.confidence_rating,
     lastReviewedDate: row.last_reviewed_date,
   };
+}
+
+/**
+ * Records one review. The schedule math (strength + confidence + the clock + history
+ * log) runs atomically in `record_review`, so the algorithm can be swapped server-side.
+ * The word must belong to the caller (enforced by RLS in the RPC).
+ *
+ * OFFLINE: the grade is queued and replayed on reconnect, and the returned values are
+ * the card's PRE-review ones with `queued: true`. Deliberately not an optimistic
+ * guess — the real stability needs `srs_leveling`, which is revoked from clients
+ * (20260748), so any number invented here would be a different one from the server's
+ * and would have to be silently corrected later.
+ *
+ * Only a genuinely unreachable server queues. A rejection (an invalid grade, a word
+ * that isn't yours) throws as it always did — queueing it would hide a real bug and
+ * retry it forever.
+ */
+export async function recordReview(params: {
+  userWordId: string;
+  grade: ReviewGrade;
+  /** The card as displayed, so a queued grade can echo its current state back. */
+  current?: { stability: number | null; confidenceRating: number; lastReviewedDate: string | null };
+}): Promise<ReviewResult> {
+  try {
+    return await sendReview(params);
+  } catch (e) {
+    if (!isUnreachable(e)) throw e;
+
+    const store = offlineStore();
+    const stamp = stampFor(getAnchor());
+    await enqueue(store, {
+      id: newId(),
+      userWordId: params.userWordId,
+      grade: params.grade,
+      reviewedAt: stamp.reviewedAt,
+      approx: stamp.approx,
+    });
+    return {
+      userWordId: params.userWordId,
+      stability: params.current?.stability ?? 0,
+      confidenceRating: params.current?.confidenceRating ?? 0,
+      lastReviewedDate: params.current?.lastReviewedDate ?? stamp.reviewedAt,
+      queued: true,
+    };
+  }
 }
