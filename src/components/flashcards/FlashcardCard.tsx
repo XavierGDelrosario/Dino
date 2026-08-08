@@ -50,8 +50,19 @@ function fitToWidth(text: string, max: number, min: number, fits: number) {
 
 // Column budgets: how much text each face holds at full size before it shrinks.
 // Tuned against the narrowest supported card (a phone at 320px).
-const TERM_MAX = 2.4, TERM_MIN = 1.15, TERM_FITS = 9;
-const MEANING_MAX = 1.4, MEANING_MIN = 0.95, MEANING_FITS = 26;
+//
+// The MAXes grew with the card (min-height 220 → 264px) — that height was added to be
+// read at, not to sit empty. Note what raising a MAX does: past its column budget the
+// size is (max * fits / cols), so it scales the SHRUNK sizes too, not just short text.
+// That is why the MINs moved with them, and why the budgets themselves did NOT: those
+// are about WIDTH, and the card is no wider than before. At 2.9rem the 9-column term
+// budget is ~4.5 CJK glyphs ≈ 209px, still inside the ~253px a 320px phone gives.
+//
+// .flashcard__term / .flashcard__translation in flashcards.css carry these same two
+// MAXes as their base size (the inline style only appears once text overflows its
+// budget) — change one and change the other, or short cards and long ones disagree.
+const TERM_MAX = 2.9, TERM_MIN = 1.3, TERM_FITS = 9;
+const MEANING_MAX = 1.65, MEANING_MIN = 1.05, MEANING_FITS = 26;
 
 /** The minimal face a card renders — satisfied by both a ReviewQueueItem (a saved
  *  UserWord) and a dictionary Word (the text-quiz path), so the card is reused.

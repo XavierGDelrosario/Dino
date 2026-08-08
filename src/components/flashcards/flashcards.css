@@ -434,8 +434,10 @@
   border-color: var(--accent);
 }
 
+/* Base size for text INSIDE its column budget; longer text gets an inline size from
+   fitToWidth instead. Must equal TERM_MAX in FlashcardCard.tsx. */
 .flashcard__term {
-  font-size: 2.4rem;
+  font-size: 2.9rem;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -451,12 +453,13 @@
 }
 
 .flashcard__reading {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: var(--accent);
 }
 
+/* Must equal MEANING_MAX in FlashcardCard.tsx (see .flashcard__term). */
 .flashcard__translation {
-  font-size: 1.4rem;
+  font-size: 1.65rem;
 }
 
 .flashcard__hint {
