@@ -62,6 +62,41 @@ describe("makeSearchMatcher", () => {
   });
 });
 
+// ROMAJI: the same search by sound, typed on a keyboard with no kana. The point of the
+// feature — you cannot type 猫 without an IME, and you may not know ねこ yet either.
+describe("makeSearchMatcher — romaji", () => {
+  it("finds a word by its reading typed in romaji", () => {
+    expect(matches("neko", [NEKO, INU])).toEqual(["猫"]);
+    expect(matches("inu", [NEKO, INU])).toEqual(["犬"]);
+    expect(matches("ganbaru", [NEKO, CUSTOM])).toEqual(["頑張る"]);
+  });
+
+  it("matches a kana HEADWORD too (ラーメン ← ramen), not just a reading", () => {
+    expect(matches("ra-men", [NEKO, RAMEN])).toEqual(["ラーメン"]); // hyphen = ー
+  });
+
+  // The gate: one kana matches a huge share of a vocabulary, and English function words
+  // are all valid romaji. Keyed on the RESULT length, not the input length.
+  it("ignores a query that converts to a SINGLE kana (no · to · wa · ka)", () => {
+    // A meaning without the query in it, so only the reading path could match.
+    const NOMU = word({ input: "飲む", translation: "drink", inputReading: "のむ" });
+    expect(matches("no", [NOMU])).toEqual([]);
+    expect(matches("wa", [NOMU])).toEqual([]);
+  });
+
+  it("leaves ordinary English alone — it never converts, so the path is inert", () => {
+    expect(matches("cat", [NEKO, INU])).toEqual(["猫"]); // by MEANING, as before
+    expect(matches("hello", [NEKO, INU])).toEqual([]);
+  });
+
+  // Deliberately not matched against meanings: "same" is valid romaji (さめ), and
+  // searching English meanings with it too would drag in every word defined with "same".
+  it("does not apply the romaji form to meanings", () => {
+    const SAMENESS = word({ input: "同一", translation: "the same thing", inputReading: "どういつ" });
+    expect(matches("same", [SAMENESS])).toEqual(["同一"]); // literal meaning hit only
+  });
+});
+
 describe("isKanaOnly", () => {
   it("is true for hiragana, katakana, and the ー mark", () => {
     expect(isKanaOnly("ねこ")).toBe(true);

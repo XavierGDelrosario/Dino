@@ -291,7 +291,16 @@ export function TranslateView({
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
+          {/* ONE RAIL down the right edge: the modality tools at the top, read-aloud at
+              the bottom, laid out by flexbox rather than by two absolute corners whose
+              gap had to be computed. Sizing the box to fit both stacks kept ALMOST
+              working — the sum was right and the button still landed under the speaker
+              — so this stops depending on the sum at all. Items in a flex column are
+              laid out sequentially and cannot paint over one another, whatever the
+              button count, rem base or rounding. The box's min-height now only decides
+              how much AIR sits between the two groups. */}
+          <div className="io__rail">
+            {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
             <div className="io__tools">
               {/* Order: clear · draw · mic · picture. Clear first because it acts on
                   what's already there; then the three ways to PUT something in, in
@@ -365,14 +374,12 @@ export function TranslateView({
                 </>
               )}
             </div>
-          )}
-          {/* Read-aloud sits BOTTOM-right, clear of the top-right modality tools —
-              flush, matching the output box (the textarea's resize grip, which used
-              to own this corner, is gone; see .textarea in translate.css). The input is
-              spoken in the language of the INPUT ITSELF, since "auto-detect" is not a
-              voice — see speakLang. */}
-          <div className="io__speak">
-            <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
+            )}
+            {/* Bottom of the rail. The input is spoken in the language of the INPUT
+                ITSELF, since "auto-detect" is not a voice — see speakLang. */}
+            <div className="io__speak">
+              <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
+            </div>
           </div>
         </div>
         <div className="translate__outwrap">

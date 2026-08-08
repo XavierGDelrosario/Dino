@@ -372,10 +372,16 @@
        + 0.4rem so they never touch
      `n` is --io-tools, set by TranslateView from the buttons it actually renders (1 on
      web with just Clear, 5 on native). 8rem stays the floor so a bare box is never
-     cramped. Adding a modality now widens the box automatically — but the constants
-     above must stay in step with .io__tool/.io__tools/.io__speak. */
+     cramped. Adding a modality now grows the box automatically — but the constants
+     above must stay in step with .io__tool/.io__tools/.io__speak.
+
+     ‼️ The last term is 1rem of HEADROOM, not decoration. It was 0.4rem, which made the
+     sum exactly equal to the space needed at five buttons — and an exact fit is one
+     rounded pixel away from an overlap, which is precisely what put the photo-library
+     button under the speaker. The column no longer wraps as a fallback, so this slack
+     IS the guarantee: keep it. */
   --io-tool-stack: calc(
-    var(--io-tools, 1) * 2rem + (var(--io-tools, 1) - 1) * 0.35rem + 0.4rem + 2.4rem + 0.4rem
+    var(--io-tools, 1) * 2rem + (var(--io-tools, 1) - 1) * 0.35rem + 0.4rem + 2.4rem + 1.4rem
   );
   min-height: max(8rem, var(--io-tool-stack));
   /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
@@ -822,25 +828,32 @@ textarea.translate__box::-webkit-scrollbar {
 
 /* Input modality tools, pinned to the input box's top-right corner (pencil now;
    speech + camera will sit alongside). */
-.io__tools {
+/* The right-hand RAIL of the input box: modality tools at the top, read-aloud at the
+   bottom, in ONE flex column.
+
+   Why a rail and not two pinned corners. The tools were absolute at top-right and
+   read-aloud absolute at bottom-right, so keeping them apart meant keeping the box
+   taller than the sum of both stacks — arithmetic that was right and STILL produced a
+   photo-library button sitting under the speaker, three reports running. Flex items are
+   laid out sequentially and cannot overlap each other, so the guarantee is now
+   structural: the box's min-height only decides how much air sits between the groups,
+   and being wrong about it costs a cramped gap, never a hidden control. */
+.io__rail {
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
-  /* HARD FLOOR, so the column can never reach read-aloud. .translate__box's min-height
-     already sizes the box to fit both stacks, but that arithmetic left ZERO slack at
-     five buttons (14.6rem needed, 14.6rem given), so a single rounded pixel put the
-     last tool — the photo library — under the speaker. Bounding the column instead of
-     trusting the sum makes the overlap impossible rather than merely unlikely:
-     2.4rem of read-aloud + 0.4rem of air. */
-  bottom: 2.8rem;
+  bottom: 0.4rem;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  /* …and if the buttons ever DO outgrow that height, they wrap into a second column to
-     the LEFT (wrap-reverse, in a column flow) instead of overflowing downward. A tool
-     that moves sideways is findable; one hidden behind another is not. */
-  flex-wrap: wrap-reverse;
-  align-content: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.io__tools {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
   gap: 0.35rem;
 }
 
@@ -853,6 +866,11 @@ textarea.translate__box::-webkit-scrollbar {
   right: 0.4rem;
   bottom: 0.4rem;
   z-index: 2;
+}
+
+/* …except inside the rail, where the column places it. */
+.io__rail .io__speak {
+  position: static;
 }
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors

@@ -34,6 +34,13 @@ describe("toHiragana", () => {
     expect(toHiragana("honn")).toBe("ほん"); // …except at the very end
   });
 
+  it("maps a hyphen to the ー長音 mark, so loanwords are reachable", () => {
+    // Readings store ー (ラーメン → らーめん), so without this no katakana word could be
+    // found from romaji at all.
+    expect(toHiragana("ra-men")).toBe("らーめん");
+    expect(toHiragana("ko-hi-")).toBe("こーひー");
+  });
+
   it("handles the っ sokuon", () => {
     expect(toHiragana("kitte")).toBe("きって");
     expect(toHiragana("gakkou")).toBe("がっこう");

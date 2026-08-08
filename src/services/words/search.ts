@@ -7,10 +7,12 @@
 // the case that makes a Japanese vocabulary searchable at all — its READING (ねこ). You
 // cannot type 猫 without an IME and the kanji in front of you; kana you can always type.
 //
-// Reading matching is gated on the query being KANA-ONLY. That gate is what keeps the
-// results honest: an English query like "no" would otherwise hit every word whose reading
-// merely contains の, burying the real hits. Kana in, readings searched; anything else,
-// headword + meaning only.
+// Reading matching is gated on the query being KANA-ONLY — or clean ROMAJI, which is the
+// same search by sound typed on a keyboard that has no kana: "neko" finds 猫 exactly as
+// ねこ does. That gate is what keeps the results honest: an English query like "no" would
+// otherwise hit every word whose reading merely contains の, burying the real hits.
+// Sound in, readings searched; anything else, headword + meaning only.
+import { toHiragana } from "../language";
 import type { LangCode } from "../language";
 
 /** The word-like shape search reads (a UserWord satisfies it). */
@@ -53,6 +55,19 @@ export function makeSearchMatcher(query: string): (word: SearchTarget) => boolea
 
   const kana = isKanaOnly(q);
   const qFolded = foldKana(q);
+  // The kana a ROMAJI query stands for, or null.
+  //
+  // Gated on the RESULT being at least two kana, not on the input length — that is the
+  // axis that decides noise. English function words are valid romaji ("no" → の, "to" →
+  // と, "wa" → わ, "ka" → か), and one kana matches a huge share of a Japanese
+  // vocabulary: the spec here pins "no" not hitting 飲む, which is precisely the case
+  // the reading gate exists to prevent. Two kana up ("neko" → ねこ, "inu" → いぬ) the
+  // query is specific enough to mean what it looks like.
+  //
+  // A kana query is left alone (it is already a sound search), and toHiragana is
+  // all-or-nothing, so ordinary English ("cat", "hello") yields null and never gets here.
+  const romajiKana = !kana ? toHiragana(q) : null;
+  const romaji = romajiKana && romajiKana.length >= 2 ? romajiKana : null;
 
   return (w) => {
     if (normalize(w.input).includes(q)) return true;
@@ -62,6 +77,11 @@ export function makeSearchMatcher(query: string): (word: SearchTarget) => boolea
     // A kana query should also match a kana/katakana HEADWORD written in the other script
     // (ラーメン ← らーめん), which the raw includes() above misses.
     if (kana && foldKana(normalize(w.input)).includes(qFolded)) return true;
+    // Romaji: the same two surfaces as a kana query — reading, then a kana headword.
+    // Deliberately NOT the meaning: "same" is valid romaji (さめ) and matching it against
+    // English meanings too would pull in every word defined with the word "same".
+    if (romaji && w.inputReading && foldKana(w.inputReading).includes(romaji)) return true;
+    if (romaji && foldKana(normalize(w.input)).includes(romaji)) return true;
     return false;
   };
 }

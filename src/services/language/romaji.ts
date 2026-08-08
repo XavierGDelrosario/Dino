@@ -72,8 +72,15 @@ export function toHiragana(input: string): string | null {
   while (i < src.length) {
     const ch = src[i];
 
-    // An apostrophe/hyphen only ever disambiguates ん (hon'ya) — it maps to nothing.
-    if (ch === "'" || ch === "-") {
+    // An apostrophe only disambiguates ん (hon'ya) — it maps to nothing.
+    if (ch === "'") {
+      i += 1;
+      continue;
+    }
+    // A hyphen is the ー長音 mark, which is how a loanword is typed (ra-men → らーめん).
+    // Readings store ー, so without this no katakana word is reachable from romaji.
+    if (ch === "-") {
+      out += "ー";
       i += 1;
       continue;
     }
