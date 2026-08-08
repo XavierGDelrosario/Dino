@@ -253,3 +253,31 @@ export async function findWordTranslationsBatch(params: {
   }
   return byWord;
 }
+
+/**
+ * Dictionary senses BY ID — for surfaces that hold a `word_id` and need to show what
+ * it means (the admin quality panel, which stores the exact sense a user flagged).
+ *
+ * OUTPUT: Map keyed by wordId; ids with no row are simply absent.
+ * CONSTRAINTS: reads verified rows through RLS like every other client read. NOT
+ * projection-gated (no FRESH filter): the caller wants to see the row that was
+ * REPORTED, even — especially — if it is stale. A staleness filter here would blank
+ * the report that told us the row was wrong.
+ */
+export async function findWordsByIds(wordIds: string[]): Promise<Map<string, Word>> {
+  const unique = [...new Set(wordIds.filter(Boolean))];
+  const out = new Map<string, Word>();
+  if (unique.length === 0) return out;
+
+  const chunks = chunkForUrlFilter(unique);
+  const rows = await mapLimit(chunks, URL_FILTER_CONCURRENCY, async (ids) => {
+    const { data, error } = await supabase
+      .from("words")
+      .select<string, WordRow>("*")
+      .in("word_id", ids);
+    if (error) throw toServiceError(error);
+    return data ?? [];
+  });
+  for (const row of rows.flat()) out.set(row.word_id, toWord(row));
+  return out;
+}

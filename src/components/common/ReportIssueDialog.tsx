@@ -77,6 +77,18 @@ export function ReportIssueDialog({
         aria-label={t("report.title")}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* ✕ rather than a Cancel button: backing out is not a decision worth a
+            labelled control next to Send, and the corner is where a dismiss is looked
+            for. Escape and a backdrop click still work. */}
+        <button
+          type="button"
+          className="iconbtn reportdlg__close"
+          onClick={onClose}
+          aria-label={t("common.close")}
+          title={t("common.close")}
+        >
+          ✕
+        </button>
         <h3 className="reportdlg__title">{t("report.title")}</h3>
         <p className="reportdlg__target" title={input}>{input}</p>
 
@@ -94,12 +106,11 @@ export function ReportIssueDialog({
               rows={4}
             />
             <ErrorText message={error} />
+            {/* One action, centred — with Cancel gone there is nothing to balance it
+                against, and a lone right-aligned button reads as unfinished.
+                Enabled with an empty box on purpose (see the header). */}
             <div className="reportdlg__actions">
-              <button type="button" className="btn btn--ghost btn--sm" onClick={onClose} disabled={busy}>
-                {t("common.cancel")}
-              </button>
-              {/* Enabled with an empty box on purpose — see the header. */}
-              <button type="button" className="btn btn--sm" onClick={() => void send()} disabled={busy}>
+              <button type="button" className="btn" onClick={() => void send()} disabled={busy}>
                 {busy ? "…" : t("report.send")}
               </button>
             </div>

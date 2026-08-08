@@ -399,6 +399,26 @@
   border: 1px solid var(--border);
 }
 
+/* A USER-filed report. Coloured (the brand accent, not a warning red) because these
+   are the ones worth reading first: someone hit the problem while actually studying,
+   and they usually arrive with no description to skim. An admin note keeps the plain
+   badge — it was deliberate, and the admin already knows it exists. */
+.admin__badge--user {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* The reported SENSE under its headword — secondary to the word, and clamped, since a
+   meaning list can be long ("to be able to do; to be possible; to be permitted…"). */
+.admin__sense {
+  display: block;
+  margin-top: 0.15rem;
+  max-width: 22ch;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .admin__badge--ok {
   background: rgba(94, 196, 122, 0.14);
   color: #7ddb9b;

@@ -183,13 +183,24 @@ export async function listGrants(email?: string): Promise<FeatureGrant[]> {
  */
 export type QualityStatus = "open" | "resolved";
 
+/** Who filed a report. An admin types one into this panel; a USER taps the flag on a
+ *  word in the reader or under a flashcard (migration 20260757). Same queue, because it
+ *  is the same observation — but the two are triaged with very different priors. */
+export type QualityReportSource = "admin" | "user";
+
 /** One translation-quality report: the input that was translated + what was wrong. */
 export interface QualityReport {
   id: number;
   reportedAt: string;
   reportedBy: string | null;
   input: string;
-  description: string;
+  /** NULL for a user report filed with no note — which is the common case, and the
+   *  reason the flag is worth having: the word itself is the signal. */
+  description: string | null;
+  source: QualityReportSource;
+  /** The exact sense reported, when the surface knew it. Null for an admin note typed
+   *  as free text, and for a reader report on a word with several senses. */
+  dictionaryWordId: string | null;
   status: QualityStatus;
   /** When it was completed; null while open. */
   resolvedAt: string | null;
@@ -232,6 +243,8 @@ export async function listQualityReports(filter: QualityReportFilter = {}): Prom
     reportedBy: r.reported_by,
     input: r.input,
     description: r.description,
+    source: r.source === "user" ? "user" : "admin",
+    dictionaryWordId: r.dictionary_word_id,
     status: r.status === "resolved" ? "resolved" : "open",
     resolvedAt: r.resolved_at,
     resolvedBy: r.resolved_by,

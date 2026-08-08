@@ -11,15 +11,6 @@
   color: var(--text);
 }
 
-/* The quiz flag sits BELOW the card, hard left — clear of the grade bar (centred) and
-   of the card corners, which already carry info / listen / add. Its own row so it
-   cannot collide with the meaning-cycle arrows on a multi-sense card. */
-.quizreport {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 0.35rem;
-}
-
 /* Centred on the SCREEN, not on whatever opened it: the reader's popover is pinned to
    a word near the edge of the text and a flashcard sits mid-page, so anchoring to the
    trigger would put the dialog somewhere different (and sometimes off-screen) each
@@ -39,6 +30,7 @@
 }
 
 .reportdlg__panel {
+  position: relative; /* anchor for .reportdlg__close */
   width: min(26rem, 100%);
   display: flex;
   flex-direction: column;
@@ -49,7 +41,21 @@
   border-radius: var(--radius);
 }
 
+.reportdlg__close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.55rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.reportdlg__close:hover,
+.reportdlg__close:focus-visible {
+  color: var(--text);
+}
+
 .reportdlg__title {
+  padding-right: 1.5rem; /* clear of the ✕ */
   margin: 0;
   font-size: 1.05rem;
 }
@@ -73,8 +79,7 @@
 
 .reportdlg__actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  justify-content: center;
 }
 
 .reportdlg__sent {

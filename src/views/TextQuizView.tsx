@@ -164,6 +164,9 @@ export function TextQuizView({
           flipped={q.flipped}
           onFlip={q.flip}
           reversed={flip.reversed}
+          // Bottom-left of the card. Reports the exact SENSE being shown — the meaning
+          // is what a quiz card is about, so a wrong one is the likeliest thing to flag.
+          flag={<ReportFlagButton input={card.input} wordId={card.wordId} size={15} />}
           // Swipe to cycle meanings — same gate as the arrows (revealed + >1 sense).
           // Left = next, right = previous.
           onSwipeLeft={q.hasMultipleMeanings && q.flipped ? q.nextMeaning : undefined}
@@ -207,15 +210,6 @@ export function TextQuizView({
           </div>
         )}
       </div>
-      </div>
-
-      {/* Report a problem with THIS card, bottom-left under it. Outside the card on
-          purpose: inside, it would be one more thing competing with the answer during
-          a recall test, and the card already owns its top corners (info, listen, add).
-          Reports the exact SENSE being shown — the meaning is what a quiz card is
-          about, so a wrong one is the likeliest thing to report. */}
-      <div className="quizreport">
-        <ReportFlagButton input={card.input} wordId={card.wordId} size={15} />
       </div>
 
       {/* "Show in context" — the sentence(s) this word came from, under the card.

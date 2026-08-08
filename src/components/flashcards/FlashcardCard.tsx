@@ -75,6 +75,7 @@ export function FlashcardCard({
   onSwipeRight,
   reversed = false,
   action,
+  flag,
 }: {
   word: CardFace;
   flipped: boolean;
@@ -86,6 +87,10 @@ export function FlashcardCard({
   reversed?: boolean;
   /** Optional node pinned to the card's top-right (e.g. an add-to-list button). */
   action?: ReactNode;
+  /** Bottom-left corner — the report flag. A slot rather than a hardcoded button so
+   *  the card stays a pure presentation component and the quiz views keep deciding
+   *  WHAT is being reported (the shown sense). */
+  flag?: ReactNode;
 }) {
   const { t } = useI18n();
   // Track the touch start so touchend can classify it as a horizontal swipe.
@@ -152,6 +157,16 @@ export function FlashcardCard({
             />
           )}
           {action}
+        </span>
+      )}
+
+      {/* Bottom-left: report this card. Its own corner, away from the three tools at
+          the top — reporting is not part of studying, and it must not sit under a
+          thumb that is reaching for reveal/grade. Stops propagation so it never flips
+          the card (the ＋ and listen buttons above do the same). */}
+      {flag && (
+        <span className="flashcard__flag" onClick={(e) => e.stopPropagation()}>
+          {flag}
         </span>
       )}
 

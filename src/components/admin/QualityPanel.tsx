@@ -6,7 +6,14 @@
 // Each report carries a STATUS so a fixed one can be checked off: the list defaults
 // to what's still OPEN, and resolving a row removes it from that default view (it is
 // never deleted — "Resolved"/"All" still show it, and it can be reopened).
-import { useState } from "react";
+//
+// Since 20260757 it is NOT only the admin's notebook: users file reports too, by
+// tapping the flag on a word in the reader or under a flashcard. Those arrive in the
+// same queue and are marked `user`, usually with NO description — the word itself is
+// the signal, and requiring prose would have lost most of them. So the panel has to
+// answer "who said this" and "which SENSE did they mean" without a note to read, which
+// is what the Source and Word columns are for.
+import { useEffect, useState } from "react";
 import {
   listQualityReports,
   reportQualityIssue,
@@ -14,6 +21,7 @@ import {
   type QualityReport,
   type QualityStatus,
 } from "../../services/admin";
+import { findWordsByIds, type Word } from "../../services/words/repository";
 import { errorMessage } from "../../lib/errorMessage";
 import { AdminPanel, AdminStatus } from "./AdminPanel";
 import { useAdminResource } from "./useAdminResource";
@@ -31,6 +39,23 @@ export function QualityPanel() {
     () => listQualityReports({ status: VIEWS[view].status }),
     [view],
   );
+
+  // The senses behind dictionary_word_id, so a report shows the MEANING that was
+  // flagged rather than an opaque id. One batched read per page of reports; failure is
+  // non-fatal (the row still renders, just without the meaning) because a triage list
+  // must not go blank over a decoration.
+  const [senses, setSenses] = useState<Map<string, Word>>(new Map());
+  useEffect(() => {
+    const ids = (reports ?? []).map((r) => r.dictionaryWordId).filter((id): id is string => !!id);
+    if (ids.length === 0) return;
+    let live = true;
+    findWordsByIds(ids)
+      .then((m) => live && setSenses(m))
+      .catch((e) => console.warn("QualityPanel: failed to resolve reported senses", e));
+    return () => {
+      live = false;
+    };
+  }, [reports]);
 
   const [input, setInput] = useState("");
   const [description, setDescription] = useState("");
@@ -136,12 +161,14 @@ export function QualityPanel() {
         <div className="admin__tablewrap">
         <table className="admin__table">
           <thead>
-            <tr><th>When</th><th>Input</th><th>Description</th><th>Status</th><th /></tr>
+            <tr>
+              <th>When</th><th>Source</th><th>Word</th><th>Description</th><th>Status</th><th />
+            </tr>
           </thead>
           <tbody>
             {reports.length === 0 && (
               <tr>
-                <td colSpan={5} className="admin__muted">
+                <td colSpan={6} className="admin__muted">
                   {VIEWS[view].status === "open"
                     ? "Nothing open. 🎉"
                     : "No quality reports yet."}
@@ -152,11 +179,31 @@ export function QualityPanel() {
               <tr key={r.id}>
                 <td className="admin__nowrap">{formatDateTime(r.reportedAt)}</td>
                 <td>
+                  {/* Provenance drives triage: a user report is one person hitting a
+                      real problem while reading, an admin note is a deliberate test. */}
+                  <span
+                    className={`admin__badge${r.source === "user" ? " admin__badge--user" : ""}`}
+                    title={r.reportedBy ?? undefined}
+                  >
+                    {r.source}
+                  </span>
+                </td>
+                <td>
                   {/* A reported input can be a whole sentence — clamp it, keep the
                       description as the column that's allowed to wrap. */}
                   <span className="admin__bucket admin__truncate" title={r.input}>{r.input}</span>
+                  {/* The exact SENSE, when the reporter's surface knew it. This is the
+                      difference between "辛い is wrong" and "辛い/spicy is wrong", and
+                      with no description it is often the only detail there is. */}
+                  {r.dictionaryWordId && (
+                    <span className="admin__sense admin__truncate" title={r.dictionaryWordId}>
+                      {senses.get(r.dictionaryWordId)?.translation ?? "(sense no longer cached)"}
+                    </span>
+                  )}
                 </td>
-                <td className="admin__wrap">{r.description}</td>
+                <td className="admin__wrap">
+                  {r.description ?? <span className="admin__muted">—</span>}
+                </td>
                 <td>
                   {r.status === "resolved" ? (
                     <span
