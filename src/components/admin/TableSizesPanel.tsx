@@ -33,26 +33,28 @@ export function TableSizesPanel() {
             <div className={`admin__bar-fill${near ? " admin__bar-fill--warn" : ""}`} style={{ width: `${pct}%` }} />
           </div>
 
-          <table className="admin__table">
-            <thead>
-              <tr>
-                <th>Table</th>
-                <th className="admin__num">Total</th>
-                <th className="admin__num">Indexes</th>
-                <th className="admin__num">Rows (est.)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.tableName}>
-                  <td className="admin__bucket">{r.tableName}</td>
-                  <td className="admin__num">{formatBytes(r.totalBytes)}</td>
-                  <td className="admin__num">{formatBytes(r.totalBytes - r.tableBytes)}</td>
-                  <td className="admin__num">{formatCount(r.rowEstimate)}</td>
+          <div className="admin__tablewrap">
+            <table className="admin__table">
+              <thead>
+                <tr>
+                  <th>Table</th>
+                  <th className="admin__num">Total</th>
+                  <th className="admin__num">Indexes</th>
+                  <th className="admin__num">Rows (est.)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.tableName}>
+                    <td className="admin__bucket">{r.tableName}</td>
+                    <td className="admin__num">{formatBytes(r.totalBytes)}</td>
+                    <td className="admin__num">{formatBytes(r.totalBytes - r.tableBytes)}</td>
+                    <td className="admin__num">{formatCount(r.rowEstimate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </AdminPanel>

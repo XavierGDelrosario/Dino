@@ -55,10 +55,37 @@ describe("useReview", () => {
       await result.current.grade(4);
     });
 
-    expect(mockRecord).toHaveBeenCalledWith({ userWordId: firstId, grade: 4 });
+    // `current` carries the card's pre-review state so a grade taken OFFLINE can echo
+    // it straight back — the queued path can't compute a new stability (srs_leveling is
+    // server-only), so it reports the old values rather than inventing a schedule.
+    expect(mockRecord).toHaveBeenCalledWith({
+      userWordId: firstId,
+      grade: 4,
+      current: { stability: null, confidenceRating: 0, lastReviewedDate: null },
+    });
     expect(result.current.position).toBe(2);
     expect(result.current.reviewedCount).toBe(1);
     expect(result.current.status).toBe("reviewing");
+  });
+
+  it("counts a QUEUED grade as pending but still advances the session", async () => {
+    // With no network the grade is stored on the device and resolves as `queued`, so
+    // the card is done from the user's point of view — the session must not stall.
+    mockQueue.mockResolvedValue([item("a"), item("b")]);
+    mockRecord.mockResolvedValue({
+      userWordId: "a", stability: 0, confidenceRating: 0, lastReviewedDate: "", queued: true,
+    });
+    const { result } = renderHook(() => useReview("user-1"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    await act(async () => {
+      await result.current.grade(3);
+    });
+
+    expect(result.current.pendingCount).toBe(1);
+    expect(result.current.reviewedCount).toBe(1);
+    expect(result.current.position).toBe(2);
+    expect(result.current.error).toBeNull();
   });
 
   it("grading the last card finishes the session", async () => {

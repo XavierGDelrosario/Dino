@@ -10,7 +10,6 @@
 // =========================================================
 
 import type { LangCode } from "../language";
-import type { Word } from "../words/repository";
 import { proficiencyFrameworkFor } from "../proficiency";
 import {
   type Difficulty,
@@ -20,7 +19,16 @@ import {
   fromProficiencyBand,
 } from "./level";
 
-export type DifficultyResolver = (word: Word) => Difficulty;
+/** The fields difficulty reads — a dictionary `Word` OR a saved `UserWord` satisfies
+ *  it (UserWord carries no override; it's optional, so it resolves as "none"). */
+export interface DifficultyTarget {
+  sourceLang: LangCode;
+  difficultyOverride?: number | null;
+  proficiencyBand: number | null;
+  frequency: number | null;
+}
+
+export type DifficultyResolver = (word: DifficultyTarget) => Difficulty;
 
 // Zipf × 100 thresholds (higher = more common = easier): ≥500 → L1 (e.g. 行く 552,
 // 猫 505), ≥450 → L2, ≥400 → L3, ≥300 → L4, else L5 (rare/hard, e.g. 形而上学 256).
@@ -31,7 +39,7 @@ const ZIPF_BINS = [500, 450, 400, 300] as const;
  * has no band (or its language no framework). Reads the band straight off the Word +
  * the framework's band count; getProficiency (the LABEL resolver) isn't needed here.
  */
-function fromProficiency(w: Word): Difficulty | null {
+function fromProficiency(w: DifficultyTarget): Difficulty | null {
   const fw = proficiencyFrameworkFor(w.sourceLang);
   return fw ? fromProficiencyBand(w.proficiencyBand, fw.bands.length) : null;
 }
@@ -44,7 +52,7 @@ function fromProficiency(w: Word): Difficulty | null {
  * level (see docs/TODO leveling note), so a curated level wins wherever it exists.
  */
 const composedResolver: DifficultyResolver = (w) =>
-  fromOverride(w.difficultyOverride) ?? fromProficiency(w) ?? fromFrequency(w.frequency, ZIPF_BINS);
+  fromOverride(w.difficultyOverride ?? null) ?? fromProficiency(w) ?? fromFrequency(w.frequency, ZIPF_BINS);
 
 /**
  * Japanese (getDifficultyJapanese): identical to the default — the same precedence
@@ -84,7 +92,7 @@ export function resolveDifficultyResolver(sourceLang: LangCode): DifficultyResol
  * (Zipf is cross-language-comparable today, so one bin set serves all). PURE.
  */
 export function frequencyCommonness(
-  word: Pick<Word, "sourceLang" | "frequency">,
+  word: Pick<DifficultyTarget, "sourceLang" | "frequency">,
 ): LevelValue | null {
   return fromFrequency(word.frequency, ZIPF_BINS).level;
 }

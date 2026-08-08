@@ -38,6 +38,7 @@ export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
   秋: "あき",   // autumn          (not とき/しゅう)
   裏: "うら",   // back / reverse  (not うち/り)
   字: "じ",     // character       (not あざ)
+  市: "し",     // city            (not いち, the archaic "market"; tied at f=567)
 };
 
 /**

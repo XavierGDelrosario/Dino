@@ -1,45 +1,62 @@
-// =========================================================
-// Review / spaced repetition (READ ranking + the record-a-review write).
+// Review / spaced repetition: the READ ranking + the record-a-review write.
 //
-// The model is a CONTINUOUS forgetting curve, not an interval schedule. Each
-// user_word carries a `stability` (memory strength, in days); recall
-// probability at time t is the Ebbinghaus/Duolingo-HLR shape
-//   R(t) = exp(-Δdays / stability).
-// There is NO stored next-review date: the "review queue" is simply the user's
-// vocabulary ranked by CURRENT R ascending (least confident first). A scheduled
-// quiz is "give me the N least-confident words", never "these are due now".
+// A CONTINUOUS forgetting curve, not an interval schedule: each user_word carries a
+// `stability` (days) and R(t) = exp(-Δdays / stability). There is no stored due date.
 //
-// Split of responsibility:
-//   * retrievability()  — the pure decay formula (ranking, fully unit-tested).
-//   * getReviewQueue()  — ranks the vocabulary by live R (read).
-//   * recordReview()    — delegates the atomic, server-clocked state update to
-//                         the `record_review` Postgres function (write).
+// A session is dealt in two phases (migration 20260732 is the authority):
+//   DUE  — R ≤ 0.9, most-overdue first. Same line record_review freezes at, so a card
+//          the scheduler would learn nothing from is never dealt. Confidence 5 included.
+//   FILL — tops the session up from the NOT-due pool, shakiest first (never confidence
+//          5). Grading a fill card is frozen — practice, not evidence.
 //
-// The strength UPDATE math lives server-side in record_review() (one atomic,
-// now()-stamped read-modify-write — see the migration); this module only owns
-// the READ decay shape. The two share the exp(-Δ/S) curve — keep them in sync.
-// Swapping in the in-depth algorithm (FSRS) is a new function body + this
-// formula; the { userWordId, grade } contract below does not change.
-// =========================================================
+// The strength UPDATE math lives in record_review() server-side; this module owns only
+// the READ decay shape, and the two share exp(-Δ/S) — keep in sync. Swapping in FSRS is
+// a new function body, not a change to the { userWordId, grade } contract.
+//
+// Two server-side properties invisible here (migration 20260729): EASE (the user↔word
+// level gap scales stability growth) and FUZZ (every stability write is jittered so a
+// cohort doesn't come due together). retrievability() stays pure — it re-reads the
+// already-fuzzed stability.
 
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
 import { type UserWord } from "./words/userWords";
 import type { LangCode } from "./language";
+import { offlineStore } from "./offline/store";
+import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
+import { enqueue, newId } from "./offline/queue";
+import { loadDeck, saveDeck } from "./offline/deck";
 
-/** The per-review grade the UI sends: a 1–5 self-rated recall confidence
- *  (1 = forgot … 5 = easy). No separate "again" — a forgotten card is grade 1. */
+/** 1–5 self-rated recall (1 = forgot … 5 = easy). No separate "again". */
 export const REVIEW_GRADES = [1, 2, 3, 4, 5] as const;
 export type ReviewGrade = (typeof REVIEW_GRADES)[number];
 
 const MS_PER_DAY = 86_400_000;
 
 /**
- * Current recall probability R(t) ∈ [0,1] under the exponential forgetting
- * curve R = exp(-Δdays / stability). A never-reviewed word (no stability, or no
- * last-reviewed date) returns 0 so it sorts to the FRONT of the review queue.
+ * Did the request fail because the server was UNREACHABLE, as opposed to answering
+ * with a refusal?
  *
- * MIRRORS the decay shape in record_review() (the init migration) — keep in sync.
+ * The same distinction `probeSession` draws in session.ts, and it matters for the same
+ * reason: only an unreachable server may fall back to the offline path. A server that
+ * answered "no" — an invalid grade, a word that isn't yours, an RLS denial — must
+ * surface, or the queue would retry a permanent failure forever and the reader would
+ * silently deal cards from a stale deck instead of showing the error.
+ *
+ * PostgREST errors carry a SQLSTATE `code`; a dropped connection is a bare TypeError
+ * from fetch with none. Anything that reached the database is a verdict.
+ */
+function isUnreachable(error: unknown): boolean {
+  if (error instanceof TypeError) return true; // fetch itself failed
+  const e = error as { code?: string; status?: number; message?: string } | null;
+  if (!e) return false;
+  if (e.code || (typeof e.status === "number" && e.status > 0)) return false;
+  return /fetch|network|offline|connection/i.test(e.message ?? "");
+}
+
+/**
+ * Current recall probability R(t) ∈ [0,1] = exp(-Δdays / stability).
+ * MIRRORS the decay shape in record_review() (init migration) — keep in sync.
  */
 export function retrievability(
   stability: number | null,
@@ -47,10 +64,9 @@ export function retrievability(
   originallyTranslatedDate: string | null,
   now: number = Date.now()
 ): number {
-  // A truly cold word (no stability) is most urgent → 0. A SEEDED word (#10
-  // calibration sets stability before any review) decays from its last review, or —
-  // if never reviewed — from when it was first translated, so the seed actually
-  // affects ranking instead of cold-starting at the front. Mirrors review_queue SQL.
+  // Cold (no stability) → 0, i.e. most urgent. A calibration-SEEDED word decays from
+  // its first-translated date when never reviewed, so the seed affects ranking rather
+  // than cold-starting at the front. Mirrors the review_queue SQL.
   if (stability == null || stability <= 0) return 0;
   const anchor = lastReviewedDate ?? originallyTranslatedDate;
   if (anchor == null) return 1; // seeded but undated → treat as fresh/known
@@ -64,8 +80,7 @@ export interface ReviewQueueItem extends UserWord {
   retrievability: number;
 }
 
-/** One row from the review_queue() SQL function (resolved meaning/readings +
- *  server-computed retrievability), shaped like a UserWord plus the score. */
+/** One row from the review_queue() SQL function: a UserWord plus the score. */
 interface ReviewQueueRow {
   user_word_id: string;
   user_id: string;
@@ -88,39 +103,41 @@ interface ReviewQueueRow {
 }
 
 /**
- * The N least-confident words, ranked by CURRENT retrievability ascending (new /
- * most-forgotten first), ties broken by oldest review. This is the review surface
- * — not a due-date schedule. Scoped to one sub-list when `listId` is given, else
- * the whole vocabulary (ALL).
- *
- * The ranking + LIMIT run in the `review_queue` Postgres function, so only the ≤
- * `limit` cards cross the wire (not the whole vocabulary). The R = exp(-Δ/S)
- * formula there mirrors retrievability() below — keep them in sync.
- *
- * OUTPUT: ReviewQueueItem[] of length ≤ limit (may be empty).
+ * A review session: DUE words first, topped up with shaky NOT-due ones (module header).
+ * EMPTY is a real answer — nothing due, nothing shaky left. Scoped to `listId` when
+ * given, else the whole vocabulary. Ranking + LIMIT run in the `review_queue` function,
+ * so only ≤ `limit` cards cross the wire.
  */
 export async function getReviewQueue(params: {
   userId: string;
   listId?: string | null;
   limit: number;
-  /** Restrict the queue to EXACTLY these user_word_ids (the Lists view's filtered
-   *  subset). Passing [] yields an empty queue (filters matched nothing). When
-   *  omitted, the whole list/vocabulary is queued as before. */
+  /** Restrict to EXACTLY these ids (the Lists filtered subset); [] = empty queue. */
   userWordIds?: string[];
 }): Promise<ReviewQueueItem[]> {
   const { data, error } = await supabase.rpc("review_queue", {
     p_user_id: params.userId,
     p_limit: Math.max(0, params.limit),
     p_list_id: params.listId ?? undefined,
-    // Restrict to the Lists subset SERVER-side with the real LIMIT — no longer pull
-    // the whole ranked vocabulary (was capped at 100k) to filter + slice in JS.
-    // `undefined` → omitted → no restriction; `[]` → matches nothing → empty queue.
+    // undefined → no restriction; [] → matches nothing.
     p_user_word_ids: params.userWordIds ?? undefined,
   });
-  if (error) throw toServiceError(error);
+  if (error) {
+    // Unreachable → deal from the cached deck. Any other error is a real failure and
+    // must surface: an offline fallback that swallowed, say, an RLS denial would show
+    // a stale session's cards instead of an error.
+    if (isUnreachable(error)) {
+      const cached = await loadDeck(offlineStore(), {
+        userId: params.userId,
+        listId: params.listId ?? null,
+      });
+      if (cached) return cached.items.slice(0, Math.max(0, params.limit));
+    }
+    throw toServiceError(error);
+  }
 
   const rows = (data ?? []) as ReviewQueueRow[];
-  return rows.map((r) => ({
+  const items = rows.map((r) => ({
     userWordId: r.user_word_id,
     userId: r.user_id,
     input: r.input,
@@ -138,8 +155,53 @@ export async function getReviewQueue(params: {
     proficiencyBand: r.proficiency_band,
     partOfSpeech: r.part_of_speech,
     frequency: r.frequency,
+    // Sense enrichment (20260750) isn't in review_queue's column list; surfacing an
+    // example on a card means widening that SQL function. Explicitly null, not forgotten.
+    example: null,
+    exampleGloss: null,
+    definitionSource: null,
+    exampleReading: null,
     retrievability: r.retrievability,
   }));
+
+  // Cache the deck for a later offline session, anchored to the SERVER's clock so an
+  // offline grade can be timestamped without ever reading the device's (see clock.ts).
+  // Best-effort: a storage failure must not fail a review that is working fine online.
+  //
+  // Only the UNRESTRICTED queue is cached. An explicit `userWordIds` set is the Lists
+  // filtered-subset path — a transient selection, not the session someone would come
+  // back to offline, and caching it would let a stale filter deal the wrong cards.
+  if (params.userWordIds === undefined) {
+    try {
+      const anchor = anchorAt(await serverTime());
+      setAnchor(anchor); // in-memory; see the note in clock.ts on why it isn't persisted
+      await saveDeck(offlineStore(), {
+        userId: params.userId,
+        listId: params.listId ?? null,
+        anchor,
+        items,
+      });
+    } catch {
+      /* deck caching is an enhancement; never fail the online path for it */
+    }
+  }
+  return items;
+}
+
+/**
+ * The server's clock, for anchoring offline timestamps (migration 20260759).
+ *
+ * One extra round-trip per DECK FETCH — not per card — which buys the property the
+ * whole offline-timestamp design rests on: the anchor is the server's instant, so a
+ * device whose clock is simply wrong cannot poison the reviews measured from it.
+ *
+ * Falls back to local time if the call fails. That costs accuracy, never correctness:
+ * record_review clamps whatever it is given to [last_reviewed_date, now()].
+ */
+async function serverTime(): Promise<number> {
+  const { data, error } = await supabase.rpc("server_now");
+  const parsed = error || !data ? NaN : Date.parse(data as string);
+  return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
 /** The post-review mastery state returned by record_review(). */
@@ -151,24 +213,28 @@ export interface ReviewResult {
   confidenceRating: number;
   /** Server timestamp of this review. */
   lastReviewedDate: string;
+  /** True when the grade was QUEUED offline: the values above are the pre-review ones
+   *  and the real schedule lands on sync. Absent on the normal online path. */
+  queued?: boolean;
 }
 
 /**
- * Records one review of a word, applying the grade. The schedule math (new
- * strength + confidence + the now() stamp + history log) runs atomically inside
- * the `record_review` Postgres function — the client never computes it, so the
- * algorithm can be swapped server-side without touching this contract.
+ * Send a review to the server. ALWAYS hits the network and never queues — this is the
+ * raw write, used by `recordReview` below and by the offline drain (offline/sync.ts),
+ * which must not re-queue what it is replaying.
  *
- * OUTPUT: the updated ReviewResult.
- * CONSTRAINTS: the word must belong to the caller (enforced by RLS in the RPC).
+ * `reviewedAt` names the instant the grade was given, for a replay. The server clamps
+ * it to [last_reviewed_date, now()] — see migration 20260759.
  */
-export async function recordReview(params: {
+export async function sendReview(params: {
   userWordId: string;
   grade: ReviewGrade;
+  reviewedAt?: string;
 }): Promise<ReviewResult> {
   const { data, error } = await supabase.rpc("record_review", {
     p_user_word_id: params.userWordId,
     p_grade: params.grade,
+    p_reviewed_at: params.reviewedAt ?? undefined,
   });
   if (error || !data) throw toServiceError(error, "Failed to record review");
 
@@ -185,4 +251,49 @@ export async function recordReview(params: {
     confidenceRating: row.confidence_rating,
     lastReviewedDate: row.last_reviewed_date,
   };
+}
+
+/**
+ * Records one review. The schedule math (strength + confidence + the clock + history
+ * log) runs atomically in `record_review`, so the algorithm can be swapped server-side.
+ * The word must belong to the caller (enforced by RLS in the RPC).
+ *
+ * OFFLINE: the grade is queued and replayed on reconnect, and the returned values are
+ * the card's PRE-review ones with `queued: true`. Deliberately not an optimistic
+ * guess — the real stability needs `srs_leveling`, which is revoked from clients
+ * (20260748), so any number invented here would be a different one from the server's
+ * and would have to be silently corrected later.
+ *
+ * Only a genuinely unreachable server queues. A rejection (an invalid grade, a word
+ * that isn't yours) throws as it always did — queueing it would hide a real bug and
+ * retry it forever.
+ */
+export async function recordReview(params: {
+  userWordId: string;
+  grade: ReviewGrade;
+  /** The card as displayed, so a queued grade can echo its current state back. */
+  current?: { stability: number | null; confidenceRating: number; lastReviewedDate: string | null };
+}): Promise<ReviewResult> {
+  try {
+    return await sendReview(params);
+  } catch (e) {
+    if (!isUnreachable(e)) throw e;
+
+    const store = offlineStore();
+    const stamp = stampFor(getAnchor());
+    await enqueue(store, {
+      id: newId(),
+      userWordId: params.userWordId,
+      grade: params.grade,
+      reviewedAt: stamp.reviewedAt,
+      approx: stamp.approx,
+    });
+    return {
+      userWordId: params.userWordId,
+      stability: params.current?.stability ?? 0,
+      confidenceRating: params.current?.confidenceRating ?? 0,
+      lastReviewedDate: params.current?.lastReviewedDate ?? stamp.reviewedAt,
+      queued: true,
+    };
+  }
 }

@@ -18,4 +18,18 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(DigitalInkPlugin())
         bridge?.registerPluginInstance(TextOcrPlugin())
     }
+
+    // The scroll indicator down the right edge is drawn by WKWebView's own scroll
+    // view, NOT by the page — CSS (`::-webkit-scrollbar`, `scrollbar-width`) cannot
+    // reach the main frame's indicator, so hiding it web-side in common.css only
+    // covers mobile browsers and this covers the app shell. Scrolling is unaffected;
+    // only the indicator is suppressed. Native apps don't show a persistent track,
+    // so this is what makes the shell look native rather than like a page.
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        if let scrollView = bridge?.webView?.scrollView {
+            scrollView.showsVerticalScrollIndicator = false
+            scrollView.showsHorizontalScrollIndicator = false
+        }
+    }
 }

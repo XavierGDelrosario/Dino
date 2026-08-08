@@ -18,12 +18,14 @@ import {
   getAllUserWords,
   getUserWordsInList,
   getUserWordStates,
+  __resetDictionaryColumnProbe,
 } from "@/services/words/userWords";
 
 let stub: SupabaseStub;
 beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
+  __resetDictionaryColumnProbe(); // module-global latch — reset between cases
 });
 
 /** A raw user_words DB row (snake_case), with optional embedded dictionary word. */
@@ -264,13 +266,14 @@ describe("deleteUserWord", () => {
 });
 
 describe("sub-list tagging", () => {
+  // The single-word tag is the 1-element case of the batch upsert (one statement,
+  // one idempotency contract) — hence the array payload.
   it("addUserWordToList upserts a tag", async () => {
     stub.queueFrom("list_words", { data: null, error: null });
     await addUserWordToList({ listId: "verbs", userWordId: "uw1" });
-    expect(stub.callsFor("list_words", "upsert")[0]?.args[0]).toEqual({
-      list_id: "verbs",
-      user_word_id: "uw1",
-    });
+    expect(stub.callsFor("list_words", "upsert")[0]?.args[0]).toEqual([
+      { list_id: "verbs", user_word_id: "uw1" },
+    ]);
   });
 
   it("the same word can be tagged into multiple sub-lists", async () => {
@@ -278,8 +281,8 @@ describe("sub-list tagging", () => {
     await addUserWordToList({ listId: "verbs", userWordId: "uw1" });
     await addUserWordToList({ listId: "animals", userWordId: "uw1" });
     expect(stub.callsFor("list_words", "upsert").map((c) => c.args[0])).toEqual([
-      { list_id: "verbs", user_word_id: "uw1" },
-      { list_id: "animals", user_word_id: "uw1" },
+      [{ list_id: "verbs", user_word_id: "uw1" }],
+      [{ list_id: "animals", user_word_id: "uw1" }],
     ]);
   });
 
@@ -369,13 +372,23 @@ describe("getUserWordsInList", () => {
 
 describe("getUserWordStates", () => {
   it("marks saved dictionary senses tracked, others new (confidence 0)", async () => {
+    // Confidence is computed LIVE from the strength columns (services/confidence.ts),
+    // not read off `confidence_rating` — that column is only a write-time snapshot, so
+    // the row carries a deliberately stale 5 to prove the stored value isn't used.
+    // Reviewed 2 days ago at 12 days of strength → still bucket 3.
+    const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
     stub.queueFrom("user_words", {
       data: [
         {
           user_word_id: "uw1",
           dictionary_word_id: "ja-neko",
-          confidence_rating: 3,
-          last_reviewed_date: "2026-06-01",
+          confidence_rating: 5,
+          last_reviewed_date: twoDaysAgo,
+          stability: 12,
+          originally_translated_date: twoDaysAgo,
+          short_stability: null,
+          short_stability_at: null,
+          peak_confidence: 3,
         },
       ],
       error: null,
@@ -386,7 +399,7 @@ describe("getUserWordStates", () => {
       tracked: true,
       userWordId: "uw1",
       confidenceRating: 3,
-      lastReviewedDate: "2026-06-01",
+      lastReviewedDate: twoDaysAgo,
     });
     expect(states.get("ja-inu")).toMatchObject({ tracked: false, confidenceRating: 0 });
   });
@@ -395,5 +408,61 @@ describe("getUserWordStates", () => {
     const states = await getUserWordStates({ userId: "u", dictionaryWordIds: [] });
     expect(states.size).toBe(0);
     expect(stub.fromCalls).toEqual([]);
+  });
+});
+
+// =========================================================
+// A schema change must never cost availability.
+//
+// Naming a column in a PostgREST embedded select makes the WHOLE read depend on the
+// database having taken a migration: an absent column answers 42703 and fails the
+// entire query. When 20260750's columns were added to this select and applied only to
+// staging, a build pointed at prod returned "column words_1.example does not exist" for
+// every Lists read — the vocabulary was gone, not merely unenriched. These pin the
+// degrade-don't-die behaviour in both directions.
+// =========================================================
+describe("dictionary reads survive a database that predates 20260750", () => {
+  const MISSING = { code: "42703", message: 'column words_1.example does not exist' };
+
+  it("retries without the optional columns and still returns the vocabulary", async () => {
+    // First attempt asks for the enriched set and is rejected; the retry succeeds.
+    stub.queueFrom(
+      "user_words",
+      { data: null, error: MISSING },
+      { data: [uwRow({ words: { translation: "cat" } })], error: null },
+    );
+
+    const words = await getAllUserWords({ userId: "u" });
+    expect(words).toHaveLength(1);
+    expect(words[0].translation).toBe("cat");
+    // Degraded, not broken: no example is indistinguishable from "none written yet".
+    expect(words[0].example).toBeNull();
+
+    const selects = stub.callsFor("user_words", "select");
+    expect(selects).toHaveLength(2);
+    expect(String(selects[0].args[0])).toContain("example");
+    expect(String(selects[1].args[0])).not.toContain("example");
+  });
+
+  it("remembers the downgrade, so it costs one probe per session and not per read", async () => {
+    stub.queueFrom(
+      "user_words",
+      { data: null, error: MISSING },
+      { data: [uwRow({ words: { translation: "cat" } })], error: null },
+      { data: [uwRow({ words: { translation: "cat" } })], error: null },
+    );
+
+    await getAllUserWords({ userId: "u" });
+    await getAllUserWords({ userId: "u" });
+
+    const selects = stub.callsFor("user_words", "select");
+    expect(selects).toHaveLength(3); // 1 rejected + 1 retry + 1 already-downgraded
+    expect(String(selects[2].args[0])).not.toContain("example");
+  });
+
+  it("still throws on a real error — the fallback is not a blanket retry", async () => {
+    stub.queueFrom("user_words", { data: null, error: { code: "42501", message: "permission denied" } });
+    await expect(getAllUserWords({ userId: "u" })).rejects.toThrow(/permission denied/);
+    expect(stub.callsFor("user_words", "select")).toHaveLength(1);
   });
 });

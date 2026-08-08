@@ -1,14 +1,68 @@
 // One flashcard. Front shows the term only (recall the meaning); the back
 // reveals the reading (furigana) + the translation. Readings come straight off
 // the source row — authoritative for the no-context surface (see CLAUDE.md).
-import { useRef } from "react";
+//
+// `reversed` swaps the two faces (meaning on the front, term revealed on the back)
+// — a DISPLAY swap only; nothing about the word or its review changes. The readings
+// stay on the REVEALED face in both directions: a reading on the front would hand
+// the user the answer in the reversed direction (furigana spells out the term) and
+// spoil the recall.
+import { useRef, type ReactNode } from "react";
 import { WordInfoButton } from "../common/WordInfo";
+import { SpeakButton } from "../common/SpeakButton";
+import { pronounceableText } from "../../services/voice";
 import { useI18n } from "../../i18n";
 import type { LangCode } from "../../services/language";
 import "./flashcards.css";
 
 // A horizontal drag past this many px counts as a swipe (below it = a tap/scroll).
 const SWIPE_THRESHOLD = 45;
+
+/** Visual width of a string in "columns": CJK/kana/fullwidth glyphs occupy roughly
+ *  twice the advance of a Latin letter, so 五十音 and "procrastination" can't be
+ *  compared by `.length`. This is why a fixed font size looked right in Japanese and
+ *  wrong in English — 4 kanji and 15 Latin letters are about the same ink. */
+function displayColumns(text: string): number {
+  let cols = 0;
+  for (const ch of text) {
+    const c = ch.codePointAt(0) ?? 0;
+    const wide =
+      (c >= 0x1100 && c <= 0x115f) ||   // Hangul Jamo
+      (c >= 0x2e80 && c <= 0xa4cf) ||   // CJK radicals … Yi (incl. kana, kanji)
+      (c >= 0xac00 && c <= 0xd7a3) ||   // Hangul syllables
+      (c >= 0xf900 && c <= 0xfaff) ||   // CJK compatibility ideographs
+      (c >= 0xff00 && c <= 0xff60) ||   // fullwidth forms
+      (c >= 0x20000 && c <= 0x3fffd);   // CJK extension planes
+    cols += wide ? 2 : 1;
+  }
+  return cols;
+}
+
+/** Shrink text past `fits` columns, proportionally, down to `min`. Returns a style
+ *  rather than a class so the step is smooth — a three-bucket class ladder visibly
+ *  jumps between cards, which reads as a rendering glitch. */
+function fitToWidth(text: string, max: number, min: number, fits: number) {
+  const cols = displayColumns(text);
+  if (cols <= fits) return undefined;
+  const size = Math.max(min, (max * fits) / cols);
+  return { fontSize: `${size.toFixed(2)}rem` };
+}
+
+// Column budgets: how much text each face holds at full size before it shrinks.
+// Tuned against the narrowest supported card (a phone at 320px).
+//
+// The MAXes grew with the card (min-height 220 → 264px) — that height was added to be
+// read at, not to sit empty. Note what raising a MAX does: past its column budget the
+// size is (max * fits / cols), so it scales the SHRUNK sizes too, not just short text.
+// That is why the MINs moved with them, and why the budgets themselves did NOT: those
+// are about WIDTH, and the card is no wider than before. At 2.9rem the 9-column term
+// budget is ~4.5 CJK glyphs ≈ 209px, still inside the ~253px a 320px phone gives.
+//
+// .flashcard__term / .flashcard__translation in flashcards.css carry these same two
+// MAXes as their base size (the inline style only appears once text overflows its
+// budget) — change one and change the other, or short cards and long ones disagree.
+const TERM_MAX = 2.9, TERM_MIN = 1.3, TERM_FITS = 9;
+const MEANING_MAX = 1.65, MEANING_MIN = 1.05, MEANING_FITS = 26;
 
 /** The minimal face a card renders — satisfied by both a ReviewQueueItem (a saved
  *  UserWord) and a dictionary Word (the text-quiz path), so the card is reused.
@@ -30,6 +84,9 @@ export function FlashcardCard({
   onFlip,
   onSwipeLeft,
   onSwipeRight,
+  reversed = false,
+  action,
+  flag,
 }: {
   word: CardFace;
   flipped: boolean;
@@ -37,11 +94,22 @@ export function FlashcardCard({
   /** Optional horizontal-swipe handlers (e.g. cycle meanings). Left = next. */
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  /** Show the MEANING on the front and the term on the back (display only). */
+  reversed?: boolean;
+  /** Optional node pinned to the card's top-right (e.g. an add-to-list button). */
+  action?: ReactNode;
+  /** Bottom-left corner — the report flag. A slot rather than a hardcoded button so
+   *  the card stays a pure presentation component and the quiz views keep deciding
+   *  WHAT is being reported (the shown sense). */
+  flag?: ReactNode;
 }) {
   const { t } = useI18n();
   // Track the touch start so touchend can classify it as a horizontal swipe.
   const start = useRef<{ x: number; y: number } | null>(null);
   const swipeable = Boolean(onSwipeLeft || onSwipeRight);
+  // Is the term (the word's own language) currently on screen? Normally yes — it's
+  // the front face. Reversed, it only appears after the flip.
+  const termVisible = !reversed || flipped;
 
   return (
     <div
@@ -80,7 +148,52 @@ export function FlashcardCard({
         <WordInfoButton word={word} align="left" />
       </span>
 
-      <div className="flashcard__term">{word.input}</div>
+      {/* Top-right tools — INSIDE the card: read-aloud, then the optional caller
+          action (e.g. add-to-list). Stops propagation so using either never flips
+          the card.
+
+          The listen button speaks the TERM, and only while the term is on screen:
+          on a `reversed` card the term IS the answer, so pronouncing it before the
+          flip would give it away — the same rule that keeps readings off the front
+          face. It speaks the sense's reading rather than the kanji where we have
+          one (pronounceableText), so a homograph is never mispronounced. */}
+      {(termVisible || action) && (
+        <span className="flashcard__action" onClick={(e) => e.stopPropagation()}>
+          {termVisible && (
+            <SpeakButton
+              className="card-tool"
+              text={pronounceableText(word)}
+              lang={word.sourceLang}
+              size={18}
+            />
+          )}
+          {action}
+        </span>
+      )}
+
+      {/* Bottom-left: report this card. Its own corner, away from the three tools at
+          the top — reporting is not part of studying, and it must not sit under a
+          thumb that is reaching for reveal/grade. Stops propagation so it never flips
+          the card (the ＋ and listen buttons above do the same). */}
+      {flag && (
+        <span className="flashcard__flag" onClick={(e) => e.stopPropagation()}>
+          {flag}
+        </span>
+      )}
+
+      {/* Both faces can hold either side's text (see `reversed`), and a meaning is
+          usually far longer than a headword — so each is sized from what it renders. */}
+      <div
+        className="flashcard__term"
+        style={fitToWidth(
+          reversed ? word.translation : word.input,
+          TERM_MAX,
+          TERM_MIN,
+          TERM_FITS
+        )}
+      >
+        {reversed ? word.translation : word.input}
+      </div>
 
       {flipped ? (
         <div className="flashcard__back">
@@ -90,7 +203,17 @@ export function FlashcardCard({
           {word.inputReading && (
             <div className="flashcard__reading">{word.inputReading}</div>
           )}
-          <div className="flashcard__translation">{word.translation}</div>
+          <div
+            className="flashcard__translation"
+            style={fitToWidth(
+              reversed ? word.input : word.translation,
+              MEANING_MAX,
+              MEANING_MIN,
+              MEANING_FITS
+            )}
+          >
+            {reversed ? word.input : word.translation}
+          </div>
         </div>
       ) : (
         <div className="flashcard__hint">{t("flashcard.tapToReveal")}</div>

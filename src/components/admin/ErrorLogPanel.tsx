@@ -46,35 +46,45 @@ export function ErrorLogPanel() {
           ))}
         </div>
         <input
-          className="admin__input"
+          className="admin__input admin__filter-input"
           placeholder="filter by error code…"
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
-        <button type="button" className="admin__seg-btn" onClick={reload}>Refresh</button>
+        <button type="button" className="admin__seg-btn admin__filters-end" onClick={reload}>
+          Refresh
+        </button>
       </div>
 
       <AdminStatus error={error} pending={rows == null} />
 
       {rows && (
-        <table className="admin__table">
-          <thead>
-            <tr><th>When</th><th>Code</th><th>Source</th><th>Input</th></tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr><td colSpan={4} className="admin__muted">No errors in this window. 🎉</td></tr>
-            )}
-            {rows.map((r) => (
-              <tr key={r.id} title={r.detail ?? undefined}>
-                <td className="admin__nowrap">{formatDateTime(r.occurredAt)}</td>
-                <td className="admin__bucket">{r.errorCode}</td>
-                <td className="admin__muted">{r.source ?? "—"}</td>
-                <td className="admin__truncate">{r.input ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="admin__tablewrap">
+          <table className="admin__table">
+            <thead>
+              <tr><th>When</th><th>Code</th><th>Source</th><th>Input</th></tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={4} className="admin__muted">No errors in this window. 🎉</td></tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.id} title={r.detail ?? undefined}>
+                  <td className="admin__nowrap">{formatDateTime(r.occurredAt)}</td>
+                  <td className="admin__bucket">{r.errorCode}</td>
+                  <td className="admin__muted admin__nowrap">{r.source ?? "—"}</td>
+                  {/* Raw input is unbounded — clamp it (title carries the full value)
+                      or one long paste stretches the table past the panel. */}
+                  <td>
+                    <span className="admin__truncate" title={r.input ?? undefined}>
+                      {r.input ?? "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </AdminPanel>
   );

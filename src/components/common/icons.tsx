@@ -70,6 +70,16 @@ export function XIcon({ size }: { size?: number }) {
   );
 }
 
+/** Back — a bare chevron. The arrow-with-shaft version read as a heavy action
+ *  button; navigation should sit quietly at the edge of the bar. */
+export function BackIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="15 18 9 12 15 6" />
+    </Svg>
+  );
+}
+
 /** Delete / remove. Replaces the wastebasket emoji (U+1F5D1), whose DEFAULT
  *  presentation is TEXT, not emoji — so without a variation selector the browser hunts
  *  for it in a text font, and text fonts don't carry it. It rendered as a "1F5D1" hex
@@ -85,11 +95,95 @@ export function TrashIcon({ size }: { size?: number }) {
   );
 }
 
+/** Funnel — the conventional "filter" glyph. */
+export function FilterIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </Svg>
+  );
+}
+
+/** Two vertical arrows — a sort-direction toggle (least ⇅ most). */
+export function SwapVertIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="7 4 7 20" />
+      <polyline points="4 7 7 4 10 7" />
+      <polyline points="17 20 17 4" />
+      <polyline points="14 17 17 20 20 17" />
+    </Svg>
+  );
+}
+
+/** Magnifying glass — the conventional "search" glyph (Lists search bar). */
+export function SearchIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+    </Svg>
+  );
+}
+
 export function CameraIcon({ size }: { size?: number }) {
   return (
     <Svg size={size}>
       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
       <circle cx="12" cy="13" r="4" />
+    </Svg>
+  );
+}
+
+/** Report a problem — a flag on a pole. Outline-only like its neighbours, so it reads
+ *  as an action rather than a warning badge. */
+export function FlagIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </Svg>
+  );
+}
+
+/** Photo library — a framed picture (mountain + sun), the platform-conventional
+ *  "pick an existing image". Deliberately unlike CameraIcon's body-and-lens so the
+ *  two sit next to each other in the tool column without reading as one control. */
+export function ImageIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-5-5L5 21" />
+    </Svg>
+  );
+}
+
+/** Read aloud (text-to-speech). The waves are separate paths so a "speaking"
+ *  state can animate them without touching the cone. */
+export function SpeakerIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <path d="M11 5 6 9H2v6h4l5 4z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+    </Svg>
+  );
+}
+
+/** History — the clock-with-a-rewind-arrow Google Translate uses for "recent".
+ *  The arc deliberately stops short of closing at the upper LEFT, where the arrow
+ *  head sits: a full circle plus hands reads as a plain clock (i.e. "time"), and
+ *  the break is the whole reason this says "go back to" instead. */
+export function HistoryIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      {/* Open arc, counter-clockwise from ~10 o'clock all the way round. */}
+      <path d="M3.5 9.5a9 9 0 1 0 2.6-3.9" />
+      {/* Rewind arrow head closing the gap. */}
+      <polyline points="3 4 3 9.5 8.5 9.5" />
+      {/* Hands: 12 and 3, the conventional clock reading. */}
+      <polyline points="12 7.5 12 12 15.5 13.8" />
     </Svg>
   );
 }

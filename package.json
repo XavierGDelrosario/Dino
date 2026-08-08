@@ -18,7 +18,10 @@
     "ingest:jmdict": "tsx scripts/ingest-jmdict.ts",
     "ingest:wordnet": "tsx scripts/ingest-wordnet.ts",
     "ingest:english-frequency": "tsx scripts/ingest-english-frequency.ts",
+    "build:leveling": "tsx scripts/build-leveling-profile.ts",
     "ingest:english-proficiency": "tsx scripts/ingest-english-proficiency.ts",
+    "ingest:sense-examples": "tsx scripts/ingest-sense-examples.ts",
+    "validate:sense-examples": "tsx scripts/validate-sense-examples.ts",
     "db:up": "bash scripts/supabase-up.sh",
     "db:dump-seed": "bash scripts/dump-seed.sh",
     "db:backup": "bash scripts/backup-user-data.sh",
@@ -28,8 +31,10 @@
     "smoke:prod": "node scripts/preflight-smoke.mjs",
     "ios:build": "bash scripts/build-ios.sh",
     "ios:build:staging": "DINO_ENV=staging bash scripts/build-ios.sh",
+    "ios:build:prod": "DINO_ENV=prod bash scripts/build-ios.sh",
     "ios:sync": "cap sync ios",
-    "ios:open": "cap open ios"
+    "ios:open": "cap open ios",
+    "mt:usage": "tsx scripts/mt-usage.ts"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",

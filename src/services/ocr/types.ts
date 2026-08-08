@@ -26,13 +26,48 @@ export interface OcrResult {
   blocks: OcrBlock[];
 }
 
-/** A swappable OCR backend. `capture()` takes the photo AND recognizes it (the
- *  camera + the engine are one native round-trip); resolves null if the user
- *  cancels the camera. */
+/** A photo straight off the camera, before recognition. `base64` carries no data:
+ *  URL prefix (that's what the native plugin wants); `format` is the image subtype
+ *  ("jpeg"/"png") so the UI can build a data: URL to display it. */
+export interface OcrImage {
+  base64: string;
+  format: string;
+}
+
+/**
+ * Where the image comes from. `camera` shoots a new one; `library` picks an
+ * existing one from the device's photo library.
+ *
+ * The library matters at least as much as the camera for this app's actual use:
+ * a screenshot of a tweet, a manga page, a menu someone sent you — all already ON
+ * the phone, and none re-photographable. It is also the only source that works
+ * at all on a device with no camera (the simulator).
+ */
+export type OcrSource = "camera" | "library";
+
+/**
+ * A swappable OCR backend.
+ *
+ * Capture and recognition are SEPARATE steps so the user can crop between them —
+ * recognizing the whole photo when they only wanted one line is how a menu's
+ * background text ends up in the translate input. `capture()` remains as the
+ * combined convenience path for callers that don't crop.
+ */
 export interface OcrRecognizer {
   readonly id: string;
   available(): boolean | Promise<boolean>;
   /** Whether this backend can recognize the given language (gates the UI affordance). */
   supports(lang: LangCode): boolean;
-  capture(opts: { lang: LangCode }): Promise<OcrResult | null>;
+  /**
+   * Get the image only. Resolves null if the user backs out of the camera or picker.
+   *
+   * `source` is OPTIONAL and defaults to "camera" so this stays source-compatible
+   * with backends written before the library existed; a backend that can only do
+   * one of the two should still honour the argument or say so in its own docs.
+   */
+  captureImage(opts?: { source?: OcrSource }): Promise<OcrImage | null>;
+  /** Recognize an image (possibly cropped). Null if the language is unsupported. */
+  recognizeImage(opts: { base64: string; lang: LangCode }): Promise<OcrResult | null>;
+  /** Photo + recognition in one go (no crop step). */
+  capture(opts: { lang: LangCode; source?: OcrSource }): Promise<OcrResult | null>;
 }

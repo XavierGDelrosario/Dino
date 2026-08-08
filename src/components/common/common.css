@@ -4,7 +4,23 @@
   --surface-2: #232733;
   --text: #e8eaed;
   --muted: #9aa0ab;
-  --accent: #6ea8fe;
+  /* BRAND PURPLE. Two of them, and the split is deliberate — the same reasoning
+     scripts/build-og-image.mjs already records: #7C3AED is the FILL colour (it is what
+     the favicon block is, and white sits on it cleanly), but as TEXT on the near-black
+     --bg it only reaches ~3.3:1 contrast. So the token used for text and small UI is the
+     lighter tint, and the saturated one is available for solid fills that carry white. */
+  --accent: #a78bfa;
+  --accent-strong: #7c3aed;
+  /* ADDABLE / "new" words — a word with a dictionary entry that isn't in the
+     vocabulary yet. Its OWN token, not --accent, because it is a KNOWLEDGE STATE,
+     not chrome: it sits in one scale with the red→green confidence ramp
+     (.tok--c0…c5) and has to be legible as a distinct step in it. Painting it with
+     the brand accent tied it to every button border and active chip on screen, so
+     "you can add this" looked like "this is a control". Blue is far from both ends
+     of that ramp and carries no success/failure reading of its own.
+     Used by the reader (.tok--new) and the coverage "New" slice/row in
+     AnalyzeInfographic — keep those two in step or one screen contradicts the other. */
+  --word-new: #5b9dff;
   --border: #2c313c;
   --radius: 14px;
 }
@@ -15,6 +31,117 @@
 
 html {
   height: 100%;
+}
+
+/* ---- iOS zoom trap (do not remove) ----------------------------------------
+   Focusing an input/select/textarea whose font is UNDER 16px makes iOS zoom the
+   viewport in. In the Capacitor WKWebView pinch-zoom is disabled, so there is no
+   gesture to undo it: tap a language dropdown or the list filter once and the app
+   is stuck zoomed for the rest of the session.
+
+   Fixed by SIZE rather than by locking the viewport (`user-scalable=no` /
+   `maximum-scale=1`): Safari ignores those for pinch anyway, and they would take
+   zoom away from people who rely on it. 16px is also the right minimum for a touch
+   target, so this costs nothing on a phone.
+
+   `!important` on purpose — it has to beat the per-component class rules (.select,
+   .input--sm, .filtermenu__section .select …), and this is a platform constraint,
+   not a design preference. Any NEW field is covered automatically, which is the
+   point: the bug is easy to reintroduce one small font-size at a time. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ---- Page scrollbar, touch only -------------------------------------------
+   A touch device has no cursor to aim at a scrollbar, so the track down the side
+   is decoration: you scroll by dragging, and the platform already flashes its own
+   indicator while you do. Hidden on coarse pointers only — a mouse user reads the
+   bar for position and grabs it to jump, so desktop keeps it.
+
+   Scrolling itself is untouched (`overflow-y: auto` on body stays); only the
+   indicator is hidden. On the iOS shell the main-frame indicator is drawn NATIVELY
+   by WKWebView and ignores this rule — see MainViewController.swift, which turns it
+   off on the scroll view. Both are needed to cover both surfaces. */
+@media (pointer: coarse) {
+  html,
+  body {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge */
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* ---- iOS text selection (do not remove) -----------------------------------
+   On touch, the app is tapped, not read-and-copied: tapping a reader token, a
+   list chip, or a grade button makes iOS start a text selection instead, so the
+   UI fills with blue highlight boxes and a long-press raises the magnifier /
+   callout on chrome that isn't meant to be copied.
+
+   Selection is therefore OFF by default on coarse pointers and opted back IN
+   only where text is genuinely content — the stuff you'd copy out of the app:
+   form fields (iOS needs selection for the caret to work at all), the
+   translation output, sense meanings, and saved-word meanings. Add
+   .text-selectable to new content text; don't relax the default.
+
+   (Named .text-selectable, not .selectable, because ListRow already uses
+   "selectable" for row MULTI-SELECT — two different meanings of the word.)
+
+   Scoped to (pointer: coarse) so desktop keeps normal selection everywhere;
+   mouse selection is deliberate, tap selection is accidental. */
+@media (pointer: coarse) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  [contenteditable],
+  .text-selectable,
+  .sensetext,
+  /* Saved words: the headword + meaning are copyable, but NOT while the list is
+     in multi-select mode — there the whole row is a tap target, and selection
+     would fight the very interaction the user is in. */
+  .listrow:not(.listrow--selectable) .listrow__head,
+  .listrow:not(.listrow--selectable) .listrow__meaning {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+}
+
+/* HANDWRITING: selection OFF EVERYWHERE for as long as the pad is open.
+   `is-drawing` is set on <html> by HandwritingCanvas while it is mounted.
+
+   Why a document-level lock and not just the overlay: drawing is a DRAG, and a drag
+   that begins on the canvas but ends anywhere else still extends a selection through
+   whatever it crosses — including the textarea underneath, which the (pointer: coarse)
+   block above deliberately opts BACK IN to selection so its caret works. So the
+   overlay alone cannot win: the element that needs silencing is the one being swept,
+   not the one being drawn on. Hence the whole document, and hence `!important` — it
+   has to outrank that opt-in.
+
+   It is safe precisely because it is temporary: while the pad is open the fields
+   behind it are covered and non-interactive, and the class is removed on unmount, so
+   the textarea gets its caret and selection back the moment drawing ends. Do NOT
+   promote this to a permanent rule — on iOS a textarea with user-select: none loses
+   its caret. */
+.is-drawing,
+.is-drawing * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
 }
 
 body {
@@ -36,6 +163,12 @@ body {
   padding:
     calc(1.5rem + env(safe-area-inset-top)) 1rem
     calc(5rem + env(safe-area-inset-bottom));
+}
+
+/* Admin only (see App.tsx): a desk-width column for the ops tables. Still centred,
+   still safe-area padded — only the clamp changes, and only on that route. */
+.app--wide {
+  max-width: 1100px;
 }
 
 .app__header {
@@ -229,6 +362,15 @@ body {
   font-size: 1.2rem;
   margin: 0 0 0.25rem;
 }
+/* The exit, pinned to the top-left of the auth form. `align-self: start` so it is a
+   back LINK the width of its text, not a full-width row that reads as a button in a
+   column of them; the negative margin closes the flex gap so it sits above the title
+   as a header rather than floating as a first field. */
+.authpage__back {
+  align-self: flex-start;
+  margin-bottom: -0.35rem;
+  font-size: 0.85rem;
+}
 .authpage__alt {
   margin: 0;
   font-size: 0.85rem;
@@ -367,21 +509,42 @@ body {
 }
 
 /* tab nav */
+/* Five tabs (Translate · Lists · Learn · Media · Review) don't fit a phone at the
+   desktop size — the row needs ~400px and an iPhone leaves the app ~358px, so it
+   spilled off-screen.
+
+   The tabs FILL the row rather than being sized by hand: `flex: 1 0 auto` gives
+   each one its content width plus an equal share of whatever is left over, so the
+   strip spans the full width at any screen size and no guessed font size leaves a
+   gap at the end. Type still scales with the viewport, but only as a floor — the
+   growing does the fitting.
+
+   `flex-shrink: 0` + overflow-x is the backstop: label widths vary by UI language,
+   and a row that genuinely cannot fit scrolls inside itself instead of squashing
+   the labels into each other or pushing the page sideways. */
 .tabs {
   display: flex;
-  gap: 0.4rem;
+  gap: clamp(0.15rem, 1vw, 0.4rem);
   margin-bottom: 1.25rem;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none; /* the row is short; a scrollbar would just be noise */
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
   appearance: none;
+  flex: 1 0 auto; /* grow to fill the row; never shrink below the label */
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--muted);
-  font-size: 1rem;
-  padding: 0.5rem 0.9rem;
+  font-size: clamp(0.9rem, 3.6vw, 1rem);
+  padding: 0.5rem clamp(0.3rem, 1.8vw, 0.9rem);
+  white-space: nowrap; /* never break "Translate" across two lines */
   cursor: pointer;
 }
 

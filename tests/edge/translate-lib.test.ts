@@ -9,6 +9,8 @@ import {
   corsHeaders,
   dropOffScriptTranslations,
   EN_JA_STOPWORDS,
+  expandSegmentResults,
+  prepareSegments,
   groupByInput,
   lemmaCandidates,
   mergeProviderResults,
@@ -18,12 +20,21 @@ import {
   DEFAULT_LEARN_LIMIT,
   MAX_LEARN_LIMIT,
   resolvePerInputWithCandidates,
+  resolvePerInputFirstHit,
   projectMany,
   projectRows,
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
+  shouldSkipMt,
+  isEchoTranslation,
   type ProviderResult,
+  isEnglishFunctionWord,
+  isMultiWord,
+  inflectedAsVerb,
+  inflectedVerbSurface,
+  preferVerbSenses,
+  preferWrittenForm,
 } from "../../supabase/functions/translate/_lib";
 
 /** Build a JWT-shaped token (unpadded base64url payload, like a real JWT). */
@@ -214,24 +225,30 @@ describe("mergeProviderResults (intersection-boosted EN→JA merge)", () => {
   it("intersection-boost: an entry BOTH providers return leads, in gloss order (cat→猫 not やつ)", () => {
     // WordNet floats a common-but-wrong word first (やつ before 猫); the gloss ranks
     // 猫 (head-match) first. 猫 is in both → boosted to the front, keeping WordNet's row.
-    const primary = [wn("yatsu", "やつ", 0), wn("neko", "猫", 1), wn("tsuku", "つく", 2)];
-    const fallback = [wn("neko", "猫-gloss", 0), wn("cat2", "キャット", 1)];
-    const merged = mergeProviderResults(primary, fallback, 12);
-    expect(merged.map((r) => r.entryId)).toEqual(["neko", "yatsu", "tsuku", "cat2"]);
+    const semantic = [wn("yatsu", "やつ", 0), wn("neko", "猫", 1), wn("tsuku", "つく", 2)];
+    const gloss = [wn("neko", "猫-gloss", 0), wn("cat2", "キャット", 1)];
+    const merged = mergeProviderResults(semantic, gloss, 12);
+    // Shared first, then GLOSS-only, then WordNet-only.
+    expect(merged.map((r) => r.entryId)).toEqual(["neko", "cat2", "yatsu", "tsuku"]);
     expect(merged[0].translation).toBe("猫"); // WordNet's row kept for the shared entry
   });
 
-  it("leads with the primary (WordNet) results, then appends fallback", () => {
-    const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
-    const fallback = [wn("200", "ばね", 0)];
-    const merged = mergeProviderResults(primary, fallback, 12);
-    expect(merged.map((r) => r.entryId)).toEqual(["100", "101", "200"]);
+  it("leads with the GLOSS search and uses WordNet as filler, not the other way round", () => {
+    // The measured reason (prod, 2026-07-31): WordNet-only rows are where the noise
+    // is — it returned 言う first for "run" and 好き for "light", because Princeton
+    // sense rank orders ENGLISH senses and says nothing about which Japanese lemma of
+    // a synset is the right translation. The gloss search ranks by how PRIMARY the
+    // match is inside the entry, which is a direct answer to that question.
+    const semantic = [wn("100", "言う", 0)]; // WordNet-only: plausible, usually wrong
+    const gloss = [wn("200", "走る", 0)]; // gloss head-match: the actual translation
+    const merged = mergeProviderResults(semantic, gloss, 12);
+    expect(merged.map((r) => r.entryId)).toEqual(["200", "100"]);
   });
 
   it("re-numbers sensePos contiguously so the merged order survives the cache read", () => {
-    const primary = [wn("100", "春", 0), wn("101", "泉", 1)];
-    const fallback = [wn("200", "ばね", 0)]; // fallback also starts at 0 — must be renumbered
-    const merged = mergeProviderResults(primary, fallback, 12);
+    const semantic = [wn("100", "春", 0), wn("101", "泉", 1)];
+    const gloss = [wn("200", "ばね", 0)]; // both start at 0 — must be renumbered
+    const merged = mergeProviderResults(semantic, gloss, 12);
     expect(merged.map((r) => r.sensePos)).toEqual([0, 1, 2]);
   });
 
@@ -250,12 +267,13 @@ describe("mergeProviderResults (intersection-boosted EN→JA merge)", () => {
     expect(merged.map((r) => r.sensePos)).toEqual([0, 1]);
   });
 
-  it("caps the merged list at the limit", () => {
-    const primary = Array.from({ length: 10 }, (_, i) => wn(`p${i}`, `t${i}`, i));
-    const fallback = Array.from({ length: 10 }, (_, i) => wn(`f${i}`, `g${i}`, i));
-    const merged = mergeProviderResults(primary, fallback, 12);
+  it("caps the merged list at the limit, filling from the GLOSS side first", () => {
+    const semantic = Array.from({ length: 10 }, (_, i) => wn(`p${i}`, `t${i}`, i));
+    const gloss = Array.from({ length: 10 }, (_, i) => wn(`f${i}`, `g${i}`, i));
+    const merged = mergeProviderResults(semantic, gloss, 12);
     expect(merged).toHaveLength(12);
-    expect(merged.slice(0, 10).map((r) => r.entryId)).toEqual(primary.map((r) => r.entryId));
+    // Gloss results fill the list; WordNet supplies only the tail.
+    expect(merged.slice(0, 10).map((r) => r.entryId)).toEqual(gloss.map((r) => r.entryId));
   });
 
   it("a skipped duplicate doesn't consume a slot", () => {
@@ -401,14 +419,61 @@ describe("lemmaCandidates (EN morphy lemmatization seam)", () => {
     expect(has("leaves", "leaf")).toBe(true); // via the -ves rule
   });
 
-  it("is identity (surface only) for non-EN sources — JA arrives pre-lemmatized", () => {
+  it("is identity (surface only) for non-EN sources with nothing to lemmatize", () => {
     expect(lemmaCandidates("猫", "JA")).toEqual(["猫"]);
     expect(lemmaCandidates("perro", "ES")).toEqual(["perro"]);
+  });
+
+  // JA: kuromoji/IPADIC lemmatizes a する-verb stem to a 五段 〜す form JMdict has no
+  // headword for (接して → 接す, entry 接する) — without the fallback candidate the word
+  // misses the dictionary and drops to paid MT.
+  it("offers the する form for a JA 〜す lemma, surface first (接す→接する)", () => {
+    expect(lemmaCandidates("接す", "JA")).toEqual(["接す", "接する"]);
+    expect(lemmaCandidates("察す", "JA")).toEqual(["察す", "察する"]);
+  });
+
+  it("still leads with the surface, so genuine 五段 〜す verbs resolve to themselves (出す, 話す)", () => {
+    expect(lemmaCandidates("出す", "JA")[0]).toBe("出す");
+    expect(lemmaCandidates("話す", "JA")[0]).toBe("話す");
+  });
+
+  it("leaves non-す JA input and bare す alone", () => {
+    expect(lemmaCandidates("行く", "JA")).toEqual(["行く"]);
+    expect(lemmaCandidates("す", "JA")).toEqual(["す"]);
   });
 
   it("does not over-strip short words or -ss (is→be via map, not 'i'; class stays)", () => {
     expect(lemmaCandidates("class", "EN")).not.toContain("clas"); // -ss guarded
     expect(lemmaCandidates("is", "EN")).toContain("be"); // irregular, not a strip
+  });
+});
+
+describe("resolvePerInputFirstHit (single-provider candidate resolution: JA→EN)", () => {
+  const r = (translation: string, entryId: string): ProviderResult => ({ translation, entryId });
+  const cands = (m: Record<string, string[]>) => new Map(Object.entries(m));
+  const byCand = (m: Record<string, ProviderResult[]>) => new Map(Object.entries(m));
+
+  it("falls back to the する entry and re-keys it to the 〜す lemma the reader asked for", () => {
+    const out = resolvePerInputFirstHit(
+      ["接す"],
+      cands({ 接す: ["接す", "接する"] }),
+      byCand({ 接する: [r("to touch; to come in contact with", "1385350")] }),
+    );
+    expect(out.get("接す")?.[0].translation).toBe("to touch; to come in contact with");
+  });
+
+  it("prefers the SURFACE form over the fallback candidate (出す stays 出す)", () => {
+    const out = resolvePerInputFirstHit(
+      ["出す"],
+      cands({ 出す: ["出す", "出する"] }),
+      byCand({ 出す: [r("to take out", "1338180")], 出する: [r("bogus", "x")] }),
+    );
+    expect(out.get("出す")?.[0].translation).toBe("to take out");
+  });
+
+  it("omits an input no candidate resolves (so the caller still falls through to MT)", () => {
+    const out = resolvePerInputFirstHit(["唐揚げ"], cands({ 唐揚げ: ["唐揚げ"] }), byCand({}));
+    expect(out.has("唐揚げ")).toBe(false);
   });
 });
 
@@ -445,11 +510,13 @@ describe("resolvePerInputWithCandidates (batch/paragraph lemmatization)", () => 
     const out = resolvePerInputWithCandidates(
       ["ran"],
       cands({ ran: ["ran", "run"] }),
-      byCand({ run: [r("走る", "e1")] }), // WordNet hit on the lemma
-      byCand({ run: [r("経営する", "e2")] }), // gloss keyed by the same lemma
+      byCand({ run: [r("経営する", "e1")] }), // WordNet hit on the lemma
+      byCand({ run: [r("走る", "e2")] }), // gloss keyed by the same lemma
       "JA",
       8,
     );
+    // Both sources resolved the same lemma; the GLOSS result leads (see
+    // mergeProviderResults) — which is also the right answer for "ran".
     expect(out.get("ran")?.map((x) => x.translation)).toEqual(["走る", "経営する"]);
   });
 
@@ -611,5 +678,336 @@ describe("EN_JA_STOPWORDS (skip the reverse-gloss for grammatical function words
     for (const w of ["cat", "run", "water", "this", "up", "spring", "volleyball"]) {
       expect(EN_JA_STOPWORDS.has(w)).toBe(false);
     }
+  });
+});
+
+// ── SEGMENTS mode (the inline reader gloss) ────────────────────────────────
+// Each sentence is its own translation unit, so gloss[i] belongs to sentence[i].
+// These two helpers are the whole contract: what gets SENT (and billed), and how
+// the provider's answers land back on the caller's indexes.
+describe("prepareSegments", () => {
+  it("NFC-normalizes and trims each segment", () => {
+    const decomposed = "が".normalize("NFD"); // か + combining dakuten
+    const { normalized } = prepareSegments(["  猫だ。 ", decomposed]);
+    expect(normalized[0]).toBe("猫だ。");
+    expect(normalized[1]).toBe("が");
+    expect(normalized[1]).toHaveLength(1);
+  });
+
+  it("bills a repeated sentence ONCE but keeps every request position", () => {
+    const p = prepareSegments(["同じ文。", "違う文。", "同じ文。"]);
+    expect(p.unique).toEqual(["同じ文。", "違う文。"]);
+    expect(p.uniqueIndex).toEqual([0, 1, 0]);
+    // chars counts the DEDUPED set — the repeat is free.
+    expect(p.chars).toBe("同じ文。".length + "違う文。".length);
+  });
+
+  it("keeps blank / non-string entries as positions but never sends them", () => {
+    const p = prepareSegments(["猫だ。", "   ", 42, null]);
+    expect(p.unique).toEqual(["猫だ。"]);
+    expect(p.uniqueIndex).toEqual([0, -1, -1, -1]);
+    expect(p.chars).toBe("猫だ。".length);
+  });
+
+  it("is empty-safe", () => {
+    expect(prepareSegments([])).toEqual({ normalized: [], unique: [], uniqueIndex: [], chars: 0 });
+  });
+});
+
+describe("expandSegmentResults", () => {
+  it("scatters results back onto request indexes, re-using deduped answers", () => {
+    const p = prepareSegments(["同じ文。", "違う文。", "同じ文。"]);
+    expect(expandSegmentResults(p, ["Same.", "Different."])).toEqual([
+      "Same.",
+      "Different.",
+      "Same.",
+    ]);
+  });
+
+  it("yields a null per segment when the provider failed entirely", () => {
+    const p = prepareSegments(["一。", "二。"]);
+    expect(expandSegmentResults(p, null)).toEqual([null, null]);
+  });
+
+  it("nulls the positions the provider left blank, and blank inputs", () => {
+    const p = prepareSegments(["一。", "  ", "二。"]);
+    expect(expandSegmentResults(p, ["One.", null])).toEqual(["One.", null, null]);
+  });
+
+  it("never returns fewer entries than were requested", () => {
+    const p = prepareSegments(["一。", "二。", "三。"]);
+    expect(expandSegmentResults(p, ["One."])).toHaveLength(3);
+  });
+});
+
+// Both guards were written against real prod damage (2026-08-02): of 306 cached MT
+// rows, 73 were pure digits and 177 were Latin-only words sent as Japanese — every
+// one a billed Google call whose result was noise, cached as a "verified" word.
+describe("shouldSkipMt (pre-spend junk guard)", () => {
+  it("skips tokens with no letters — the page numbers prod was paying for", () => {
+    for (const n of ["2026", "0120", "1410612404000", "０１２", "100", "12.5", "-", "#3"]) {
+      expect(shouldSkipMt(n, "JA")).toBe(true);
+    }
+  });
+
+  it("skips blank / whitespace-only input", () => {
+    expect(shouldSkipMt("", "JA")).toBe(true);
+    expect(shouldSkipMt("   ", "JA")).toBe(true);
+  });
+
+  it("skips Latin words submitted as Japanese (source-script mismatch)", () => {
+    for (const w of ["overflowing", "stronger", "cooking", "honestly"]) {
+      expect(shouldSkipMt(w, "JA")).toBe(true);
+    }
+  });
+
+  it("keeps real Japanese, including kana-only and mixed digit+kanji", () => {
+    for (const w of ["文章", "よろしく", "ミニストップ", "第2類"]) {
+      expect(shouldSkipMt(w, "JA")).toBe(false);
+    }
+  });
+
+  it("mirrors the rule for EN source: Japanese in, digits out, English kept", () => {
+    expect(shouldSkipMt("文章", "EN")).toBe(true);
+    expect(shouldSkipMt("2026", "EN")).toBe(true);
+    expect(shouldSkipMt("sentence", "EN")).toBe(false);
+  });
+
+  it("imposes no script rule for a language with no entry, but still drops digits", () => {
+    expect(shouldSkipMt("사랑", "KO")).toBe(false);
+    expect(shouldSkipMt("123", "KO")).toBe(true);
+  });
+
+  it("is case-insensitive about the language code", () => {
+    expect(shouldSkipMt("stronger", "ja")).toBe(true);
+  });
+});
+
+describe("isEchoTranslation (cache-poisoning guard)", () => {
+  it("catches the echo that minted prod's numeric word rows", () => {
+    expect(isEchoTranslation("2026", "2026")).toBe(true);
+    expect(isEchoTranslation("immediately", "immediately")).toBe(true);
+  });
+
+  it("ignores case, width and surrounding space", () => {
+    expect(isEchoTranslation("URL", "ｕｒｌ")).toBe(true);
+    expect(isEchoTranslation("Someday", " someday ")).toBe(true);
+  });
+
+  it("passes a genuine translation through", () => {
+    expect(isEchoTranslation("文章", "sentence")).toBe(false);
+    expect(isEchoTranslation("京都パープルサンガ", "Kyoto Purple Sanga")).toBe(false);
+  });
+});
+
+describe("lemmaCandidates — JA potential verbs", () => {
+  // Every one of these was a billed MT row on prod because the potential form has no
+  // JMdict headword; the base form does.
+  it("offers the 五段 dictionary form as a fallback candidate", () => {
+    expect(lemmaCandidates("帰れる", "JA")).toContain("帰る");
+    expect(lemmaCandidates("戻れる", "JA")).toContain("戻る");
+    expect(lemmaCandidates("ゆける", "JA")).toContain("ゆく");
+    expect(lemmaCandidates("奪える", "JA")).toContain("奪う");
+    expect(lemmaCandidates("とまれる", "JA")).toContain("とまる");
+    expect(lemmaCandidates("たどりつける", "JA")).toContain("たどりつく");
+  });
+
+  it("handles the 一段 〜られる potential", () => {
+    expect(lemmaCandidates("食べられる", "JA")).toContain("食べる");
+  });
+
+  it("always tries the SURFACE first, so real verbs that look potential are safe", () => {
+    for (const v of ["見える", "消える", "生える"]) {
+      expect(lemmaCandidates(v, "JA")[0]).toBe(v);
+    }
+  });
+
+  it("adds no candidate when the stem can't be a potential form (kanji/non-え-row)", () => {
+    expect(lemmaCandidates("帰る", "JA")).toEqual(["帰る"]);
+    expect(lemmaCandidates("する", "JA")).toEqual(["する"]);
+  });
+
+  it("a 一段 verb yields a harmless extra candidate — the surface is still first", () => {
+    // 食べる and 帰れる are indistinguishable by surface alone (both え-row + る), so the
+    // rule fires on both. First-hit-wins resolution means 食べる matches itself and the
+    // speculative 食ぶ is never consulted.
+    expect(lemmaCandidates("食べる", "JA")).toEqual(["食べる", "食ぶ"]);
+  });
+
+  it("still offers the する candidate, and both when they apply", () => {
+    expect(lemmaCandidates("接す", "JA")).toEqual(["接す", "接する"]);
+  });
+});
+
+// ── EN→JA: grammar, inflection and phrases (2026-08-01) ────────────────────
+// Reported from the app: "my", "worked", "have worked", "an", "is" all returned
+// poor results. Three different causes, so three different guards.
+describe("isEnglishFunctionWord", () => {
+  it("catches the grammar words that had no useful entry", () => {
+    // Measured on prod: an→1, is→ある, my→マイ (the loanword, as in マイカー).
+    for (const w of ["an", "is", "my", "the", "a", "was", "their", "this", "it"]) {
+      expect(isEnglishFunctionWord(w), w).toBe(true);
+    }
+  });
+
+  it("leaves CONTENT words alone, including ones that are also grammatical", () => {
+    // Blocking these would be a worse bug than the one being fixed: they have real
+    // dictionary entries a learner wants.
+    for (const w of ["have", "can", "will", "work", "worked", "book", "run"]) {
+      expect(isEnglishFunctionWord(w), w).toBe(false);
+    }
+  });
+
+  it("is case- and space-insensitive, and never matches a phrase", () => {
+    expect(isEnglishFunctionWord("  My  ")).toBe(true);
+    expect(isEnglishFunctionWord("my book")).toBe(false); // a phrase is not a function word
+  });
+});
+
+describe("isMultiWord", () => {
+  it("separates a headword from a phrase", () => {
+    expect(isMultiWord("have worked")).toBe(true);
+    expect(isMultiWord("worked")).toBe(false);
+    expect(isMultiWord("  spaced   out  ")).toBe(true);
+  });
+});
+
+describe("inflectedAsVerb / preferVerbSenses", () => {
+  it("finds the lemma anywhere in the candidate list, not at a fixed position", () => {
+    // lemmaCandidates returns [SURFACE, ...lemmas], so reading the LAST entry picked up
+    // whatever the regular-form generator emitted last ("worke") and the bias never
+    // fired at all — measured live on prod before this was fixed.
+    expect(inflectedVerbSurface("worked", ["worked", "work", "worke"])).toBe(true);
+    expect(inflectedVerbSurface("working", ["working", "work"])).toBe(true);
+    // No differing candidate = never inflected, so no evidence either way.
+    expect(inflectedVerbSurface("bed", ["bed"])).toBe(false);
+    expect(inflectedVerbSurface("work", ["work"])).toBe(false);
+  });
+
+  it("reads -ed/-ing as a verb, but only when the surface actually inflected", () => {
+    expect(inflectedAsVerb("worked", "work")).toBe(true);
+    expect(inflectedAsVerb("working", "work")).toBe(true);
+    // Uninflected surface says nothing about POS — "work" is both noun and verb.
+    expect(inflectedAsVerb("work", "work")).toBe(false);
+    // A word that merely ENDS in -ed without inflecting is not evidence either.
+    expect(inflectedAsVerb("bed", "bed")).toBe(false);
+  });
+
+  it("lifts verb senses above nouns without dropping anything", () => {
+    // "worked" resolved to work's senses and led with 仕事 (noun) because the gloss
+    // "work" sits at sense 0 / gloss 0 of both and frequency broke the tie.
+    const senses = [
+      { translation: "仕事", partOfSpeech: ["n"] },
+      { translation: "作品", partOfSpeech: ["n"] },
+      { translation: "働く", partOfSpeech: ["v5k", "vi"] },
+      { translation: "制作", partOfSpeech: ["n", "vs"] },
+    ];
+    const out = preferVerbSenses(senses);
+    expect(out[0].translation).toBe("働く");
+    expect(out).toHaveLength(senses.length); // a bias, not a filter
+    // Order WITHIN each group is preserved (headline_rank survives). 制作 is ["n","vs"]
+    // — a NOUN that takes する — so it stays in the non-verb group; an earlier draft of
+    // this expectation encoded the bug where bare `vs` counted as a verb.
+    expect(out.map((s) => s.translation)).toEqual(["働く", "仕事", "作品", "制作"]);
+  });
+
+  it("does NOT treat `vs` (a noun that takes する) as a verb", () => {
+    // The distinction that makes the bias work at all. 仕事 is ["n","vs"] and 制作 is
+    // ["n","vs"] — both NOUNS. A first cut matched bare `vs`, so every noun counted as
+    // a verb and 仕事 stayed first. Same for bare vi/vt, which are transitivity
+    // markers: a real verb always carries a conjugation class too (働く = v5k + vi).
+    const out = preferVerbSenses([
+      { translation: "仕事", partOfSpeech: ["n", "vs"] },
+      { translation: "制作", partOfSpeech: ["n", "vs"] },
+      { translation: "働く", partOfSpeech: ["v5k", "vi"] },
+    ]);
+    expect(out.map((s) => s.translation)).toEqual(["働く", "仕事", "制作"]);
+  });
+
+  it("recognises the irregular する/来る classes", () => {
+    const out = preferVerbSenses([
+      { translation: "名詞", partOfSpeech: ["n"] },
+      { translation: "する", partOfSpeech: ["vs-i"] },
+      { translation: "来る", partOfSpeech: ["vk"] },
+    ]);
+    expect(out.map((s) => s.translation)).toEqual(["する", "来る", "名詞"]);
+  });
+
+  it("is a no-op when nothing is a verb", () => {
+    const senses = [{ translation: "本", partOfSpeech: ["n"] }];
+    expect(preferVerbSenses(senses)).toEqual(senses);
+  });
+});
+
+describe("orderSensesForInput — verb bias applies to CACHED rows too", () => {
+  // Projection-time ordering alone was measurably not enough: "worked" was already
+  // cached at the CURRENT version with 仕事 first, so the cache answered and the
+  // projection never re-ran. Ordering at read time needs no version bump.
+  const senses = [
+    { input: "worked", inputReading: null, translation: "仕事", partOfSpeech: ["n"] },
+    { input: "worked", inputReading: null, translation: "働く", partOfSpeech: ["v5k", "vi"] },
+  ];
+
+  it("lifts the verb for an inflected English surface", () => {
+    expect(orderSensesForInput("worked", senses).map((s) => s.translation)).toEqual(["働く", "仕事"]);
+  });
+
+  it("leaves an uninflected surface alone — 'work' is legitimately both", () => {
+    const asWork = senses.map((s) => ({ ...s, input: "work" }));
+    expect(orderSensesForInput("work", asWork).map((s) => s.translation)).toEqual(["仕事", "働く"]);
+  });
+
+  it("does not disturb Japanese headwords", () => {
+    const ja = [
+      { input: "行った", inputReading: "いった", translation: "went", partOfSpeech: ["v5k"] },
+      { input: "行った", inputReading: "いった", translation: "carried out", partOfSpeech: ["v5u"] },
+    ];
+    expect(orderSensesForInput("行った", ja).map((s) => s.translation)).toEqual(["went", "carried out"]);
+  });
+});
+
+// ── preferWrittenForm (the cache-side half of migration 20260758) ──────────
+// The cache read matches `input` OR `input_reading`, which is what lets a kana search
+// find the kanji rows — but it runs in reverse too: a `uk` entry headwords as its KANA
+// and carries the KANJI in input_reading, so searching 質 also matched the たち rows,
+// and those beat the real 質 rows on frequency (577 vs 465). 質 answered "nature;
+// disposition" and "quality" never appeared.
+describe("preferWrittenForm", () => {
+  const row = (input: string, translation: string) => ({ input, translation });
+
+  it("puts the row actually written that way first", () => {
+    const rows = [row("たち", "nature; disposition"), row("質", "quality; value")];
+    expect(preferWrittenForm(rows, "質").map((r) => r.translation)).toEqual([
+      "quality; value",
+      "nature; disposition",
+    ]);
+  });
+
+  it("is STABLE — it partitions, it does not re-sort", () => {
+    const rows = [
+      row("たち", "a"), row("質", "quality"), row("たち", "b"), row("質", "logical quality"),
+    ];
+    expect(preferWrittenForm(rows, "質").map((r) => r.translation)).toEqual([
+      "quality", "logical quality", "a", "b",
+    ]);
+  });
+
+  // Kanji-guarded on purpose: on kana input a kana-headword entry would leapfrog the
+  // kanji entry a searcher usually wants.
+  it("leaves KANA input alone (ねこ must still answer 猫)", () => {
+    const rows = [row("猫", "cat"), row("ねこ", "some uk entry")];
+    expect(preferWrittenForm(rows, "ねこ").map((r) => r.input)).toEqual(["猫", "ねこ"]);
+  });
+
+  it("is a no-op when every row matches, or none does", () => {
+    const all = [row("質", "quality"), row("質", "pawn")];
+    expect(preferWrittenForm(all, "質")).toBe(all);
+    const none = [row("たち", "nature")];
+    expect(preferWrittenForm(none, "質")).toBe(none);
+  });
+
+  it("leaves a single row untouched", () => {
+    const one = [row("たち", "nature")];
+    expect(preferWrittenForm(one, "質")).toBe(one);
   });
 });

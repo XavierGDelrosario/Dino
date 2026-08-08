@@ -1,0 +1,151 @@
+/* In-depth article summary page: header, action row, and the sort/filter controls
+   above the word list. The rows themselves reuse the Lists surface (.listrow*, in
+   lists.css) so they look identical — the only article addition is the freq chip. */
+.article__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.article__head .btn {
+  align-self: flex-start;
+}
+
+/* Title + ★ on one line. The star is `flex: none` (see .media__star) so a long
+   headline wraps under itself rather than squeezing the button, and align-items
+   keeps the star on the FIRST line of a wrapped title instead of centred against
+   the whole block. */
+.article__titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.article__title {
+  margin: 0.25rem 0 0;
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+
+/* Bigger tap target than the list star: this one sits alone in a header rather
+   than at the end of a dense row, and it's a primary action here. */
+.article__titleRow .media__star {
+  font-size: 1.5rem;
+  padding: 0.25rem 0.35rem;
+}
+
+.article__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 1rem;
+}
+
+/* ---- word list ---- */
+.awl {
+  margin-top: 0.5rem;
+}
+
+.awl__controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.awl__status {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.awl__seg {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.awl__seg + .awl__seg {
+  border-left: 1px solid var(--border);
+}
+
+.awl__seg.is-active {
+  background: var(--accent, #a78bfa);
+  color: #fff;
+}
+
+.awl__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* The open filter panel sits between the controls and the words. */
+.awl .filtermenu__box {
+  margin-top: 0.75rem;
+}
+
+/* SEPARATOR: a rule above the words so the controls / filter don't blend into the
+   list below (the line shows whether or not the filter panel is open). */
+.awl__list {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.awl__empty {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Frequency (commonness) chip — the article-only addition to the Lists row. */
+.awl__freq {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+
+/* READING MODE — the article and nothing else: prose, the "Show translation"
+   toggle, and the way back. The head sticks so the back button stays reachable
+   without scrolling to the top of a long article.
+
+   The prose column is 50% WIDER than the app's 540px column (common.css) —
+   reading a whole article wants a longer line than the app's form-sized layout.
+   It breaks out with negative inline margins: percentage margins resolve against
+   the containing block's width, so -25% a side adds half again as much total,
+   and it tracks the app column instead of hard-coding a second width.
+
+   Only above 860px, where the wider column actually fits — on a phone the app
+   column is already the viewport, so expanding it would just add horizontal
+   scrolling. */
+@media (min-width: 860px) {
+  .article-read {
+    margin-inline: -25%;
+  }
+}
+
+.article-read .article__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-bottom: 0.5rem;
+  background: var(--bg);
+}

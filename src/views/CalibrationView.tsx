@@ -1,15 +1,22 @@
-// The "Find my level" placement quiz (#10). A grid of words at one proficiency
-// band — the user taps the ones they DON'T know, then advances. An adaptive binary
-// search (useCalibration) converges on their level in a few quick rounds and stores
-// it (users.level), which seeds the SRS for words added later. Words the user knows
-// (left unmarked) are added to their vocabulary at full confidence. Deliberately
-// fast: know/don't-know only, no meanings, no per-word grading.
+// The "Find my level" placement quiz — a one-word-at-a-time SWIPE test. Swipe RIGHT
+// (or → / the Know button) if you know the word, LEFT (or ← / Don't know) if you
+// don't; tap the card to reveal the meaning; ＋ (top-right) files it into a sub-list.
+//
+// Each swipe saves the word (know → full confidence, don't-know → cold start), so
+// your rated vocabulary IS the saved progress. The level is DERIVED from that whole
+// vocabulary (stable — a few misses can't demote you) and is only COMMITTED once
+// there's enough coverage; before that it shows a provisional "keep rating" state.
+import { useCallback, useEffect } from "react";
 import { useCalibration } from "../hooks/useCalibration";
-import { ErrorText } from "../components/common/ErrorText";
-import { SenseText } from "../components/common/SenseText";
+import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { AddToListButton } from "../components/translate/AddToListButton";
+import { ErrorText } from "../components/common/ErrorText";
 import { useI18n } from "../i18n";
 import type { List } from "../services/lists";
+import type { LangCode } from "../services/language";
+import "../components/flashcards/flashcards.css";
+import "./learn.css";
 import "./calibration.css";
 
 export function CalibrationView({
@@ -17,18 +24,40 @@ export function CalibrationView({
   lists,
   onCreateList,
   onClose,
+  langs,
 }: {
   userId: string;
-  /** The user's sub-lists, for the missed-word add-to-list menu. */
   lists: List[];
-  /** Create a sub-list, returning its id (then the word is tagged into it). */
   onCreateList: (name: string) => Promise<string>;
-  /** Return to the Learn picker. Called after a result so the caller can refresh
-   *  the displayed level. */
   onClose: () => void;
+  /** The pair to place the user in. Pass it from a screen that has its own language
+   *  picker (Learn) — otherwise the quiz falls back to the profile and can contradict
+   *  the choice the user just made to get here. */
+  langs?: { learning: LangCode; native: LangCode };
 }) {
-  const c = useCalibration(userId);
+  const c = useCalibration(userId, langs);
   const { t } = useI18n();
+  const { status, current, revealed, reveal, rate } = c;
+
+  // The card MOVES for every rating path — drag, buttons, keys all go through
+  // fling(), so the rating lands only once the card has flown out.
+  const swipe = useSwipeCard({
+    onLeft: useCallback(() => rate(false), [rate]),
+    onRight: useCallback(() => rate(true), [rate]),
+  });
+  const { fling } = swipe;
+
+  // Web: ← = don't know, → = know, Space/Enter = reveal.
+  useEffect(() => {
+    if (status !== "swiping") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") fling("left");
+      else if (e.key === "ArrowRight") fling("right");
+      else if (e.key === " " || e.key === "Enter") reveal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [status, fling, reveal]);
 
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
@@ -36,7 +65,7 @@ export function CalibrationView({
     </button>
   );
 
-  if (c.status === "unavailable") {
+  if (status === "unavailable") {
     return (
       <section className="review">
         <p className="review__msg">{t("calib.unavailable")}</p>
@@ -45,7 +74,7 @@ export function CalibrationView({
     );
   }
 
-  if (c.status === "error") {
+  if (status === "error") {
     return (
       <section className="review">
         <ErrorText message={c.error} />
@@ -57,91 +86,82 @@ export function CalibrationView({
     );
   }
 
-  if (c.status === "done") {
+  if (status === "done") {
     return (
       <section className="review">
         <div className="review__msg">
           <p className="calib__result">
-            {c.levelLabel
-              ? t("calib.resultLevel", { level: c.levelLabel })
-              : t("calib.resultBeginner")}
+            {c.bandLabel ? t("calib.resultLevel", { level: c.bandLabel }) : t("calib.resultBeginner")}
           </p>
-          {c.addedCount > 0 && (
-            <p className="review__scope">{t("calib.resultSaved", { n: c.addedCount })}</p>
-          )}
-          <p className="review__scope">{t("calib.resultNote")}</p>
         </div>
         <div className="review__foot">
           <button className="btn" onClick={c.restart}>{t("calib.again")}</button>
           {close}
         </div>
-
-        {/* The words the user didn't know, shown single-word-translate style so they
-            can study them right after placing. */}
-        {c.missed.length > 0 && (
-          <div className="calib__missed">
-            <p className="calib__missedtitle">{t("calib.missed")}</p>
-            <ul className="calib__missedlist">
-              {c.missed.map((w) => (
-                <li className="calib__missedrow" key={w.wordId}>
-                  <SenseText word={w} primary />
-                  <AddToListButton
-                    words={[w]}
-                    lists={lists}
-                    label={c.savedMissedIds.has(w.wordId) ? "✓" : "＋"}
-                    alreadyAdded={c.savedMissedIds.has(w.wordId)}
-                    onAdd={(words, listId) => c.addMissedWord(words[0], listId)}
-                    onCreateList={onCreateList}
-                    className="add"
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
     );
   }
 
-  // loading | reviewing
+  if (status === "loading" || !current) {
+    return (
+      <section className="review">
+        <p className="review__msg">{t("calib.loading")}</p>
+      </section>
+    );
+  }
+
+  const sufficient = c.live?.sufficient ?? false;
   return (
     <section className="review calib">
-      <p className="review__scope">{t("calib.instruction")}</p>
-
-      {c.status === "loading" ? (
-        <p className="review__msg">{t("calib.loading")}</p>
-      ) : (
-        <>
-          <p className="calib__round">{t("calib.round", { n: c.round })}</p>
-          <div className="calib__grid" role="group" aria-label={t("calib.instruction")}>
-            {c.cards.map((w, i) => {
-              const marked = c.unknown.has(i);
-              return (
-                <button
-                  key={w.wordId}
-                  type="button"
-                  className={`calcard${marked ? " is-unknown" : ""}`}
-                  aria-pressed={marked}
-                  onClick={() => c.toggle(i)}
-                >
-                  {w.inputReading && <span className="calcard__reading">{w.inputReading}</span>}
-                  <span className="calcard__word">{w.input}</span>
-                </button>
-              );
-            })}
+      <div className="swipe">
+        {/* Bigger fixed-size card; reveal by tapping it; ＋ add-to-list lives INSIDE.
+            The swipe wrapper owns the gesture (so FlashcardCard's own touch-swipe
+            props are deliberately NOT passed — both would rate the same release). */}
+        <div {...swipe.props}>
+          {/* Keyed on the word so the incoming card replays its settle-in. */}
+          <div className="quizcard swipecard__in" key={current.wordId}>
+            <FlashcardCard
+              word={current}
+              flipped={revealed}
+              onFlip={reveal}
+              action={
+                <AddToListButton
+                  className={`card-add${c.tagged.has(current.wordId) ? " is-saved" : ""}`}
+                  words={[current]}
+                  lists={lists}
+                  label={c.tagged.has(current.wordId) ? "✓" : "＋"}
+                  alreadyAdded={c.tagged.has(current.wordId)}
+                  onAdd={(words, listId) => c.addToList(words[0], listId)}
+                  onCreateList={onCreateList}
+                />
+              }
+            />
           </div>
+        </div>
 
-          <div className="calib__actions">
-            <button className="btn" onClick={c.submit} disabled={c.submitting}>
-              {c.unknownCount === 0
-                ? t("calib.knowAll")
-                : t("calib.next", { n: c.unknownCount })}
-            </button>
-          </div>
-        </>
-      )}
+        <ErrorText message={c.error} />
 
-      <div className="review__foot">{close}</div>
+        {/* Web: buttons. App: swipe. They're alternatives, so the swipe hint sits
+            right here with the buttons. */}
+        <div className="swipe__controls">
+          <button className="btn btn--ghost swipe__no" onClick={() => fling("left")}>
+            ← {t("calib.dontKnow")}
+          </button>
+          <button className="btn btn--ghost swipe__yes" onClick={() => fling("right")}>
+            {t("calib.know")} →
+          </button>
+        </div>
+        <p className="swipe__hint">{t("calib.swipeHint")}</p>
+
+        {/* Commit only once there's enough coverage — no counts, no "keep rating" noise. */}
+        {sufficient && (
+          <button className="btn btn--primary calib__finish" onClick={c.finish}>
+            {t("calib.finish")}
+          </button>
+        )}
+
+        <div className="review__foot">{close}</div>
+      </div>
     </section>
   );
 }

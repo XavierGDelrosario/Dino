@@ -1,48 +1,33 @@
-// =========================================================
 // `translate` Edge Function — the ONLY place translation happens.
 //
-// Holds a service-role Supabase client so it can write VERIFIED words to the
-// global cache — something browser clients can never do (RLS forbids
-// is_verified = true from clients).
+// Holds a service-role client so it can write VERIFIED words to the global cache, which
+// browser clients can never do (RLS forbids is_verified = true from clients).
 //
-// PRIMARY PROVIDER = JMdict (self-hosted). On a cache miss we call the
-// jmdict_lookup() SQL function (see supabase/migrations/20260618_jmdict.sql),
-// which returns ALL matching senses for the pair (both JA->EN and EN->JA). A
-// real dictionary is MULTI-SENSE, so unlike the old single-result MT flow this
-// function projects MANY verified `words` rows per lookup and returns them all.
+// Find-or-create per lookup: verified cache → jmdict_lookup() (multi-sense, so one
+// lookup projects MANY `words` rows) → the Google MT fallback → { translated: false }.
+// Readings ride inline on each row — the furigana source for the no-context surface;
+// sentence furigana uses client-side kuromoji. There is NO separate readings table.
 //
-// Find-or-Create (server side, race-safe against duplicate work):
-//   1. Look for existing verified translations -> return them, no lookup.
-//   2. Miss -> jmdict_lookup(); fall back to the Google MT provider.
-//   3. No result -> { translated: false, ... }.
-//   4. Success -> upsert verified words (readings ride inline on each row) and return.
-//
-// READINGS: each `words` row carries input_reading / translation_reading inline.
-// That is the furigana source for the no-context surface (single-word lookups,
-// flashcards), where kuromoji is unreliable. Sentence furigana uses client-side
-// kuromoji (context-aware). There is NO separate readings table.
-//
-// MT FALLBACK: callTranslationProvider() calls Google Cloud Translation v2 when
-// JMdict has no match — covering words JMdict lacks and the whole-paragraph
-// display gloss (persist:false). It degrades to null (no result) when the API
-// key is absent or the call fails, so JMdict-only operation is unaffected.
-//
-// Required env: the auto-provided SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.
-// Optional secrets: TRANSLATION_API_KEY (enables MT), TRANSLATION_API_URL
-// (overrides the Google v2 endpoint, e.g. for a proxy/mock).
+// Required env: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (auto-provided). Optional
+// secrets: TRANSLATION_API_KEY (enables MT), TRANSLATION_API_URL (endpoint override).
 //
 // CROSS-RUNTIME MIRROR: toWord() and the upsert onConflict tuple hand-mirror
 // src/services/words/repository.ts (separate Deno runtime) — keep them in sync.
-// =========================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// Pure helpers live in _lib.ts so they're unit-testable from the Node/Vitest
-// suite (this Deno file can't be imported there). See tests/edge/translate-lib.test.ts.
+// Pure helpers live in _lib.ts so they're unit-testable from Node/Vitest.
 import {
   applyInputAttributeOverride,
   corsHeaders,
   EN_JA_STOPWORDS,
+  isEnglishFunctionWord,
+  isMultiWord,
+  inflectedVerbSurface,
+  preferVerbSenses,
+  expandSegmentResults,
   groupByInput,
+  MAX_SEGMENTS,
+  prepareSegments,
   lemmaCandidates,
   orderSensesForInput,
   parseAllowedOrigins,
@@ -50,69 +35,44 @@ import {
   projectMany,
   projectRows,
   resolvePerInputWithCandidates,
+  resolvePerInputFirstHit,
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
   type ProviderResult,
+  chunkForUrlFilter,
+  shouldSkipMt,
+  isEchoTranslation,
+  dictionaryRefFor,
+  curationKeyFor,
+  preferWrittenForm,
 } from "./_lib.ts";
 
-// Stamp written onto every projected `words` row (projection_version). BUMP this
-// whenever the source data (a JMdict re-ingest) or the projection logic
-// (jmdict_lookup / the toWord projection below — readings, headword, uk, ranking,
-// dictionary_ref) changes, so the deferred (#5) re-projection sweep can find
-// rows it must rebuild (those with projection_version < this).
-//   1 = pre-stable-identity baseline (no dictionary_ref)
-//   2 = stable JMdict identity (#1: jmdict_entry_id/sense_pos + dictionary_ref)
-//   3 = #7: frequency + part_of_speech projected; frequency-ranked ordering
-//   4 = WordNet-first EN->JA: synset-grouped senses (re-ranked sensePos) replace
-//       the raw reverse-gloss order; JA->EN rows are unaffected but re-stamped.
-//   5 = proficiency_band projected (JLPT/CEFR curated band, services/proficiency)
-//   6 = own-frequency/own-band: the shown writing's OWN value, not COALESCE(kanji,kana)
-//       (migration 20260720) + EN-source frequency/CEFR-band overrides from the
-//       english_frequency/english_proficiency tables (20260721/20260722). Rows < 6
-//       carry stale values (JA rows: borrowed kana freq; EN rows: the JA translation's
-//       freq/JLPT band) until re-projected — the deferred (#5) sweep targets them.
-//   7 = EN→JA intersection-boost: senses both WordNet AND the gloss return lead (in
-//       gloss head-match order), fixing common-but-wrong primaries (cat→猫 not やつ).
-//       Only the EN→JA sensePos ORDER changed; cached rows keep the old order until
-//       re-translated (the deferred #5 sweep flags version < 7).
-const CURRENT_PROJECTION_VERSION = 7;
+// Stamp written onto every projected `words` row. BUMP whenever the source data (a
+// re-ingest) or the projection logic changes, so a cached row that would serve a STALE
+// ANSWER is re-projected. Don't bump when the row can be corrected in place (e.g. an
+// ingest that backfills `words` directly) — that just stampedes the whole cache.
+// See src/lib/projection.ts for the full contract and the version history.
+const CURRENT_PROJECTION_VERSION = 12;
 
-// The READ side of that stamp. Until 2026-07-13 nothing compared it, so a stale row
-// was still a cache HIT and every bump above reached only words nobody had looked up
-// yet (prod: ~4.7k of ~5k rows were stuck on versions 3–6). A row now only counts as a
-// hit if it is CURRENT; a stale one is a MISS and gets re-projected. The re-projection
-// upserts on `dictionary_ref`, so it UPDATES the row in place — the word_id survives
-// and `user_words.dictionary_word_id` never dangles. Nothing is deleted; the cache
-// heals as words are used.
-//
-// MT rows (`dictionary_ref` = `mt:<input>`) are EXEMPT — they project nothing, so
-// "re-projecting" one would just re-call the PAID Google endpoint for the same text. A
-// version bump must never become a spend event.
+// The READ side of that stamp: a row below the current version is a cache MISS, and the
+// re-projection upserts on `dictionary_ref` so it UPDATEs in place (word_id survives,
+// `user_words.dictionary_word_id` never dangles). MT rows are gated too — the spend
+// concern is handled by reviveMtRows, which re-serves and re-stamps the text we already
+// paid for, so a bump never re-calls Google.
 //
 // MIRRORS src/lib/projection.ts (separate runtime; tests fail if the two drift).
-const FRESH_OR_MT =
-  `projection_version.gte.${CURRENT_PROJECTION_VERSION},dictionary_ref.like.mt:*`;
+const FRESH = `projection_version.gte.${CURRENT_PROJECTION_VERSION}`;
 
-// Service-role credentials. Prefer an explicit secret (SERVICE_ROLE_SECRET, a new
-// `sb_secret_…` key) over the auto-injected legacy SUPABASE_SERVICE_ROLE_KEY, so the
-// function keeps full RLS-bypass access after the legacy API keys are disabled
-// (key-rotation remediation). Falls back to the legacy key when the secret is unset.
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
-// resolveServiceKey (in _lib.ts, unit-tested) handles the secret→legacy precedence
-// and the empty-string fallback.
+// resolveServiceKey handles the SERVICE_ROLE_SECRET → legacy-key precedence, so the
+// function keeps RLS-bypass access after legacy API keys are disabled.
 const SERVICE_KEY = resolveServiceKey({
   SERVICE_ROLE_SECRET: Deno.env.get("SERVICE_ROLE_SECRET"),
   SUPABASE_SERVICE_ROLE_KEY: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
 })!;
-// One service-role client for the whole isolate (supabase-js is fetch-based and
-// stateless here) — no need to reconstruct it per request on the hot path.
+// One client for the whole isolate — supabase-js is fetch-based and stateless here.
 const supabase = createClient(SB_URL, SERVICE_KEY);
-
-// corsHeaders(origin, allowedOrigins) is in _lib.ts (ALLOWED_ORIGINS env → echo a
-// listed Origin, else "*" in dev). NOTE: the local `supabase start` Kong gateway
-// rewrites the response header to "*"; the function's value is authoritative only
-// in production.
 
 function json(
   body: unknown,
@@ -139,6 +99,10 @@ interface WordRow {
   difficulty_override: number | null;
   jmdict_entry_id: string | null;
   jmdict_sense_pos: number | null;
+  example: string | null;
+  example_gloss: string | null;
+  definition_source: string | null;
+  example_reading: string | null;
   is_verified: boolean;
 }
 
@@ -158,18 +122,19 @@ function toWord(r: WordRow) {
     difficultyOverride: r.difficulty_override ?? null,
     jmdictEntryId: r.jmdict_entry_id ?? null,
     jmdictSensePos: r.jmdict_sense_pos ?? null,
+    example: r.example ?? null,
+    exampleGloss: r.example_gloss ?? null,
+    definitionSource: r.definition_source ?? null,
+    exampleReading: r.example_reading ?? null,
     isVerified: r.is_verified,
   };
 }
 
-// ProviderResult (one projected sense) is defined in _lib.ts and imported above.
-
 // deno-lint-ignore no-explicit-any
 type Supa = any;
 
-// PRIMARY provider: query the self-hosted JMdict via the jmdict_lookup() SQL
-// function. Returns one ProviderResult per sense (JA->EN) / matched entry
-// (EN->JA), already ordered primary-first by the function. [] when no match.
+// PRIMARY provider: the self-hosted JMdict via jmdict_lookup(). One ProviderResult per
+// sense (JA->EN) / matched entry (EN->JA), already primary-first. [] when no match.
 async function lookupJMdict(
   supabase: Supa,
   input: string,
@@ -205,36 +170,32 @@ async function lookupJMdict(
   }));
 }
 
-// EN->JA is the slow direction (WordNet + reverse-gloss + projecting/upserting each
-// row), and its long tail is the noisiest (acronym/mid-gloss matches). Cap it tighter
-// than the SQL ceiling for performance — the client only shows 8 before "show more"
-// anyway, and EN->JA rarely has 8+ good senses. (JA->EN is capped by jmdict_lookup's
-// own LIMIT 12.) Bumping this needs no client change. See docs/TODO.md.
+// EN->JA is the slow direction and its long tail is the noisiest (acronym/mid-gloss
+// matches), so cap it tighter than the SQL ceiling — the client shows 8 before "show
+// more" anyway. (JA->EN is capped by jmdict_lookup's own LIMIT 12.)
 const EN_JA_RESULT_LIMIT = 8;
 
-// Resolve a lookup to its dictionary senses. EN->JA leads with the SEMANTIC
-// WordNet results and falls back to the reverse-gloss jmdict_lookup only to fill
-// the remaining slots (coverage for words WordNet lacks) — skipping the gloss
-// query entirely when WordNet already fills the cap. Every other direction is
-// straight jmdict_lookup. The MT fallback (caller's job) still runs only when this
-// returns [].
+// Resolve a lookup to its dictionary senses: EN->JA merges WordNet + the reverse-gloss
+// jmdict_lookup, every other direction is straight jmdict_lookup. The caller's MT
+// fallback runs only when this returns [].
 async function resolveDictionary(
   supabase: Supa,
   input: string,
   sourceLang: string,
   targetLang: string,
 ): Promise<ProviderResult[]> {
+  // GRAMMAR, not vocabulary: resolve to nothing. Callers read [] as "no entry".
+  if (sourceLang === "EN" && targetLang === "JA" && isEnglishFunctionWord(input)) return [];
+  // A PHRASE is not a headword, so skip both round-trips. It does NOT stop the request:
+  // the empty result falls through to MT, which is the right answer for a phrase (and
+  // what the client relies on when it sends a whole native-language sentence).
+  if (sourceLang === "EN" && targetLang === "JA" && isMultiWord(input)) return [];
   if (sourceLang === "EN" && targetLang === "JA") {
-    // Lemmatize via WordNet-morphy candidates (cats→cat, ran→run), resolved in just TWO
-    // parallel round-trips — same union-query + first-hit machinery as the batch path
-    // (no sequential per-candidate queries). The helper tries the SURFACE form first,
-    // reuses the winning lemma for the gloss fallback, and drops off-script romaji noise
-    // (ＰＥＮ/ＢＩＳ). sensePos is renumbered in the merge so the cache-read ORDER BY stays
-    // deterministic. (Gloss runs even when WordNet fills the cap — it's parallel, so no
-    // added latency, and the merge ignores the surplus.)
+    // Lemmatize via morphy candidates (cats→cat, ran→run) in TWO parallel round-trips —
+    // the same union-query + first-hit machinery as the batch path, no per-candidate
+    // queries. Gloss runs even when WordNet fills the cap: parallel, so no added latency.
     const candidates = lemmaCandidates(input, sourceLang);
-    // Skip the pathological (and meaningless) reverse-gloss scan for grammatical
-    // stopwords ("the", "to", …); WordNet still runs. See EN_JA_STOPWORDS.
+    // Stopwords skip the pathological (and meaningless) gloss scan; WordNet still runs.
     const glossCands = candidates.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
     const [wnRows, glossRows] = await Promise.all([
       lookupWordNetMany(supabase, candidates),
@@ -250,13 +211,21 @@ async function resolveDictionary(
       targetLang,
       EN_JA_RESULT_LIMIT,
     );
-    return resolved.get(input) ?? [];
+    const senses = resolved.get(input) ?? [];
+    // The inflection is the only English POS signal available; let it settle the tie
+    // ("worked" lemmatizes to "work" and otherwise leads with the noun 仕事).
+    return inflectedVerbSurface(input, candidates) ? preferVerbSenses(senses) : senses;
   }
-  return lookupJMdict(supabase, input, sourceLang, targetLang);
+  // JA→EN (and every other pair): one provider, but the input may still need a lemma
+  // candidate — kuromoji hands us IPADIC's 接す where JMdict carries only 接する. Surface
+  // first, so 出す/話す are untouched; the extra candidate costs one RPC, not a paid call.
+  const cands = lemmaCandidates(input, sourceLang);
+  if (cands.length === 1) return lookupJMdict(supabase, input, sourceLang, targetLang);
+  const byCand = groupProviderByInput(await lookupJMdictMany(supabase, cands, sourceLang, targetLang));
+  return resolvePerInputFirstHit([input], new Map([[input, cands]]), byCand).get(input) ?? [];
 }
 
-// One DB row from a (single or _many) lookup function → a ProviderResult. Shared by
-// the single + batch lookups (identical projection).
+// One DB row from a lookup function → a ProviderResult. Shared by single + batch.
 type LookupRow = {
   translation: string;
   input_reading: string | null;
@@ -282,12 +251,10 @@ function rowToProvider(row: LookupRow): ProviderResult {
   };
 }
 
-// BATCH dictionary lookups: resolve MANY inputs in ONE RPC (cold-paragraph N+1 fix,
-// migration 20260710). Each returns rows tagged with the search `input` so callers can
-// regroup per term. These are the ONLY lookup entry points (single-word resolves a
-// 1-element batch too). WordNet = the SEMANTIC EN->JA provider (English lemma -> synsets
-// -> the Japanese lemmas in each, resolved through JMdict for reading/frequency/POS,
-// ordered by WordNet sense rank; EN->JA only). JMdict = the reverse-gloss/direct lookup.
+// BATCH dictionary lookups: MANY inputs in ONE RPC (the cold-paragraph N+1 fix,
+// migration 20260710). Rows come back tagged with the search `input` so callers can
+// regroup per term. WordNet is the SEMANTIC EN->JA provider (lemma → synsets → the JA
+// lemmas in each, resolved through JMdict); JMdict is the reverse-gloss/direct lookup.
 async function lookupJMdictMany(
   supabase: Supa, inputs: string[], sourceLang: string, targetLang: string,
 ): Promise<{ input: string; r: ProviderResult }[]> {
@@ -320,18 +287,25 @@ function groupProviderByInput(rows: { input: string; r: ProviderResult }[]): Map
 // Inputs with no match are simply absent from the returned map.
 async function resolveDictionaryMany(
   supabase: Supa, inputs: string[], sourceLang: string, targetLang: string,
+  /** Skip the EN→JA reverse-gloss scan entirely (see resolveBatch's flag). */
+  skipGlossFallback = false,
 ): Promise<Map<string, ProviderResult[]>> {
   if (inputs.length === 0) return new Map();
   const out = new Map<string, ProviderResult[]>();
   if (sourceLang === "EN" && targetLang === "JA") {
-    // Lemmatize like the single-word path, but in ONE round-trip: expand every token to
-    // its lemma candidates and query WordNet + the gloss fallback over the UNION, then
-    // pick each token's winning lemma and re-key the senses to the surface token. So a
-    // paragraph of inflected English (cats, ran, studies) reads as well as single words.
-    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    // Lemmatize like the single-word path but in ONE round-trip: query both providers
+    // over the UNION of every token's candidates, then pick each token's winning lemma
+    // and re-key to the surface token. Function words are dropped FIRST, so the reader
+    // renders them as plain grammar rather than colouring "an" as an addable word.
+    const inputs2 = inputs.filter((i) => !isEnglishFunctionWord(i));
+    if (inputs2.length === 0) return out;
+    const candsByInput = new Map(inputs2.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
     const allCands = [...new Set([...candsByInput.values()].flat())];
-    // Stopwords go to WordNet only, not the pathological gloss scan (see EN_JA_STOPWORDS).
-    const glossCands = allCands.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
+    // Stopwords go to WordNet only, not the pathological gloss scan — as does
+    // everything when the caller says the inputs are already WordNet-resolvable.
+    const glossCands = skipGlossFallback
+      ? []
+      : allCands.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
     const [wnRows, glossRows] = await Promise.all([
       lookupWordNetMany(supabase, allCands),
       glossCands.length
@@ -341,27 +315,31 @@ async function resolveDictionaryMany(
     const wnByCand = groupProviderByInput(wnRows);
     const glossByCand = groupProviderByInput(glossRows);
     for (const [input, results] of resolvePerInputWithCandidates(
-      inputs, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
+      inputs2, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
     )) {
-      out.set(input, results);
+      // Same inflection bias as the single-word path.
+      const cands = candsByInput.get(input) ?? [];
+      out.set(input, inflectedVerbSurface(input, cands) ? preferVerbSenses(results) : results);
     }
   } else {
-    const by = groupProviderByInput(await lookupJMdictMany(supabase, inputs, sourceLang, targetLang));
-    for (const input of inputs) {
-      const r = by.get(input) ?? [];
-      if (r.length > 0) out.set(input, r);
+    // Same first-hit-wins resolution as the single-word path, over the UNION of every
+    // token's candidates, still in ONE round-trip.
+    const candsByInput = new Map(inputs.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
+    const allCands = [...new Set([...candsByInput.values()].flat())];
+    const byCand = groupProviderByInput(await lookupJMdictMany(supabase, allCands, sourceLang, targetLang));
+    for (const [input, results] of resolvePerInputFirstHit(inputs, candsByInput, byCand)) {
+      out.set(input, results);
     }
   }
   return out;
 }
 
 // ── English frequency (difficulty axis for EN-source words) ─────────────────
-// For an EN→JA lookup, `words.frequency` should be the ENGLISH input's own corpus
-// frequency, not the matched JA translation's. Override each resolved result's
-// frequency with english_frequency[lower(input)] (?? NULL — never the JA value).
-// EN→JA RESULT ORDERING is ranked inside jmdict_lookup's SQL BEFORE this, so this
-// only corrects the stored frequency attribute (low-risk). Fail-open: on any error
-// the frequencies are left as-is. No-op for every non-EN→JA direction.
+// For an EN→JA lookup `words.frequency` must be the ENGLISH input's own corpus
+// frequency, not the matched JA translation's — so override with
+// english_frequency[lower(input)] ?? NULL, never the JA value. Ordering is already
+// decided in SQL before this, so it only corrects the stored attribute. Fail-open;
+// no-op for every non-EN→JA direction.
 async function applyEnglishFrequency(
   supabase: Supa,
   perInput: { input: string; results: ProviderResult[] }[],
@@ -383,11 +361,9 @@ async function applyEnglishFrequency(
   applyInputAttributeOverride(perInput, freq, "frequency"); // English freq or NULL, never the JA one
 }
 
-/** As applyEnglishFrequency, but for the CEFR proficiency BAND (english_proficiency).
- *  EN→JA only: overrides each row's proficiency_band with the English input's CEFR band
- *  (A1→1 … C2→6) instead of the matched JA translation's JLPT band. Fail-open; a stored-
- *  attribute correction that doesn't affect ordering. In the leveling model the CEFR band
- *  LEADS over frequency, so this also drives an English word's difficulty. */
+/** As applyEnglishFrequency, but for the CEFR band (A1→1 … C2→6) instead of the matched
+ *  JA translation's JLPT band. In the leveling model the band LEADS over frequency, so
+ *  this also drives an English word's difficulty. */
 async function applyEnglishProficiency(
   supabase: Supa,
   perInput: { input: string; results: ProviderResult[] }[],
@@ -409,38 +385,98 @@ async function applyEnglishProficiency(
   applyInputAttributeOverride(perInput, band, "proficiencyBand"); // CEFR band or NULL, never the JA JLPT one
 }
 
-// Google Cloud Translation API v2 endpoint (REST, API-key auth). Overridable via
-// TRANSLATION_API_URL (e.g. to point at a proxy or a mock in tests).
+/** Stamp the authored curation (migration 20260752) onto the projected rows — example,
+ *  gloss, definition, pinned reading, display rank — read from the server-only
+ *  `sense_curation` so the client only ever reads `words`.
+ *
+ *  Keyed on `dictionary_ref`, the identity the cache is unique on, which is what makes
+ *  it work in BOTH directions: an (entry, sense) key can't express EN→JA, where
+ *  jmdict_sense_pos is the ranker's OUTPUT and a curation would pin to a position the
+ *  ranker recomputes. Fail-open — curation is an enhancement, never a reason to fail. */
+async function applySenseExamples(
+  supabase: Supa,
+  perInput: { input: string; results: ProviderResult[] }[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<void> {
+  if (perInput.length === 0) return;
+  const keys = new Set<string>();
+  for (const p of perInput) {
+    for (const r of p.results) keys.add(curationKeyFor(dictionaryRefFor(r, p.input)));
+  }
+  if (keys.size === 0) return;
+
+  const { data, error } = await supabase
+    .from("sense_curation")
+    .select("dictionary_ref, example, example_gloss, definition_source, example_reading, sense_rank")
+    .eq("source_lang", sourceLang)
+    .eq("target_lang", targetLang)
+    .in("dictionary_ref", [...keys]);
+  if (error) {
+    console.error("sense_curation lookup failed:", error.message);
+    return; // fail-open
+  }
+
+  type Row = {
+    dictionary_ref: string;
+    example: string | null;
+    example_gloss: string | null;
+    definition_source: string | null;
+    example_reading: string | null;
+    sense_rank: number | null;
+  };
+  const byRef = new Map<string, Row>();
+  for (const r of (data ?? []) as Row[]) byRef.set(r.dictionary_ref, r);
+  if (byRef.size === 0) return;
+
+  for (const p of perInput) {
+    for (const r of p.results) {
+      const hit = byRef.get(curationKeyFor(dictionaryRefFor(r, p.input)));
+      if (!hit) continue;
+      r.example = hit.example;
+      r.exampleGloss = hit.example_gloss;
+      r.definitionSource = hit.definition_source;
+      r.exampleReading = hit.example_reading;
+      r.senseRank = hit.sense_rank;
+    }
+  }
+}
+
+// Google Cloud Translation v2 (REST, API-key auth). Overridable via TRANSLATION_API_URL.
 const DEFAULT_TRANSLATION_API_URL =
   "https://translation.googleapis.com/language/translate/v2";
 
-// toGoogleLang(lang) is in _lib.ts (App JA/EN/KO/ZH → Google ISO codes).
-
-// MT FALLBACK — Google Cloud Translation v2. Invoked only when JMdict has no
-// match: covers words JMdict lacks AND the whole-paragraph display gloss
-// (persist:false). Provider-agnostic secret names (TRANSLATION_API_KEY /
-// _API_URL) so swapping providers is a body change here, nothing else.
+// MT FALLBACK — invoked only when JMdict has no match: words JMdict lacks AND the
+// paragraph display gloss. Secret names are provider-agnostic, so swapping providers is
+// a body change here and nothing else.
 //
-// Degrades to null (→ caller returns "no result") on EVERY failure mode —
-// missing key, non-2xx, network error, empty payload — so a flaky/unconfigured
-// MT never 500s the request or breaks the per-word paragraph fan-out. Readings
-// are JMdict-only, so an MT result carries none (the no-context furigana surface
-// simply has nothing to show for these).
-async function callTranslationProvider(
-  text: string,
+// Degrades to null (→ "no result") on EVERY failure mode — missing key, non-2xx,
+// network, empty payload — so flaky MT never 500s a request or breaks the paragraph
+// fan-out. Readings are JMdict-only, so an MT result carries none.
+//
+// Google v2 accepts REPEATED `q`, translating each as its own unit and returning them in
+// request order. That index alignment is the whole point of the inline reader gloss.
+// Same char billing as one blob; one round-trip either way.
+//
+// OUTPUT: one entry per input in order (null where the provider gave nothing), or null
+// when MT is unconfigured / the whole call failed.
+async function callTranslationProviderMany(
+  texts: string[],
   sourceLang: string,
   targetLang: string,
-): Promise<ProviderResult | null> {
+): Promise<(string | null)[] | null> {
   const key = Deno.env.get("TRANSLATION_API_KEY");
   if (!key) return null; // not configured → behaves like the old no-MT stub
+  if (texts.length === 0) return [];
 
   const url = Deno.env.get("TRANSLATION_API_URL") ?? DEFAULT_TRANSLATION_API_URL;
+  const chars = texts.reduce((n, t) => n + t.length, 0);
   try {
     const res = await fetch(`${url}?key=${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        q: text,
+        q: texts,
         source: toGoogleLang(sourceLang),
         target: toGoogleLang(targetLang),
         format: "text", // plain text in/out — no HTML-entity escaping
@@ -451,39 +487,57 @@ async function callTranslationProvider(
       return null;
     }
     const body = await res.json();
-    const translated: string | undefined =
-      body?.data?.translations?.[0]?.translatedText;
-    // MT-SPEND METRIC (#8 observability): one structured line per PAID Google call,
-    // so spend = sum(mt_chars) over these logs. Drives the MT-spend dashboard/alert.
+    const translations: unknown = body?.data?.translations;
+    const out = texts.map((_, i) => {
+      const t = Array.isArray(translations)
+        ? (translations[i] as { translatedText?: unknown } | undefined)?.translatedText
+        : undefined;
+      return typeof t === "string" && t ? t : null;
+    });
+    // One structured line per PAID call: spend = sum(mt_chars) over these logs.
     console.log(JSON.stringify({
       evt: "mt_spend",
-      mt_chars: text.length,
+      mt_chars: chars,
+      segments: texts.length,
       source: toGoogleLang(sourceLang),
       target: toGoogleLang(targetLang),
-      ok: Boolean(translated),
+      ok: out.some(Boolean),
     }));
-    return translated ? { translation: translated } : null;
+    return out;
   } catch (e) {
     console.error("MT provider request failed:", e);
     return null;
   }
 }
 
-// ── Per-user RESTRICTIONS (the limits subsystem; see migration 20260620 +
-// services/entitlements.ts) ────────────────────────────────────────────────
-// The MT call is the only PAID path, so limits are enforced HERE (the hard gate
-// the client can't bypass): a PER-REQUEST paragraph char cap AND a cumulative
-// MONTHLY character quota (the free-tier ceiling). Both resolve from the caller's
-// `user_limits` override → else env → else the built-in default. Keep these
-// defaults in sync with DEFAULT_LIMITS in services/entitlements.ts.
+// WORD-level MT. The paragraph gloss calls ...Many directly and must NOT inherit these
+// word-only guards. null = "MT gave us nothing", so callers refund what they reserved.
+async function callTranslationProvider(
+  text: string,
+  sourceLang: string,
+  targetLang: string,
+): Promise<ProviderResult | null> {
+  const out = await callTranslationProviderMany([text], sourceLang, targetLang);
+  const translated = out?.[0];
+  if (!translated) return null;
+  // Google echoes what it can't translate; caching that mints a verified row whose
+  // meaning is the word itself. The chars are already spent — this keeps the cache clean.
+  if (isEchoTranslation(text, translated)) {
+    console.log(JSON.stringify({ evt: "mt_echo_dropped", chars: text.length }));
+    return null;
+  }
+  return { translation: translated };
+}
+
+// ── Per-user RESTRICTIONS (migration 20260620 + services/entitlements.ts) ──
+// The MT call is the only PAID path, so limits are enforced HERE — the hard gate the
+// client can't bypass. Both resolve from `user_limits` → env → built-in default; keep
+// these in sync with DEFAULT_LIMITS in services/entitlements.ts.
 const DEFAULT_PARAGRAPH_CHAR_LIMIT = 2000;
 const DEFAULT_MONTHLY_CHAR_QUOTA = 450_000;
-// Hard ceiling enforced BEFORE any dictionary lookup (the per-user paragraph limit
-// only gates the paid MT path), so a pathological input can't hit the unmetered
-// JMdict/WordNet scan. Generous — well above any per-user paragraph limit.
+// Enforced BEFORE any dictionary lookup, so a pathological input can't hit the
+// UNMETERED JMdict/WordNet scan (the paragraph limit only gates the paid path).
 const MAX_INPUT_CHARS = 20_000;
-
-// userIdFromAuth(authHeader) is in _lib.ts (JWT `sub`, or null).
 
 interface ResolvedLimits {
   paragraphCharLimit: number;
@@ -512,10 +566,9 @@ async function resolveLimits(supabase: Supa, userId: string | null): Promise<Res
 }
 
 /**
- * ATOMICALLY reserve `chars` of the user's monthly quota (check + meter in one
- * locked RPC — no check-then-meter race). Returns whether the call is allowed and
- * the month-to-date total. Fails OPEN (allowed) on an RPC error so a transient DB
- * blip doesn't break translation — the cap is a free-tier guard, not hard billing.
+ * ATOMICALLY reserve `chars` of the user's monthly quota — check + meter in one locked
+ * RPC, no check-then-meter race. Fails OPEN on an RPC error: this cap is a free-tier
+ * guard, not hard billing, so a DB blip shouldn't break translation.
  */
 async function reserveQuota(
   supabase: Supa,
@@ -534,41 +587,36 @@ async function reserveQuota(
   }
   const row = Array.isArray(data) ? data[0] : data;
   const allowed = row?.allowed !== false;
-  // `committed` = chars were actually added (only when allowed AND no error), so a
-  // later refund doesn't decrement legitimate usage after a fail-open / a denial.
+  // `committed` = chars were actually added, so a later refund can't decrement
+  // legitimate usage after a fail-open or a denial.
   return { allowed, used: row?.used ?? 0, committed: allowed };
 }
 
 // ── Global cost controls (#1) ───────────────────────────────────────────────
-// EMERGENCY KILL-SWITCH: set the MT_DISABLED secret to instantly stop ALL paid
-// Google calls (the app degrades to JMdict-only) WITHOUT a redeploy. Checked before
-// any quota reserve or provider call, so a flipped switch costs nothing.
+// EMERGENCY KILL-SWITCH: the MT_DISABLED secret stops ALL paid Google calls (degrading
+// to JMdict-only) with no redeploy. Checked before any reserve, so it costs nothing.
 function mtDisabled(): boolean {
   const v = (Deno.env.get("MT_DISABLED") ?? "").trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
-// The paid MT path runs ONLY when MT is configured: a key is present AND the
-// kill-switch is off. Gating on this (not just inside callTranslationProvider)
-// means an unconfigured/disabled MT never reserves quota — no phantom spend, no
-// quota burned on a call that can't happen.
+// Gating callers on this (not just callTranslationProvider) means an unconfigured or
+// disabled MT never reserves quota — no phantom spend on a call that can't happen.
 function mtConfigured(): boolean {
   return !mtDisabled() && !!Deno.env.get("TRANSLATION_API_KEY");
 }
 
-// GLOBAL monthly char cap across ALL users (the aggregate billing risk the per-user
-// quota can't bound). Always finite: a generous BUILT-IN default applies when the
-// env override is unset, so the aggregate spend is never fully unbounded by default
-// (the deploy can lower it). ≈$30/mo worst case at Google rates.
+// GLOBAL monthly cap across ALL users — the aggregate billing risk the per-user quota
+// can't bound. Always finite: this built-in applies when the env override is unset, so
+// spend is never unbounded by default. ≈$30/mo worst case at Google rates.
 const DEFAULT_GLOBAL_MONTHLY_CHAR_QUOTA = 2_000_000;
 function globalCharQuota(): number {
   const v = Number(Deno.env.get("GLOBAL_MONTHLY_CHAR_QUOTA"));
   return Number.isFinite(v) && v > 0 ? v : DEFAULT_GLOBAL_MONTHLY_CHAR_QUOTA;
 }
 
-/** Refund reserved chars when the paid call ultimately spent nothing (Google
- *  returned null). Best-effort: a failed refund just leaves the reservation (the
- *  conservative direction — never under-counts spend). */
+/** Refund reserved chars when the paid call spent nothing. Best-effort: a failed refund
+ *  leaves the reservation, the conservative direction (never under-counts spend). */
 async function refundQuota(supabase: Supa, userId: string, chars: number): Promise<void> {
   const { error } = await supabase.rpc("refund_translation_quota", { p_user_id: userId, p_chars: chars });
   if (error) console.error("quota refund failed:", error.message);
@@ -578,10 +626,9 @@ async function refundGlobalQuota(supabase: Supa, chars: number): Promise<void> {
   if (error) console.error("global quota refund failed:", error.message);
 }
 
-/** ATOMICALLY reserve `chars` against the GLOBAL monthly cap. Fails CLOSED on an RPC
- *  error: the global cap is the hard SPEND backstop, so if it can't be checked we
- *  must not spend (denies the paid call). Per-user quota stays fail-open for
- *  availability; this one protects the bill. Returns true when the call is allowed. */
+/** ATOMICALLY reserve `chars` against the GLOBAL monthly cap. Fails CLOSED: this is the
+ *  hard SPEND backstop, so an uncheckable cap must not spend. (The per-user quota stays
+ *  fail-open for availability; this one protects the bill.) */
 async function reserveGlobalQuota(supabase: Supa, chars: number, quota: number): Promise<boolean> {
   const { data, error } = await supabase.rpc("consume_global_quota", {
     p_chars: chars,
@@ -595,12 +642,10 @@ async function reserveGlobalQuota(supabase: Supa, chars: number, quota: number):
   return row?.allowed !== false;
 }
 
-// A REVERSE lookup INTO Japanese (EN→JA today): the source isn't the dictionary's
-// native language (JA), so every sense shares the ENGLISH input's frequency (the
-// applyEnglishFrequency override) — frequency can't order them, and jmdict_sense_pos
-// (the merge's intersection-boosted rank) is the authoritative order. The native
-// JA→EN direction keeps frequency-first (it discriminates homograph ENTRIES:
-// 顔→かお before かんばせ). See CURRENT_PROJECTION_VERSION 7.
+// A REVERSE lookup INTO Japanese (EN→JA today): every sense shares the ENGLISH input's
+// frequency (applyEnglishFrequency), so frequency can't order them and the projected
+// sense rank is authoritative. Native JA→EN keeps frequency-first, which discriminates
+// homograph ENTRIES (顔 → かお before かんばせ).
 function isReverseIntoJa(sourceLang: string, targetLang: string): boolean {
   return sourceLang.toUpperCase() !== "JA" && targetLang.toUpperCase() === "JA";
 }
@@ -612,12 +657,9 @@ async function fetchVerified(
   sourceLang: string,
   targetLang: string,
 ): Promise<WordRow[]> {
-  // Match the search term against EITHER the stored headword (`input`, e.g. 猫)
-  // OR its reading (`input_reading`, e.g. ねこ), so a hiragana search resolves to
-  // the kanji-headword rows the projection stores. QUOTE the interpolated value:
-  // the PostgREST `or` grammar uses comma/parens/period as syntax, so a raw term
-  // like "cat, dog" would corrupt the filter — double-quoting (with \ and " escaped)
-  // makes it a literal value.
+  // Match the term against the stored headword (猫) OR its reading (ねこ), so a kana
+  // search resolves the kanji rows. QUOTE the value: PostgREST's `or` grammar treats
+  // comma/parens/period as syntax, so a raw term like "cat, dog" corrupts the filter.
   const q = `"${input.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   let query = supabase
     .from("words")
@@ -626,30 +668,30 @@ async function fetchVerified(
     .eq("target_lang", targetLang)
     .eq("is_verified", true)
     .or(`input.eq.${q},input_reading.eq.${q}`)
-    .or(FRESH_OR_MT); // a stale projection is a MISS → re-projected in place
+    .or(FRESH); // a stale projection is a MISS → re-projected in place
   if (isReverseIntoJa(sourceLang, targetLang)) {
     // EN→JA: uniform input-frequency → order by the projected sense rank.
     query = query
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false })
+      .order("sense_rank", { ascending: true, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false });
   } else {
-    // JA→EN: MATCH jmdict_lookup's ranking (frequency DESC, then entry, then sense)
-    // so the cached primary equals the lookup's, even for a word with several ENTRIES
-    // (顔 → かお-entry before かんばせ-entry). sense_pos alone scrambled sense-0 ties.
+    // JA→EN: MATCH jmdict_lookup's ranking so the cached primary equals the lookup's
+    // even for a multi-ENTRY word (顔). sense_pos alone scrambled sense-0 ties.
     query = query
       .order("frequency", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-      .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
+      .order("sense_rank", { ascending: true, nullsFirst: false });
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as WordRow[];
+  // PostgREST cannot express "the row whose headword IS the search term first", and the
+  // set here is one word's senses, so the last key is applied in memory. Without it a uk
+  // entry found via input_reading keeps the primary slot — the 質 → たち report.
+  return preferWrittenForm((data ?? []) as WordRow[], input);
 }
 
-/** Ranking order, mirroring fetchVerified's ORDER BY (frequency DESC NULLS LAST,
- *  then jmdict_entry_id ASC, then jmdict_sense_pos ASC NULLS LAST), for rows
- *  returned inline by upsert().select(). Keeps the primary consistent across
- *  multi-entry words (顔 → かお before かんばせ) instead of scrambling by sense alone. */
+/** Mirrors fetchVerified's ORDER BY, for rows returned inline by upsert().select(), so
+ *  the primary stays consistent across multi-entry words. */
 function sortBySensePos(rows: WordRow[], reverseIntoJa = false): WordRow[] {
   const bySensePos = (a: WordRow, b: WordRow): number => {
     if (a.jmdict_sense_pos == null) return b.jmdict_sense_pos == null ? 0 : 1;
@@ -661,10 +703,7 @@ function sortBySensePos(rows: WordRow[], reverseIntoJa = false): WordRow[] {
     return ea === eb ? 0 : ea < eb ? -1 : 1;
   };
   return [...rows].sort((a, b) => {
-    if (reverseIntoJa) {
-      // EN→JA: uniform input-frequency, so the projected sense rank is authoritative.
-      return bySensePos(a, b) || byEntry(a, b);
-    }
+    if (reverseIntoJa) return bySensePos(a, b) || byEntry(a, b);
     // JA→EN: frequency DESC, NULLs last
     if (a.frequency == null !== (b.frequency == null)) return a.frequency == null ? 1 : -1;
     if (a.frequency != null && b.frequency != null && a.frequency !== b.frequency) {
@@ -683,32 +722,87 @@ async function fetchVerifiedMany(
   targetLang: string,
 ): Promise<WordRow[]> {
   if (inputs.length === 0) return [];
-  // Quote each term: the PostgREST or()/in() grammar uses comma/parens/quote as
-  // syntax, so a raw term would corrupt the filter (see fetchVerified).
+  // Quote each term (see fetchVerified).
   const quote = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  const list = inputs.map(quote).join(",");
-  const { data, error } = await supabase
-    .from("words")
-    .select("*")
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    .eq("is_verified", true)
-    .or(`input.in.(${list}),input_reading.in.(${list})`)
-    .or(FRESH_OR_MT) // a stale projection is a MISS → re-projected in place
-    // Same ranking as fetchVerified (frequency DESC, entry, sense) so multi-entry
-    // words keep the lookup's primary on the cache read.
-    .order("frequency", { ascending: false, nullsFirst: false })
-    .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
-    .order("jmdict_sense_pos", { ascending: true, nullsFirst: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as WordRow[];
+  // CHUNK by encoded size: the list appears in the query string TWICE (input +
+  // input_reading), and at ~9 bytes per encoded Japanese char a long paste built a URL
+  // the runtime refused to send, throwing the whole batch. Hence `repeats: 2`.
+  const chunks = chunkForUrlFilter(inputs, { repeats: 2 });
+  const perChunk = await Promise.all(chunks.map(async (chunk) => {
+    const list = chunk.map(quote).join(",");
+    const { data, error } = await supabase
+      .from("words")
+      .select("*")
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("is_verified", true)
+      .or(`input.in.(${list}),input_reading.in.(${list})`)
+      .or(FRESH) // a stale projection is a MISS → re-projected in place
+      // Same ranking as fetchVerified. Each term lands in ONE chunk, so a word's
+      // senses are always ordered within their own query.
+      .order("frequency", { ascending: false, nullsFirst: false })
+      .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
+      .order("sense_rank", { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as WordRow[];
+  }));
+  // DEDUPE across chunks: the filter matches by `input` OR `input_reading`, so a text
+  // using both 行く and いく as keys gets the same row back from two chunks, and
+  // groupByInput would then render every sense twice. Belongs with the chunking — the
+  // single-query version couldn't hit this.
+  const seen = new Set<string>();
+  return perChunk.flat().filter((row) => {
+    if (seen.has(row.word_id)) return false;
+    seen.add(row.word_id);
+    return true;
+  });
 }
 
-// ── Idempotency (see migration 20260626) ───────────────────────────────────
-// A retried request that already ran the PAID MT path must not re-call Google /
-// re-reserve quota. We replay the stored response for the client's per-request key.
-// Both helpers fail OPEN (a store blip just means the retry redoes the work — the
-// same fail-open stance as the quota reserve).
+/**
+ * REVIVE the MT rows for inputs the dictionary just failed to resolve — the piece that
+ * lets MT rows be version-gated without a bump ever costing money (see FRESH above).
+ *
+ * The caller has already re-asked the dictionary for free. If it answered, we never get
+ * here and the stale MT row just stops being served (dead storage — nothing is deleted,
+ * so a `user_words` row pointing at it still resolves). If it still has nothing, this
+ * re-stamps the row we already paid for and serves it, without calling Google.
+ *
+ * UPDATE … RETURNING, so it re-stamps and reads in one trip. Fails OPEN: the caller then
+ * takes the normal paid path, which is correct-but-costly rather than wrong.
+ */
+async function reviveMtRows(
+  supabase: Supa,
+  inputs: string[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<WordRow[]> {
+  if (inputs.length === 0) return [];
+  // Chunked for the same URL-length reason as fetchVerifiedMany, but here the stakes are
+  // money: a whole-list failure would silently re-pay Google for translated words.
+  const chunks = chunkForUrlFilter(inputs.map((i) => `mt:${i}`));
+  const perChunk = await Promise.all(chunks.map(async (refs) => {
+    const { data, error } = await supabase
+      .from("words")
+      .update({ projection_version: CURRENT_PROJECTION_VERSION })
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      .eq("is_verified", true)
+      .in("dictionary_ref", refs)
+      .lt("projection_version", CURRENT_PROJECTION_VERSION)
+      .select("*");
+    if (error) {
+      console.error("MT revive failed:", error.message);
+      return []; // fails OPEN per chunk: the rest still revive
+    }
+    return (data ?? []) as WordRow[];
+  }));
+  return perChunk.flat();
+}
+
+// ── Idempotency (migration 20260626) ───────────────────────────────────────
+// A retry of a request that already ran the PAID path must not re-call Google or
+// re-reserve quota, so we replay the stored response for the client's key. Both helpers
+// fail OPEN — a store blip just means the retry redoes the work.
 
 /** Prior stored response for this key, or null (miss / disabled / error). */
 async function lookupIdempotent(
@@ -728,9 +822,8 @@ async function lookupIdempotent(
   return data ? { response: data.response, status: data.status } : null;
 }
 
-/** Persist a paid response under the key so a retry replays it. Best-effort.
- *  INSERT-or-do-nothing: a key's response is immutable (first write wins), so this
- *  needs only INSERT — no UPDATE grant, and concurrent stores can't clobber. */
+/** Persist a paid response under the key so a retry replays it. INSERT-or-do-nothing:
+ *  a key's response is immutable (first write wins), so concurrent stores can't clobber. */
 async function storeIdempotent(
   supabase: Supa,
   key: string,
@@ -743,8 +836,8 @@ async function storeIdempotent(
   if (error) console.error("idempotency store failed:", error.message);
 }
 
-/** The success response for a set of verified rows (primary = first row). The
- *  single-word overrides reorder so the correct sense leads (前→まえ, ところ→所). */
+/** The success response for a set of verified rows (primary = first). The single-word
+ *  overrides reorder so the correct sense leads (前→まえ, ところ→所). */
 function respondWords(input: string, rows: WordRow[]) {
   const words = orderSensesForInput(input, rows.map(toWord));
   return {
@@ -765,11 +858,16 @@ interface BatchEntry {
 }
 
 /**
- * BATCH resolve: many cacheable words (persist=true) in ONE request, so the
- * client's paragraph / add-many fan-out costs one round-trip instead of N. Same
- * per-word resolution as the single path (cache → JMdict → metered MT fallback),
- * just looped server-side with the cache read and the final upsert batched. The
- * whole-paragraph display gloss is NOT batched (it's a single persist=false call).
+ * BATCH resolve: many cacheable words in ONE request, so the paragraph / add-many
+ * fan-out costs one round-trip instead of N. Same per-word resolution as the single
+ * path (cache → JMdict → metered MT), with the cache read and final upsert batched.
+ * This is the WORD path; the paragraph gloss is its own `segments` mode.
+ *
+ * `dictionaryOnly` = cache + dictionary only, never MT — for callers that PROBE
+ * speculative terms ("is 柔軟剤 a word?") rather than translating what a user asked for.
+ * Probes are expected to MISS, and a miss is the answer, so billing Google for every
+ * wrong guess (and caching the junk as verified) would be wrong, not just costly. It
+ * also skips the MT revive, so a leftover MT row can't validate a probe for free.
  */
 async function resolveBatch(
   supabase: Supa,
@@ -777,19 +875,30 @@ async function resolveBatch(
   sourceLang: string,
   targetLang: string,
   authHeader: string | null,
+  dictionaryOnly = false,
+  /**
+   * Skip the EN→JA reverse-gloss scan. ONLY for callers whose inputs are known to
+   * resolve through WordNet, because the scan is what covers everything WordNet lacks.
+   *
+   * It exists because that scan is pathological on exactly the words a beginner meets.
+   * Measured on prod 2026-08-07: jmdict_lookup EN→JA takes 5.0s for "one", 4.3s for
+   * "back", 2.9s for "own" — all CEFR A1 — against ~0.2s for a B1 word, because a
+   * frequent English word appears in a huge share of JMdict's glosses. Batched over a
+   * whole draw that exceeds the statement timeout, and the Learn/placement quiz 500s.
+   * The result: English placement worked at B1 and up but died at A1/A2 — the bands a
+   * new learner starts in, so it read as "English testing isn't available".
+   */
+  skipGlossFallback = false,
 ): Promise<BatchEntry[]> {
-  // IDEMPOTENCY: unlike the single path, batch has no idempotency_keys entry — it
-  // relies on the `words` cache instead. On success each MT word is upserted, so a
-  // retry hits the cache (no re-spend). The only exposure is the narrow window where
-  // MT ran but the upsert threw before caching: a retry re-calls MT + re-meters the
-  // uncached subset. Accepted (rare; bounded by the per-word quota). Thread an
-  // idempotency key here if exact batch metering ever matters.
+  // IDEMPOTENCY: batch has no idempotency_keys entry — it relies on the `words` cache,
+  // since each MT word is upserted so a retry hits the cache. The exposure is the narrow
+  // window where MT ran but the upsert threw: a retry re-meters the uncached subset.
+  // Accepted (rare, bounded by the per-word quota).
   // NFC-normalize + dedupe, preserving first-seen order.
   const inputs: string[] = [];
   const seen = new Set<string>();
   for (const raw of rawInputs) {
     const v = String(raw ?? "").trim().normalize("NFC");
-    // Same hard cap as the single path — skip pathological items before any lookup.
     if (v && v.length <= MAX_INPUT_CHARS && !seen.has(v)) { seen.add(v); inputs.push(v); }
   }
   if (inputs.length === 0) return [];
@@ -799,29 +908,41 @@ async function resolveBatch(
   const cachedByInput = groupByInput(cachedRows, inputs);
   const missing = inputs.filter((i) => (cachedByInput.get(i) ?? []).length === 0);
 
-  // 2. Resolve all misses' DICTIONARY senses in ONE batched RPC (two for EN→JA:
-  //    WordNet + gloss, merged per input) — the cold-paragraph N+1 fix. Was a
-  //    per-word round-trip; now one (or two) calls regardless of miss count.
+  // 2. Resolve all misses in ONE batched RPC (two for EN→JA) regardless of miss count.
   const userId = userIdFromAuth(authHeader);
   const perInput: { input: string; results: ProviderResult[] }[] = [];
-  const dictByInput = await resolveDictionaryMany(supabase, missing, sourceLang, targetLang);
+  const dictByInput = await resolveDictionaryMany(
+    supabase, missing, sourceLang, targetLang, skipGlossFallback,
+  );
   for (const input of missing) {
     const r = dictByInput.get(input);
     if (r && r.length > 0) perInput.push({ input, results: r });
   }
 
-  // 3. MT fallback for the words the dictionary still missed — paid, so metered.
-  //    Reserve the WHOLE batch's chars ONCE (per-user + global) rather than per
-  //    word, so the app-wide global-quota lock + hot row is touched once per request
-  //    instead of once per MT word (the global-quota serialization fix). Then call
-  //    MT per word and refund the reserved-but-unspent remainder.
-  const canMT = mtConfigured() && !!userId;
+  // 3. MT fallback for what the dictionary missed — paid, so metered. The WHOLE batch's
+  //    chars are reserved ONCE (per-user + global) rather than per word, so the app-wide
+  //    global-quota lock is touched once per request; the unspent remainder is refunded.
+  const canMT = mtConfigured() && !!userId && !dictionaryOnly;
   const stillMissing = missing.filter((i) => !dictByInput.has(i));
-  if (canMT && stillMissing.length > 0) {
+
+  // 3a. Revive before spending: a missing word may already have a PAID MT row the
+  //     version gate marked stale. Re-stamp + reuse it; only a word with no MT row at
+  //     all goes to Google. Skipped for probes (see `dictionaryOnly`).
+  const revivedRows = dictionaryOnly
+    ? []
+    : await reviveMtRows(supabase, stillMissing, sourceLang, targetLang);
+  const revived = new Set(revivedRows.map((r) => r.input));
+
+  const needMT = stillMissing.filter((i) => !revived.has(i));
+  if (canMT && needMT.length > 0) {
     const limits = await resolveLimits(supabase, userId!);
-    // (#2) over-cap entries are never sent to paid MT (the per-request paragraph cap
-    // holds on the batch path too).
-    const mtWords = stillMissing.filter((i) => i.length <= limits.paragraphCharLimit);
+    // The per-request paragraph cap holds on the batch path too, and tokens that can't
+    // be words at all are dropped (shouldSkipMt). Both BEFORE the reserve, so free.
+    const mtWords = needMT.filter(
+      (i) => i.length <= limits.paragraphCharLimit && !shouldSkipMt(i, sourceLang),
+    );
+    const skipped = needMT.length - mtWords.length;
+    if (skipped > 0) console.log(JSON.stringify({ evt: "mt_skipped", n: skipped, path: "batch" }));
     const totalChars = mtWords.reduce((n, w) => n + w.length, 0);
     if (totalChars > 0) {
       const reserve = await reserveQuota(supabase, userId!, totalChars, limits.monthlyCharQuota);
@@ -833,8 +954,7 @@ async function resolveBatch(
           const mt = await callTranslationProvider(w, sourceLang, targetLang);
           if (mt) { perInput.push({ input: w, results: [mt] }); spent += w.length; }
         }
-        // Refund what we reserved but didn't spend (words MT couldn't translate);
-        // per-user only if the reserve committed.
+        // Refund the reserved-but-unspent chars; per-user only if the reserve committed.
         const unspent = totalChars - spent;
         if (unspent > 0) {
           if (reserve.committed) await refundQuota(supabase, userId!, unspent);
@@ -844,10 +964,10 @@ async function resolveBatch(
     }
   }
 
-  // EN→JA: override each word's frequency + CEFR band with the ENGLISH input's own
-  // values (before projection, so both the upsert and the refToTerms mapping see them).
+  // Before projection, so both the upsert and the refToTerms mapping see the overrides.
   await applyEnglishFrequency(supabase, perInput, sourceLang, targetLang);
   await applyEnglishProficiency(supabase, perInput, sourceLang, targetLang);
+  await applySenseExamples(supabase, perInput, sourceLang, targetLang);
 
   // 3. One upsert for every freshly-projected sense (deduped by dictionary_ref).
   let savedRows: WordRow[] = [];
@@ -861,15 +981,12 @@ async function resolveBatch(
     savedRows = (data ?? []) as WordRow[];
   }
 
-  // 4. Map rows back to each SEARCH term.
-  //    - Cache hits matched by headword/reading (groupByInput), same as the
-  //      single-path cache read.
-  //    - Freshly-resolved rows are mapped by dictionary_ref to the term that
-  //      produced them. This is the fix for WRITING VARIANTS: 速い is a non-primary
-  //      writing of はやい, stored under headword 早い, so neither its headword (早い)
-  //      nor its reading (はやい) equals the search term 速い — groupByInput alone
-  //      drops it (the single path doesn't, hence the single/batch discrepancy).
-  const cachedByTerm = groupByInput(cachedRows, inputs);
+  // 4. Map rows back to each SEARCH term. Cache hits (and revived MT rows) match by
+  //    headword/reading; freshly-resolved rows map by dictionary_ref to the term that
+  //    produced them, which is what covers WRITING VARIANTS — 速い is stored under
+  //    headword 早い, so neither its headword nor its reading equals the search term and
+  //    groupByInput alone would drop it.
+  const cachedByTerm = groupByInput([...cachedRows, ...revivedRows], inputs);
   const refToTerms = new Map<string, string[]>();
   for (const { input, results } of perInput) {
     for (const r of projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION)) {
@@ -893,10 +1010,8 @@ async function resolveBatch(
     return ap - bp;
   };
   return inputs.map((input) => {
-    // An input is either a cache hit OR a miss (never both — see `missing`), so
-    // these two sources don't overlap; combine + order primary-first. The
-    // single-word override then reorders to the correct primary (前→まえ, ところ→所,
-    // 人→ひと) so a saved learn/calibration card gets the right meaning.
+    // An input is either a cache hit OR a miss (never both — see `missing`), so the two
+    // sources don't overlap; combine, order primary-first, then apply the override.
     const ws = [...(cachedByTerm.get(input) ?? []), ...(savedByTerm.get(input) ?? [])].sort(bySensePos);
     if (ws.length === 0) return { input, translated: false, translation: null, word: null, words: [] };
     const words = orderSensesForInput(input, ws.map(toWord));
@@ -905,12 +1020,10 @@ async function resolveBatch(
 }
 
 // ── Level-based new-words quiz (Proficiency.md feature 2) ───────────────────
-// Request parsing/clamping (band/limit/excludeSeen) lives in _lib.parseLearnRequest
-// (unit-tested). This file keeps only the I/O.
 
-/** Unseen headwords at proficiency band `band` for the caller (JMdict source →
- *  the SQL retrieval; see migration 20260717). Empty for a pair/band with no
- *  curated wordlist (only JA→EN/JLPT is populated today). */
+/** Unseen headwords at proficiency `band` for the caller. The SQL owns the source
+ *  (JMdict for JA→EN, english_proficiency + WordNet for EN→JA; migrations 20260717 /
+ *  20260745); empty for a pair with no curated wordlist. */
 async function selectLearnHeadwords(
   supabase: Supa,
   sourceLang: string,
@@ -932,10 +1045,9 @@ async function selectLearnHeadwords(
   return (data ?? []).map((r: { headword: string }) => r.headword);
 }
 
-// Best-effort append to the admin error_log (service role bypasses RLS — see
-// migration 20260706). NEVER throws: a logging failure must not change the request
-// outcome. The audit panel (admin_error_log RPC) reads these rows. Input is
-// truncated so the log can't be bloated by a huge paragraph.
+// Best-effort append to the admin error_log (migration 20260706). NEVER throws — a
+// logging failure must not change the request outcome. Input is truncated so a huge
+// paragraph can't bloat the log.
 async function recordError(
   supabase: Supa,
   params: { code: string; source: string; userId?: string | null; input?: string | null; detail?: string | null },
@@ -953,23 +1065,19 @@ async function recordError(
   }
 }
 
-// HTTP handler — the request entry point.
-// OUTPUT (JSON): { translated, translation, word, words } on success;
-//   word = primary sense (back-compat), words = all senses. { error } + 4xx/5xx otherwise.
-// CONSTRAINTS: POST only (+ OPTIONS/CORS); requires input/sourceLang/targetLang;
-// rejects source == target; NFC-normalizes input; persist=false skips the cache
-// (display-only); verified writes are system-owned (service role bypasses RLS).
+// HTTP handler. Responds { translated, translation, word, words } (word = the primary
+// sense, kept for back-compat) or { error } + 4xx/5xx. POST only (+ OPTIONS/CORS);
+// requires input/sourceLang/targetLang; rejects source == target; persist=false skips
+// the cache entirely.
 async function handleRequest(req: Request): Promise<Response> {
   const cors = corsHeaders(
     req.headers.get("Origin"),
     parseAllowedOrigins(Deno.env.get("ALLOWED_ORIGINS")),
   );
-  // All responses below carry the per-request CORS headers.
   const reply = (body: unknown, status = 200) => json(body, status, cors);
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  // HEALTH CHECK (#8 observability): a GET is a cheap liveness probe for uptime
-  // monitors / load balancers — no DB or provider call, never spends.
+  // A GET is a cheap liveness probe — no DB or provider call, never spends.
   if (req.method === "GET") return reply({ status: "ok" }, 200);
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
 
@@ -993,6 +1101,7 @@ async function handleRequest(req: Request): Promise<Response> {
     try {
       const results = await resolveBatch(
         supabase, body.inputs, sourceLang, targetLang, req.headers.get("Authorization"),
+        body.dictionaryOnly === true,
       );
       return reply({ results });
     } catch (e) {
@@ -1008,11 +1117,10 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
 
-  // LEARN mode: { learn: { band, limit? } } → up to `limit` UNSEEN words at the
-  // given proficiency band, projected into the cache (via the batch path) and
-  // returned as quiz cards (each card = one word's full sense list, primary
-  // first). The source retrieval reads JMdict (the `words` cache is incomplete);
-  // resolveBatch then projects + groups exactly like a paragraph's new words.
+  // LEARN mode: { learn: { band, limit? } } → up to `limit` UNSEEN words at that band,
+  // returned as quiz cards (one card = a word's full sense list, primary first). The
+  // retrieval reads the server-only wordlists, since the `words` cache is incomplete;
+  // resolveBatch then projects + groups them like a paragraph's new words.
   if (body.learn && typeof body.learn === "object") {
     const parsed = parseLearnRequest(body.learn as { band?: unknown; limit?: unknown; excludeSeen?: unknown });
     if (!parsed.ok) return reply({ error: parsed.error }, 400);
@@ -1021,10 +1129,16 @@ async function handleRequest(req: Request): Promise<Response> {
     try {
       const headwords = await selectLearnHeadwords(supabase, sourceLang, targetLang, band, userId, limit, excludeSeen);
       if (headwords.length === 0) return reply({ cards: [] });
-      // Reuse the batch resolver: cache read → JMdict projection → grouped rows.
-      // These are JMdict headwords, so they resolve without the paid MT path.
+      // Every headword comes from a source we can already translate, so these resolve
+      // without the paid MT path — and for EN→JA the pool itself only emits surfaces
+      // that HAVE a Japanese WordNet side (migration 20260745 gates on
+      // `wordnet_senses_en JOIN wordnet_words_ja`), so the reverse-gloss fallback can
+      // add nothing here and is skipped. That is what keeps the beginner bands inside
+      // the statement timeout; see resolveBatch's `skipGlossFallback`. Measured: 0
+      // multi-word candidates at A1/A2/B1, so nothing depends on the fallback.
       const entries = await resolveBatch(
         supabase, headwords, sourceLang, targetLang, req.headers.get("Authorization"),
+        false, true,
       );
       const cards = entries
         .filter((e) => e.translated && e.words.length > 0)
@@ -1042,12 +1156,81 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
 
-  // SINGLE mode: { input, persist?, idempotencyKey? }. NFC-normalize to match cache.
-  // (EN inflection is lemmatized inside resolveDictionary, not here, so the cache key
-  // stays the user's surface form.)
+  // SEGMENTS mode: one gloss per segment, index-aligned, so the reader can print the
+  // English UNDER each Japanese sentence. Always DISPLAY-ONLY — we don't store thousands
+  // of unique sentences — so it skips the dictionary path and goes to the metered MT gate.
+  if (Array.isArray(body.segments)) {
+    // Bound the fan-out BEFORE walking the array.
+    if (body.segments.length > MAX_SEGMENTS) {
+      return reply(
+        { error: `Too many segments (max ${MAX_SEGMENTS})`, limit: MAX_SEGMENTS, count: body.segments.length },
+        413,
+      );
+    }
+    const prepared = prepareSegments(body.segments);
+    const idempotencyKey =
+      typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : null;
+    const blank = () => reply({ glosses: prepared.normalized.map(() => null) });
+
+    // Same unmetered-scan guard as SINGLE mode, applied to the whole request.
+    if (prepared.chars > MAX_INPUT_CHARS) {
+      return reply(
+        { error: `Input exceeds the ${MAX_INPUT_CHARS}-character limit`, limit: MAX_INPUT_CHARS, length: prepared.chars },
+        413,
+      );
+    }
+    if (prepared.unique.length === 0) return blank();
+
+    const userId = userIdFromAuth(req.headers.get("Authorization"));
+    // Never spend on a request we can't meter.
+    if (!mtConfigured() || !userId) return blank();
+
+    const prior = await lookupIdempotent(supabase, idempotencyKey);
+    if (prior) return reply(prior.response, prior.status);
+
+    const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
+    // The segments ARE one paragraph, so the per-request cap applies to their sum —
+    // otherwise splitting a paragraph would be a way around the limit.
+    if (prepared.chars > paragraphCharLimit) {
+      return reply(
+        {
+          error: `Input exceeds the ${paragraphCharLimit}-character translation limit`,
+          limit: paragraphCharLimit,
+          length: prepared.chars,
+        },
+        413,
+      );
+    }
+    // Reserve the DEDUPED char count before the paid call, per-user then global.
+    const { allowed, used, committed } = await reserveQuota(
+      supabase, userId, prepared.chars, monthlyCharQuota,
+    );
+    if (!allowed) {
+      return reply({ error: "Monthly translation quota reached", used, quota: monthlyCharQuota }, 429);
+    }
+    const gQuota = globalCharQuota();
+    if (!(await reserveGlobalQuota(supabase, prepared.chars, gQuota))) {
+      if (committed) await refundQuota(supabase, userId, prepared.chars);
+      console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
+      return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
+    }
+
+    const translated = await callTranslationProviderMany(prepared.unique, sourceLang, targetLang);
+    if (!translated) {
+      // Provider spent nothing — refund both.
+      if (committed) await refundQuota(supabase, userId, prepared.chars);
+      await refundGlobalQuota(supabase, prepared.chars);
+    }
+    const resBody = { glosses: expandSegmentResults(prepared, translated) };
+    // The paid path ran, so a retry replays this instead of re-spending.
+    if (idempotencyKey && translated) await storeIdempotent(supabase, idempotencyKey, resBody, 200);
+    return reply(resBody);
+  }
+
+  // SINGLE mode: { input, persist?, idempotencyKey? }. NFC to match the cache key.
+  // (EN inflection is lemmatized inside resolveDictionary, so the key stays the surface.)
   const input = String(body.input ?? "").trim().normalize("NFC");
-  // persist=false → translate for display only (a whole paragraph in context)
-  // without reading/writing the cache; we don't store unique paragraphs.
+  // persist=false → display only, no cache read or write (we don't store paragraphs).
   const persist = body.persist !== false;
   const idempotencyKey =
     typeof body.idempotencyKey === "string" && body.idempotencyKey ? body.idempotencyKey : null;
@@ -1062,43 +1245,59 @@ async function handleRequest(req: Request): Promise<Response> {
     );
   }
 
-  // 0. Idempotency replay: a retried PAID request already has its response stored
-  //    (only the MT path stores — see usedMT below), so return it without re-spending.
+  // 0. Idempotency replay: a retried PAID request already has its response stored.
   const prior = await lookupIdempotent(supabase, idempotencyKey);
   if (prior) return reply(prior.response, prior.status);
 
-  // Did this request run the PAID MT path? Only then is the response stored, so a
-  // retry replays it instead of re-calling Google / re-reserving quota.
+  // Only a request that ran the PAID path stores its response, so a retry replays it.
   let usedMT = false;
-  /** Reply, first storing the response under the idempotency key when MT was used. */
   const finish = async (resBody: unknown, status = 200) => {
     if (idempotencyKey && usedMT) await storeIdempotent(supabase, idempotencyKey, resBody, status);
     return reply(resBody, status);
   };
 
-  // 1. Verified-cache check (all senses) -> no JMdict re-query. Words only;
-  //    display-only paragraph translations skip the cache entirely.
-  //    Only an EXACT-HEADWORD match is an authoritative, complete hit. A
-  //    reading-only match (e.g. こと matching the cached 琴 via input_reading) may
-  //    be PARTIAL — other homophones (事) might never have been cached — so fall
-  //    through to the full lookup, which projects the complete set (after which the
-  //    exact-headword row exists and future lookups hit the cache).
+  // A GRAMMATICAL word is terminal, decided BEFORE the cache read — otherwise a leftover
+  // paid `mt:an` row answers and every guard below is unreachable. Terminal means the
+  // cache, the dictionary and MT are all skipped; the dead row stops being served.
+  // (A multi-word PHRASE deliberately does NOT stop here — MT is the right answer for
+  // it, and the client sends whole native-language sentences down this same path.)
+  if (sourceLang === "EN" && targetLang === "JA" && isEnglishFunctionWord(input)) {
+    return reply({ translated: false, translation: null, word: null, words: [] });
+  }
+
+  // 1. Verified-cache check (all senses). Only an EXACT-HEADWORD match is a complete
+  //    hit: a reading-only match (こと finding the cached 琴) may be PARTIAL, since a
+  //    homophone like 事 might never have been cached — so fall through to the full
+  //    lookup, which projects the whole set.
   if (persist) {
     const cached = await fetchVerified(supabase, input, sourceLang, targetLang);
     if (cached.some((r) => r.input === input)) return reply(respondWords(input, cached));
   }
 
-  // 2. Resolve senses: JMdict first, then the Google MT fallback.
-  //    The paid path runs ONLY when MT is configured (key + kill-switch off) AND the
-  //    request is attributable to a user (a JWT `sub`). A call on the public anon key
-  //    with no user session is NOT metered, so it must not spend → JMdict-only.
-  //    (The app's guests are real anonymous-auth users, so they always have a sub.)
+  // 2. Resolve senses: JMdict first, then the MT fallback. The paid path runs ONLY when
+  //    MT is configured AND the request is attributable to a user (a JWT `sub`) — an
+  //    anon-key call can't be metered, so it must not spend. (Guests are real
+  //    anonymous-auth users, so they always have a sub.)
   const userId = userIdFromAuth(req.headers.get("Authorization"));
   let results = await resolveDictionary(supabase, input, sourceLang, targetLang);
+
+  // 2a. The dictionary has nothing, but a PAID MT row may exist that the version gate
+  //     treated as stale. Re-stamp and serve it rather than buying the same text again.
+  if (persist && results.length === 0) {
+    const revived = await reviveMtRows(supabase, [input], sourceLang, targetLang);
+    if (revived.length > 0) return reply(respondWords(input, revived));
+  }
+
+  // A token that can't be a word in the source language never reaches the paid provider.
+  // Checked before the limits below, so it reserves nothing and comes back unresolved.
+  if (results.length === 0 && persist && shouldSkipMt(input, sourceLang)) {
+    console.log(JSON.stringify({ evt: "mt_skipped", n: 1, path: "word" }));
+    return finish({ translated: false, translation: null, word: null, words: [] });
+  }
+
   if (results.length === 0 && mtConfigured() && userId) {
-    // MT is the only PAID path → enforce the caller's limits here, the hard
-    // server-side gate (the client also pre-checks for UX). Both checks happen
-    // BEFORE the provider call, so a rejected request costs nothing.
+    // MT is the only PAID path → the hard server-side limits gate (the client also
+    // pre-checks for UX). Both checks run BEFORE the call, so a rejection costs nothing.
     const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
 
     // (a) per-request paragraph cap → 413
@@ -1112,9 +1311,8 @@ async function handleRequest(req: Request): Promise<Response> {
         413,
       );
     }
-    // (b) cumulative MONTHLY quota → 429 (the hard free-tier ceiling). Reserve
-    //     the chars ATOMICALLY before the paid call (no check-then-meter race);
-    //     a denied reservation costs nothing.
+    // (b) cumulative MONTHLY quota → 429. Reserved ATOMICALLY before the paid call
+    //     (no check-then-meter race); a denied reservation costs nothing.
     const { allowed, used, committed } = await reserveQuota(
       supabase, userId, input.length, monthlyCharQuota,
     );
@@ -1125,27 +1323,24 @@ async function handleRequest(req: Request): Promise<Response> {
       );
     }
 
-    // (c) GLOBAL monthly cap across ALL users (the aggregate billing ceiling) → 429.
-    //     Reserved atomically before the paid call, same as the per-user quota.
+    // (c) GLOBAL monthly cap across ALL users → 429.
     const gQuota = globalCharQuota();
     const ok = await reserveGlobalQuota(supabase, input.length, gQuota);
     if (!ok) {
-      // refund the per-user reservation — only if it actually committed (a fail-open
-      // reserve added nothing, so refunding would erase legitimate prior usage).
+      // Refund only if the reserve actually committed — a fail-open reserve added
+      // nothing, so refunding it would erase legitimate prior usage.
       if (committed) await refundQuota(supabase, userId, input.length);
       console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
       return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
     }
 
-    // The paid path ran (quota reserved + Google attempted), so this response is
-    // stored under the idempotency key — a retry replays it, no re-spend.
+    // The paid path ran, so the response is stored under the idempotency key.
     usedMT = true;
     const mt = await callTranslationProvider(input, sourceLang, targetLang);
     if (mt) {
       results = [mt];
     } else {
-      // Google spent nothing (non-2xx / network / empty) — refund both reservations
-      // (per-user only if it committed).
+      // Google spent nothing — refund both (per-user only if it committed).
       if (committed) await refundQuota(supabase, userId, input.length);
       await refundGlobalQuota(supabase, input.length);
     }
@@ -1164,21 +1359,15 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
 
-  // EN→JA: override the frequency + CEFR band with the ENGLISH input's own values.
   await applyEnglishFrequency(supabase, [{ input, results }], sourceLang, targetLang);
   await applyEnglishProficiency(supabase, [{ input, results }], sourceLang, targetLang);
+  await applySenseExamples(supabase, [{ input, results }], sourceLang, targetLang);
 
   // 4. Persist every sense as a verified global word (service role bypasses RLS).
-  //    projectRows (in _lib.ts) stores the canonical headword as `input`, DEDUPEs
-  //    by (headword, translation) — JMdict can yield the SAME string twice (私 →
-  //    "I; me"), and distinct translations carry distinct refs, so the dedupe also
-  //    prevents a duplicate onConflict key (Postgres 21000) — and computes the
-  //    STABLE dictionary_ref (the onConflict target) so a re-projection UPDATEs in
-  //    place (word_id, hence user_words refs, survive) instead of forking.
+  //    projectRows handles the headword, the dedupe and the stable dictionary_ref.
   const rows = projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION);
-  // upsert().select() returns the written rows inline — no second read round-trip.
-  // On a miss the cache was empty, so these ARE the full verified set for `input`
-  // (sort to primary-first; the kana-search headword swap is already in the rows).
+  // upsert().select() returns the written rows inline — no second read round-trip. The
+  // cache was empty, so these ARE the full verified set for `input`.
   const { data: saved, error: insertError } = await supabase
     .from("words")
     .upsert(rows, { onConflict: "dictionary_ref,source_lang,target_lang" })
@@ -1192,9 +1381,8 @@ async function handleRequest(req: Request): Promise<Response> {
       input,
       detail: insertError.message,
     });
-    // finish() (not reply): if MT already spent on this request, STORE the response
-    // under the idempotency key so a client retry replays this 500 instead of
-    // re-reserving quota + re-calling Google (#4 — double-spend on upsert failure).
+    // finish(), not reply(): if MT already spent, a retry must replay this 500 rather
+    // than re-reserving quota and re-calling Google.
     return finish({ error: "Translation failed" }, 500); // generic — no schema/SQL leak
   }
 
@@ -1207,10 +1395,9 @@ async function handleRequest(req: Request): Promise<Response> {
   });
 }
 
-// Entry point: time every request and emit ONE structured access-log line (#8
-// observability) — method, status, duration. A 5xx also logs as an error so it
-// surfaces in alerting. Errors never escape (a thrown handler → logged 500), so a
-// bug can't take the function down silently.
+// Entry point: one structured access-log line per request (method, status, duration);
+// a 5xx also logs as an error so it surfaces in alerting. Errors never escape — a thrown
+// handler becomes a logged 500 — so a bug can't take the function down silently.
 Deno.serve(async (req) => {
   const start = Date.now();
   let res: Response;
@@ -1218,7 +1405,6 @@ Deno.serve(async (req) => {
     res = await handleRequest(req);
   } catch (e) {
     console.error("translate handler crashed:", e);
-    // Best-effort audit on an unhandled crash. Never rethrows.
     try {
       await recordError(supabase, {
         code: "translate_handler_crashed",

@@ -177,6 +177,92 @@ export async function listGrants(email?: string): Promise<FeatureGrant[]> {
   }));
 }
 
+/**
+ * Triage state of a quality report. Deliberately two states, not a workflow — the
+ * only question a one-admin QA notebook needs to answer is "did I deal with this".
+ */
+export type QualityStatus = "open" | "resolved";
+
+/** Who filed a report. An admin types one into this panel; a USER taps the flag on a
+ *  word in the reader or under a flashcard (migration 20260757). Same queue, because it
+ *  is the same observation — but the two are triaged with very different priors. */
+export type QualityReportSource = "admin" | "user";
+
+/** One translation-quality report: the input that was translated + what was wrong. */
+export interface QualityReport {
+  id: number;
+  reportedAt: string;
+  reportedBy: string | null;
+  input: string;
+  /** NULL for a user report filed with no note — which is the common case, and the
+   *  reason the flag is worth having: the word itself is the signal. */
+  description: string | null;
+  source: QualityReportSource;
+  /** The exact sense reported, when the surface knew it. Null for an admin note typed
+   *  as free text, and for a reader report on a word with several senses. */
+  dictionaryWordId: string | null;
+  status: QualityStatus;
+  /** When it was completed; null while open. */
+  resolvedAt: string | null;
+  /** auth.uid() of whoever closed it; null while open. */
+  resolvedBy: string | null;
+}
+
+/**
+ * File a translation-quality report. Admin-only (the RPC gates on is_admin()).
+ * Trimming/empty-checks are re-done server-side.
+ */
+export async function reportQualityIssue(input: { input: string; description: string }): Promise<void> {
+  const { error } = await supabase.rpc("admin_report_quality_issue", {
+    p_input: input.input.trim(),
+    p_description: input.description.trim(),
+  });
+  if (error) throw toServiceError(error);
+}
+
+export interface QualityReportFilter {
+  /** Row cap (server clamps to 1..1000; default 200). */
+  limit?: number;
+  /** Narrow to one triage state; omit for all. */
+  status?: QualityStatus;
+}
+
+/**
+ * The filed quality reports — OPEN ones first, then newest first within each group.
+ * Admin-only. Filters are optional; each omitted one falls back to the RPC's default.
+ */
+export async function listQualityReports(filter: QualityReportFilter = {}): Promise<QualityReport[]> {
+  const args: { p_limit?: number; p_status?: string } = {};
+  if (filter.limit) args.p_limit = filter.limit;
+  if (filter.status) args.p_status = filter.status;
+  const { data, error } = await supabase.rpc("admin_quality_reports", args);
+  if (error) throw toServiceError(error);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    reportedAt: r.reported_at,
+    reportedBy: r.reported_by,
+    input: r.input,
+    description: r.description,
+    source: r.source === "user" ? "user" : "admin",
+    dictionaryWordId: r.dictionary_word_id,
+    status: r.status === "resolved" ? "resolved" : "open",
+    resolvedAt: r.resolved_at,
+    resolvedBy: r.resolved_by,
+  }));
+}
+
+/**
+ * Complete a quality report (or reopen one). Admin-only. Reopening clears the
+ * resolution stamp server-side — a reopened report is not "closed at some past time".
+ */
+export async function setQualityReportStatus(input: { id: number; status: QualityStatus }): Promise<void> {
+  const { error } = await supabase.rpc("admin_set_quality_report_status", {
+    p_id: input.id,
+    p_status: input.status,
+  });
+  if (error) throw toServiceError(error);
+}
+
 /** Health/expiry status of one external provider. */
 export interface ProviderHealth {
   provider: string;

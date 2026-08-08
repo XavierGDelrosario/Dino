@@ -82,6 +82,10 @@ export function createSupabaseStub() {
   // auth + functions are plain vi.fn()s tests configure directly.
   const auth = {
     getUser: vi.fn(),
+    // Reads local storage, never the network — which is why ensureSession probes it
+    // FIRST and can boot offline. Defaults to "no stored session"; a test that wants
+    // an existing one sets it explicitly.
+    getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
     signInAnonymously: vi.fn(),
     signInWithPassword: vi.fn(),
     resetPasswordForEmail: vi.fn(),

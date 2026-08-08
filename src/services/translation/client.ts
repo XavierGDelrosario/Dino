@@ -1,14 +1,8 @@
-// =========================================================
-// Frontend translation client.
+// Frontend translation client — a typed RPC wrapper, nothing more.
 //
-// The browser cannot translate — it can only ASK the server to. The API key
-// and the actual provider call live in the `translate` Supabase Edge Function
-// (supabase/functions/translate). This module is just the typed RPC wrapper,
-// so there is no provider to swap, mock, or extract from the bundle.
-//
-// The provider behind the edge function is JMdict (primary) + Google Cloud
-// Translation v2 (MT fallback); swapping it never touches this client.
-// =========================================================
+// The browser cannot translate, only ASK the server to: the API key and the provider
+// call live in the `translate` edge function, so there is no provider here to swap,
+// mock, or extract from the bundle. Swapping the provider never touches this file.
 
 import { supabase } from "../../config/supabaseClient";
 import { ServiceError, toServiceError } from "../errors";
@@ -23,38 +17,20 @@ export interface TranslationResult {
   translated: boolean;
   /** The translated text (primary sense), or null when nothing was translated. */
   translation: string | null;
-  /**
-   * The primary cached verified word, when persisted (first of `words`). Null
-   * for display-only calls (persist=false) and when translation failed.
-   */
+  /** The primary verified word (first of `words`); null for display-only calls. */
   word: Word | null;
-  /**
-   * ALL verified senses persisted for this lookup (primary first). A real
-   * dictionary (JMdict) is multi-sense, so this can hold several; the MT
-   * fallback yields at most one. Empty for display-only / failed calls.
-   */
+  /** ALL verified senses persisted for this lookup, primary first. JMdict is
+   *  multi-sense, so this can hold several; the MT fallback yields at most one. */
   words?: Word[];
 }
 
-/**
- * Asks the server to translate `input`. By default the result is cached as a
- * verified word (`persist`); pass `persist: false` for display-only text such
- * as a whole paragraph, which must not be stored.
- *
- * OUTPUT: TranslationResult { translated, translation: string|null, word: Word|null }.
- * CONSTRAINTS: `sourceLang` must already be concrete (resolve "Detect language"
- * first); persist defaults true (caches a verified word); persist:false →
- * display-only, word is null.
- */
 const MAX_ATTEMPTS = 3;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * True for a TRANSIENT edge failure worth retrying: a network/fetch failure
- * (supabase-js `FunctionsFetchError` — e.g. a dropped connection or a local
- * edge isolate killed by its wall-clock limit, which the browser surfaces as
- * "NetworkError when attempting to fetch resource") or a 5xx from the gateway.
- * A 4xx (e.g. 413/429 limits) is deliberate and is NOT retried.
+ * True for a TRANSIENT edge failure worth retrying: a fetch failure (a dropped
+ * connection, or an edge isolate killed by its wall-clock limit) or a gateway 5xx.
+ * A 4xx (413/429 limits) is deliberate and is NOT retried.
  */
 function isTransient(error: { name?: string; context?: unknown }): boolean {
   if (error?.name === "FunctionsFetchError" || error?.name === "FunctionsRelayError") {
@@ -64,14 +40,12 @@ function isTransient(error: { name?: string; context?: unknown }): boolean {
   return typeof status === "number" && status >= 500;
 }
 
-/** Invoke the edge function with the transient-failure retry/backoff, shared by
- *  the single and batch entry points. Throws on a deliberate (4xx) or exhausted
- *  failure; returns the function's data otherwise.
+/** Invoke the edge function with the transient-failure retry/backoff, shared by the
+ *  single and batch entry points. Throws on a deliberate (4xx) or exhausted failure.
  *
- *  Idempotency: a key is generated ONCE per logical call (not per attempt), so all
- *  retries carry the SAME key. The edge replays the stored response for a retried
- *  PAID request (the persist=false paragraph gloss) instead of re-calling Google /
- *  re-reserving quota. The batch path ignores it (already cache-idempotent). */
+ *  The idempotency key is generated ONCE per logical call, not per attempt, so all
+ *  retries carry the SAME key and the edge replays a stored PAID response instead of
+ *  re-calling Google. The batch path ignores it (already cache-idempotent). */
 async function invokeTranslate<T>(body: Record<string, unknown>): Promise<T> {
   const idempotencyKey =
     globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -86,7 +60,6 @@ async function invokeTranslate<T>(body: Record<string, unknown>): Promise<T> {
     }
 
     lastError = error;
-    // Retry transient failures with a short backoff; surface deliberate ones now.
     if (attempt < MAX_ATTEMPTS && isTransient(error)) {
       await sleep(150 * attempt);
       continue;
@@ -96,6 +69,11 @@ async function invokeTranslate<T>(body: Record<string, unknown>): Promise<T> {
   throw toServiceError(lastError);
 }
 
+/**
+ * Ask the server to translate `input`. The result is cached as a verified word by
+ * default; pass `persist: false` for display-only text (a whole paragraph), which must
+ * not be stored and comes back with `word` null. `sourceLang` must already be concrete.
+ */
 export async function translate(params: {
   input: string;
   sourceLang: LangCode;
@@ -112,24 +90,48 @@ interface BatchEntry {
 }
 
 /**
- * BATCH translate: resolve many cacheable words in ONE round-trip (the edge
- * function loops cache → JMdict → MT per word and persists them all). Collapses
- * the paragraph / add-many per-word fan-out from N edge calls to one.
+ * BATCH translate: many cacheable words in ONE round-trip, collapsing the paragraph /
+ * add-many fan-out from N edge calls to one. Keyed by the term SENT, so a kana search
+ * resolves under that kana even though the stored headword is the kanji; a term with no
+ * result maps to []. persist is implied true — the paragraph gloss stays a separate
+ * persist:false `translate` call.
  *
- * OUTPUT: Map<searchTerm, Word[]> — every requested term is a key; terms with no
- * result map to an empty array. Keyed by the term SENT (so a kana search resolves
- * under that kana even though the stored headword is the kanji).
- * CONSTRAINTS: persist is implied true (batch is for cacheable words); the
- * whole-paragraph display gloss stays a separate persist:false `translate` call.
+ * `dictionaryOnly` restricts resolution to the cache + dictionary, never paid MT. Use
+ * it when PROBING whether a string is a real word rather than translating something the
+ * user asked for: probes are expected to miss, and billing for each wrong guess — then
+ * caching its output as verified — is exactly the wrong answer.
  */
 export async function translateBatch(params: {
   inputs: string[];
   sourceLang: LangCode;
   targetLang: LangCode;
+  dictionaryOnly?: boolean;
 }): Promise<Map<string, Word[]>> {
   const map = new Map<string, Word[]>();
   if (params.inputs.length === 0) return map;
   const data = await invokeTranslate<{ results?: BatchEntry[] }>(params);
   for (const r of data.results ?? []) map.set(r.input, r.words ?? []);
   return map;
+}
+
+/**
+ * SEGMENTS translate: one display gloss PER SEGMENT, index-aligned, in ONE round-trip —
+ * which is what lets the reader print the English under the sentence it belongs to.
+ * Splitting one blob of translated text back apart can't promise that, since MT merges
+ * and splits sentences freely.
+ *
+ * Display-only like the paragraph gloss: nothing is cached, the dictionary path is
+ * skipped, and it meters as ONE paid request (the edge dedupes repeats before billing).
+ * A `null` entry means that segment came back empty — render its source instead.
+ */
+export async function translateSegments(params: {
+  segments: string[];
+  sourceLang: LangCode;
+  targetLang: LangCode;
+}): Promise<(string | null)[]> {
+  if (params.segments.length === 0) return [];
+  const data = await invokeTranslate<{ glosses?: (string | null)[] }>(params);
+  const glosses = data.glosses ?? [];
+  // Never let a short/garbled response shift the alignment — pad to the request.
+  return params.segments.map((_, i) => glosses[i] ?? null);
 }

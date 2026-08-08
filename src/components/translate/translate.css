@@ -39,14 +39,19 @@
 
 .modetoggle__btn--active {
   background: var(--accent);
-  color: #0b1a2e;
+  color: #1b1030;
   font-weight: 600;
 }
 
 /* paragraph reader */
 .textarea {
   width: 100%;
-  resize: vertical;
+  /* No drag-resize: the browser draws its grip in the bottom-right corner, which is
+     where the read-aloud button lives (.io__speak) — the two fought over the same
+     20px, and an inset button no longer lined up with the output box's. The box
+     already caps its height and scrolls a long paste, and the output box never had
+     a grip, so dropping it also makes the pair symmetric. */
+  resize: none;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -79,18 +84,98 @@
   word-break: break-word;
 }
 
-/* "Add all" + "Quiz" actions above the reader */
-.reader__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+/* INLINE TRANSLATION: each sentence followed by its own English, so reading a
+   line never means looking away to a separate block. One sentence per row —
+   the paragraph stops flowing on purpose, since a flowing paragraph has no
+   place to put a per-sentence gloss. */
+/* Dimmer + smaller than the source, and indented, so the eye reads the
+   Japanese first and the English as an annotation of it. */
+/* The INLINE gloss — only the "Show translation" toggle produces these, under every
+   sentence at once. A single tapped sentence answers in .glosscard instead, so
+   asking about one line never moves the paragraph. */
+.reader__gloss {
+  display: block;
+  margin: 0.15rem 0 0.35rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
-.reader__addall {
-  align-self: flex-start;
-  font-size: 0.9rem;
-  padding: 0.5rem 1rem;
+/* Summary infographic block above the reader (default collapsed). */
+.reader-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+}
+
+.reader-summary__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.reader-summary__toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* The infographic is a full-width row of its own under the toggles (which now
+   sit side by side in the flex row above). */
+.reader-summary .agx {
+  flex-basis: 100%;
+  margin-top: 0.6rem;
+}
+
+/* "+ Add N new words" + "Quiz N new words", above the reader.
+   ONE LINE, ALWAYS, and equal in both dimensions. They are peers — add these words,
+   quiz these words — so a pair at different heights, or one dropped onto a second row,
+   reads as a mistake rather than a layout.
+
+   HOW IT FITS instead of wrapping: nowrap + `flex: 1 1 0` gives them an equal share of
+   whatever width there is and lets them SHRINK together; the label wraps to a second
+   line inside the button before anything is clipped, and `stretch` keeps both buttons
+   the height of the taller one when that happens. The reduced inline padding and the
+   clamped font-size are what buy the room on a phone — they are set on the ROW, for
+   both children at once, which is the part that matters: the previous bug here was
+   .reader__addall carrying its own font-size and padding (0.9rem / 0.5rem 1rem against
+   .btn's 1rem / 0.7rem 1.4rem) plus align-self: flex-start, so the two sat at two
+   heights on two baselines. Never style one of these buttons alone.
+
+   The add button is WRAPPED (.addwrap carries its popover), so the WRAPPER is the flex
+   item — hence the width:100% below, or the button would not fill the share it was
+   given and the pair would differ again. */
+.reader__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.reader__actions > * {
+  flex: 1 1 0;
+  min-width: 0; /* a flex item's default min-width: auto refuses to shrink past its text */
+}
+
+.reader__actions .addwrap {
+  display: flex;
+}
+
+.reader__actions .btn {
+  width: 100%;
+  padding-inline: 0.6rem;
+  font-size: clamp(0.8rem, 3.2vw, 1rem);
+  line-height: 1.25;
 }
 
 /* "Add to: [list]" destination picker */
@@ -115,10 +200,11 @@
   color: var(--text);
 }
 
+/* addable: has a dictionary entry, not in the vocabulary yet — see --word-new */
 .tok--new {
-  color: var(--accent);
+  color: var(--word-new);
   cursor: pointer;
-  border-bottom: 2px dotted var(--accent);
+  border-bottom: 2px dotted var(--word-new);
 }
 
 /* known: colored by confidence, red (just added / forgotten) → green (mastered) */
@@ -134,7 +220,18 @@
 .tok--c5 { color: #3ecb6c; } /* mastered */
 
 /* hover popover anchored under a word */
+/* The flag pinned to the card corner. Absolute so it does not take a row in the flex
+   column (the headword must stay on the first line), and the headword reserves room
+   for it — see .hovercard__word. */
+.hovercard__flag {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  z-index: 1;
+}
+
 .hovercard {
+  position: relative; /* anchor for .hovercard__flag */
   z-index: 50;
   width: 260px;
   max-width: 90vw;
@@ -152,6 +249,7 @@
 }
 
 .hovercard__word {
+  padding-right: 1.6rem; /* clear of .hovercard__flag */
   font-size: 1.25rem;
   font-weight: 600;
   flex: 0 0 auto; /* header stays pinned; the senses list below scrolls */
@@ -190,6 +288,17 @@
   color: var(--muted);
 }
 
+/* The row above the input/output boxes: the centred language bar, plus the
+   history clock pinned to its right edge. Anchor for .thistory.
+   The z-index lifts this whole row (and the dropdown it contains) above
+   .translate__io, which is a LATER sibling and would otherwise paint its boxes
+   over the open panel. Stays below .hovercard (50) so the reader's word popover
+   still wins. */
+.translate__toolbar {
+  position: relative;
+  z-index: 30;
+}
+
 .langbar {
   display: flex;
   align-items: center;
@@ -197,10 +306,6 @@
   /* Stay compact + centered rather than stretching to the wide input/output boxes. */
   max-width: 28rem;
   margin-inline: auto;
-}
-
-.langbar__arrow {
-  color: var(--muted);
 }
 
 .langbar__swap {
@@ -260,11 +365,45 @@
 .translate__box {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 8rem;
+  /* TALL ENOUGH FOR SIX BUTTONS, as a constant.
+     The right edge carries the tool column at the top (clear · draw · mic · camera ·
+     library today) and read-aloud at the bottom, so the box must fit both:
+       6 × 2rem (.io__tool) + 5 × 0.35rem (gap) + 0.4rem (top) + 2.4rem (read-aloud
+       + its offset) = 16.55rem, so 18rem leaves ~1.4rem spare at six buttons and
+       ~3.9rem at today's five.
+     Sized for SIX rather than five so the next modality needs no arithmetic — and
+     ROUNDED UP rather than fitted. This replaced a version that derived the height
+     from a live count of the rendered buttons: it was exact, and being exact is what
+     let a rounded pixel put the last tool under the speaker three times. A constant
+     with room to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even
+     on a 667px screen — so it never fights this.) */
+  min-height: 18rem;
+  /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
+     that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
+     the bottom — so one gutter clears them all, at the top AND the bottom, and the
+     two boxes stay symmetric. Without it, text ran underneath the buttons and was
+     simply unreadable: 0.4rem offset + a 2rem button + 0.4rem of air. Keep this in
+     step with .io__tools/.io__speak `right` and .io__tool `width`. */
+  padding-right: 2.8rem;
   /* Cap the height so a long input/translation scrolls inside the box instead of
      growing the page. Applies to both the textarea and the output panel. */
   max-height: min(24rem, 55vh);
   overflow-y: auto;
+}
+
+/* The INPUT scrolls but draws no scrollbar. .io__tools (clear / mic / camera) is
+   pinned to the same top-right corner, so the track ran directly beneath the
+   buttons and read as a stray line through them. Scrolling itself is untouched —
+   wheel, trackpad, keyboard and caret-follow all still work; only the visual track
+   is suppressed. Scoped to the textarea so the output box keeps its own scrollbar,
+   where nothing overlaps it. */
+textarea.translate__box {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+textarea.translate__box::-webkit-scrollbar {
+  display: none; /* WebKit / Blink */
 }
 
 /* Output box: read-only display of the plain translation. */
@@ -272,7 +411,11 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.8rem 0.9rem;
+  /* Right value = .translate__box's button gutter (see there). Spelled out per side
+     because this rule comes AFTER .translate__box, so a `0.8rem 0.9rem` shorthand
+     here would silently reset the gutter and put the translation back under the
+     read-aloud button. */
+  padding: 0.8rem 2.8rem 0.8rem 0.9rem;
   font-size: 1.05rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -283,6 +426,126 @@
 .translate__submit {
   display: flex;
   justify-content: center;
+}
+
+/* Session translate history — a clock button beside Translate that opens a
+   dropdown of what you translated this session (components/translate/HistoryMenu).
+   It replaced an always-visible chip row: the history is a look-back, not part of
+   the translate flow, and the row pushed the study section down the page to show
+   text the user had just typed. */
+.thistory {
+  /* Out of the flow so the Translate button stays optically centred in its row —
+     and so it doesn't jump sideways when the first entry appears. */
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.thistory__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0.4rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.thistory__btn:hover,
+.thistory__btn[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.thistory__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 20;
+  width: min(20rem, calc(100vw - 2rem));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  text-align: left;
+}
+
+.thistory__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.thistory__title {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.thistory__clear {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  text-decoration: underline;
+}
+
+.thistory__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  /* A full session's worth of entries shouldn't run off the screen. */
+  max-height: 17rem;
+  overflow-y: auto;
+}
+
+.thistory__item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.thistory__item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.thistory__item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* A pasted paragraph is a valid entry — clamp it to two lines rather than letting
+   one entry own the panel. The full text stays on the title/aria-label. */
+.thistory__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.thistory__dir {
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 /* "I'm learning: [lang]" — the study target selector below the Translate button. */
@@ -322,6 +585,48 @@
 @media (max-width: 600px) {
   .translate__io {
     flex-direction: column;
+  }
+
+  /* THE HISTORY CLOCK JOINS THE FLOW. On desktop it's absolutely positioned at the
+     row's right edge so .langbar keeps its margin-inline:auto centring. On a phone
+     the bar fills nearly the whole width, so that put the clock ON TOP of the target
+     select — measured 32px of overlap at 320/375/390/430, i.e. every iPhone, with
+     the tap landing on the clock instead of the language. Centring is worth less
+     than being able to change the language you're translating into. */
+  .translate__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .langbar {
+    /* Give up the fixed cap + auto-centring so the bar shares the row. */
+    max-width: none;
+    margin-inline: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .thistory {
+    /* relative, not static: the dropdown is positioned against this element. */
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    flex: 0 0 auto;
+  }
+
+  /* Smaller language controls. The names are short ("Japanese"/"English") and were
+     set at desktop scale; trimming type + padding buys back ~50px of row. */
+  .langbar .select {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .langbar__swap {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.85rem;
   }
   /* Taller input/output boxes on mobile (1.5× the 8rem default) — more room to
      read/edit on a narrow screen. */
@@ -444,7 +749,7 @@
 }
 
 .add:hover:not(:disabled) {
-  background: rgba(110, 168, 254, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .add--done {
@@ -496,11 +801,29 @@
   font-style: italic;
 }
 
+/* Source credit for media-loaded prose (CC BY-SA attribution + link-back). */
+.reader__source {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reader__source a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.reader__source a:hover {
+  text-decoration: underline;
+}
+
 /* Handwriting input (Tier-4, native ML Kit Digital Ink). A square "paper" pad
    whose recognized candidates fill the translate input. */
 
 /* Input modality tools, pinned to the input box's top-right corner (pencil now;
    speech + camera will sit alongside). */
+/* Input modality tools, pinned to the box's top-right corner. Read-aloud sits in the
+   opposite corner (.io__speak); .translate__box is tall enough for both — see there. */
 .io__tools {
   position: absolute;
   top: 0.4rem;
@@ -508,7 +831,28 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
+  flex-wrap: nowrap;
   gap: 0.35rem;
+}
+
+/* Read-aloud, pinned BOTTOM-right of either box — deliberately the opposite corner
+   from .io__tools (input modalities), so output-side controls never mix with the
+   input ones. Anchored to the WRAPPER, not the box: the box scrolls its own
+   content, and a button inside it would scroll away with a long paragraph. */
+.io__speak {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  z-index: 2;
+}
+
+/* Wraps the output box so .io__speak has something to pin to (mirrors
+   .translate__inputwrap on the input side). */
+.translate__outwrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
 }
 
 .io__tool {
@@ -560,6 +904,42 @@
   justify-content: center;
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg, #16181d) 78%, transparent);
+  /* Nothing in here is text you'd copy — it's a pad and its buttons — and a stroke
+     that strays off the canvas would otherwise sweep the hint line and the candidate
+     chips into a selection. `touch-action: none` stops a stray drag scrolling the
+     page for the same reason the canvas sets it. (The document-level lock in
+     common.css covers what sits BEHIND the overlay; this covers the overlay itself.) */
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* FULL-SCREEN variant — the photo cropper.
+   The base overlay is absolute inside .translate__io, so it is only ever as tall as
+   the two boxes (8–24rem). That is right for the handwriting pad (280px, fits), but a
+   photo is capped at 60vh plus a hint line and an action row, so it overflowed those
+   bounds — and because the backdrop is the overlay itself, everything the cropper
+   spilled over had NO backdrop at all and the page text read straight through the
+   picture. Fixed positioning makes the backdrop the viewport instead.
+   `position: fixed` is safe here only because `.translate` centres with margins and
+   NOT transform (see its rule) — a transformed ancestor would make it the containing
+   block and put us right back inside the boxes. */
+.translate__overlay--modal {
+  position: fixed;
+  inset: 0;
+  /* Above the tallest thing that can be open behind it (ListMenu is 60). */
+  z-index: 70;
+  border-radius: 0;
+  padding: 1rem;
+  overflow-y: auto;
+  /* Near-opaque: dimming is for a small pad you can see around, but a cropper is a
+     mode — half-visible prose behind the photo is exactly the complaint. */
+  background: color-mix(in srgb, var(--bg, #16181d) 96%, transparent);
+  /* Centre, but never at the cost of the top: on a short screen plain `center`
+     overflows equally in both directions and the top becomes unscrollable. Browsers
+     without `safe` keep the line above. */
+  align-items: center;
+  align-items: safe center;
 }
 
 /* Compact button variant used inside the pad (no global .btn--sm yet). */
@@ -590,11 +970,17 @@
   font-size: 0.85rem;
 }
 
+/* A dark SLATE, not white paper. The pad was #fafafa with near-black ink — the one
+   bright rectangle in an otherwise dark app, which glares when you open it and puts
+   the ink at the opposite polarity from every other glyph on screen. Ink is white
+   (`INK` in HandwritingCanvas.tsx — keep the two in step). Deliberately its own
+   near-black rather than var(--surface): the pad must read as a writing surface
+   distinct from the panel it sits in, and strokes need maximum contrast. */
 .hw__pad {
   display: block;
   width: 280px;
   height: 280px;
-  background: #fafafa;
+  background: #0b0d11;
   border: 1px dashed var(--border);
   border-radius: 8px;
   touch-action: none;
@@ -634,4 +1020,118 @@
 
 .hw__cand:hover {
   border-color: var(--accent);
+}
+
+/* ---- Live listener (EXPERIMENT) -------------------------------------------
+   Transcript column: the committed, analyzed utterances render through the shared
+   reader above; this is the chrome around them. */
+.listen__bar {
+  display: flex;
+  align-items: stretch; /* one height for every control in the row */
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Listen/Stop, Clear and Add sit on one line, so they share a height. Padding
+   alone doesn't guarantee it once one of them wraps its label. */
+.listen__bar .btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+}
+
+.listen__close {
+  margin-left: auto;
+}
+
+/* The utterance still forming. Deliberately plain and muted — recognition rewrites
+   it on every syllable, so colouring it would strobe; committing is what earns the
+   colour. Italic marks it as provisional without adding chrome. */
+.listen__partial {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-style: italic;
+  min-height: 1.4em; /* reserve the line so the transcript doesn't jump */
+}
+
+/* ---- Per-sentence translate --------------------------------------------------
+   The sentence's closing 。 IS the button. It has to read as punctuation at rest —
+   the reader is for reading Japanese, and a row of buttons down the text would be
+   noise — so it only declares itself on hover/focus. `is-bought` marks a sentence
+   already paid for, so a second press is visibly free. */
+.reader__punct {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+/* A filled block behind the character was far louder than the character itself —
+   the mark is one glyph and the highlight was a whole em box. An underline is the
+   smallest thing that still reads as "this is pressable". */
+.reader__punct:hover,
+.reader__punct:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--accent, #a78bfa);
+  color: var(--accent, #a78bfa);
+  outline: none;
+}
+
+/* Already paid for: tinted, no underline. Says "free to press again" without
+   competing with the sentence for attention. */
+.reader__punct.is-bought {
+  color: var(--accent, #a78bfa);
+}
+
+/* The WHOLE translation, under text that has no punctuation to hang per-sentence
+   controls on (dictated speech, a headline, one typed line). Same annotation
+   styling as .reader__gloss — dimmer, smaller, set off by a rule — so the two
+   layouts read as the same feature answering in the only way each text allows. */
+.reader__whole {
+  margin: 0.5rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Back sits at the head of the bar; the actions that DO something (listen, clear,
+   add) follow it, so the leftmost control is always the way out. */
+/* Discrete: no button chrome at rest, muted like the surrounding text, brightening
+   only on hover. It is the way out, not something to be drawn toward. */
+.listen__back {
+  background: none;
+  border: none;
+  padding: 0.2rem;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.listen__back:hover,
+.listen__back:focus-visible {
+  color: var(--text);
+  opacity: 1;
+  background: none;
+}
+
+/* A sentence currently showing its translation gets its own line, with the English
+   directly beneath it. Both start at the same edge, so they align without anything
+   being measured — the reason the JS-measured indent was abandoned. Indented as a
+   PAIR so the two read as one unit set apart from the surrounding prose. */
+.reader__sentence {
+  display: block;
+  margin: 0.35rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent, #a78bfa);
+}
+
+/* Inside its own block the gloss no longer needs its own rule to separate it from
+   the source — the block's border already does that. */
+.reader__sentence .reader__gloss {
+  padding-left: 0;
+  border-left: none;
 }

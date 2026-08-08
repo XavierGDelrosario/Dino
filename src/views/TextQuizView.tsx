@@ -4,8 +4,14 @@
 //              SRS practice). saveDictionaryWord is idempotent, so useTextQuiz
 //              handles both with the same save-then-record path.
 // Reuses the flashcard card/progress/grade UI from the review surface.
+import { useCallback, useEffect, useState } from "react";
 import { useTextQuiz, type OnGraded } from "../hooks/useTextQuiz";
+import { useQuizFlip } from "../hooks/useQuizFlip";
+import { highlightSegments, type WordContext } from "../services/analyze/context";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
+import { ReportFlagButton } from "../components/common/ReportFlagButton";
+import { useSwipeCard } from "../components/flashcards/useSwipeCard";
+import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { AddToListButton } from "../components/translate/AddToListButton";
@@ -16,6 +22,12 @@ import type { List } from "../services/lists";
 import "../components/flashcards/flashcards.css";
 
 export type QuizMode = "learn" | "review";
+/** Where a session's cards came from. Affects COPY only — the loop is identical. */
+export type QuizSource = "text" | "level";
+
+// A common word can appear in a dozen sentences; the panel is a memory jog, not a
+// concordance, so show the first few and let the reader supply the rest.
+const MAX_CONTEXT_SENTENCES = 3;
 
 export function TextQuizView({
   userId,
@@ -26,13 +38,24 @@ export function TextQuizView({
   onCreateList,
   onClose,
   onNewQuiz,
+  context,
+  source = "text",
 }: {
   userId: string;
   /** One entry per word — its full sense list (primary first) so meanings cycle. */
   cards: Word[][];
+  /** Source sentences per word (by primary-sense wordId) for the "Show in context"
+      reveal. Omitted by surfaces with no source text (the level-based Learn quiz),
+      which simply hides the button. */
+  context?: Map<string, WordContext[]>;
   /** The user's sub-lists, for the add-to-list menu. */
   lists: List[];
   mode?: QuizMode;
+  /** WHERE the cards came from — it only changes the copy. The default wording says
+   *  "this text", which is true for the reader and an article but a lie on the Learn
+   *  tab, whose cards are drawn from a proficiency BAND and never came from a passage
+   *  the user can see. */
+  source?: QuizSource;
   /** Sync the reader's saved/confidence state as each word is learned/reviewed. */
   onGraded?: OnGraded;
   /** Create a sub-list, returning its id (then the word is tagged into it). */
@@ -47,19 +70,45 @@ export function TextQuizView({
   // mode "learn" = NEW words (first-encounter recall), the right signal to
   // calibrate the user's level on — done silently in the hook (no UI here).
   const q = useTextQuiz(userId, cards, { onGraded, calibrate: mode === "learn" });
+  // Keyed on the card position, NOT the shown sense — cycling meanings mid-card must
+  // not be treated as a card boundary (it would flip the card under the user).
+  const flip = useQuizFlip(q.position);
+
+  // Swipe to grade a FACE-DOWN card: right = 5, left = 1 (same directions as Review
+  // and the placement quiz). Revealed, the card's own swipe cycles meanings instead
+  // — the two never both apply, because this wrapper's handlers are only attached
+  // while `!q.flipped` and the card's own only while `q.flipped`.
+  const { grade } = q;
+  const swipe = useSwipeCard({
+    onLeft: useCallback(() => grade(1), [grade]),
+    onRight: useCallback(() => grade(5), [grade]),
+  });
+
   const { t } = useI18n();
   const noun = (n: number) => plural(t, n, "common.word", "common.words");
 
+  // "Show in context" is a per-card reveal: collapse it on every card change, so a
+  // sentence revealed for one word can't sit open and pre-answer the next.
+  const [showContext, setShowContext] = useState(false);
+  useEffect(() => setShowContext(false), [q.position]);
+  // Keyed on the card's PRIMARY sense — how a card is identified everywhere else
+  // (addableCards / the article word list both build a card from senses[0]).
+  const sentences = (context?.get(q.senses[0]?.wordId ?? "") ?? []).slice(0, MAX_CONTEXT_SENTENCES);
+
   const close = (
     <button className="btn btn--ghost" onClick={onClose}>
-      {t("quiz.back")}
+      {t(source === "level" ? "quiz.backLevel" : "quiz.back")}
     </button>
   );
 
   if (q.status === "empty") {
     return (
       <div className="review__msg">
-        <p>{mode === "review" ? t("quiz.emptyReview") : t("quiz.emptyLearn")}</p>
+        <p>
+          {mode === "review"
+            ? t("quiz.emptyReview")
+            : t(source === "level" ? "quiz.emptyLearnLevel" : "quiz.emptyLearn")}
+        </p>
         {close}
       </div>
     );
@@ -93,9 +142,14 @@ export function TextQuizView({
   const card = q.current!;
   return (
     <section className="review">
-      <p className="review__scope">
-        {mode === "review" ? t("quiz.scopeReview") : t("quiz.scopeLearn")}
-      </p>
+      <div className="review__head">
+        <p className="review__scope">
+          {mode === "review"
+            ? t("quiz.scopeReview")
+            : t(source === "level" ? "quiz.scopeLearnLevel" : "quiz.scopeLearn")}
+        </p>
+        <FlipButton flip={flip} />
+      </div>
       <ProgressBar position={q.position} total={q.total} />
 
       {/* The card + a top-right ＋ add-to-list button (adds the SELECTED meaning,
@@ -103,26 +157,33 @@ export function TextQuizView({
           a sub-list or a newly-created one) and ←/→ meaning-cycle arrows when the
           word has more than one sense. Keyed on the sense so cycling the meaning
           resets the button to add the newly-shown one. */}
+      <div {...(q.flipped || q.submitting ? {} : swipe.props)}>
       <div className="quizcard">
-        <AddToListButton
-          key={card.wordId}
-          className={`quizcard__add${q.isCurrentSaved ? " is-saved" : ""}`}
-          words={[card]}
-          lists={lists}
-          label={q.isCurrentSaved ? "✓" : "＋"}
-          alreadyAdded={q.isCurrentSaved}
-          onAdd={(words, listId) => q.addWord(words[0], listId)}
-          onCreateList={onCreateList}
-        />
-
         <FlashcardCard
           word={card}
           flipped={q.flipped}
           onFlip={q.flip}
+          reversed={flip.reversed}
+          // Bottom-left of the card. Reports the exact SENSE being shown — the meaning
+          // is what a quiz card is about, so a wrong one is the likeliest thing to flag.
+          flag={<ReportFlagButton input={card.input} wordId={card.wordId} size={15} />}
           // Swipe to cycle meanings — same gate as the arrows (revealed + >1 sense).
           // Left = next, right = previous.
           onSwipeLeft={q.hasMultipleMeanings && q.flipped ? q.nextMeaning : undefined}
           onSwipeRight={q.hasMultipleMeanings && q.flipped ? q.prevMeaning : undefined}
+          // ＋ add-to-list INSIDE the card's top-right (adds the selected meaning).
+          action={
+            <AddToListButton
+              key={card.wordId}
+              className={`card-add${q.isCurrentSaved ? " is-saved" : ""}`}
+              words={[card]}
+              lists={lists}
+              label={q.isCurrentSaved ? "✓" : "＋"}
+              alreadyAdded={q.isCurrentSaved}
+              onAdd={(words, listId) => q.addWord(words[0], listId)}
+              onCreateList={onCreateList}
+            />
+          }
         />
 
         {/* Meaning-cycle arrows appear only once the meaning is REVEALED — before
@@ -149,6 +210,45 @@ export function TextQuizView({
           </div>
         )}
       </div>
+      </div>
+
+      {/* "Show in context" — the sentence(s) this word came from, under the card.
+          A hint you opt into: it stays collapsed by default so the card is still a
+          cold recall test, and it resets on every card. */}
+      {sentences.length > 0 && (
+        <div className="quizctx">
+          <button
+            type="button"
+            className="quizctx__toggle"
+            onClick={() => setShowContext((v) => !v)}
+            aria-expanded={showContext}
+          >
+            {showContext ? "▾" : "▸"} {t(showContext ? "quiz.hideContext" : "quiz.showContext")}
+          </button>
+          {showContext && (
+            <ul className="quizctx__list">
+              {sentences.map((c, i) => (
+                <li className="quizctx__item" key={`ctx-${i}`}>
+                  <p className="quizctx__sentence">
+                    {highlightSegments(c.text, c.spans).map((seg, j) =>
+                      seg.hit ? (
+                        <mark className="quizctx__hit" key={`seg-${j}`}>
+                          {seg.text}
+                        </mark>
+                      ) : (
+                        <span key={`seg-${j}`}>{seg.text}</span>
+                      ),
+                    )}
+                  </p>
+                  {/* The sentence's translation would hand over the answer, so it
+                      only appears once the card is already revealed. */}
+                  {q.flipped && c.gloss && <p className="quizctx__gloss">{c.gloss}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <ErrorText message={q.error} />
 

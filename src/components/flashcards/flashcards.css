@@ -59,6 +59,90 @@
   margin: 0;
 }
 
+/* Quiz header: the scope line ("Reviewing: ALL") is centered on the VIEW and must
+   never move. So the toggle is taken out of flow (absolute, top-right) — in flow its
+   width changes when the "next card" note appears and would shove the scope text
+   sideways. Symmetric gutters reserve the corner space, so a centered scope line can
+   still never run under the toggle. */
+.review__head {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 8.5rem; /* ≥ the toggle's widest state, both sides, to keep centering true */
+}
+
+.quizflip {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* Off = word-first (the default): a quiet outline. */
+.quizflip__btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+.quizflip__btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* On = meaning-first. Filled, so the active direction reads at a glance. */
+.quizflip__btn.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Armed but not yet showing (the swap lands on the next card): a static highlight
+   ring. Reads on BOTH settled states (outline sits outside the pill, so it shows
+   over the filled meaning-first look too), no motion. */
+.quizflip__btn.is-pending {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.quizflip__btn.is-on.is-pending {
+  color: #fff;
+}
+
+/* The "next card" hint. Absolute (under the toggle) so showing it can't resize the
+   toggle — that resize is what used to shift the scope line. */
+.quizflip__note {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  font-size: 0.7rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Narrow screens: drop the direction label (the ⇄ plus its filled / highlighted
+   state still carry it) and shrink the header gutters to match the now icon-sized
+   toggle. The "next card" note stays — that hint is the whole point of the deferred
+   swap, and the phone is the primary surface. */
+@media (max-width: 520px) {
+  .quizflip__label {
+    display: none;
+  }
+  .review__head {
+    padding: 0 3.25rem;
+  }
+}
+
 .review__error {
   background: #2a1416;
   color: #ffb4ad;
@@ -104,6 +188,46 @@
    ←/→ meaning-cycle nav (shown only when a word has more than one sense). */
 .quizcard {
   position: relative;
+  /* Fill the container width so the card doesn't shrink to its content in a
+     center-aligned container (the calibration swipe) — otherwise the front, with just
+     the term, was narrower than the revealed back. */
+  width: 100%;
+}
+
+/* Swipe stage (useSwipeCard): the card follows the pointer, then flies out in the
+   direction you rated. The transform is applied INLINE and only while it moves —
+   a permanent one would make this the containing block for the add-to-list menu
+   (position: fixed) and misplace it. Duration must match EXIT_MS in useSwipeCard. */
+.swipecard {
+  width: 100%;
+  transition: transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease;
+  /* `none`, NOT `pan-y`: the card owns every gesture that starts on it. With pan-y
+     the iOS WKWebView keeps the right to claim a slightly-diagonal drag as a scroll,
+     and when it does it fires pointercancel — which aborts the swipe mid-drag, so
+     the card springs back and the rating never lands. The page still scrolls
+     normally from anywhere outside the card. */
+  touch-action: none;
+}
+
+/* While dragging the card tracks the finger 1:1 — a transition here would lag it. */
+.swipecard--dragging {
+  transition: none;
+}
+
+/* The incoming card settles in, so a rated card is visibly REPLACED rather than
+   silently swapped. Keyed on the word id by the caller, so it replays per card. */
+.swipecard__in {
+  animation: swipecard-in 180ms ease-out;
+}
+
+@keyframes swipecard-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipecard { transition: none; }
+  .swipecard__in { animation: none; }
 }
 
 .quizcard__add {
@@ -164,12 +288,63 @@
   text-align: center;
 }
 
+/* "Show in context" — the source sentences a quizzed word came from, under the card.
+   Collapsed by default (the card stays a cold recall test); the toggle matches the
+   reader's disclosure style (.reader-summary__toggle). */
+.quizctx {
+  margin-top: 0.75rem;
+}
+.quizctx__toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.quizctx__toggle:hover {
+  color: var(--accent);
+}
+.quizctx__list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.quizctx__item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+}
+.quizctx__sentence {
+  margin: 0;
+  line-height: 1.7;
+}
+.quizctx__hit {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+.quizctx__gloss {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .flashcard {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  min-height: 220px;
+  /* 220px + ~one reveal-button's worth of height (a .btn is ~2.75rem tall). The card
+     had to grow anyway once the flag took the bottom-left corner: at 220px a long
+     meaning on the back reached the corners, and the term is vertically centred, so
+     extra height buys clearance at BOTH ends rather than just the bottom. */
+  min-height: 264px;
   padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
@@ -186,6 +361,71 @@
   left: 0.6rem;
 }
 
+/* Bottom-left: the report flag (see FlashcardCard's `flag` slot). Diagonally
+   opposite the add-to-list cluster so the two never crowd, and low enough that the
+   card's text — which is centred — never reaches it. */
+.flashcard__flag {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 0.6rem;
+}
+
+/* Top-right tool cluster: read-aloud + the caller's action (add-to-list), in a row
+   so a card carrying both keeps one tidy corner. */
+.flashcard__action {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Same round footprint as .card-add, but transparent — the listen button is a
+   secondary affordance next to the add button, not a peer of it. */
+.card-tool {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.card-tool:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Round add-to-list button rendered INSIDE a card's top-right action slot. */
+.card-add {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  cursor: pointer;
+}
+.card-add:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+.card-add.is-saved {
+  color: #4caf50;
+  cursor: default;
+}
+
 .flashcard[role="button"] {
   cursor: pointer;
 }
@@ -194,8 +434,10 @@
   border-color: var(--accent);
 }
 
+/* Base size for text INSIDE its column budget; longer text gets an inline size from
+   fitToWidth instead. Must equal TERM_MAX in FlashcardCard.tsx. */
 .flashcard__term {
-  font-size: 2.4rem;
+  font-size: 2.9rem;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -211,12 +453,13 @@
 }
 
 .flashcard__reading {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: var(--accent);
 }
 
+/* Must equal MEANING_MAX in FlashcardCard.tsx (see .flashcard__term). */
 .flashcard__translation {
-  font-size: 1.4rem;
+  font-size: 1.65rem;
 }
 
 .flashcard__hint {

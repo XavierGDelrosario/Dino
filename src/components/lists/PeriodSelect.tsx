@@ -1,23 +1,9 @@
 // A calendar-period filter dropdown (All time / Today / This week / This month
-// / This year) and the matching cutoff helper. Owns the DatePeriod type so the
-// list view and this control share one definition.
+// / This year), rendered inside the filter menu. The DatePeriod type and its cutoff
+// live with the rest of the filter model (services/words/filters.ts).
 import { useI18n } from "../../i18n";
+import type { DatePeriod } from "../../services/words/filters";
 import "./lists.css";
-
-export type DatePeriod = "all" | "today" | "week" | "month" | "year";
-
-/** Earliest timestamp included by a period ("today"=since midnight, "week"=since
- *  Monday, "month"=since the 1st, "year"=since Jan 1). */
-// eslint-disable-next-line react-refresh/only-export-components -- type + cutoff helper are intentionally co-located with the control (see header).
-export function periodCutoff(period: DatePeriod): number {
-  if (period === "all") return -Infinity;
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  if (period === "week") d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  else if (period === "month") d.setDate(1);
-  else if (period === "year") d.setMonth(0, 1);
-  return d.getTime();
-}
 
 export function PeriodSelect({
   label,
