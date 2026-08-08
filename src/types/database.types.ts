@@ -761,10 +761,13 @@ export type Database = {
           reported_at: string
           reported_by: string | null
           input: string
-          description: string
+          // Nullable since 20260757: a USER report may carry no note.
+          description: string | null
           status: string
           resolved_at: string | null
           resolved_by: string | null
+          source: string
+          dictionary_word_id: string | null
         }[]
       }
       admin_set_quality_report_status: {
