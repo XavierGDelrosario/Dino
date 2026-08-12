@@ -59,6 +59,7 @@ vi.mock("@/services/session", () => ({
 // "Analyzing…" state, which is enough — the header (and its star) renders either
 // way, and the word-list rendering is covered elsewhere.
 const setInput = vi.fn();
+const submit = vi.fn(async (_o?: unknown) => {});
 /** Every (userId, langs) pair ArticleView asked for — the analysis DIRECTION. */
 const translateArgs: Array<unknown[]> = [];
 
@@ -67,7 +68,7 @@ vi.mock("@/hooks/useTranslate", () => ({
     translateArgs.push(args);
     return {
     setInput,
-    submit: vi.fn(async () => {}),
+    submit,
     para: null,
     analyzedInput: "",
     saved: new Set<string>(),
@@ -105,6 +106,7 @@ async function openArticle() {
 
 beforeEach(() => {
   setInput.mockClear();
+  submit.mockClear();
   translateArgs.length = 0;
   listFavorites.mockClear();
   addFavorite.mockClear();
@@ -208,6 +210,16 @@ describe("ArticleView — ★ on the article", () => {
     };
     expect(langs.learning).toBe("EN");
     expect(langs.native).not.toBe("EN");
+
+    // …and submit must be TOLD the pair, not left to read pinned state that lands in
+    // the same commit: the stale closure resolved EN text as JA→EN, which submit
+    // answers by echoing, leaving the view on "Analyzing…" forever.
+    const call = submit.mock.calls[submit.mock.calls.length - 1][0] as {
+      source: string;
+      target: string;
+    };
+    expect(call.source).toBe("EN");
+    expect(call.target).not.toBe("EN");
   });
 
   it("renders NO star when no favourite is supplied (generic analysis surface)", async () => {
