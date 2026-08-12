@@ -149,11 +149,18 @@ declares mild profanity.
       - ⚠️ A phone screenshot only passes if the phone IS a Pro Max. A 6.1" iPhone
         captures at 1179 × 2556 and App Store Connect refuses it. Otherwise capture the
         same build from the Simulator: `xcrun simctl io booted screenshot shot.png`.
-      - ‼️ **The target is `TARGETED_DEVICE_FAMILY = "1,2"` — iPhone AND iPad.** That
-        obliges a 13" iPad set (`2064 × 2752`) too, and review will run the app on an
-        iPad. Nobody has ever run DINO on one. Decide before submitting: produce the
-        iPad shots and test the layout, or set the family to `"1"` and ship
-        iPhone-only for v1 (the lower-risk call).
+      - ✅ **iPhone-only for v1 — decided 2026-08-12.** `TARGETED_DEVICE_FAMILY` is now
+        `1` in both build configs, so there is **no 13" iPad set to produce** and review
+        will not run the app on an iPad. It was `"1,2"`, which obliged both, against an
+        app nobody has ever run on an iPad — an untested layout is a Guideline 2.1/4.0
+        rejection and each round trip costs a day or two.
+        ⚠️ **Do not widen it back for v1.** Adding iPad later is an ordinary update
+        (flip the two lines, add the `2064 × 2752` set); *removing* a device family
+        after release drops it out from under installed users. The direction is
+        one-way-cheap, so ship narrow.
+        Untested at tablet width if it is ever revisited: the reader's hover card
+        (`getBoundingClientRect`), Split View / Stage Manager resizing, the camera crop
+        and handwriting canvas.
       - Screenshot the analysis / word-table views rather than a screen of Wikinews
         prose: that text is CC BY 2.5, and attribution follows it into marketing.
 - [ ] Signing certificate + provisioning profile, then a TestFlight build.

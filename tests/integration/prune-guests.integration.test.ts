@@ -45,13 +45,29 @@ afterAll(async () => {
   if (connected) await db.end();
 });
 
-/** Backdate a guest so the sweep's age cutoff sees them as abandoned. */
+/** Backdate a guest's AUTH timestamps so the sweep's age cutoff sees them as abandoned.
+ *  `updated_at` is included because v2 reads it as one of its liveness signals. */
 async function age(userId: string, interval: string): Promise<void> {
   await sql(
     `UPDATE auth.users
         SET created_at = now() - $2::interval,
-            last_sign_in_at = now() - $2::interval
+            last_sign_in_at = now() - $2::interval,
+            updated_at = now() - $2::interval
       WHERE id = $1::uuid`,
+    [userId, interval],
+  );
+}
+
+/** Backdate the user's CONTENT too. v2 ages on the newest of auth timestamps AND real
+ *  product activity, so a guest with a freshly-saved word is alive however old the
+ *  login is — which is the whole point, and means "abandoned" needs both. */
+async function ageContent(userId: string, interval: string): Promise<void> {
+  await sql(
+    `UPDATE user_words
+        SET originally_translated_date = now() - $2::interval,
+            last_reviewed_date = CASE WHEN last_reviewed_date IS NULL THEN NULL
+                                      ELSE now() - $2::interval END
+      WHERE user_id = $1`,
     [userId, interval],
   );
 }
@@ -103,6 +119,25 @@ describe.skipIf(!ENABLED || !DB_MATCHES_TARGET)("prune_anonymous_guests: takes t
     expect(await stillExists(guest.userId)).toEqual({ auth: true, profile: true });
   });
 
+  // v2's reason to exist: a guest who saved words and then lost their browser has no
+  // email, no credential and therefore no way to ask for erasure. Inactivity is the only
+  // signal available, so inactivity has to be enough.
+  it("TAKES an inactive guest WITH saved words — the erasure route a guest otherwise lacks", async () => {
+    const guest = await abandonedGuest();
+    const { error } = await guest.client.rpc("create_custom_word", {
+      p_user_id: guest.userId, p_input: "とり", p_translation: "bird",
+      p_source: "JA", p_target: "EN",
+    });
+    expect(error).toBeNull();
+    await ageContent(guest.userId, "60 days"); // abandoned means the CONTENT is old too
+
+    await prune();
+
+    expect(await stillExists(guest.userId)).toEqual({ auth: false, profile: false });
+    const log = await sql(`SELECT 1 FROM account_deletion_log WHERE user_id = $1`, [guest.userId]);
+    expect(log).toHaveLength(1);
+  });
+
   it("caps each run at max_rows", async () => {
     await abandonedGuest();
     await abandonedGuest();
@@ -112,8 +147,14 @@ describe.skipIf(!ENABLED || !DB_MATCHES_TARGET)("prune_anonymous_guests: takes t
 });
 
 describe.skipIf(!ENABLED || !DB_MATCHES_TARGET)("prune_anonymous_guests: leaves everything else alone", () => {
-  it("KEEPS a guest who saved a word (their vocabulary is the whole point)", async () => {
-    const guest = await abandonedGuest();
+  // ‼️ THE SAFETY PROPERTY OF v2, and the reason it does not age on last_sign_in_at.
+  // GoTrue sets that column at SIGN-IN; a returning guest is restored from a stored
+  // session by a refresh-token grant, and whether that moves it could not be settled
+  // from prod (every guest holding words there was single-session). If it does not, a
+  // learner who studies daily looks abandoned and this function eats their vocabulary.
+  // So: stale auth timestamps + RECENT product activity must survive the sweep.
+  it("KEEPS a guest whose auth timestamps are stale but who has been USING the app", async () => {
+    const guest = await abandonedGuest(); // created / last_sign_in / updated all 60d old
     const { error } = await guest.client.rpc("create_custom_word", {
       p_user_id: guest.userId,
       p_input: "いぬ",
@@ -122,18 +163,29 @@ describe.skipIf(!ENABLED || !DB_MATCHES_TARGET)("prune_anonymous_guests: leaves 
       p_target: "EN",
     });
     expect(error).toBeNull();
+    // …and the word is from today. Content is deliberately NOT aged here.
 
     await prune();
 
-    expect(await stillExists(guest.userId)).toEqual({ auth: true, profile: true });
+    expect(
+      await stillExists(guest.userId),
+      "a guest studying today was deleted because their LOGIN looked old",
+    ).toEqual({ auth: true, profile: true });
   });
 
-  it("KEEPS a guest who made a list, even with no words in it", async () => {
+  it("KEEPS a guest who reviewed recently, even with an old word and an old login", async () => {
     const guest = await abandonedGuest();
-    const { error } = await guest.client.from("lists").insert({
-      user_id: guest.userId,
-      list_name: "kept",
+    // create_custom_word returns the whole user_words ROW, not a bare id.
+    const { data: created } = await guest.client.rpc("create_custom_word", {
+      p_user_id: guest.userId, p_input: "ねこ", p_translation: "cat",
+      p_source: "JA", p_target: "EN",
     });
+    const row = (Array.isArray(created) ? created[0] : created) as { user_word_id: string };
+    await ageContent(guest.userId, "60 days"); // the word itself is ancient…
+    const { error } = await guest.client.rpc("record_review", {
+      p_user_word_id: row.user_word_id,
+      p_grade: 4,
+    }); // …but they reviewed it just now
     expect(error).toBeNull();
 
     await prune();

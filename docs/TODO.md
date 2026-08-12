@@ -13,55 +13,34 @@ looks like it belongs in two, it goes in the more specific one and the other lin
 <details open>
 <summary><h2>🚀 Features to add</h2></summary>
 
-Post-launch: media study · AI. **Nothing here is built** — anything already shipped is in
-🧱 Extendable Features.
-
 - Rule: **free on-device on native (#18); paid/heavy on web.** See CLAUDE.md `#18`.
 - Core (`analyze()` → `services/` → account) is identical across surfaces; only intake differs.
 
 ### 📱 App
 
-#### AI agents — generative study aids `[extends #12]`
-- **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota, through the existing
-  reserve-before-call seam. Hard `max_tokens`; cache outputs like `words`.
+#### AI agents — generative study aids
+- **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota
 - **Feature:** domain paragraph quiz ("paragraph at level X from these seeds").
-- **Fork:** an LLM collapses #11/#12 into one call — less infra, per-use cost, less
-  determinism. Recommended hybrid: embeddings for level-aware selection, LLM only for
-  generation (~$0.0017 Haiku / $0.005 Sonnet per call).
-- ⚠️ **Billing must land in parallel.** Everything here is per-use paid; `user_limits` +
-  reserve exist, the Stripe/plan half doesn't. Set free-vs-paid limits **before launch**.
 
 #### Sense enrichment — example sentence + JA definition per meaning `[ingest-time]`
 Each SENSE gets a Japanese example + English gloss, and a Japanese-language definition.
 Surfaces in the reader hover card, the flashcard back, and Lists detail.
 
-- **Why per-sense:** a gloss list can't separate 辛い からい/つらい — a sentence can.
-- **Generated at INGEST, not runtime:** a committed data file → no per-user cost, no quota,
-  no edge secret, reviewable in a diff. Removes a planned paid feature.
 - **Storage:** server-only `jmdict_sense_example (entry, sense_pos, example, example_gloss,
   definition_ja)`; edge projects onto nullable `words.*` columns. Bump
   `CURRENT_PROJECTION_VERSION` so cached rows re-project.
 - **Scale + cost** (measured on prod): ~280 B/row. Senses by headword frequency ≥500 =
-  4,534 (≈1.3 MB) · ≥400 = 16,880 (≈5 MB) · all 251,734 (≈70 MB). Even full coverage fits.
-  **The constraint is generation time, not space** — hand-write the ≥500 band (~30 turns),
-  Batch API the tail.
+  4,534 (≈1.3 MB) · ≥400 = 16,880 (≈5 MB) · all 251,734 (≈70 MB).
 - **Generation rules:** demonstrate THAT sense · natural JA in the word's register · short
   enough for a hover card · definitions written as a real monolingual dictionary would.
-  - ⚠️ **No difficulty ceiling on supporting vocabulary.** Two drafts of that rule were
-    tried and rejected (2026-08-01) — 「この部屋は書斎と客間を兼ねている」 is the natural
+  - ⚠️ **No difficulty ceiling on supporting vocabulary.**「この部屋は書斎と客間を兼ねている」 is the natural
     sentence even though 書斎/客間 aren't easier than 兼ねる. **Do not re-impose.**
-  - **The rabbit hole is the feature.** The JA definition renders through
-    `ParagraphReader`, so every word in it is knowledge-coloured, addable and openable —
-    and *its* definition is Japanese and tappable too. Escape hatch: per-definition
-    switch to English.
-  - ‼️ **So JA definitions need BROAD coverage, not just hard words** — a definition graph
-    with holes stops being explorable the moment you tap a common word and hit nothing.
+  - **The rabbit hole is the feature.**
   - **What the JA definition carries that a gloss cannot:** collocation and negation
     habits. 遜色 glossed "inferiority" invites 遜色がある (unnatural); the definition says
     多くは「ない」を伴って使う.
-- ‼️ **kuromoji-validation gate — every sentence must PARSE before it is finalized.** We
-  author the corpus, so pick sentences that suit the parser rather than fixing the parser.
-  Run each through the same `analyze()` the reader uses and reject-and-rewrite on failure:
+- ‼️ **kuromoji-validation gate — every sentence must PARSE before it is finalized.**
+  Run each in `analyze()` the reader uses and reject-and-rewrite on failure:
   (1) target survives as ONE token with the right lemma · (2) reading matches the
   authoritative one · (3) no orphan content words · (4) offsets round-trip. Applies to the
   definition too. Doubles as a regression test over the whole file after any kuromoji or
@@ -74,61 +53,27 @@ Surfaces in the reader hover card, the flashcard back, and Lists detail.
 - **Serves both markets:** JA-native users get meanings in their own language; advanced
   learners get monolingual definitions.
 
-#### Article library — headlines → analysis → link-out `[extends #9]`
-RSS/API headlines → click → server-side fetch + analyze → **derived data only** → link out.
-Derived = difficulty stats + a **deduped, reordered** word list + quiz-new.
-
-- ⚖️ **Info analysis, NOT republication.** JP Copyright Act **Art. 30-4** (2018) permits
-  reproduction for information analysis, including commercial — the strongest lever, and
-  the founder is in Japan. US analog: Google Books / HathiTrust.
-- Rule: word list deduped + reordered (doc order = a reproduction); **persist derived,
-  never prose**; minimal snippets; counsel-confirm.
-- **Not a downgrade — it IS the pre-study feature:** stats → quiz hard words → read primed.
-- Re-hostable: Wikipedia (CC BY-SA) · Wikinews (CC BY) · VOA (PD) · Aozora (PD). Avoid CC
-  **NC/ND**. Third-party news (NHK): analysis + link-out only; pursue a license long-term.
-
-#### Media ingestion — subtitles/scripts → new words `[extends #9]`
-Per-source adapter → plain text → existing reader/quiz. Core is free (kuromoji + JMdict).
-
-- 🌟 **Flagship — pre-study a series:** episode/season subs → content words → dedup vs
-  known → rank by frequency → flashcard.
-- ⚠️ **Real constraint = JP subtitle supply.** Anime covered (Kitsunekko); live-action scarce.
-- **Sources:** Kitsunekko · `.srt` upload (safe floor) · OpenSubtitles (legality pending) ·
-  Netflix via the Language-Reactor pattern (much later).
-- **YouTube captions are not the easy win:** the official API serves your own videos only,
-  and `timedtext` is ToS-gray. Clean paths: browser extension (user session), CC-BY
-  videos, or user-paste "Show transcript".
-- ⚖️ Derive word lists; **never store or redistribute a full script.**
-
 ### 🧩 Extension — browser capture surface `[new surface · extends #9/#18]`
-
-**Fits with ~zero new backend:** a third client of the same Supabase + `translate` edge +
-`services/`, keyed on `auth.uid()`. Reuses `saveDictionaryWord` / `analyze()`.
 
 **What the extension can do that the app cannot** — reach text on the open web *in the
 user's own session*: articles behind a login, X/TikTok/IG captions, YouTube transcripts.
 Server-side fetching of those is ToS-blocked; in-session extraction is not.
 
-**What it cannot do, and the app must** — anything needing a device sensor or an on-device
-model. This is not a gap to close; it is the split:
-
 | | Extension | App (native) |
 |---|---|---|
 | Text on the open web | ✅ the whole point | user-paste only |
-| Camera / OCR | ✗ (web OCR = paid Cloud Vision) | ✅ free, on-device |
-| Handwriting | ✗ (no free web ink API at all) | ✅ free, on-device |
-| Dictation | Chrome only (Web Speech) | ✅ free, on-device, offline |
 | Spoken layer of video | ✗ | ✅ STT |
 
-- **Two modes.** Mode A in-place (Yomichan-style): highlight → add-to-list bar; hover →
-  senses + **your `✓ n/5` confidence** (the novel part — plain dictionaries don't know your
-  SRS state). Mode B full scan → Chrome Side Panel: stats + deduped list + coloured reader
-  + quiz-new; robust on SPAs because the text is lifted into our surface.
-- **Adapter tiers:** T0 selection (any page, no per-site code) · T1 Readability (articles) ·
-  T2 per-site (YouTube/X/TikTok — social DOMs churn, real upkeep, user-initiated only).
-- **In-place colouring** is fine on static pages, fragile on SPAs (re-render wipes spans) →
-  prefer Mode B there.
-- ⚠️ **Reading order (2D→1D):** DOM order ≈ reading order until CSS grid/absolute or
+- **Two modes.**
+  - **Mode A** highlight → add-to-list bar; hover →
+  senses + **your `✓ n/5` confidence**
+  - **Mode B** full scan → Chrome Side Panel: stats + deduped list + coloured reader quiz-new; robust on SPAs because the text is lifted into our surface.
+- **Adapter tiers:**
+  - T0 selection (any page, no per-site code)
+  - T1 Readability (articles)
+  - T2 per-site (YouTube/X/TikTok — social DOMs churn, real upkeep, user-initiated only).
+
+- **Reading order (2D→1D):** DOM order ≈ reading order until CSS grid/absolute or
   vertical JA breaks it — same class as `readingOrder.ts`. Degrades to slightly
   out-of-order, which dedup absorbs.
 - **Legal — ONE story for every source:** extraction in the user's own session (private
@@ -148,8 +93,6 @@ model. This is not a gap to close; it is the split:
 
 | Source | How we get text | Legal footing | Surface |
 |---|---|---|---|
-| Generic page | T0 selection / T1 Readability | derived, in-session or Art 30-4 | **Lim App** (App if pasted) |
-| **NHK** (news / Easy) | RSS → link-out; ext in-session; paste | Art 30-4 derived, **no re-host** | **Lim App** |
 | **Wikipedia** | MediaWiki API | **CC BY-SA → re-host OK** | **App** |
 | **Wikinews** | MediaWiki API | **CC BY → re-host OK** | **App** |
 | **VOA Learning English** | RSS / scrape | **PD → re-host OK** | **App** |
@@ -157,7 +100,8 @@ model. This is not a gap to close; it is the split:
 | **Aozora / Gutenberg** | bulk DL | **PD → re-host OK** | **App** |
 | **YouTube** | embed; captions in-session / CC-BY / paste | derived; **ToS: no server scrape** | **Lim App** |
 | **X · TikTok · Instagram** | T2 adapter / selection | derived, in-session; ToS hostile | **Lim App** |
-| `.srt` upload | user upload | user-provided, private use | **App** |
+| Generic page | T0 selection / T1 Readability | derived, in-session or Art 30-4 | **Lim App** (App if pasted) |
+| **NHK** (news / Easy) | RSS → link-out; ext in-session; paste | Art 30-4 derived, **no re-host** | **Lim App** |
 | Kitsunekko · OpenSubtitles | download / API | legality via review | **Lim App** |
 | Netflix | Language-Reactor pattern | in-session only, no re-host | **Lim App** (much later) |
 
@@ -199,39 +143,18 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🧱 Extendable Features</h2></summary>
 
-**Shipped and working — room to GROW, not work to start.** Each names what exists so nobody
-rebuilds it.
-
 ### Media tab — deep analysis for longer works
-- **Built:** `MediaView` (random ja.wikinews browse, ★ saved articles) → "Study" opens
-  `ArticleView` (graphs + word table + reading mode + article-sourced quiz), plus the
-  reader's "Quick summary" (`AnalyzeInfographic` + `services/analyze/summarize.ts`).
-- **Grow into the deep version** for whole articles/episodes/seasons, same data core:
-  - **Comprehension headline** — known ÷ in-dictionary words against reading thresholds
-    (~95% comfortable · ~98% fluent · <90% hard): *"91% — challenging · 14 new words to
-    reach 95%"*. The highest-value single stat.
-  - **"Study these first"** — new words ranked by frequency → a "Quiz these N → 95%" CTA.
-  - **Frequency × knowledge quadrant** — the one genuinely new chart: common+unknown =
-    study now, rare+unknown = skip. A per-axis bar can't show it.
-- **EN media source** — hardwired to Japanese Wikinews (`LANG = "JA"`, `MediaView.tsx:30`).
-  Additive, not a rewrite.
+- Extension content
 
 ### Camera / OCR — photo → text
 - **Built:** Mode A on iOS (Apple Vision via `TextOcrPlugin.swift`, per-line boxes), camera
   **and** photo-library sources, crop-before-recognize, reading-order assembly.
-- **Web:** nothing free — Cloud Vision is $1.50/1k (1k/mo free) and would need a per-user
-  image quota in `user_limits`, edge-enforced. Tesseract.js is a rough fallback.
-- **Vertical (縦書き)** is unhandled: the row-bucket sort is horizontal-only. Fix in
-  `readingOrder.ts` — block geometry, columns x DESC, within-column y ASC.
-- **Mode B (AR overlay):** tappable chips per box, then replace-in-place. The geometry
-  already flows from `captureResult()`.
+- **Web:** nothing free — Cloud Vision is $1.50/1k (1k/mo free). Needs `user_limits`.
+- **Vertical (縦書き)** is unhandled
+- **Mode B (AR overlay):** tappable chips per box, then replace-in-place. The geometry already flows from `captureResult()`.
 
 ### Voice — live listener language handling `[design call]`
-- **Built:** the live transcript (`useLiveTranscript` + `useLiveReader`) and read-aloud
-  everywhere a word appears (`SpeakButton` + `services/voice`).
-- The transcript recognizes the **learning** language, not the source selector — deliberate,
-  since following `source` would stop it hearing Japanese the moment source went to English.
-  Three things unfinished:
+- **Built:** the live transcript
   - **The "native" side is GUESSED** — `SUPPORTED_LANGUAGES.find(l => l.code !== learning)`
     is positional, right for JA↔EN only by list order. `useTranslate` resolves it properly;
     thread that through. **Do before a third language ships.**
@@ -239,22 +162,12 @@ rebuilds it.
   - **One language per session.** A bilingual conversation (the actual case in Japan) is
     recognized entirely as the learning language. On-device recognizers do no language
     identification, so the honest options are a manual toggle or accepting it.
-- ⚠ **Untested on a device.**
-
-### Speech-to-text — dictation into the translate box
-- **Built:** the mic dictates into the input (`useDictation` + `services/speech`); each
-  pause commits an utterance and the live reader colours it as it lands. Streaming on both
-  backends, with a mock so the affordance stays reachable where neither exists.
-- **Web:** Web Speech API — free but **Chrome only**, so no dictation in Safari/Firefox.
-- **Android:** `SpeechRecognizer` (API 33+) — the additive half of the iOS-first scope call.
 
 ### Handwriting — "draw the character" `[iOS first]`
 - **Built:** `HandwritingCanvas` + `services/handwriting`; recognized text appends into the
   input and flows through the existing `analyze()` → JMdict pipeline.
 - **iOS:** ML Kit Digital Ink — on-device, free, ~20 MB model, wifi-once.
-- **Web:** no free ink API exists, which is why the button is hidden there. Options are
-  `inputtools.google.com` (ToS-gray) or rasterize → Cloud Vision. Stroke capture is
-  trivial; recognition is the whole problem.
+- **Web:**`inputtools.google.com` (ToS-gray) or rasterize → Cloud Vision. Stroke capture is trivial; recognition is the whole problem.
 
 </details>
 
@@ -309,16 +222,9 @@ Where OUTPUT quality is **capped** — ceilings, not bugs. Each: what's lacking 
 
 ### 🇯🇵 Japanese
 
-- **Per-(kanji, reading) frequency — the root of every reading complaint.** wordfreq is
-  per-surface, so a reading is polluted by the kanji's *other* reading and `jmdict_lookup`
-  cannot prefer the learner-default one. Curated `readingOverrides.ts` is the only lever.
-  - **Fixed, don't re-file:** ところ→所 · 形→かたち · もの→物 · 前→まえ · 市→し.
-  - **Still wrong:** はし→階 (want 橋/箸/端) · 主→おも (want しゅ/ぬし) · 角→かく (want
-    かど) · かえる→変える (want 帰る too; marginal, f=463 vs 466). Re-tested 2026-08-09.
-  - A blanket curated list is **ruled out** (~4,169 ambiguous frequent words, many
-    context-dependent). Extend by hand only.
-  - Real fix = build our own counts: MeCab (BSD) + UniDic over a JA Wikipedia dump
-    (CC-BY-SA), counting on `(語彙素, 語彙素読み)`. See `docs/research/Frequency_Sources.md`.
+- **Per-(kanji, reading) frequency.** wordfreq is per-surface. Curated `readingOverrides.ts` is the only lever.
+
+  - A blanket curated list is **ruled out** (~4,169 ambiguous frequent words). Extend by hand only.
   - Long-term UX for single-kanji lookups is **multi-reading display** (top 2–3), not one
     guess. In-sentence is already fine — kuromoji has context.
   - Note the override applies in `lookupWord`, not `lookupWordsBatch`.
@@ -343,25 +249,36 @@ Everything English-specific lives here — the old "JA vs EN divergence" and "En
 learning target" sections said the same things and are folded in.
 
 The core (words/user_words/lists/SRS/quiz) is language-agnostic and identical both ways.
-**Root cause of every gap below:** `analyze()` routes JA to kuromoji and everything else to
+**Root cause of most gaps below:** `analyze()` routes JA to kuromoji and everything else to
 `segmentOnly` → `reading: null, lemma: null`, plus a POS only for known closed-class words.
 It only bites when English is the **learning target**.
 
 | Gap | Blocked on | Note |
 |---|---|---|
-| **EN POS tagger** | — | Widest blast radius: unblocks the two below and can tell the modal *can* from the noun *can*. |
-| EN POS offsets in the leveling profile | the tagger | The one remaining leveling asymmetry (JA has anchors **+** offsets). |
-| Proper-noun demotion | the tagger | JA demotes 人名/組織 via kuromoji POS; EN can't. Measured on en.wikinews (now the Media corpus for EN learners): **23.5% of lookup keys miss the dictionary vs 5.5% for ja.wikinews**, overwhelmingly names (*UEFA · Abidal · Piraquara · WMAR*) — each a paid MT call plus a cache row. |
-| Reader-side lemma | — | *running* never resolves to *run* client-side; the edge lemmatizes for LOOKUP only. |
-| Long-tail irregulars | — | Ingest Princeton `verb.exc`/`noun.exc` — bundled `lemmaCandidates` covers common forms only. |
-| Case folding | — | The reader keys meanings on the raw surface, so sentence-initial `Cats` forks from `cats`. Small, independent. |
+| **EN POS tagger — in CONTEXT** | — | Per-**lemma** POS now exists (`20260760`, from `wordnet_synsets.pos`); per-**token** does not, so the modal *can* still can't be told from the noun *can*. That's the remaining gap, and it's what proper-noun demotion needs. |
+| Proper-noun demotion | the tagger | JA demotes 人名/組織 via kuromoji POS; EN needs context to do the same. Measured on en.wikinews (the Media corpus, now EN-capable): **23.5% of lookup keys miss the dictionary vs 5.5% for ja.wikinews**, and the misses are overwhelmingly names (*UEFA · Abidal · Piraquara · WMAR*) — each one a paid MT call plus a cache row. |
+| Reader-side lemma | — | `lemmaEn.ts` covers irregulars, plurals and possessives; regular **-ing/-ed/-es** are deliberately unhandled (no verifier — a wrong lemma resolves the word to something else). *running* → *run* still needs the tagger. |
+| Long-tail irregulars | — | Ingest Princeton `verb.exc`/`noun.exc` — bundled `lemmaCandidates` covers common forms only. **Not a drop-in:** the edge can take the whole file (the dictionary verifies each candidate), `lemmaEn.ts` needs it filtered by its own rule — the surface must not itself be a common word (`EN_IRREGULAR_EXCLUDED`: *saw · left · found · felt*). One file, two policies. |
+| **English monolingual definition** | — | `wordnet_synsets.definition_en` is populated for **all 117,659** synsets and read by nothing. Return it from `wordnet_en_ja_lookup` → nullable `words` column + projection bump → render. Plumbing only, already ingested. Follow `20260760`'s shape. |
+| Band coverage | — | Only **27.7%** of common single-word WordNet lemmas are CEFR-banded (7,791 of 28,144; **31.8%** of the 23,271 that also have a JA translation). ⚠️ The raw "138,905 of 147,306 unbanded" is misleading — most are taxonomic/multiword. Of the ~20.4k *common* unbanded, 2,181 are regular inflections of a banded word and the top of the list is irregulars (*said · made · taken · gone*), comparatives and proper nouns — **fix lemmas + names before buying a bigger list.** |
+| Per-POS bands | — | CEFR-J ships `headword,pos,CEFR`; `build-proficiency-cefr.py` keeps headword+CEFR only and collapses to the easiest band. Keeping `pos` gives per-POS bands (PK → `(surface, pos)`) — the cheap English down-payment on the per-sense axis. |
+| Sense disambiguation in context | partly the tagger | **75%** of banded EN lemmas are polysemous (mean 4.21 synsets, max 75). Lesk over `definition_en` + the reader's sentence needs no new data. |
+| Derived-form band | per-POS bands | `growing` takes the list's B2 rather than inheriting `grow`'s A1 plus a penalty. Pool ORDERING is handled (`20260761`); placement is not. |
+| Pronunciation | — | No IPA or stress for English. **CMUdict** (BSD-2-Clause, commercial OK, attribution) → `input_reading`, which is NULL on EN rows and already renders as ruby — no schema change. Keep the stress digits: stress matters as much as phonemes for JA natives. |
 | Compound handling | — | JA has `compounds.ts`; EN has nothing (*bus stop* → two words). Marginal. |
 | Frequency source | — | EN uses generic wordfreq; **SUBTLEX-US** (CC-BY-SA, commercial-OK) is the better learner fit. |
-| EN→JA sense quality | — | WordNet synsets lead, gloss fills; grouping never live-verified (spring 春/泉/ばね). |
+| EN→JA sense quality | — | WordNet synsets lead, gloss fills; grouping never live-verified (spring 春/泉/ばね). ⚠️ `wordnet_senses_en.sense_rank` is **0 on all 206,941 rows** — wnjpn ships no ranks — so the intra-tier tiebreak `20260747` reserves for WordNet's own sense order is INERT. `headline_rank` carries the ordering alone (measured 28/30 top-1). Princeton `index.sense` tag counts would fill it; ids line up (`07125096-n` = offset+POS), so bundle it into any `wordnet_*` re-ingest rather than doing it alone. |
 
 **Not gaps — do not file these.** Furigana, the reading/writing override tables, context
 sense ordering (`senseOrder`) and potential-verb/する candidates all key on a **reading**,
 which English does not have; sense examples + JA definitions are JA→EN by design.
+- **EN POS offsets in the leveling profile — measured, rejected.** Each class overstates
+  its band by adjective **+7** · noun **+3** · verb **−9** · adverb **−11** (Zipf×100, over
+  8,316 banded CEFR words) vs Japanese affix **+58** / verb **−75**. ~6× smaller, inside
+  the noise of a signal whose R² is 0.24, and structural — frequency is per-SURFACE, and a
+  JA verb splits across dozens of conjugations where an EN one splits across three, so more
+  data won't move it. Only the safe direction applies, leaving +7/+3. English stays
+  band-led **by evidence**; numbers are in `build-leveling-profile.ts`.
 
 **Already at parity — don't re-derive:** dictionary lookup, MT fallback, corpus frequency,
 proficiency bands, the Learn-tab band pool (`20260745`, measured 915 · 1,973 · 748
@@ -393,11 +310,16 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
-### Downstream difficulty-axis reconciliation `[#8 · design call]`
-Word difficulty is proficiency-preferred (`override ?? proficiency ?? frequency`), which
-makes `users.level` drift toward `users.proficiency_band` (redundant), while #12's domain
-filter wants a **dense frequency** axis for bandless words. Pick one: keep `users.level`
-explicitly frequency, or go proficiency-preferred everywhere. Decide **before #12 ships**.
+### Difficulty axis — is `users.level` redundant? `[#8 · cleanup]`
+Word difficulty is proficiency-preferred (`override ?? proficiency ?? frequency`), so
+`users.level` drifts toward `users.proficiency_band`. No longer a fork: the only thing that
+wanted a separate **dense frequency** axis was #12's domain filter, which is dropped. Now a
+redundancy cleanup — check `users.level`'s consumers before removing it.
+- ⚠️ **Keep the frequency ARM of `getDifficulty` regardless.** Only 27.7% of common English
+  lemmas are banded, so ~7 in 10 English words reach a level through frequency alone.
+- ⚠️ **Two runtimes compute "how hard is this word"** — client `getDifficulty` and SQL
+  `srs_leveling` (`20260731`), which reads `words` directly and never calls the client. Same
+  axis, no shared test pinning them (cf. `display_confidence` ↔ `services/confidence.ts`).
 
 ### Proficiency label axis — remaining `[#8]`
 Pipeline, ingest, projection, resolver, learn and calibration are **DONE + LIVE**.
@@ -418,9 +340,9 @@ sync with the App Store Connect privacy labels — Apple compares them**), and `
 Remaining is console work — answers prepared in `docs/checklist/App_Store_Submission.md`;
 left there: signing + TestFlight, screenshots, the app record, Apple credentials.
 
-- ‼️ **Decide iPhone-only vs iPad first.** The target is `TARGETED_DEVICE_FAMILY = "1,2"`,
-  which obliges a **13″ iPad screenshot set** *and* an iPad layout review will test —
-  DINO has never been run on one. Setting it to `"1"` removes both from v1.
+- **iPhone-only for v1** — `TARGETED_DEVICE_FAMILY = 1`, so no iPad screenshot set and no
+  iPad layout in review. Don't widen it back before launch: adding iPad later is a normal
+  update, removing a device family after release is not.
 - Screenshots: **6.9″ iPhone `1320 × 2868`** (Apple scales it to every smaller iPhone). A
   phone screenshot only passes if the phone IS a Pro Max; otherwise capture from the
   Simulator (`xcrun simctl io booted screenshot`). sRGB PNG/JPEG, no alpha.
@@ -437,12 +359,28 @@ A concrete source that mismatches the script (source=JA, Latin input) produces g
 
 ### Very low priority
 - **Real furigana (#16)** — ruby above kanji.
-- **FSRS (#19)** — SRS to D/S/R (power-law), fit to `review_log`. A new `record_review()`
-  body, same API. HLR is fine for now.
-  - ⚠️ **`20260744` constrains which FSRS you can fit.** `review_log` now keeps one row per
-    card per UTC day with a `repeats` counter. That is conventional FSRS-4.5 preprocessing,
-    but **FSRS-5's short-term model consumes same-day reviews and those grades are gone.**
-    Decide before fitting; reverting only helps data logged *after* the revert.
+- **FSRS (#19)** — a fitted D/S/R scheduler. A new `record_review()` body, same API.
+  **Blocked on DATA, not engineering** — revisit at ~1,000+ reviews for a real user.
+  - **Why it's still open:** every constant in `record_review` is hand-tuned and has never
+    been checked against whether anyone actually recalls — the seeds (1.5/4/10/22/40),
+    the growth (1.0/2.0/3.5), the lapse caps, `c_fresh_r`, the freeze grace. Fitting is
+    also the only way to settle whether frequency or the curated band predicts recall
+    (measured **R² = 0.24**, so today's ease rests on a weak signal). `review_log` has
+    carried `ease · word_position · user_position · level_source · retrievability` since
+    `20260731` precisely to make that fit possible.
+  - **Smaller than it sounds now.** Much of what FSRS buys already landed piecemeal: a
+    difficulty-like axis (`20260731` ease), fuzz + lapse cap + cram freeze (`20260729`),
+    display separated from schedule (`20260735`). The real remaining deltas are a
+    **per-card fitted difficulty** (today's ease comes from the level gap, not from that
+    card's history) and the **power-law curve** `R = (1 + Δ/9S)^-0.5`, which only diverges
+    from `exp(-Δ/S)` at long intervals.
+  - ‼️ **FSRS-5 is already foreclosed — this is not a decision you still get to make.**
+    `20260744` keeps one row per card per UTC day with a `repeats` counter. That's
+    standard FSRS-4.5 preprocessing, but FSRS-5's short-term model consumes same-day
+    grades and **those are gone, irreversibly**: reverting only helps data logged after
+    the revert. **FSRS-4.5 is the only version fittable to existing history.**
+  - Until then HLR is fine, and "fine" is load-bearing — it is not a placeholder anyone
+    needs to rush.
 
 </details>
 
