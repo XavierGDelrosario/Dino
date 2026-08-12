@@ -40,7 +40,22 @@ import type { Word } from "../services/words/repository";
 export type TranslateMode = "word" | "paragraph";
 export type TranslateStatus = "idle" | "loading" | "done" | "error";
 
-export function useTranslate(userId: string) {
+/**
+ * Pins this instance's language pair instead of reading the profile. For a surface
+ * whose text has its OWN language — a media article, which the Media tab can browse in
+ * a language you are not currently studying — the profile is the wrong answer: an
+ * English article analyzed as Japanese resolves nothing, and when the profile's native
+ * language is also English it collapses to EN→EN, which submit answers by echoing the
+ * input and rendering no reader at all.
+ */
+export interface TranslateLangs {
+  /** The language of the text being studied (the translate SOURCE). */
+  learning: LangCode;
+  /** The language its meanings are explained in (the TARGET); must differ. */
+  native: LangCode;
+}
+
+export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // SOURCE (input) defaults to the LEARNING language and TARGET (output) to the NATIVE
   // one: you type what you're studying and read its meaning in your own language. The
   // profile effect below pins both once prefs load; both stay changeable in the LangBar.
@@ -130,14 +145,25 @@ export function useTranslate(userId: string) {
   // Guarded on the USER having chosen, not on having run once: the effect's first run
   // carries the DEFAULTS, so a run-once latch would mean the saved profile never
   // applied at all.
+  //
+  // A PINNED pair (see TranslateLangs) wins outright and the profile is never read into
+  // this instance: the text's own language decides, not what the user happens to study.
   const prefs = useLanguagePrefs(userId);
   const userPickedLearning = useRef(false);
+  const pinnedLearning = pinned?.learning;
+  const pinnedNative = pinned?.native;
   useEffect(() => {
+    if (pinnedLearning && pinnedNative) {
+      setSource(pinnedLearning);
+      setTarget(pinnedNative);
+      setLearning(pinnedLearning);
+      return;
+    }
     if (userPickedLearning.current) return;
     setSource(prefs.learning);
     setTarget(prefs.native);
     setLearning(prefs.learning);
-  }, [prefs]);
+  }, [prefs, pinnedLearning, pinnedNative]);
 
   /**
    * Change the language being studied — and PERSIST it, because "I'm learning: X" is

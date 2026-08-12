@@ -58,9 +58,15 @@ vi.mock("@/services/session", () => ({
 // to the fields this view reads. `para: null` leaves the analysis in its
 // "Analyzing…" state, which is enough — the header (and its star) renders either
 // way, and the word-list rendering is covered elsewhere.
+const setInput = vi.fn();
+/** Every (userId, langs) pair ArticleView asked for — the analysis DIRECTION. */
+const translateArgs: Array<unknown[]> = [];
+
 vi.mock("@/hooks/useTranslate", () => ({
-  useTranslate: () => ({
-    setInput: vi.fn(),
+  useTranslate: (...args: unknown[]) => {
+    translateArgs.push(args);
+    return {
+    setInput,
     submit: vi.fn(async () => {}),
     para: null,
     analyzedInput: "",
@@ -75,7 +81,8 @@ vi.mock("@/hooks/useTranslate", () => ({
     glossLoading: false,
     contextByWord: new Map(),
     applyReview: vi.fn(),
-  }),
+    };
+  },
 }));
 
 import { MediaView } from "@/views/MediaView";
@@ -97,6 +104,8 @@ async function openArticle() {
 }
 
 beforeEach(() => {
+  setInput.mockClear();
+  translateArgs.length = 0;
   listFavorites.mockClear();
   addFavorite.mockClear();
   removeFavorite.mockClear();
@@ -163,6 +172,42 @@ describe("ArticleView — ★ on the article", () => {
       </LocaleProvider>,
     );
     expect(star().textContent).toBe("★");
+  });
+
+  it("never writes the article into the Translate box", async () => {
+    // That box is useStickyState, so writing the article there left the WHOLE
+    // article sitting in the Translate tab's input the next time it was opened.
+    // `submit` takes the text explicitly, so the reader never needed the box.
+    await openArticle();
+    expect(setInput).not.toHaveBeenCalled();
+  });
+
+  it("analyzes in the ARTICLE's language, not the profile's", async () => {
+    // Media can browse a corpus you aren't studying (its picker is local, like
+    // Learn's). Analyzing an English article as Japanese resolves nothing — and
+    // with EN as the native language too, the pair collapses to EN→EN, which
+    // submit answers by echoing the text and rendering no reader at all.
+    render(
+      <LocaleProvider>
+        <MediaView userId="u" />
+      </LocaleProvider>,
+    );
+    await screen.findByText(headlines[0].title);
+    fireEvent.change(screen.getByRole("combobox", { name: /Language/ }), {
+      target: { value: "EN" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Study$/ })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /^Study$/ }));
+    await screen.findByRole("button", { name: /Back/ });
+
+    // Profile is learning JA / native EN, and the corpus is now EN — so the pair
+    // must be EN→(not EN), never EN→EN and never JA→anything.
+    const langs = translateArgs[translateArgs.length - 1][1] as {
+      learning: string;
+      native: string;
+    };
+    expect(langs.learning).toBe("EN");
+    expect(langs.native).not.toBe("EN");
   });
 
   it("renders NO star when no favourite is supplied (generic analysis surface)", async () => {

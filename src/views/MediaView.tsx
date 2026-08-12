@@ -29,7 +29,12 @@ import {
 } from "../services/media/mediawiki";
 import { useFavorites } from "../hooks/useFavorites";
 import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
-import { targetOptions, type LangCode } from "../services/language";
+import {
+  targetOptions,
+  DEFAULT_LEARNING_LANGUAGE,
+  DEFAULT_NATIVE_LANGUAGE,
+  type LangCode,
+} from "../services/language";
 import { FavoriteStar } from "../components/media/FavoriteStar";
 import { ArticleView } from "./ArticleView";
 import { ErrorText } from "../components/common/ErrorText";
@@ -53,6 +58,21 @@ export function MediaView({ userId }: { userId: string }) {
   const [picked, setPicked] = useState<LangCode | null>(null);
   const lang = picked ?? prefs.learning;
   const ready = picked !== null || prefs.ready;
+  /**
+   * The pair the ARTICLE is analyzed in: its own language, explained in the profile's
+   * native one — except when the picker has landed on that same native language, where
+   * the pair would collapse (EN→EN) and submit would just echo the text and render no
+   * reader. Same fallback Learn uses for the same reason (LearnView's `explainIn`).
+   */
+  const langs = {
+    learning: lang,
+    native:
+      prefs.native !== lang
+        ? prefs.native
+        : lang !== DEFAULT_NATIVE_LANGUAGE
+          ? DEFAULT_NATIVE_LANGUAGE
+          : DEFAULT_LEARNING_LANGUAGE,
+  };
   const [tab, setTab] = useState<Tab>("browse");
   const [items, setItems] = useState<Headline[] | null>(null);
   // Starts LOADING, not idle: the first fetch waits for the profile to say which
@@ -119,6 +139,10 @@ export function MediaView({ userId }: { userId: string }) {
       <ArticleView
         userId={userId}
         article={article}
+        // The article's OWN language, not the profile's — Media can browse a corpus
+        // you aren't studying, and an English article analyzed as Japanese resolves
+        // nothing (and, when EN is also your native language, echoes instead).
+        langs={langs}
         onBack={() => setArticle(null)}
         // The star is driven from THIS hook instance, not a second one inside
         // ArticleView: MediaView stays mounted behind the analysis, so a star
