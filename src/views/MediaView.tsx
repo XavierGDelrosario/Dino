@@ -5,10 +5,10 @@
 // prose. "Study" opens the in-depth analysis (ArticleView), which also hosts the
 // reading mode — the whole Study → analyze → read → back loop stays in this tab.
 //
-// The language is not a preference of this tab: ArticleView analyzes through
-// useTranslate, which reads the SOURCE off the profile's learning language, so a
-// corpus that didn't follow it would hand the reader (say) English prose to segment
-// as Japanese. One source of truth, hence useLanguagePrefs here too.
+// The corpus OPENS on the profile's learning language, and a picker (the same
+// local-only one Learn has) switches it per session: ArticleView analyzes through
+// useTranslate, which reads the SOURCE off that language, so a corpus that ignored
+// it would hand the reader (say) English prose to segment as Japanese.
 //
 // Every Wikinews edition went read-only in May 2026 (the WMF closed the project), so
 // each is a fixed archive rather than a live feed — which is what the tab already
@@ -29,6 +29,7 @@ import {
 } from "../services/media/mediawiki";
 import { useFavorites } from "../hooks/useFavorites";
 import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
+import { targetOptions, type LangCode } from "../services/language";
 import { FavoriteStar } from "../components/media/FavoriteStar";
 import { ArticleView } from "./ArticleView";
 import { ErrorText } from "../components/common/ErrorText";
@@ -45,7 +46,13 @@ type Tab = "browse" | "favorites";
 
 export function MediaView({ userId }: { userId: string }) {
   const { t } = useI18n();
-  const { learning: lang, ready } = useLanguagePrefs(userId);
+  const prefs = useLanguagePrefs(userId);
+  // The picker's choice, once made. Null = "follow the profile", so the tab still
+  // opens on what you study without the picker having to guess before the profile
+  // loads — and a choice made here is never overwritten when it does.
+  const [picked, setPicked] = useState<LangCode | null>(null);
+  const lang = picked ?? prefs.learning;
+  const ready = picked !== null || prefs.ready;
   const [tab, setTab] = useState<Tab>("browse");
   const [items, setItems] = useState<Headline[] | null>(null);
   // Starts LOADING, not idle: the first fetch waits for the profile to say which
@@ -167,6 +174,31 @@ export function MediaView({ userId }: { userId: string }) {
 
   return (
     <section className="review media">
+      <label className="media__lang">
+        <span className="media__langlabel">{t("media.language")}</span>
+        <select
+          className="media__langselect"
+          value={lang}
+          // LOCAL ONLY, exactly like Learn's: it changes what THIS tab browses and
+          // writes nothing to the profile — trying another language's news for one
+          // session shouldn't rewrite your saved settings behind your back. The open
+          // article closes with it, because an article is only studiable in the
+          // direction it was opened in.
+          onChange={(e) => {
+            setPicked(e.target.value as LangCode);
+            setArticle(null);
+            setOpenedFrom(null);
+            setTab("browse");
+          }}
+        >
+          {targetOptions().map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div className="media__head">
         <p className="review__scope">{t("media.intro", { lang: t(LANG_NAME[lang] ?? "lang.JA") })}</p>
         {tab === "browse" && (

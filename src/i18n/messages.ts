@@ -30,6 +30,7 @@ export const en = {
   // reads the Wikinews edition of that language, so its intro can't say "Japanese".
   "lang.JA": "Japanese",
   "lang.EN": "English",
+  "media.language": "Language",
   "media.intro": "Study real {lang} from the news. Pick an article to read it word-by-word.",
   "media.loading": "Loading news…",
   "media.refresh": "Refresh",
@@ -453,6 +454,7 @@ export const ja: Record<MessageKey, string> = {
   "tabs.review": "復習",
   "lang.JA": "日本語",
   "lang.EN": "英語",
+  "media.language": "言語",
   "media.intro": "ニュースで本物の{lang}を学ぼう。記事を選んで単語ごとに読めます。",
   "media.loading": "ニュースを読み込み中…",
   "media.refresh": "更新",

@@ -62,8 +62,11 @@ const getUserProfile = vi.fn(async (_userId: string) => ({
   nativeLanguage: "EN" as string | null,
 }));
 
+const updateUserLanguages = vi.fn(async (_p: unknown) => {});
+
 vi.mock("@/services/session", () => ({
   getUserProfile: (userId: string) => getUserProfile(userId),
+  updateUserLanguages: (p: unknown) => updateUserLanguages(p),
 }));
 
 import { MediaView } from "@/views/MediaView";
@@ -84,6 +87,7 @@ beforeEach(() => {
   removeFavorite.mockClear();
   randomHeadlines.mockClear();
   getUserProfile.mockClear();
+  updateUserLanguages.mockClear();
 });
 afterEach(cleanup);
 
@@ -138,6 +142,28 @@ describe("MediaView — ★ favourites", () => {
     expect(listFavorites).toHaveBeenCalledWith("u", { site: "wikinews", lang: "EN" });
     // No request goes out on the DEFAULT language before the profile answers.
     expect(randomHeadlines).toHaveBeenCalledTimes(1);
+  });
+
+  it("switches corpus from the language picker, without touching the profile", async () => {
+    view();
+    await screen.findByText("台風が九州に接近");
+    const picker = screen.getByRole("combobox", { name: /Language/ }) as HTMLSelectElement;
+    // Opens on the profile's learning language.
+    expect(picker.value).toBe("JA");
+
+    fireEvent.change(picker, { target: { value: "EN" } });
+
+    // The new corpus is fetched, and the ★ list re-scopes with it.
+    await waitFor(() =>
+      expect(randomHeadlines).toHaveBeenLastCalledWith(
+        expect.objectContaining({ site: "wikinews", lang: "EN" }),
+      ),
+    );
+    expect(listFavorites).toHaveBeenLastCalledWith("u", { site: "wikinews", lang: "EN" });
+    expect(picker.value).toBe("EN");
+    // LOCAL ONLY, like Learn's: browsing another language's news for one session must
+    // not rewrite the saved pair. Nothing here may write the profile back.
+    expect(updateUserLanguages).not.toHaveBeenCalled();
   });
 
   it("explains the empty Saved tab instead of showing a blank list", async () => {

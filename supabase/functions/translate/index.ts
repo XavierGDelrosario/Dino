@@ -256,21 +256,59 @@ function rowToProvider(row: LookupRow): ProviderResult {
 // migration 20260710). Rows come back tagged with the search `input` so callers can
 // regroup per term. WordNet is the SEMANTIC EN->JA provider (lemma → synsets → the JA
 // lemmas in each, resolved through JMdict); JMdict is the reverse-gloss/direct lookup.
+// Candidates per lookup STATEMENT. Not a URL-length limit (that's chunkForUrlFilter)
+// but a TIME one: EN→JA's reverse-gloss search is a trigram scan per candidate, and one
+// statement covering a whole article's candidates blew Postgres's statement timeout —
+// which fails the ENTIRE batch, so the reader showed an article with no words at all.
+// Observed on prod as `translate.batch` / "canceling statement due to statement timeout"
+// against en.wikinews articles, and it is the same wall the Learn pool dodges with
+// `skipGlossFallback` (safe there because that pool is WordNet-guaranteed; an arbitrary
+// article is not, so the coverage has to be kept and the work bounded instead).
+const LOOKUP_CHUNK = 40;
+/** …and a much smaller one for the gloss scan itself, measured as the service role on
+ *  prod: 40 candidates took 8.5s and was CANCELLED, while WordNet did the same 40 in
+ *  3.3s. It is the trigram scan that is expensive, at roughly 200ms per candidate. */
+const GLOSS_CHUNK = 8;
+/** Chunks in flight. Bounded so splitting one heavy statement doesn't just re-create it
+ *  as N concurrent heavy statements competing for the same buffers — but high enough
+ *  that an article's worth of chunks finishes in a couple of waves rather than ten. */
+const LOOKUP_CONCURRENCY = 6;
+
+/** Run `fn` over `items` in bounded chunks, at most LOOKUP_CONCURRENCY at a time. */
+async function inChunks<T>(
+  items: string[],
+  fn: (chunk: string[]) => Promise<T[]>,
+  size = LOOKUP_CHUNK,
+): Promise<T[]> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  const out: T[] = [];
+  for (let i = 0; i < chunks.length; i += LOOKUP_CONCURRENCY) {
+    const wave = await Promise.all(chunks.slice(i, i + LOOKUP_CONCURRENCY).map(fn));
+    for (const rows of wave) out.push(...rows);
+  }
+  return out;
+}
+
 async function lookupJMdictMany(
   supabase: Supa, inputs: string[], sourceLang: string, targetLang: string,
 ): Promise<{ input: string; r: ProviderResult }[]> {
-  const { data, error } = await supabase.rpc("jmdict_lookup_many", {
-    p_inputs: inputs, p_source: sourceLang, p_target: targetLang,
-  });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row: LookupRow & { input: string }) => ({ input: row.input, r: rowToProvider(row) }));
+  return inChunks(inputs, async (chunk) => {
+    const { data, error } = await supabase.rpc("jmdict_lookup_many", {
+      p_inputs: chunk, p_source: sourceLang, p_target: targetLang,
+    });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row: LookupRow & { input: string }) => ({ input: row.input, r: rowToProvider(row) }));
+  }, sourceLang === "EN" && targetLang === "JA" ? GLOSS_CHUNK : LOOKUP_CHUNK);
 }
 async function lookupWordNetMany(
   supabase: Supa, inputs: string[],
 ): Promise<{ input: string; r: ProviderResult }[]> {
-  const { data, error } = await supabase.rpc("wordnet_en_ja_lookup_many", { p_inputs: inputs });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row: LookupRow & { input: string }) => ({ input: row.input, r: rowToProvider(row) }));
+  return inChunks(inputs, async (chunk) => {
+    const { data, error } = await supabase.rpc("wordnet_en_ja_lookup_many", { p_inputs: chunk });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row: LookupRow & { input: string }) => ({ input: row.input, r: rowToProvider(row) }));
+  });
 }
 
 function groupProviderByInput(rows: { input: string; r: ProviderResult }[]): Map<string, ProviderResult[]> {
@@ -302,19 +340,57 @@ async function resolveDictionaryMany(
     if (inputs2.length === 0) return out;
     const candsByInput = new Map(inputs2.map((i) => [i, lemmaCandidates(i, sourceLang)] as const));
     const allCands = [...new Set([...candsByInput.values()].flat())];
+    // WordNet FIRST, then the gloss scan over only what it missed. These used to run in
+    // parallel over every candidate, which is what made a whole article's worth of
+    // candidates exceed the statement timeout and fail the entire batch — the reader
+    // then showed an article with NO words at all.
+    //
+    // Sequencing them is a straight win because the fallback is the expensive half and
+    // is barely needed: measured over 3 en.wikinews articles (180 keys), WordNet
+    // resolved 158 and the gloss scan added 16 — and most of those 16 were grammar
+    // words (whether, under, per) or proper nouns (Peshawar, iPhone, Qaeda) that aren't
+    // vocabulary anyway. So it now runs over ~1/10th the candidates.
+    //
+    // The trade: a word WordNet DID resolve no longer gets its sense list topped up
+    // from the gloss search. WordNet returns ~5 senses per candidate, so the cap is
+    // rarely the binding constraint, and the single-word path still runs both providers
+    // in full for anyone who taps the word to ask properly.
+    //
+    // WordNet itself is asked in TWO passes for the same reason. `lemmaCandidates`
+    // emits ~4 forms per token and candidate #0 is always the surface, which is also
+    // what usually resolves — so asking about every candidate up front does ~4x the
+    // work to answer the same question. Pass 1 takes the surfaces; pass 2 asks only
+    // about the fallback forms of tokens that are still unresolved. First-hit-wins is
+    // unchanged: the merged map is the same one a single pass would have produced.
+    const surfaces = [...new Set(inputs2.map((i) => candsByInput.get(i)?.[0] ?? i))];
+    const wnByCand = groupProviderByInput(await lookupWordNetMany(supabase, surfaces));
+    const stillMissing = (i: string) =>
+      !(candsByInput.get(i) ?? []).some((c) => wnByCand.get(c)?.length);
+    const fallbackCands = [
+      ...new Set(inputs2.filter(stillMissing).flatMap((i) => (candsByInput.get(i) ?? []).slice(1))),
+    ];
+    if (fallbackCands.length) {
+      for (const { input, r } of await lookupWordNetMany(supabase, fallbackCands)) {
+        const list = wnByCand.get(input);
+        if (list) list.push(r);
+        else wnByCand.set(input, [r]);
+      }
+    }
     // Stopwords go to WordNet only, not the pathological gloss scan — as does
     // everything when the caller says the inputs are already WordNet-resolvable.
     const glossCands = skipGlossFallback
       ? []
-      : allCands.filter((c) => !EN_JA_STOPWORDS.has(c.toLowerCase()));
-    const [wnRows, glossRows] = await Promise.all([
-      lookupWordNetMany(supabase, allCands),
+      : allCands.filter(
+          (c) =>
+            !EN_JA_STOPWORDS.has(c.toLowerCase()) &&
+            // …and only where WordNet came back empty for this candidate's whole input.
+            !(wnByCand.get(c)?.length),
+        );
+    const glossByCand = groupProviderByInput(
       glossCands.length
-        ? lookupJMdictMany(supabase, glossCands, sourceLang, targetLang)
-        : Promise.resolve([] as { input: string; r: ProviderResult }[]),
-    ]);
-    const wnByCand = groupProviderByInput(wnRows);
-    const glossByCand = groupProviderByInput(glossRows);
+        ? await lookupJMdictMany(supabase, glossCands, sourceLang, targetLang)
+        : [],
+    );
     for (const [input, results] of resolvePerInputWithCandidates(
       inputs2, candsByInput, wnByCand, glossByCand, targetLang, EN_JA_RESULT_LIMIT,
     )) {
