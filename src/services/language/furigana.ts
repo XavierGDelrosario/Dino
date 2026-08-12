@@ -30,6 +30,47 @@ export interface Readable {
   translationReading: string | null;
 }
 
+const HAS_KANJI = /[\p{Script=Han}]/u;
+const nfc = (s: string) => s.normalize("NFC");
+
+/**
+ * How to HEADLINE one sense for the term that was searched.
+ *
+ * Normally the stored row already answers this: `input` is the headword and
+ * `inputReading` annotates it. The exception is a JMdict `uk` entry ("usually
+ * written in kana"), which is stored INVERTED on purpose — 概ね headlines as
+ * おおむね with the kanji in the annotation slot, so なる shows なる(成る).
+ *
+ * That inversion reads backwards to anyone who searched the KANJI: 概ね returns
+ * おおむね with 概ね above it, which says "the reading of おおむね is 概ね" — a
+ * quality report (#17). So when the query IS the annotation, and the annotation
+ * is the kanji form, the two swap FOR DISPLAY. Nothing stored changes: the
+ * headword invariant, the saved row and its identity are untouched.
+ *
+ * The kanji test is what keeps this narrow. An ordinary row (猫 / ねこ) searched
+ * by its reading also matches the query, but its annotation is kana, so it stays
+ * 猫[ねこ] rather than flipping to ねこ[猫].
+ *
+ * OUTPUT: the term to headline + the reading to sit above it (null for none).
+ * PURE.
+ */
+export function displayHeadword(
+  entry: Readable,
+  query?: string | null,
+): { head: string; reading: string | null } {
+  const reading = entry.inputReading;
+  if (
+    query &&
+    reading &&
+    nfc(query.trim()) === nfc(reading) &&
+    HAS_KANJI.test(reading) &&
+    !HAS_KANJI.test(entry.input)
+  ) {
+    return { head: reading, reading: entry.input };
+  }
+  return { head: entry.input, reading };
+}
+
 /**
  * The reading annotations an entry carries — one per side that has a reading.
  *

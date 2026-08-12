@@ -43,6 +43,7 @@ import {
   chunkForUrlFilter,
   shouldSkipMt,
   isEchoTranslation,
+  isRomanizedName,
   dictionaryRefFor,
   curationKeyFor,
   preferWrittenForm,
@@ -1349,8 +1350,10 @@ async function handleRequest(req: Request): Promise<Response> {
     return finish({ translated: false, translation: null, word: null, words: [] });
   }
 
-  // 3. Display-only (paragraph): return the primary text without caching.
-  if (!persist) {
+  // 3. Display-only (paragraph): return the primary text without caching. A name MT
+  //    only romanized (父島 → "Chichijima") takes the same exit: the asker still gets
+  //    their answer, but it never becomes a verified row or a card to study.
+  if (!persist || (usedMT && isRomanizedName(results[0].translation, sourceLang, targetLang))) {
     return finish({
       translated: true,
       translation: results[0].translation,

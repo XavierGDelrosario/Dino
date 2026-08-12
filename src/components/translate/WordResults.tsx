@@ -49,7 +49,9 @@ export function WordResults({
   const hiddenCount = others.length - (DEFAULT_SHOWN - 1); // revealed by "show more"
   const row = (word: Word, isPrimary = false) => (
     <div className={`result${isPrimary ? " result--primary" : ""}`} key={word.wordId}>
-      <SenseText word={word} primary={isPrimary} />
+      {/* `headword` is what the user searched: a uk entry found BY ITS KANJI
+          headlines as that kanji rather than flipping to kana (displayHeadword). */}
+      <SenseText word={word} primary={isPrimary} query={headword} />
       {/* Added + confidence indicator, shown ONLY for senses actually in vocab. */}
       {saved.has(word.wordId) && (
         <em className="sense__conf">✓ {confidence.get(word.wordId) ?? 0}/5</em>

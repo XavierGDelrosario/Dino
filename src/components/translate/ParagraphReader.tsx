@@ -4,7 +4,7 @@
 // meaning; saved senses show confidence + a "don't know" lapse. State lives in the
 // parent (useTranslate).
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isContentPos, type AnalyzedToken } from "../../services/language";
+import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
 import { ReportFlagButton } from "../common/ReportFlagButton";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
@@ -405,9 +405,13 @@ function ParagraphReaderImpl({
           </span>
           <div className="hovercard__word">
             {hover.word}
-            {/* THIS occurrence's context reading (君 reads きみ here), else sense 0's. */}
-            {(hover.reading ?? hoveredSenses[0]?.inputReading) && (
-              <em className="result__reading">{hover.reading ?? hoveredSenses[0]?.inputReading}</em>
+            {/* THIS occurrence's context reading (君 reads きみ here), else sense 0's —
+                resolved against the surface, so a uk sense reached by its KANJI shows
+                the kana rather than annotating 概ね with 概ね (displayHeadword). */}
+            {(hover.reading ?? (hoveredSenses[0] && displayHeadword(hoveredSenses[0], hover.word).reading)) && (
+              <em className="result__reading">
+                {hover.reading ?? displayHeadword(hoveredSenses[0], hover.word).reading}
+              </em>
             )}
           </div>
           <ul className="hovercard__senses">
@@ -416,7 +420,9 @@ function ParagraphReaderImpl({
                 <span className="sense__text">
                   {/* Per-sense reading, so a homograph's senses are distinguishable
                       (きみ "you" vs くん "Mr") when picking which to add. */}
-                  {s.inputReading && <em className="sense__reading">{s.inputReading} </em>}
+                  {displayHeadword(s, hover.word).reading && (
+                    <em className="sense__reading">{displayHeadword(s, hover.word).reading} </em>
+                  )}
                   {s.translation}
                   {saved.has(s.wordId) && (
                     <em className="sense__conf"> ✓ {confidence.get(s.wordId) ?? 0}/5</em>

@@ -28,6 +28,7 @@ import {
   userIdFromAuth,
   shouldSkipMt,
   isEchoTranslation,
+  isRomanizedName,
   type ProviderResult,
   isEnglishFunctionWord,
   isMultiWord,
@@ -431,6 +432,10 @@ describe("lemmaCandidates (EN morphy lemmatization seam)", () => {
     expect(lemmaCandidates("europe's", "EN")[0]).toBe("europe's");
   });
 
+  it("does not disturb the surface-first contract", () => {
+    expect(lemmaCandidates("workers'", "EN")[0]).toBe("workers'");
+  });
+
   it("is identity (surface only) for non-EN sources with nothing to lemmatize", () => {
     expect(lemmaCandidates("猫", "JA")).toEqual(["猫"]);
     expect(lemmaCandidates("perro", "ES")).toEqual(["perro"]);
@@ -809,6 +814,40 @@ describe("isEchoTranslation (cache-poisoning guard)", () => {
   it("passes a genuine translation through", () => {
     expect(isEchoTranslation("文章", "sentence")).toBe(false);
     expect(isEchoTranslation("京都パープルサンガ", "Kyoto Purple Sanga")).toBe(false);
+  });
+});
+
+describe("isRomanizedName (serve it, don't cache it)", () => {
+  const jaEn = (t: string) => isRomanizedName(t, "JA", "EN");
+
+  it("catches the two rows that were reported (#6, #16)", () => {
+    expect(jaEn("Chichijima")).toBe(true); // 父島
+    expect(jaEn("Kato")).toBe(true); // 加戸
+    expect(jaEn("Akira")).toBe(true);
+  });
+
+  it("leaves a real translation alone, however capitalized", () => {
+    expect(jaEn("sentence")).toBe(false);
+    expect(jaEn("streamer")).toBe(false); // a loanword MT renders lowercase
+    expect(jaEn("Mount Fuji")).toBe(false); // multi-word = translated, not transliterated
+    expect(jaEn("Liberal Democratic Party")).toBe(false);
+    expect(jaEn("cat; feline")).toBe(false);
+  });
+
+  it("leaves an ACRONYM alone — a translation, not a transliteration", () => {
+    expect(jaEn("LDP")).toBe(false);
+    expect(jaEn("NHK")).toBe(false);
+  });
+
+  it("only applies to JA→EN", () => {
+    // EN→JA can't produce a romanization of the input, and the guard must never
+    // touch a pair whose target legitimately uses Latin script.
+    expect(isRomanizedName("Kato", "EN", "JA")).toBe(false);
+    expect(isRomanizedName("Kato", "JA", "ZH")).toBe(false);
+  });
+
+  it("ignores surrounding whitespace", () => {
+    expect(jaEn("  Chichijima ")).toBe(true);
   });
 });
 
