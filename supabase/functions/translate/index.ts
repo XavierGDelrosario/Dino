@@ -273,6 +273,10 @@ const GLOSS_CHUNK = 8;
  *  as N concurrent heavy statements competing for the same buffers — but high enough
  *  that an article's worth of chunks finishes in a couple of waves rather than ten. */
 const LOOKUP_CONCURRENCY = 6;
+/** Paid MT calls in flight. Same shape of bound as the lookups, applied to Google
+ *  rather than Postgres: enough to stop a long tail of misses serialising into
+ *  minutes, low enough not to look like a burst to the provider. */
+const MT_CONCURRENCY = 6;
 
 /** Run `fn` over `items` in bounded chunks, at most LOOKUP_CONCURRENCY at a time. */
 async function inChunks<T>(
@@ -1026,10 +1030,23 @@ async function resolveBatch(
       const globalOk = reserve.allowed && (await reserveGlobalQuota(supabase, totalChars, globalCharQuota()));
       if (reserve.committed && !globalOk) await refundQuota(supabase, userId!, totalChars); // global denied → undo per-user
       if (reserve.allowed && globalOk) {
+        // CONCURRENTLY, in bounded waves. This loop used to be strictly serial — one
+        // round-trip to Google per word — which is invisible on prod (the full JMdict
+        // resolves nearly everything, so few words get here) but pathological anywhere
+        // the dictionary is thinner: against the `common` JMdict subset a single
+        // English article misses dozens of words, and the serial walk ran past the
+        // local edge runtime's wall clock, so the request never returned at all and the
+        // reader just spun. Nothing about the metering changes — the whole batch's
+        // chars are already reserved once, above, and refunded below.
         let spent = 0;
-        for (const w of mtWords) {
-          const mt = await callTranslationProvider(w, sourceLang, targetLang);
-          if (mt) { perInput.push({ input: w, results: [mt] }); spent += w.length; }
+        for (let i = 0; i < mtWords.length; i += MT_CONCURRENCY) {
+          const wave = mtWords.slice(i, i + MT_CONCURRENCY);
+          const got = await Promise.all(
+            wave.map(async (w) => ({ w, mt: await callTranslationProvider(w, sourceLang, targetLang) })),
+          );
+          for (const { w, mt } of got) {
+            if (mt) { perInput.push({ input: w, results: [mt] }); spent += w.length; }
+          }
         }
         // Refund the reserved-but-unspent chars; per-user only if the reserve committed.
         const unspent = totalChars - spent;
