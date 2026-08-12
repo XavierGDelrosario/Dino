@@ -1503,7 +1503,14 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_global_quota", () => {
     expect(r(await call(10))).toEqual({ allowed: true, used: 20 });
     expect(r(await call(10))).toEqual({ allowed: false, used: 20 }); // denied, no increment
 
-    const { data: usage } = await svc.from("global_translation_usage").select("chars_used");
+    // Read THIS month's row explicitly. `select()` with no filter returns one row per
+    // month the project has ever billed, in unspecified order — on a database that has
+    // been live for more than one month, `[0]` is whichever month Postgres happened to
+    // return first (measured: a zeroed June row, so this asserted 0 against 20).
+    const period = `${new Date().toISOString().slice(0, 7)}-01`; // UTC month, as the RPC stores it
+    const { data: usage } = await svc
+      .from("global_translation_usage").select("chars_used").eq("period_month", period);
+    expect(usage, `no global_translation_usage row for ${period}`).toHaveLength(1);
     expect((usage![0] as { chars_used: number }).chars_used).toBe(20);
     await svc.from("global_translation_usage").update({ chars_used: 0 }).neq("period_month", "1900-01-01");
   });
