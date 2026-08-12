@@ -393,11 +393,17 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
-### Downstream difficulty-axis reconciliation `[#8 · design call]`
-Word difficulty is proficiency-preferred (`override ?? proficiency ?? frequency`), which
-makes `users.level` drift toward `users.proficiency_band` (redundant), while #12's domain
-filter wants a **dense frequency** axis for bandless words. Pick one: keep `users.level`
-explicitly frequency, or go proficiency-preferred everywhere. Decide **before #12 ships**.
+### Difficulty axis — is `users.level` redundant? `[#8 · cleanup]`
+Word difficulty is proficiency-preferred (`override ?? proficiency ?? frequency`), so
+`users.level` drifts toward `users.proficiency_band`. No longer a fork: the only thing that
+wanted a separate **dense frequency** axis was #12's domain filter, which is dropped. Now a
+redundancy cleanup — check `users.level`'s consumers before removing it.
+- ⚠️ **Keep the frequency ARM of `getDifficulty` regardless.** Only 27.7% of common English
+  lemmas are banded, so ~7 in 10 English words reach a level through frequency alone.
+- ⚠️ **Two runtimes compute "how hard is this word"** — client `getDifficulty` and SQL
+  `srs_leveling` (`20260731`), which reads `words` directly and never calls the client. Same
+  axis, no shared test pinning them (cf. `display_confidence` ↔ `services/confidence.ts`).
+
 
 ### Proficiency label axis — remaining `[#8]`
 Pipeline, ingest, projection, resolver, learn and calibration are **DONE + LIVE**.
@@ -418,9 +424,9 @@ sync with the App Store Connect privacy labels — Apple compares them**), and `
 Remaining is console work — answers prepared in `docs/checklist/App_Store_Submission.md`;
 left there: signing + TestFlight, screenshots, the app record, Apple credentials.
 
-- ‼️ **Decide iPhone-only vs iPad first.** The target is `TARGETED_DEVICE_FAMILY = "1,2"`,
-  which obliges a **13″ iPad screenshot set** *and* an iPad layout review will test —
-  DINO has never been run on one. Setting it to `"1"` removes both from v1.
+- **iPhone-only for v1** — `TARGETED_DEVICE_FAMILY = 1`, so no iPad screenshot set and no
+  iPad layout in review. Don't widen it back before launch: adding iPad later is a normal
+  update, removing a device family after release is not.
 - Screenshots: **6.9″ iPhone `1320 × 2868`** (Apple scales it to every smaller iPhone). A
   phone screenshot only passes if the phone IS a Pro Max; otherwise capture from the
   Simulator (`xcrun simctl io booted screenshot`). sRGB PNG/JPEG, no alpha.

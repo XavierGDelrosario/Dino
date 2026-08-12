@@ -24,6 +24,40 @@ export const SERVICE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ?? "";
 export const ENABLED = process.env.RUN_INTEGRATION === "1";
 
+const LOCAL_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+/** Direct-Postgres URL for the helpers that need SQL the API can't express (ageing a
+ *  row, reading auth.users). Same default as the specs that predate this. */
+export const DB_URL = process.env.DATABASE_URL ?? LOCAL_DB_URL;
+
+/**
+ * Does `DB_URL` address the SAME database the PostgREST clients talk to?
+ *
+ * ‼️ SPLIT BRAIN is the failure this exists to stop, and it does not announce itself.
+ * Point the suite at a hosted project (VITE_SUPABASE_URL=https://<ref>.supabase.co) and
+ * leave DATABASE_URL unset, and the raw-SQL half silently falls back to a LOCAL Postgres:
+ * the API half creates a user on the hosted project, the SQL half backdates/queries a
+ * database that has never heard of it. Every statement "succeeds" against 0 rows, so the
+ * tests do not error and do not skip — they compute a WRONG ANSWER and assert on it.
+ * Measured: 11 of 21 failures the first time this suite ran against staging, including
+ * `stillExists()` reporting {auth:false, profile:false} for users that plainly existed,
+ * and a review interval of 0 days for a card the test believed it had aged by 10.
+ *
+ * A false RED is the lucky outcome. The same mechanism produces a false GREEN whenever
+ * the assertion happens to hold for an empty database.
+ *
+ * So: helpers that need direct SQL treat a mismatch as "no direct DB access" and skip,
+ * exactly as they already do when nothing is listening — never as a usable connection.
+ */
+export const DB_MATCHES_TARGET: boolean = (() => {
+  const hostedRef = /^https?:\/\/([a-z0-9]+)\.supabase\.(co|in)/i.exec(URL)?.[1];
+  const dbIsLocal = /127\.0\.0\.1|localhost/.test(DB_URL);
+  // Local API ↔ local DB is the standard `supabase start` setup.
+  if (!hostedRef) return dbIsLocal || DB_URL !== LOCAL_DB_URL;
+  // Hosted API ↔ the same project's database (db.<ref>.supabase.co, or a pooler URL
+  // that carries the ref in the user component: postgres.<ref>).
+  return !dbIsLocal && DB_URL.includes(hostedRef);
+})();
+
 export interface TestUser {
   client: SupabaseClient;
   userId: string;
@@ -111,10 +145,14 @@ export function serviceClient(): SupabaseClient | null {
  * false when the DB isn't reachable, so the calling test can self-skip rather than fail.
  */
 export async function backdateReview(userWordId: string, days: number): Promise<boolean> {
+  // A connection to the WRONG database is worse than no connection: the UPDATE below
+  // would report success having matched nothing, and the caller would go on to measure
+  // an un-aged card. See DB_MATCHES_TARGET.
+  if (!DB_MATCHES_TARGET) return false;
   const { Client } = await import("pg");
   const pg = new Client({
-    connectionString:
-      process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    connectionString: DB_URL,
+    ssl: /127\.0\.0\.1|localhost/.test(DB_URL) ? undefined : { rejectUnauthorized: false },
   });
   try {
     await pg.connect();
@@ -122,13 +160,14 @@ export async function backdateReview(userWordId: string, days: number): Promise<
     return false; // no direct DB access in this environment → skip
   }
   try {
-    await pg.query(
+    const { rowCount } = await pg.query(
       `UPDATE user_words
           SET last_reviewed_date = now() - make_interval(days => $2::int)
         WHERE user_word_id = $1`,
       [userWordId, days],
     );
-    return true;
+    // Matched nothing → this is not the database holding that row. Skip, don't pretend.
+    return (rowCount ?? 0) > 0;
   } finally {
     await pg.end();
   }

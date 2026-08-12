@@ -1356,11 +1356,83 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
     const svc = serviceClient();
     if (!svc) return;
     const u = await makeUser();
+    // KO→JA, not EN→JA: migration 20260745 gave English its own branch, so EN→JA
+    // returns rows wherever english_proficiency is ingested. A pair with no branch at
+    // all is what "no curated framework" means now.
     const { data, error } = await svc.rpc("learn_words_at_band", {
-      p_source: "EN", p_target: "JA", p_band: 1, p_user_id: u.userId, p_limit: 5,
+      p_source: "KO", p_target: "JA", p_band: 1, p_user_id: u.userId, p_limit: 5,
     });
     expect(error).toBeNull();
-    expect((data as unknown[]) ?? []).toHaveLength(0); // JA→EN only today
+    expect((data as unknown[]) ?? []).toHaveLength(0);
+  });
+
+  // ── the ENGLISH branch (20260745), and its inflection filters (20260761) ──────
+  // SELF-SKIPS unless the English leveling tables are ingested: english_proficiency /
+  // english_frequency are NOT in db:dump-seed (see CLAUDE.md), so a fresh CI database
+  // has no English pool and every draw below is empty.
+  it("never deals an INFLECTED English form — irregulars excluded, participles demoted", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const BAND = 4;
+    const learn = async (limit: number): Promise<string[]> =>
+      (((await svc.rpc("learn_words_at_band", {
+        p_source: "EN", p_target: "JA", p_band: BAND, p_user_id: u.userId,
+        p_limit: limit, p_exclude_seen: false,
+      })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+
+    const wide = await learn(900);
+    if (wide.length === 0) return; // English leveling not ingested → skip
+
+    // (1) Irregular verb forms are excluded OUTRIGHT, so they cannot appear at any draw
+    // size. `found` reads as the past of find, `saw` as the past of see — the learner
+    // self-rates one word and we score another.
+    for (const irregular of ["found", "known", "left", "saw", "thought", "given", "lost"]) {
+      expect(wide, `${irregular} is an ambiguous inflection — it must not be quizzable`)
+        .not.toContain(irregular);
+    }
+
+    // (2) Regular participles are DEMOTED, not removed: they sort behind the band's own
+    // vocabulary, so a realistic draw (which reads only the top of the pool) never sees
+    // one. Checked as a property rather than against a word list, so a re-ingested CEFR
+    // list can't quietly invalidate it. Absence is the assertion — a draw is random
+    // within its pool, so presence never is.
+    const draw = await learn(20);
+    expect(draw.length).toBeGreaterThan(0);
+    const bases = new Map<string, string[]>();
+    for (const w of draw) {
+      // the -ing/-ed arms of morphy, mirroring en_participle_bases()
+      if (w.length < 6) continue;
+      const cands = w.endsWith("ing")
+        ? [w.slice(0, -3), `${w.slice(0, -3)}e`]
+        : w.endsWith("ed")
+          ? [w.slice(0, -2), w.slice(0, -1), ...(w.endsWith("ied") ? [`${w.slice(0, -3)}y`] : [])]
+          : [];
+      const stem = w.endsWith("ing") ? w.slice(0, -3) : w.slice(0, -2);
+      if (cands.length && /([bcdfghjklmnpqrstvwxz])\1$/.test(stem)) cands.push(stem.slice(0, -1));
+      if (cands.length) bases.set(w, cands);
+    }
+    if (bases.size === 0) return; // nothing participle-shaped in this draw — nothing to check
+
+    const all = [...new Set([...bases.values()].flat())];
+    // Assert both reads SUCCEEDED. Without this a permission error would yield an empty
+    // set, no candidate base would resolve, and the loop below would pass vacuously —
+    // these are server-only tables whose grants have regressed before (20260746/20260748).
+    const banded = await svc.from("english_proficiency")
+      .select("surface, band").in("surface", all).lt("band", BAND);
+    expect(banded.error).toBeNull();
+    const easier = new Set(((banded.data ?? []) as { surface: string }[]).map((r) => r.surface));
+    const verbal = await svc.from("wordnet_senses_en")
+      .select("lemma, wordnet_synsets!inner(pos)").in("lemma", [...easier])
+      .eq("wordnet_synsets.pos", "v");
+    expect(verbal.error).toBeNull();
+    const verbs = new Set(((verbal.data ?? []) as { lemma: string }[]).map((r) => r.lemma));
+
+    for (const [word, cands] of bases) {
+      const base = cands.find((b) => easier.has(b) && verbs.has(b));
+      expect(base, `${word} is an inflection of "${base}" (banded easier) — it should have sorted last`)
+        .toBeUndefined();
+    }
   });
 });
 
@@ -1431,7 +1503,14 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: consume_global_quota", () => {
     expect(r(await call(10))).toEqual({ allowed: true, used: 20 });
     expect(r(await call(10))).toEqual({ allowed: false, used: 20 }); // denied, no increment
 
-    const { data: usage } = await svc.from("global_translation_usage").select("chars_used");
+    // Read THIS month's row explicitly. `select()` with no filter returns one row per
+    // month the project has ever billed, in unspecified order — on a database that has
+    // been live for more than one month, `[0]` is whichever month Postgres happened to
+    // return first (measured: a zeroed June row, so this asserted 0 against 20).
+    const period = `${new Date().toISOString().slice(0, 7)}-01`; // UTC month, as the RPC stores it
+    const { data: usage } = await svc
+      .from("global_translation_usage").select("chars_used").eq("period_month", period);
+    expect(usage, `no global_translation_usage row for ${period}`).toHaveLength(1);
     expect((usage![0] as { chars_used: number }).chars_used).toBe(20);
     await svc.from("global_translation_usage").update({ chars_used: 0 }).neq("period_month", "1900-01-01");
   });
