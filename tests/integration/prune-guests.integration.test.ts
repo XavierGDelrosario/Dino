@@ -21,14 +21,16 @@
 // =========================================================
 import { describe, it, expect, afterAll } from "vitest";
 import pg from "pg";
-import { ENABLED, makeUser, type TestUser } from "./_support";
+import { DB_MATCHES_TARGET, DB_URL, ENABLED, makeUser, type TestUser } from "./_support";
 
-declare const process: { env: Record<string, string | undefined> };
-
-const DB_URL =
-  process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
-
-const db = new pg.Client({ connectionString: DB_URL });
+// EVERY assertion in this file goes through raw SQL (auth.users is not reachable over
+// PostgREST), so a DB_URL pointing somewhere other than the project under test does not
+// degrade the suite — it inverts it: `stillExists` reports false for users that exist and
+// `age` silently matches nothing. Gated on DB_MATCHES_TARGET rather than left to fail.
+const db = new pg.Client({
+  connectionString: DB_URL,
+  ssl: /127\.0\.0\.1|localhost/.test(DB_URL) ? undefined : { rejectUnauthorized: false },
+});
 let connected = false;
 async function sql<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
   if (!connected) {
@@ -79,7 +81,7 @@ async function abandonedGuest(): Promise<TestUser> {
   return u;
 }
 
-describe.skipIf(!ENABLED)("prune_anonymous_guests: takes the abandoned guests", () => {
+describe.skipIf(!ENABLED || !DB_MATCHES_TARGET)("prune_anonymous_guests: takes the abandoned guests", () => {
   it("deletes an old, empty guest — both the login and the profile row — and audits it", async () => {
     const guest = await abandonedGuest();
 
@@ -109,7 +111,7 @@ describe.skipIf(!ENABLED)("prune_anonymous_guests: takes the abandoned guests", 
   });
 });
 
-describe.skipIf(!ENABLED)("prune_anonymous_guests: leaves everything else alone", () => {
+describe.skipIf(!ENABLED || !DB_MATCHES_TARGET)("prune_anonymous_guests: leaves everything else alone", () => {
   it("KEEPS a guest who saved a word (their vocabulary is the whole point)", async () => {
     const guest = await abandonedGuest();
     const { error } = await guest.client.rpc("create_custom_word", {
@@ -163,12 +165,21 @@ describe.skipIf(!ENABLED)("prune_anonymous_guests: leaves everything else alone"
   it("KEEPS a real (non-anonymous) account, however old and empty", async () => {
     const account = await makeUser();
     await age(account.userId, "60 days");
-    // Upgrade in place, exactly as the app does — same uid, no longer a guest.
-    const { error } = await account.client.auth.updateUser({
-      email: `sweep-${account.userId.slice(0, 8)}@example.com`,
-      password: "correct horse battery 7", // the project policy wants letters + digits
-    });
-    expect(error).toBeNull();
+    // Upgrade in place — same uid, no longer a guest.
+    //
+    // Done in SQL rather than through auth.updateUser({email}) because that path sends a
+    // confirmation email, and a project on the BUILT-IN email provider is capped at 2
+    // sends/hour — not raisable via the Management API, only by configuring custom SMTP
+    // (staging has none). The cap made this the one test that could never pass against a
+    // hosted project. What the sweep actually keys on is `is_anonymous`, which is what
+    // the real upgrade flips and what this sets; the file already reaches into auth.users
+    // to age rows, so this is the same instrument, not a new one.
+    await sql(
+      `UPDATE auth.users
+          SET email = $2, is_anonymous = false, email_confirmed_at = now()
+        WHERE id = $1::uuid`,
+      [account.userId, `sweep-${account.userId.slice(0, 8)}@example.com`],
+    );
 
     await prune();
 
@@ -176,6 +187,7 @@ describe.skipIf(!ENABLED)("prune_anonymous_guests: leaves everything else alone"
   });
 });
 
+// No SQL in this block — it only needs the anon client, so it runs anywhere the suite does.
 describe.skipIf(!ENABLED)("prune_anonymous_guests: not reachable from a client", () => {
   it("cannot be called with the anon key (it is SECURITY DEFINER and deletes users)", async () => {
     const u = await makeUser();
