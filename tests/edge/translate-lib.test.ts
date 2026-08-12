@@ -419,6 +419,18 @@ describe("lemmaCandidates (EN morphy lemmatization seam)", () => {
     expect(has("leaves", "leaf")).toBe(true); // via the -ves rule
   });
 
+  it("offers the possessive's stem, not a stem with the apostrophe left on it", () => {
+    // "europe's" used to yield only "europe'" (the -s rule eating the s and leaving
+    // the mark). Nothing matches that, so the word fell through to PAID MT and was
+    // cached as junk. The stem is re-lemmatized, so a plural possessive resolves too.
+    expect(has("europe's", "europe")).toBe(true);
+    expect(has("children's", "child")).toBe(true);
+    expect(has("workers'", "worker")).toBe(true);
+    expect(has("europe’s", "europe")).toBe(true); // curly apostrophe
+    // The surface still leads, so an entry spelled with an apostrophe wins as itself.
+    expect(lemmaCandidates("europe's", "EN")[0]).toBe("europe's");
+  });
+
   it("is identity (surface only) for non-EN sources with nothing to lemmatize", () => {
     expect(lemmaCandidates("猫", "JA")).toEqual(["猫"]);
     expect(lemmaCandidates("perro", "ES")).toEqual(["perro"]);

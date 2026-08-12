@@ -549,6 +549,17 @@ export function lemmaCandidates(input: string, sourceLang: string): string[] {
   };
   if (EN_IRREGULARS[w]) push(EN_IRREGULARS[w]);
   for (const c of regularLemmaCandidates(w)) push(c);
+  // POSSESSIVES: strip the marker and run the same rules over the stem. Without this
+  // the only -s rule to fire on "europe's" eats the s and leaves "europe'" — a
+  // candidate no entry can match, so the word falls through to the PAID MT fallback
+  // and is cached as a junk row. The client's reader lemmatizes these away, but the
+  // Translate box sends what was typed, so the guard belongs on both sides.
+  const bare = w.replace(/['’]s$/, "").replace(/['’]$/, "");
+  if (bare !== w && bare.length >= 2) {
+    push(bare);
+    if (EN_IRREGULARS[bare]) push(EN_IRREGULARS[bare]); // children's → children → child
+    for (const c of regularLemmaCandidates(bare)) push(c); // workers' → workers → worker
+  }
   return cands;
 }
 

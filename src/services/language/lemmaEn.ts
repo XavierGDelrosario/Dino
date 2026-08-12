@@ -18,6 +18,8 @@
 //   · -es plurals — "buses"→bus and "cases"→case can't be told apart by suffix.
 //   · irregulars whose surface is a common word (see EN_IRREGULAR_EXCLUDED), where
 //     mapping "left"→leave would cost the direction sense.
+//   · n't contractions — "don't"→do is safe but "won't"→wo and "shan't"→sha are not,
+//     and the common ones are already closed-class words the reader never looks up.
 
 import type { LangCode } from "./registry";
 
@@ -59,11 +61,34 @@ const NOT_A_PLURAL = new Set([
   "clothes", "scissors", "glasses", "means", "focus", "campus", "virus", "status",
 ]);
 
+/** Possessive / contracted `'s` (europe's, children's, what's) and the bare trailing
+ *  apostrophe of a plural possessive (workers'). Curly apostrophes fold to straight,
+ *  as in functionWords. */
+const POSSESSIVE_S = /['’]s$/;
+const TRAILING_APOSTROPHE = /['’]$/;
+
 /** A confident dictionary form for `surface`, or null to look it up as written. The
  *  lemma comes back lowercase, which is what the dictionary is keyed on. */
 export function englishLemma(surface: string): string | null {
   const w = surface.normalize("NFC").toLowerCase();
   if (w.length < 3) return null; // too short for any rule to be safe
+
+  // POSSESSIVES FIRST — before any -s rule, which would otherwise read the `s` of
+  // `europe's` as a plural and leave the apostrophe behind (`europe'`). That form is
+  // a guaranteed dictionary miss AND still contains a letter, so `shouldSkipMt` lets
+  // it through to a PAID translation, cached as a junk row the reader offers as a
+  // word. Measured at 2.6% of types in a 250-article en.wikinews sample.
+  //
+  // The stripped form is re-lemmatized (children's → children → child), and stands on
+  // its own when no further rule fires (boss's → boss) — returning null there would
+  // put the apostrophe back by looking the token up as written.
+  if (POSSESSIVE_S.test(w)) return lemmaOfStem(w.slice(0, -2));
+  // A plural possessive keeps its `s`, so the ordinary plural rule still applies
+  // (workers' → workers → worker). A singular name ending in -s can over-strip
+  // (harris' → harri; the -es/-ss/-us guards already spare james'/jesus'/wales'), which
+  // is accepted: a name misses the dictionary either way, so the two forms fail
+  // identically while the plural case genuinely resolves.
+  if (TRAILING_APOSTROPHE.test(w)) return lemmaOfStem(w.slice(0, -1));
 
   const irregular = EN_IRREGULARS[w];
   if (irregular) return irregular;
@@ -89,6 +114,12 @@ export function englishLemma(surface: string): string | null {
   }
 
   return null;
+}
+
+/** The lemma of a possessive's stem: whatever the ordinary rules make of it, else the
+ *  stem itself — the apostrophe is gone either way, which is the point. */
+function lemmaOfStem(stem: string): string {
+  return englishLemma(stem) ?? stem;
 }
 
 /** Per-language reader lemma. Languages with their own analyser (JA → kuromoji) and
