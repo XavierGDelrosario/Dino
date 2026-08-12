@@ -1,9 +1,18 @@
-// Media surface — study real Japanese from the news. Browses **Japanese Wikinews**
-// (a ~4k-article archive; no new stories, which is fine as a study corpus): a batch
+// Media surface — study a real language from the news. Browses **Wikinews in the
+// language you're LEARNING** (ja.wikinews ≈ 4k articles, en.wikinews ≈ 22k): a batch
 // of random headlines with a Refresh for a fresh batch. Wikinews' API is CORS-open
 // and its text is CC BY 2.5, so — unlike a gated news SPA — we can show the real
 // prose. "Study" opens the in-depth analysis (ArticleView), which also hosts the
 // reading mode — the whole Study → analyze → read → back loop stays in this tab.
+//
+// The language is not a preference of this tab: ArticleView analyzes through
+// useTranslate, which reads the SOURCE off the profile's learning language, so a
+// corpus that didn't follow it would hand the reader (say) English prose to segment
+// as Japanese. One source of truth, hence useLanguagePrefs here too.
+//
+// Every Wikinews edition went read-only in May 2026 (the WMF closed the project), so
+// each is a fixed archive rather than a live feed — which is what the tab already
+// assumed: random browse over a corpus, not a news ticker.
 //
 // Two lists behind a toggle: BROWSE (a random batch, gone on Refresh) and
 // FAVOURITES (★, kept). Random browse has no back-button, so a story you liked is
@@ -19,23 +28,29 @@ import {
   type WikiSite,
 } from "../services/media/mediawiki";
 import { useFavorites } from "../hooks/useFavorites";
+import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
 import { FavoriteStar } from "../components/media/FavoriteStar";
 import { ArticleView } from "./ArticleView";
 import { ErrorText } from "../components/common/ErrorText";
 import { errorMessage } from "../lib/errorMessage";
-import { useI18n } from "../i18n";
+import { useI18n, type MessageKey } from "../i18n";
 import "./media.css";
 
 const SITE: WikiSite = "wikinews";
-const LANG = "JA";
+
+/** Learning language → its LOCALIZED name, for the intro line ("Study real X…"). */
+const LANG_NAME: Record<string, MessageKey> = { JA: "lang.JA", EN: "lang.EN" };
 
 type Tab = "browse" | "favorites";
 
 export function MediaView({ userId }: { userId: string }) {
   const { t } = useI18n();
+  const { learning: lang, ready } = useLanguagePrefs(userId);
   const [tab, setTab] = useState<Tab>("browse");
   const [items, setItems] = useState<Headline[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Starts LOADING, not idle: the first fetch waits for the profile to say which
+  // wiki to read, and an idle-but-empty first paint reads as "no articles".
+  const [loading, setLoading] = useState(true);
   const [loadingUrl, setLoadingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The selected article → its in-depth summary page (replaces the browse list).
@@ -45,20 +60,26 @@ export function MediaView({ userId }: { userId: string }) {
   // headline that produced it rather than reconstructing a lossy summary from the
   // body text.
   const [openedFrom, setOpenedFrom] = useState<Headline | null>(null);
-  const favorites = useFavorites(userId, SITE, LANG);
+  const favorites = useFavorites(userId, SITE, lang);
 
   const load = useCallback(async () => {
+    // Nothing to browse until the profile says which wiki this is. `ready` is set
+    // on a FAILED profile read too, so an unreachable profile falls back to the
+    // default language instead of leaving the tab spinning forever.
+    if (!ready) return;
     setError(null);
     setLoading(true);
     try {
-      setItems(await randomHeadlines({ site: SITE, lang: LANG, limit: 12 }));
+      setItems(await randomHeadlines({ site: SITE, lang, limit: 12 }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang, ready]);
 
+  // Re-runs when the learning language resolves or changes — a new corpus needs a
+  // new batch, and the old one's headlines aren't studiable in the new direction.
   useEffect(() => {
     void load();
   }, [load]);
@@ -70,7 +91,7 @@ export function MediaView({ userId }: { userId: string }) {
     setError(null);
     setLoadingUrl(h.url);
     try {
-      const fetched = await fetchArticle({ site: SITE, lang: LANG, title: h.title });
+      const fetched = await fetchArticle({ site: SITE, lang, title: h.title });
       if (!fetched.text.trim()) {
         setError(t("media.empty"));
         return;
@@ -147,7 +168,7 @@ export function MediaView({ userId }: { userId: string }) {
   return (
     <section className="review media">
       <div className="media__head">
-        <p className="review__scope">{t("media.intro")}</p>
+        <p className="review__scope">{t("media.intro", { lang: t(LANG_NAME[lang] ?? "lang.JA") })}</p>
         {tab === "browse" && (
           <button className="btn btn--sm" type="button" onClick={() => void load()} disabled={loading}>
             {loading ? "…" : t("media.refresh")}

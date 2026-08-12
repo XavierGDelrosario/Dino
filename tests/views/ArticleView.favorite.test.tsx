@@ -48,6 +48,12 @@ vi.mock("@/services/media/favorites", () => ({
   removeFavorite: (p: { userId: string; url: string }) => removeFavorite(p),
 }));
 
+// Media browses the wiki of the LEARNING language, so it waits on the profile
+// before its first fetch — without this the tab never leaves "Loading news…".
+vi.mock("@/services/session", () => ({
+  getUserProfile: vi.fn(async () => ({ learningLanguage: "JA", nativeLanguage: "EN" })),
+}));
+
 // ArticleView drives the whole reader pipeline through useTranslate; stub it down
 // to the fields this view reads. `para: null` leaves the analysis in its
 // "Analyzing…" state, which is enough — the header (and its star) renders either

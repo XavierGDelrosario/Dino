@@ -22,6 +22,14 @@ export interface LanguagePrefs {
   learning: LangCode;
   /** The language they read meanings in. */
   native: LangCode;
+  /**
+   * False until the profile has been read (or failed to read), while the pair is
+   * still the registry DEFAULT rather than this user's choice. Most surfaces can
+   * ignore it — a dropdown that re-renders on the real value is fine — but one
+   * that FETCHES on the pair (Media picks its wiki from `learning`) would
+   * otherwise fire a request for the default language and immediately discard it.
+   */
+  ready: boolean;
 }
 
 /**
@@ -37,6 +45,7 @@ export function profileToLangs(
   return {
     learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
     native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
+    ready: true,
   };
 }
 
@@ -44,6 +53,7 @@ export function useLanguagePrefs(userId: string): LanguagePrefs {
   const [prefs, setPrefs] = useState<LanguagePrefs>({
     learning: DEFAULT_LEARNING_LANGUAGE,
     native: DEFAULT_NATIVE_LANGUAGE,
+    ready: false,
   });
 
   useEffect(() => {
@@ -53,7 +63,12 @@ export function useLanguagePrefs(userId: string): LanguagePrefs {
         if (!live) return; // a user switch superseded this load
         setPrefs(profileToLangs(p));
       })
-      .catch((e) => console.warn("useLanguagePrefs: failed to load language prefs", e));
+      .catch((e) => {
+        console.warn("useLanguagePrefs: failed to load language prefs", e);
+        // Ready on failure too: the defaults ARE the answer now, and a surface
+        // that waits on the pair must not hang on an unreachable profile.
+        if (live) setPrefs((p) => ({ ...p, ready: true }));
+      });
     return () => {
       live = false;
     };

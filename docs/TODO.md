@@ -351,7 +351,7 @@ It only bites when English is the **learning target**.
 |---|---|---|
 | **EN POS tagger** | — | Widest blast radius: unblocks the two below and can tell the modal *can* from the noun *can*. |
 | EN POS offsets in the leveling profile | the tagger | The one remaining leveling asymmetry (JA has anchors **+** offsets). |
-| Proper-noun demotion | the tagger | JA demotes 人名/組織 via kuromoji POS; EN can't. |
+| Proper-noun demotion | the tagger | JA demotes 人名/組織 via kuromoji POS; EN can't. Measured on en.wikinews (now the Media corpus for EN learners): **23.5% of lookup keys miss the dictionary vs 5.5% for ja.wikinews**, overwhelmingly names (*UEFA · Abidal · Piraquara · WMAR*) — each a paid MT call plus a cache row. |
 | Reader-side lemma | — | *running* never resolves to *run* client-side; the edge lemmatizes for LOOKUP only. |
 | Long-tail irregulars | — | Ingest Princeton `verb.exc`/`noun.exc` — bundled `lemmaCandidates` covers common forms only. |
 | Case folding | — | The reader keys meanings on the raw surface, so sentence-initial `Cats` forks from `cats`. Small, independent. |

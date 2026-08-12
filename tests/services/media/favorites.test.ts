@@ -49,6 +49,22 @@ describe("listFavorites", () => {
     stub.queueFrom("media_favorites", { data: [], error: null });
     expect(await listFavorites("u")).toEqual([]);
   });
+
+  it("scopes to one corpus when asked — the tab shows the learning language's wiki", async () => {
+    stub.queueFrom("media_favorites", { data: [row], error: null });
+    await listFavorites("u", { site: "wikinews", lang: "EN" });
+    expect(stub.callsFor("media_favorites", "eq").map((c) => c.args)).toEqual([
+      ["user_id", "u"],
+      ["site", "wikinews"],
+      ["lang", "EN"],
+    ]);
+  });
+
+  it("filters on nothing but the user when no scope is given", async () => {
+    stub.queueFrom("media_favorites", { data: [row], error: null });
+    await listFavorites("u");
+    expect(stub.callsFor("media_favorites", "eq").map((c) => c.args)).toEqual([["user_id", "u"]]);
+  });
 });
 
 describe("addFavorite", () => {
