@@ -198,6 +198,22 @@ describe("englishLemma — the WordNet long tail (irregularsEn.generated)", () =
   });
 });
 
+describe("englishLemma — keys that are Object.prototype members", () => {
+  it("treats 'constructor' as the ordinary English word it is", () => {
+    // A constructor is a builder, and WordNet lists it. Because the irregular maps are
+    // object literals, `EN_IRREGULARS["constructor"]` used to return a FUNCTION, which
+    // this returned as if it were a lemma.
+    expect(englishLemma("constructor")).toBeNull();
+    expect(englishLemma("constructors")).toBe("constructor");
+  });
+
+  it("survives every other inherited key", () => {
+    for (const w of ["valueOf", "toString", "isPrototypeOf", "hasOwnProperty", "__proto__"]) {
+      expect(typeof englishLemma(w)).not.toBe("function");
+    }
+  });
+});
+
 describe("readerLemma — language gating", () => {
   it("applies only to English", () => {
     expect(readerLemma("cats", "EN")).toBe("cat");

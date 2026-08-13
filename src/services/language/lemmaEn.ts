@@ -26,6 +26,7 @@
 
 import type { LangCode } from "./registry";
 import { EN_IRREGULARS_WORDNET } from "./irregularsEn.generated";
+import { own } from "../../lib/own";
 
 /** Irregular past/participle → base, plural → singular. INCLUSION RULE: the surface
  *  must not itself be a common English word (see EN_IRREGULAR_EXCLUDED).
@@ -105,7 +106,7 @@ export function englishLemma(surface: string): string | null {
   // identically while the plural case genuinely resolves.
   if (TRAILING_APOSTROPHE.test(w)) return lemmaOfStem(w.slice(0, -1));
 
-  const irregular = EN_IRREGULARS[w];
+  const irregular = own(EN_IRREGULARS, w);
   if (irregular) return irregular;
 
   // The WordNet long tail (aardwolves→aardwolf, abetted→abet). Filtered at BUILD time to
@@ -116,7 +117,7 @@ export function englishLemma(surface: string): string | null {
   // inclusion rule. It also settles the doubled-consonant -ing/-ed forms the header
   // defers, because WordNet states the base instead of us guessing at the stem.
   if (!EXCLUDED.has(w)) {
-    const listed = EN_IRREGULARS_WORDNET[w];
+    const listed = own(EN_IRREGULARS_WORDNET, w);
     if (listed) return listed;
   }
 

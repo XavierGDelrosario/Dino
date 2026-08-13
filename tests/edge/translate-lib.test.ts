@@ -1111,3 +1111,21 @@ describe("lemmaCandidates — the WordNet long tail (_irregulars.generated)", ()
     expect(has("wolves'", "wolf")).toBe(true);
   });
 });
+
+describe("lemmaCandidates — keys that are Object.prototype members", () => {
+  it("does not throw on 'constructor', which is a real English word", () => {
+    // Regression: the irregular maps are object literals, so map["constructor"] returned
+    // Object.prototype.constructor — a function — and push() threw
+    // "c.toLowerCase is not a function", 500ing the edge for a legitimate lookup.
+    expect(() => lemmaCandidates("constructor", "EN")).not.toThrow();
+    expect(lemmaCandidates("constructor", "EN")[0]).toBe("constructor");
+  });
+
+  it("survives every other inherited key, in both the plain and possessive paths", () => {
+    for (const w of ["valueOf", "toString", "isPrototypeOf", "hasOwnProperty", "__proto__"]) {
+      expect(() => lemmaCandidates(w, "EN")).not.toThrow();
+      expect(() => lemmaCandidates(`${w}'s`, "EN")).not.toThrow();
+      for (const c of lemmaCandidates(w, "EN")) expect(typeof c).toBe("string");
+    }
+  });
+});

@@ -27,6 +27,8 @@
 // =========================================================
 
 /** surface (NFC kanji) → its correct everyday standalone reading (hiragana). */
+import { own } from "../../lib/own";
+
 export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
   前: "まえ",   // front / before  (not さき)
   人: "ひと",   // person          (not じん)
@@ -53,7 +55,7 @@ export function applyReadingOverride<T extends { inputReading: string | null }>(
   surface: string,
   senses: T[],
 ): T[] {
-  const pref = SINGLE_WORD_READING_OVERRIDES[surface];
+  const pref = own(SINGLE_WORD_READING_OVERRIDES, surface);
   if (!pref || senses.length < 2) return senses;
   const match = senses.filter((s) => s.inputReading === pref);
   if (match.length === 0 || match.length === senses.length) return senses;
@@ -86,7 +88,7 @@ export function applyWritingOverride<T extends { input: string }>(
   surface: string,
   senses: T[],
 ): T[] {
-  const pref = SINGLE_WORD_WRITING_OVERRIDES[surface];
+  const pref = own(SINGLE_WORD_WRITING_OVERRIDES, surface);
   if (!pref || senses.length < 2) return senses;
   const match = senses.filter((s) => s.input === pref);
   if (match.length === 0 || match.length === senses.length) return senses;
