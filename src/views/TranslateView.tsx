@@ -505,6 +505,7 @@ export function TranslateView({
               saved={t.saved}
               confidence={t.confidence}
               lists={t.lists}
+              userId={userId}
               onAdd={t.addWords}
               onCreateList={t.createNamedList}
             />

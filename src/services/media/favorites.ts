@@ -46,16 +46,28 @@ const toFavorite = (r: FavoriteRow): Favorite => ({
 });
 
 /**
- * A user's starred articles, newest first.
+ * A user's starred articles, newest first — optionally only those from ONE corpus.
+ *
+ * The Media tab reads the wiki of the language you're LEARNING, and an article is
+ * only studiable in that direction (the analysis pipeline runs on the learning
+ * language), so it scopes the ★ list the same way: switching what you study
+ * switches the whole corpus — headlines and stars together. Nothing is deleted,
+ * so the hidden rows come back when the language does.
+ *
  * OUTPUT: Favorite[] (may be empty).
- * CONSTRAINTS: RLS-scoped to the caller's own rows.
+ * CONSTRAINTS: RLS-scoped to the caller's own rows. Omit `site`/`lang` for all of them.
  */
-export async function listFavorites(userId: string): Promise<Favorite[]> {
-  const { data, error } = await supabase
+export async function listFavorites(
+  userId: string,
+  scope?: { site?: WikiSite; lang?: string },
+): Promise<Favorite[]> {
+  let q = supabase
     .from("media_favorites")
     .select<string, FavoriteRow>(COLUMNS)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .eq("user_id", userId);
+  if (scope?.site) q = q.eq("site", scope.site);
+  if (scope?.lang) q = q.eq("lang", scope.lang);
+  const { data, error } = await q.order("created_at", { ascending: false });
   if (error) throw toServiceError(error);
   return (data ?? []).map(toFavorite);
 }

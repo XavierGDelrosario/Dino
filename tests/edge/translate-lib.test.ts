@@ -28,6 +28,7 @@ import {
   userIdFromAuth,
   shouldSkipMt,
   isEchoTranslation,
+  isRomanizedName,
   type ProviderResult,
   isEnglishFunctionWord,
   isMultiWord,
@@ -157,6 +158,29 @@ describe("projectRows", () => {
     expect(row.input).toBe("cat"); // EN search term kept as-is (no headword)
     expect(row.dictionary_ref).toBe("cat:1467640");
     expect(row.translation_reading).toBe("ねこ");
+  });
+
+  // 20260764. `definition_source` is "the definition in the SOURCE language", so the
+  // column that carries a Japanese definition on a JA→EN row carries the WordNet
+  // English one on an EN→JA row. Same field, no direction-specific branch — this pins
+  // that, because a projection that quietly dropped it would leave the definition
+  // reaching the cache for one direction only.
+  it("EN→JA: the English definition rides in definition_source", () => {
+    const enja: ProviderResult = {
+      translation: "ばね",
+      entryId: "1610575",
+      sensePos: 0,
+      definitionSource: "a metal elastic device that returns to its shape after being compressed",
+    };
+    const [row] = projectRows([enja], "spring", "EN", "JA", 14);
+    expect(row.definition_source).toBe(
+      "a metal elastic device that returns to its shape after being compressed",
+    );
+  });
+
+  it("a sense with no definition stores null, not undefined", () => {
+    const [row] = projectRows([JA_SENSE], "ねこ", "JA", "EN", 14);
+    expect(row.definition_source).toBeNull();
   });
 
   it("MT fallback: no entryId → ref 'mt:<input>', input is the search term", () => {
@@ -417,6 +441,22 @@ describe("lemmaCandidates (EN morphy lemmatization seam)", () => {
     expect(has("feet", "foot")).toBe(true);
     expect(has("children", "child")).toBe(true);
     expect(has("leaves", "leaf")).toBe(true); // via the -ves rule
+  });
+
+  it("offers the possessive's stem, not a stem with the apostrophe left on it", () => {
+    // "europe's" used to yield only "europe'" (the -s rule eating the s and leaving
+    // the mark). Nothing matches that, so the word fell through to PAID MT and was
+    // cached as junk. The stem is re-lemmatized, so a plural possessive resolves too.
+    expect(has("europe's", "europe")).toBe(true);
+    expect(has("children's", "child")).toBe(true);
+    expect(has("workers'", "worker")).toBe(true);
+    expect(has("europe’s", "europe")).toBe(true); // curly apostrophe
+    // The surface still leads, so an entry spelled with an apostrophe wins as itself.
+    expect(lemmaCandidates("europe's", "EN")[0]).toBe("europe's");
+  });
+
+  it("does not disturb the surface-first contract", () => {
+    expect(lemmaCandidates("workers'", "EN")[0]).toBe("workers'");
   });
 
   it("is identity (surface only) for non-EN sources with nothing to lemmatize", () => {
@@ -797,6 +837,40 @@ describe("isEchoTranslation (cache-poisoning guard)", () => {
   it("passes a genuine translation through", () => {
     expect(isEchoTranslation("文章", "sentence")).toBe(false);
     expect(isEchoTranslation("京都パープルサンガ", "Kyoto Purple Sanga")).toBe(false);
+  });
+});
+
+describe("isRomanizedName (serve it, don't cache it)", () => {
+  const jaEn = (t: string) => isRomanizedName(t, "JA", "EN");
+
+  it("catches the two rows that were reported (#6, #16)", () => {
+    expect(jaEn("Chichijima")).toBe(true); // 父島
+    expect(jaEn("Kato")).toBe(true); // 加戸
+    expect(jaEn("Akira")).toBe(true);
+  });
+
+  it("leaves a real translation alone, however capitalized", () => {
+    expect(jaEn("sentence")).toBe(false);
+    expect(jaEn("streamer")).toBe(false); // a loanword MT renders lowercase
+    expect(jaEn("Mount Fuji")).toBe(false); // multi-word = translated, not transliterated
+    expect(jaEn("Liberal Democratic Party")).toBe(false);
+    expect(jaEn("cat; feline")).toBe(false);
+  });
+
+  it("leaves an ACRONYM alone — a translation, not a transliteration", () => {
+    expect(jaEn("LDP")).toBe(false);
+    expect(jaEn("NHK")).toBe(false);
+  });
+
+  it("only applies to JA→EN", () => {
+    // EN→JA can't produce a romanization of the input, and the guard must never
+    // touch a pair whose target legitimately uses Latin script.
+    expect(isRomanizedName("Kato", "EN", "JA")).toBe(false);
+    expect(isRomanizedName("Kato", "JA", "ZH")).toBe(false);
+  });
+
+  it("ignores surrounding whitespace", () => {
+    expect(jaEn("  Chichijima ")).toBe(true);
   });
 });
 

@@ -23,16 +23,17 @@ export function useFavorites(userId: string, site: WikiSite = "wikinews", lang =
     setError(null);
     setLoading(true);
     try {
-      setItems(await listFavorites(userId));
+      setItems(await listFavorites(userId, { site, lang }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, site, lang]);
 
-  // Load once per user (a user switch resets the view via App's key, but the hook
-  // still re-runs on the new id).
+  // Load once per user AND corpus (a user switch resets the view via App's key, but
+  // the hook still re-runs on the new id; changing the learning language swaps the
+  // wiki under the tab, so the ★ list has to follow it).
   useEffect(() => {
     void reload();
   }, [reload]);

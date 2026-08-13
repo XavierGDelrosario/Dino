@@ -36,6 +36,49 @@ describe("englishLemma — plural", () => {
   });
 });
 
+describe("englishLemma — possessives", () => {
+  it("strips 's rather than reading it as a plural", () => {
+    // The bug this replaced: the -s rule fired on the `s` and left the apostrophe
+    // ("europe's" → "europe'"), a form no dictionary can match — and one that still
+    // has a letter, so the server pays Google for it and caches the junk.
+    expect(englishLemma("europe's")).toBe("europe");
+    expect(englishLemma("world's")).toBe("world");
+    expect(englishLemma("putin's")).toBe("putin");
+  });
+
+  it("re-lemmatizes the stem", () => {
+    expect(englishLemma("children's")).toBe("child");
+    expect(englishLemma("cities'")).toBe("city");
+  });
+
+  it("keeps a stem no other rule touches, instead of giving up on it", () => {
+    // Returning null here would look the token up as written — apostrophe and all.
+    expect(englishLemma("boss's")).toBe("boss");
+    expect(englishLemma("boss'")).toBe("boss");
+  });
+
+  it("resolves a plural possessive through the plural rule", () => {
+    expect(englishLemma("workers'")).toBe("worker");
+    expect(englishLemma("students'")).toBe("student");
+  });
+
+  it("reads a curly apostrophe as the same thing", () => {
+    expect(englishLemma("europe’s")).toBe("europe");
+    expect(englishLemma("workers’")).toBe("worker");
+  });
+
+  it("leaves a word-internal apostrophe alone", () => {
+    // Only a TRAILING marker is a possessive; o'clock is one word, and n't
+    // contractions are closed-class words the reader never looks up anyway.
+    expect(englishLemma("o'clock")).toBeNull();
+    expect(englishLemma("don't")).toBeNull();
+  });
+
+  it("never returns a bare apostrophe or an empty key", () => {
+    for (const w of ["'s", "''", "'"]) expect(englishLemma(w)).toBeNull();
+  });
+});
+
 describe("englishLemma — verb tense", () => {
   it("maps irregular past/participles to the base", () => {
     expect(englishLemma("ran")).toBe("run");

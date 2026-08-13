@@ -60,6 +60,12 @@ export function SenseExample({
 
   if (!example && !definitionSource) return null;
 
+  // Both the example and the definition are written in the SOURCE language — the one
+  // being learned. That used to be hardcoded `ja` because only JA→EN senses were
+  // annotated; since 20260764 an EN→JA row carries an English definition from its
+  // WordNet synset, and labelling English prose as Japanese mis-fonts it in the
+  // browser and misreports it to a screen reader.
+  const prose = (sourceLang ?? "JA").toLowerCase();
   const label = t(open ? "sense.hideExample" : "sense.showExample");
   return (
     <>
@@ -104,13 +110,13 @@ export function SenseExample({
             ) : (
               // Shown while the analysis loads, and permanently when there is no
               // userId — the sentence is always readable, colouring is the bonus.
-              <p className={`senseex__sentence${reader.loading ? " is-loading" : ""}`} lang="ja">
+              <p className={`senseex__sentence${reader.loading ? " is-loading" : ""}`} lang={prose}>
                 {example}
               </p>
             ))}
           {exampleGloss && <p className="senseex__gloss">{exampleGloss}</p>}
           {definitionSource && (
-            <p className="senseex__definition" lang="ja">
+            <p className="senseex__definition" lang={prose}>
               <span className="senseex__label">{t("sense.definition")}</span>
               {definitionSource}
             </p>

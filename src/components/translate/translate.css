@@ -678,6 +678,11 @@ textarea.translate__box::-webkit-scrollbar {
 
 .result {
   display: flex;
+  /* WRAP is what lets the SenseExample panel work here. The panel is `flex: 1 0 100%`,
+     so in a nowrap row it would fight the sense and the add button for width; with wrap
+     it drops onto a line of its own UNDER them and reads as the result opening up —
+     identical to how .listrow__foot hosts the same component. */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;

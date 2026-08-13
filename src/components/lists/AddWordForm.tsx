@@ -245,7 +245,7 @@ export function AddWordForm({
               {others.map((w) => (
                 <li key={w.wordId} className="sense">
                   <span className="sense__text">
-                    <SenseText word={w} />
+                    <SenseText word={w} query={input} />
                   </span>
                   <button
                     className={`sense__add${selected?.wordId === w.wordId ? " sense__saved" : ""}`}

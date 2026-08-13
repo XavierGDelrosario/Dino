@@ -2,8 +2,11 @@
 // (ArticleView). Every MediaWiki project exposes the SAME CORS-open API, so one client
 // serves Wikipedia, Wikinews, … — pick the `site`.
 //
-// The Media tab browses Japanese Wikinews (a ~4k-article archive, no new stories, which
-// is fine as a study corpus): random headlines with a Refresh for a new batch.
+// The Media tab browses the Wikinews edition of the language the user is LEARNING —
+// ja.wikinews (~4.1k articles) or en.wikinews (~22.2k) — as random headlines with a
+// Refresh for a new batch. Every edition is a frozen archive (the WMF closed Wikinews
+// in May 2026; the wikis stayed readable and the API stayed open), which is fine, and
+// in fact what random browse already assumed: a study corpus, not a live feed.
 //
 // All wiki text is openly licensed (CC BY-SA / CC BY 2.5), so the real prose is shown
 // with attribution + a link back. A fetched article is reduced to its NEWS BODY by

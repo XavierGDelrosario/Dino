@@ -432,6 +432,43 @@ export function isEchoTranslation(input: string, translation: string): boolean {
   return norm(input) === norm(translation);
 }
 
+/** `Kato`, `Chichijima`, `Akira` — one Latin word, initial capital, nothing else. */
+const ROMANIZED_NAME = /^\p{Lu}\p{Ll}+$/u;
+
+/**
+ * Does this JA→EN machine translation look like a NAME rendered in romaji rather than
+ * a meaning? Quality reports #6 and #16: 父島 → "Chichijima", 加戸 → "Kato". JMdict has
+ * no entry for either, so they reached MT, and the romanization was cached as a
+ * verified word the reader then offered as a card to study.
+ *
+ * The caller SERVES the result and skips only the CACHE WRITE — answering an explicit
+ * lookup is a question the user asked, and "no result" would be the worse answer. So
+ * the cost of a false positive is one uncached word, never a missing one.
+ *
+ * Narrow on purpose, because the words that reach MT at all are the tail JMdict lacks:
+ *   · every name a learner needs is IN the dictionary (東京, 富士山, 自民党, 大阪), so it
+ *     never gets here;
+ *   · a multi-word or lowercase result is left alone — "Mount Fuji" is a translation,
+ *     and a loanword MT renders lowercase ("streamer") is real vocabulary;
+ *   · ALL-CAPS is left alone too (`LDP`, `NHK`) — an acronym is a translation, not a
+ *     transliteration.
+ * The known miss is a capitalized brand-name loanword: it still displays, it just
+ * isn't cached, so it costs MT again next time.
+ *
+ * Applied on the SINGLE-word path only. The batch path feeds one list to both the
+ * upsert and the response mapping, so skipping a write there would also drop the word
+ * from the reply — and the reader that drives it already demotes 人名/組織 through
+ * kuromoji, so names barely reach it.
+ */
+export function isRomanizedName(
+  translation: string,
+  sourceLang: string,
+  targetLang: string,
+): boolean {
+  if (sourceLang.toUpperCase() !== "JA" || targetLang.toUpperCase() !== "EN") return false;
+  return ROMANIZED_NAME.test(translation.normalize("NFC").trim());
+}
+
 // Irregular English inflections the detachment rules below can't derive. Common forms
 // only; the long tail is Princeton WordNet's verb.exc/noun.exc (a future ingest). A key
 // that is also a valid lemma (saw, rose, left) is harmless — the SURFACE is tried first.
@@ -549,6 +586,17 @@ export function lemmaCandidates(input: string, sourceLang: string): string[] {
   };
   if (EN_IRREGULARS[w]) push(EN_IRREGULARS[w]);
   for (const c of regularLemmaCandidates(w)) push(c);
+  // POSSESSIVES: strip the marker and run the same rules over the stem. Without this
+  // the only -s rule to fire on "europe's" eats the s and leaves "europe'" — a
+  // candidate no entry can match, so the word falls through to the PAID MT fallback
+  // and is cached as a junk row. The client's reader lemmatizes these away, but the
+  // Translate box sends what was typed, so the guard belongs on both sides.
+  const bare = w.replace(/['’]s$/, "").replace(/['’]$/, "");
+  if (bare !== w && bare.length >= 2) {
+    push(bare);
+    if (EN_IRREGULARS[bare]) push(EN_IRREGULARS[bare]); // children's → children → child
+    for (const c of regularLemmaCandidates(bare)) push(c); // workers' → workers → worker
+  }
   return cands;
 }
 
