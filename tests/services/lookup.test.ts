@@ -553,6 +553,49 @@ describe("translateParagraph — katakana the dictionary doesn't have", () => {
   });
 });
 
+// The English POS tagger's ONE cost consumer. Same shape as the katakana rule above and
+// for the same reason: a miss that was never going to be a word must not be BILLED as
+// one. Measured on en.wikinews, 23.5% of English lookup keys miss the dictionary
+// against 5.5% for Japanese, the misses overwhelmingly names.
+describe("translateParagraph — proper nouns never reach paid MT", () => {
+  const propnTokens = [
+    { text: "Abidal", start: 0, end: 6, reading: null, lemma: null, pos: "PROPN" },
+    { text: "scored", start: 7, end: 13, reading: null, lemma: null, pos: "VERB" },
+  ];
+
+  it("routes a PROPN miss to a DICTIONARY-ONLY batch and the content word to the MT one", async () => {
+    mockAnalyze.mockResolvedValue(propnTokens);
+    mockFindBatch.mockResolvedValue(new Map<string, Word[]>()); // nothing cached
+    await translateParagraph({ input: "Abidal scored", sourceLang: "EN", targetLang: "JA" });
+
+    const calls = mockTranslateBatch.mock.calls.map((c) => c[0]);
+    expect(calls.find((c) => c.inputs.includes("Abidal"))?.dictionaryOnly).toBe(true);
+    // `scored` is an ordinary verb — it keeps its MT fallback, so the saving is
+    // targeted rather than a blanket "stop paying for English".
+    expect(calls.find((c) => c.inputs.includes("scored"))?.dictionaryOnly).toBeUndefined();
+  });
+
+  it("a proper noun the DICTIONARY knows still resolves, and stays vocabulary", async () => {
+    // The reason PROPN is a content POS rather than a demotion. Measured on the UD test
+    // split, a blanket demote-on-PROPN removed 2.93% of genuine content words, and they
+    // were capitalised common nouns the dictionary has entries for. Letting the
+    // dictionary arbitrate costs nothing and keeps those words addable.
+    mockAnalyze.mockResolvedValue([
+      { text: "Japan", start: 0, end: 5, reading: null, lemma: null, pos: "PROPN" },
+    ]);
+    const japan = makeWord({ input: "Japan", translation: "日本", partOfSpeech: null });
+    mockFindBatch.mockResolvedValue(new Map([["Japan", [japan]]]));
+
+    const res = await translateParagraph({ input: "Japan", sourceLang: "EN", targetLang: "JA" });
+    // `meanings` is keyed by wordKey, which LOWERCASES (that is the case-folding fix
+    // documented below); the lookup keys that reach the edge keep their case, which is
+    // why the batch above matches on "Abidal" and this matches on "japan".
+    expect(res.meanings.get("japan")?.[0].translation).toBe("日本");
+    // Cached, so it never needed the edge at all.
+    expect(mockTranslateBatch).not.toHaveBeenCalled();
+  });
+});
+
 // One word, one entry. The surface used to be the key, so it forked on CASE
 // ("Cats" at the start of a sentence vs "cats" mid-sentence) and on INFLECTION
 // (cat vs cats) — one word became two hover cards, two quiz cards and two rows in the

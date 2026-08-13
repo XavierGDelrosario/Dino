@@ -104,3 +104,26 @@ MIT-licensed **Words-CEFR-Dataset** (https://github.com/Maximax67/Words-CEFR-Dat
 We ship only the derived `<surface>\t<band>` numbers, not the source files. CEFR is a
 framework of the **Council of Europe**; we reference the level labels only and reproduce
 none of its copyrighted descriptor scales.
+
+## English part-of-speech tagger (`src/services/language/posEnModel.json`)
+
+> SHIPPED 2026-08-13. The model is built by `scripts/build-pos-tagger.py`; it ships as
+> weights only, and the treebank itself is never redistributed.
+
+The English POS tagger is an averaged perceptron trained on **Universal Dependencies
+English-EWT** (https://github.com/UniversalDependencies/UD_English-EWT), released under
+**CC BY-SA 4.0**. UD English-EWT is built over the **English Web Treebank** (LDC), with
+the UD annotation contributed by the UD community.
+
+- **CC BY-SA 4.0 requires attribution AND share-alike.** What we distribute is a set of
+  trained WEIGHTS derived from the annotations — not the sentences, not the annotations
+  themselves. Whether trained weights are a "derivative work" of the training corpus is
+  genuinely unsettled; the conservative reading is that they are, so this entry treats
+  the share-alike obligation as live and the model file is attributed accordingly. A
+  legal read is advised before ship, exactly as for CEFR-J above.
+- The tagset is **UD UPOS**, a specification rather than a copyrightable dataset.
+- The same CC BY-SA family already applies to `data/frequency/*.tsv` (wordfreq), so this
+  adds no new licence class to the project — only a new source to name.
+
+We ship only the derived weights. The treebank is downloaded at build time by whoever
+runs the trainer and is not committed to this repository.

@@ -19,6 +19,7 @@
     "ingest:wordnet": "tsx scripts/ingest-wordnet.ts",
     "ingest:english-frequency": "tsx scripts/ingest-english-frequency.ts",
     "build:leveling": "tsx scripts/build-leveling-profile.ts",
+    "build:pos-tagger": "python3 scripts/build-pos-tagger.py",
     "build:irregulars": "tsx scripts/build-irregulars.ts",
     "ingest:english-proficiency": "tsx scripts/ingest-english-proficiency.ts",
     "ingest:sense-examples": "tsx scripts/ingest-sense-examples.ts",

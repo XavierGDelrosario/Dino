@@ -239,7 +239,11 @@ describe("analyze — Japanese counter readings (助数詞)", () => {
   );
 });
 
-describe("analyze — non-Japanese falls back to segmentation only", () => {
+// English now has a POS tagger of its own (posEn.ts), so it no longer "falls back to
+// segmentation only" — it gets tags, but still no reading and only a partial lemma.
+// Every OTHER non-Japanese language does still fall back, which the Spanish case below
+// pins.
+describe("analyze — non-Japanese: English is tagged, everything else segments", () => {
   it("returns tokens with null reading/lemma for English", async () => {
     const toks = await analyze("hello world", "EN");
     expect(toks.map((t) => t.text)).toEqual(["hello", "world"]);
@@ -257,6 +261,34 @@ describe("analyze — non-Japanese falls back to segmentation only", () => {
   it("still segments and displays the grammar words — they're demoted, not dropped", async () => {
     const toks = await analyze("the cat", "EN");
     expect(toks.map((t) => t.text)).toEqual(["the", "cat"]);
+  });
+
+  // --- the POS tagger, wired end to end through analyze() ---
+  // posEn.test.ts covers the model itself; these cover the WIRING — that analyze()
+  // actually reaches it, that sentence boundaries are recovered from the source text,
+  // and that the junk filter still outranks it.
+
+  it("tags a mid-sentence name PROPN — the signal the MT-cost saving rides on", async () => {
+    const toks = await analyze("The striker Abidal scored again.", "EN");
+    expect(toks.find((t) => t.text === "Abidal")?.pos).toBe("PROPN");
+  });
+
+  it("recovers SENTENCE BOUNDARIES, so a second sentence's opening word isn't a name", async () => {
+    // The tagger's strongest cue for PROPN is "capitalised AND not sentence-initial".
+    // Tokens carry no punctuation, so boundaries come from the gap between token
+    // offsets in the source. Without that, every sentence after the first would open
+    // with a word that looks like a name.
+    const toks = await analyze("Abidal scored. Cats sleep all day.", "EN");
+    expect(toks.find((t) => t.text === "Abidal")?.pos).toBe("PROPN");
+    expect(toks.find((t) => t.text === "Cats")?.pos).not.toBe("PROPN");
+  });
+
+  it("the junk filter still OUTRANKS the model", async () => {
+    // "2026" would be a perfectly good NUM to a tagger; it is not vocabulary. The
+    // language-independent filter runs first and wins, as it must for every language.
+    const toks = await analyze("Written in 2026 by G.", "EN");
+    expect(isContentPos(toks.find((t) => t.text === "2026")!.pos)).toBe(false);
+    expect(isContentPos(toks.find((t) => t.text === "G")!.pos)).toBe(false);
   });
 
   it("a language with no closed-class list keeps every token as content (fails OPEN)", async () => {
@@ -334,8 +366,21 @@ describe("dictionaryForm", () => {
     KUROMOJI_TIMEOUT
   );
 
-  it("returns English UNCHANGED — no engine gives English lemmas (a known gap)", async () => {
-    expect(await dictionaryForm("ran", "EN")).toBe("ran");
+  // Was "returns English UNCHANGED — no engine gives English lemmas". That stopped
+  // being true when the POS tagger landed, and for a non-obvious reason worth recording:
+  // `dictionaryFormOf` only consults a token's lemma when the token has a POS at all
+  // (`t.pos !== null`). English tokens used to carry pos = null, so the lemma
+  // `lemmaEn.ts` had computed all along was never reached. Tagging them didn't add
+  // lemmatization — it stopped throwing the existing lemmatization away.
+  it("resolves an English IRREGULAR to its dictionary form", async () => {
+    expect(await dictionaryForm("ran", "EN")).toBe("run");
+    expect(await dictionaryForm("cats", "EN")).toBe("cat");
+  });
+
+  it("leaves a REGULAR -ing form alone — lemmaEn declines it on purpose", async () => {
+    // Not an oversight: `lemmaEn.ts` refuses regular -ing/-ed because it has no verifier,
+    // and a wrong lemma silently resolves the word to a different entry. Still the gap
+    // docs/TODO.md records under "Reader-side lemma".
     expect(await dictionaryForm("running", "EN")).toBe("running");
   });
 });
