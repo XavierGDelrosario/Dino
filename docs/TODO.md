@@ -22,37 +22,6 @@ looks like it belongs in two, it goes in the more specific one and the other lin
 - **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota
 - **Feature:** domain paragraph quiz ("paragraph at level X from these seeds").
 
-#### Sense enrichment — example sentence + JA definition per meaning `[ingest-time]`
-Each SENSE gets a Japanese example + English gloss, and a Japanese-language definition.
-Surfaces in the reader hover card, the flashcard back, and Lists detail.
-
-- **Storage:** server-only `jmdict_sense_example (entry, sense_pos, example, example_gloss,
-  definition_ja)`; edge projects onto nullable `words.*` columns. Bump
-  `CURRENT_PROJECTION_VERSION` so cached rows re-project.
-- **Scale + cost** (measured on prod): ~280 B/row. Senses by headword frequency ≥500 =
-  4,534 (≈1.3 MB) · ≥400 = 16,880 (≈5 MB) · all 251,734 (≈70 MB).
-- **Generation rules:** demonstrate THAT sense · natural JA in the word's register · short
-  enough for a hover card · definitions written as a real monolingual dictionary would.
-  - ⚠️ **No difficulty ceiling on supporting vocabulary.**「この部屋は書斎と客間を兼ねている」 is the natural
-    sentence even though 書斎/客間 aren't easier than 兼ねる. **Do not re-impose.**
-  - **The rabbit hole is the feature.**
-  - **What the JA definition carries that a gloss cannot:** collocation and negation
-    habits. 遜色 glossed "inferiority" invites 遜色がある (unnatural); the definition says
-    多くは「ない」を伴って使う.
-- ‼️ **kuromoji-validation gate — every sentence must PARSE before it is finalized.**
-  Run each in `analyze()` the reader uses and reject-and-rewrite on failure:
-  (1) target survives as ONE token with the right lemma · (2) reading matches the
-  authoritative one · (3) no orphan content words · (4) offsets round-trip. Applies to the
-  definition too. Doubles as a regression test over the whole file after any kuromoji or
-  JMdict change.
-- **Source for the JA definitions:** JMdict cannot supply them (glosses are target-language
-  only). Japanese WordNet partially can — `wnjpn.db`'s `synset_def` has non-English defs,
-  but `ingest-wordnet.ts:92` filters `d.lang = 'eng'`. Widening it + a `definition_ja`
-  column is small, but **verify coverage first** (they read like translated English, and
-  only synset-linked words are covered). Plan: WordNet where it exists, LLM the rest.
-- **Serves both markets:** JA-native users get meanings in their own language; advanced
-  learners get monolingual definitions.
-
 ### 🧩 Extension — browser capture surface `[new surface · extends #9/#18]`
 
 **What the extension can do that the app cannot** — reach text on the open web *in the
