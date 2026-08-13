@@ -22,6 +22,7 @@ import { getCounterResolver, parseJapaneseNumber } from "./counters";
 import { mergeJapaneseCompounds } from "./compounds";
 import { functionWordPos } from "./functionWords";
 import { readerLemma } from "./lemmaEn";
+import { tagEnglish } from "./posEn";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
 export interface AnalyzedToken extends WordToken {
@@ -41,6 +42,28 @@ export interface AnalyzedToken extends WordToken {
 // skip grammatical tokens (に, た) in the reader — they aren't vocabulary.
 const CONTENT_POS = new Set([
   "名詞", "動詞", "形容詞", "副詞", "連体詞", "感動詞", "接頭詞",
+  // UD UPOS tags, carried on ENGLISH tokens since the tagger landed (posEn.ts). The
+  // two vocabularies cannot collide — one is Japanese text, the other ASCII — so they
+  // share this set rather than forking isContentPos by language.
+  //
+  // ‼️ PROPN IS DELIBERATELY IN HERE. It is tempting to treat "this is a name" as "this
+  // is not vocabulary", and an early cut did exactly that; measured on the UD test
+  // split it removed 2.93% of genuine content words, and the ones it removed were
+  // PERFORMANCE · Parts · Telephone · Camera · Internet — capitalised common nouns from
+  // headings, i.e. words the DICTIONARY KNOWS. The real names it also caught (UEFA,
+  // Abidal, Piraquara) are precisely the ones the dictionary does NOT know.
+  //
+  // So the dictionary is the arbiter of what is vocabulary, and the tagger's PROPN is
+  // used for the one decision the dictionary cannot make for itself: whether to SPEND
+  // MONEY translating a miss. A name still gets looked up, still misses, and still
+  // greys out — it just never reaches the paid MT fallback. See properNounSurfaces()
+  // below and the edge's skipMt handling.
+  // Everything absent is grammar, punctuation or noise and is excluded by omission:
+  // DET · ADP · PRON · AUX · CCONJ · SCONJ · PART · PUNCT · SYM · X. That list is what
+  // now replaces the surface-matched English function-word gamble with real tags —
+  // `functionWords.ts` had to exclude can/may/will BY NAME because it could not see
+  // context, and the tagger simply reads them.
+  "NOUN", "VERB", "ADJ", "ADV", "INTJ", "NUM", "PROPN",
 ]);
 
 /**
@@ -380,6 +403,71 @@ function applyCounterReadings(out: AnalyzedToken[], kept: IpadicFeatures[]): voi
   }
 }
 
+// --- English: averaged-perceptron POS (lazily loaded) ------------------------
+
+/** Languages with a real POS tagger of their own. English only, for now — every other
+ *  Latin-script language still falls through to `segmentOnly`'s closed-class list. */
+function hasEnglishPos(lang: LangCode): boolean {
+  return lang.toUpperCase() === "EN";
+}
+
+/**
+ * Group token indices into sentences.
+ *
+ * This matters more than it looks. The tagger's strongest orthographic cue is
+ * "capitalised AND not sentence-initial", so if the whole paragraph were handed over as
+ * one sequence, only its very first token would ever be sentence-initial and every
+ * other sentence's opening word would read as a name. We have no punctuation tokens
+ * (the segmenter yields word-like tokens only), so boundaries are recovered from the
+ * SOURCE TEXT in the gap between one token's end and the next one's start.
+ */
+function sentenceGroups(text: string, tokens: WordToken[]): number[][] {
+  const groups: number[][] = [];
+  let cur: number[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (i > 0) {
+      const gap = text.slice(tokens[i - 1].end, tokens[i].start);
+      // Ellipses and the CJK full stop are included: a paste can mix scripts, and a
+      // boundary we miss costs one wrongly-capitalised token, never a crash.
+      if (/[.!?。！？…]/.test(gap)) {
+        if (cur.length) groups.push(cur);
+        cur = [];
+      }
+    }
+    cur.push(i);
+  }
+  if (cur.length) groups.push(cur);
+  return groups;
+}
+
+/**
+ * English analysis: segment, then tag each sentence with the perceptron model.
+ *
+ * The junk filter still runs FIRST and still wins — it is language-independent and
+ * catches things ("2026", a lone "G") that a POS tagger would happily label NOUN. Only
+ * where it has no opinion does the model's tag stand.
+ */
+async function analyzeEnglish(text: string, lang: LangCode): Promise<AnalyzedToken[]> {
+  const tokens = tokenizeWords(text, lang);
+  if (tokens.length === 0) return [];
+
+  const tags = new Array<string | null>(tokens.length).fill(null);
+  for (const group of sentenceGroups(text, tokens)) {
+    const tagged = await tagEnglish(group.map((i) => tokens[i].text));
+    if (!tagged) return segmentOnly(text, lang); // model unavailable — degrade, don't throw
+    group.forEach((tokenIndex, k) => {
+      tags[tokenIndex] = tagged[k];
+    });
+  }
+
+  return tokens.map((t, i) => ({
+    ...t,
+    reading: null,
+    lemma: readerLemma(t.text, lang),
+    pos: nonVocabularyPos(t.text) ?? tags[i],
+  }));
+}
+
 // --- Public seam ------------------------------------------------------------
 
 /**
@@ -396,6 +484,18 @@ export async function analyze(text: string, lang: LangCode): Promise<AnalyzedTok
       console.warn(
         "[analyze] Japanese morphological analysis unavailable; " +
           "falling back to segmentation without readings.",
+        err
+      );
+    }
+  }
+  if (hasEnglishPos(lang)) {
+    try {
+      return await analyzeEnglish(text, lang);
+    } catch (err) {
+      // Same contract as the Japanese branch: a POS source is an enhancement, and
+      // losing it must cost tags, never the text.
+      console.warn(
+        "[analyze] English POS tagging unavailable; falling back to segmentation.",
         err
       );
     }

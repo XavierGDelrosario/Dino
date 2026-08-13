@@ -243,19 +243,19 @@ Everything English-specific lives here — the old "JA vs EN divergence" and "En
 learning target" sections said the same things and are folded in.
 
 The core (words/user_words/lists/SRS/quiz) is language-agnostic and identical both ways.
-**Root cause of most gaps below:** `analyze()` routes JA to kuromoji and everything else to
-`segmentOnly` → `reading: null, lemma: null`, plus a POS only for known closed-class words.
+**Root cause of most gaps below:** `analyze()` gives English a POS (`posEn.ts`) but still no
+READING and only a partial lemma — everything non-JA routes to `segmentOnly` for the rest.
 It only bites when English is the **learning target**.
 
 | Gap | Blocked on | Note |
 |---|---|---|
-| **EN POS tagger — in CONTEXT** | — | Per-**lemma** POS now exists (`20260760`, from `wordnet_synsets.pos`); per-**token** does not, so the modal *can* still can't be told from the noun *can*. That's the remaining gap, and it's what proper-noun demotion needs. |
-| Proper-noun demotion | the tagger | JA demotes 人名/組織 via kuromoji POS; EN needs context to do the same. Measured on en.wikinews (the Media corpus, now EN-capable): **23.5% of lookup keys miss the dictionary vs 5.5% for ja.wikinews**, and the misses are overwhelmingly names (*UEFA · Abidal · Piraquara · WMAR*) — each one a paid MT call plus a cache row. |
-| Reader-side lemma | — | `lemmaEn.ts` covers irregulars, plurals and possessives; regular **-ing/-ed/-es** are deliberately unhandled (no verifier — a wrong lemma resolves the word to something else). *running* → *run* still needs the tagger. |
+| Modal/noun homographs | training data | The one thing the tagger does **not** do. UD English-EWT has `can` 583× — **578 AUX vs 5 NOUN** — so both the tag dictionary and the model correctly learn it is always an auxiliary. A different model won't fix it; only a corpus carrying the noun sense will. Pinned in `posEn.test.ts` so it isn't re-filed as a bug. |
+| Proper-noun recall | — | The tagger catches **85.5%** of names (precision 84.8%), so ~1 in 7 still reaches paid MT. Retraining on a news-weighted corpus is the lever — EWT is web text (reviews, forums), and the Media corpus is newswire. |
+| Reader-side lemma | — | ‼️ **Newly unblocked.** Regular **-ing/-ed/-es** were skipped because there was no verifier and a wrong lemma silently resolves to another word; the tagger's VERB/NOUN tag now IS that verifier. *running* → *run* is a `lemmaEn.ts` change gated on the token's tag. (Irregulars already resolve — tagging English is what let `dictionaryFormOf` reach the lemma at all.) |
 | Long-tail irregulars | — | Ingest Princeton `verb.exc`/`noun.exc` — bundled `lemmaCandidates` covers common forms only. **Not a drop-in:** the edge can take the whole file (the dictionary verifies each candidate), `lemmaEn.ts` needs it filtered by its own rule — the surface must not itself be a common word (`EN_IRREGULAR_EXCLUDED`: *saw · left · found · felt*). One file, two policies. |
 | Band coverage | — | Only **27.7%** of common single-word WordNet lemmas are CEFR-banded (7,791 of 28,144; **31.8%** of the 23,271 that also have a JA translation). ⚠️ The raw "138,905 of 147,306 unbanded" is misleading — most are taxonomic/multiword. Of the ~20.4k *common* unbanded, 2,181 are regular inflections of a banded word and the top of the list is irregulars (*said · made · taken · gone*), comparatives and proper nouns — **fix lemmas + names before buying a bigger list.** |
 | Per-POS bands | — | CEFR-J ships `headword,pos,CEFR`; `build-proficiency-cefr.py` keeps headword+CEFR only and collapses to the easiest band. Keeping `pos` gives per-POS bands (PK → `(surface, pos)`) — the cheap English down-payment on the per-sense axis. |
-| Sense disambiguation in context | partly the tagger | **75%** of banded EN lemmas are polysemous (mean 4.21 synsets, max 75). Lesk over `definition_en` + the reader's sentence needs no new data. |
+| Sense disambiguation in context | — | ‼️ **Newly unblocked.** **75%** of banded EN lemmas are polysemous (mean 4.21 synsets, max 75). Lesk over `definition_en` + the reader's sentence needs no new data, and the tagger's tag now narrows the synset set by POS before Lesk runs. |
 | Derived-form band | per-POS bands | `growing` takes the list's B2 rather than inheriting `grow`'s A1 plus a penalty. Pool ORDERING is handled (`20260761`); placement is not. |
 | Pronunciation | — | No IPA or stress for English. **CMUdict** (BSD-2-Clause, commercial OK, attribution) → `input_reading`, which is NULL on EN rows and already renders as ruby — no schema change. Keep the stress digits: stress matters as much as phonemes for JA natives. |
 | Compound handling | — | JA has `compounds.ts`; EN has nothing (*bus stop* → two words). Marginal. |

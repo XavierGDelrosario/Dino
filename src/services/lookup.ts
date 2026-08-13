@@ -341,6 +341,18 @@ export async function translateParagraph(params: {
   const keyOf = (t: AnalyzedToken) => nfc(t.lemma ?? t.text);
   const uniqueKeys = [...new Set(tokens.map(keyOf))];
 
+  // Keys the English tagger called PROPN. These still get looked UP — a name the
+  // dictionary knows (Japan, Muslim, Internet) is ordinary vocabulary and must stay
+  // addable — they simply never escalate a MISS to paid MT. That is the whole point of
+  // the tagger: measured on en.wikinews, 23.5% of lookup keys miss the dictionary
+  // against 5.5% for Japanese, and the misses are overwhelmingly names, each one a
+  // billed Google call cached as a verified row the reader then offers to save.
+  //
+  // Keyed by keyOf, not by surface, because that is what `missing` holds.
+  const properNounKeys = new Set(
+    tokens.filter((t) => t.pos === "PROPN").map(keyOf),
+  );
+
   // All meanings in ONE query (client cache + a single .in() read); the misses take ONE
   // batched edge call below, so a long paragraph costs two round-trips, not hundreds.
   const meaningsByKey = await findWordTranslationsBatch({
@@ -354,7 +366,10 @@ export async function translateParagraph(params: {
     // second DICTIONARY-ONLY batch (see isJunkKatakana). Both fly in parallel, so the
     // split costs no latency. A failure is non-fatal: those words render uncolored.
     const katakana = missing.filter(isKatakanaOnly);
-    const rest = missing.filter((k) => !isKatakanaOnly(k));
+    const propn = missing.filter((k) => !isKatakanaOnly(k) && properNounKeys.has(k));
+    const rest = missing.filter(
+      (k) => !isKatakanaOnly(k) && !properNounKeys.has(k),
+    );
     try {
       const batches = await Promise.all([
         rest.length > 0
@@ -371,6 +386,14 @@ export async function translateParagraph(params: {
               sourceLang: resolvedSource,
               targetLang,
               dictionaryOnly: true, // a katakana miss never reaches paid MT
+            })
+          : null,
+        propn.length > 0
+          ? translateBatch({
+              inputs: propn,
+              sourceLang: resolvedSource,
+              targetLang,
+              dictionaryOnly: true, // nor does a proper-noun miss (see properNounKeys)
             })
           : null,
       ]);
