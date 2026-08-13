@@ -115,6 +115,31 @@ Fix VOLUME first, then price.
 ### Media tab — deep analysis for longer works
 - Extension content
 
+### Sense enrichment — example sentence + source-language definition per meaning
+- **Built:** `sense_curation` (migrations 20260750–52, keyed on `dictionary_ref` + language
+  pair) ← `npm run validate:sense-examples` (the kuromoji gate) → `npm run
+  ingest:sense-examples` (deletes + reloads the pair from the file, then backfills cached
+  `words` — a saved word is read straight off `words`, so skipping it starves exactly the
+  words a user studies). Shows in the reader hover card, the flashcard back, Lists, and the
+  article word list.
+- **What's left is the CORPUS.** `data/sense_examples/ja.tsv` = **659 senses / 374 entries**.
+  Senses by headword frequency ≥500 = 4,534 · ≥400 = 16,880 · all 251,734 (~280 B/row
+  measured on prod ⇒ ≈1.3 MB · ≈5 MB · ≈70 MB).
+- **No coverage query** — batches are picked by hand. A script listing the highest-frequency
+  senses missing from the tsv would pick them from data instead.
+- **EN→JA (`en.tsv`) not started.** The ingest already scopes its DELETE per language pair.
+- **Authoring rules** (long form in the tsv header): demonstrate THAT sense · natural JA in
+  the word's register · short enough for a hover card · definitions as a monolingual
+  dictionary writes them, carrying the collocation/negation habits a gloss cannot (遜色
+  glossed "inferiority" invites the unnatural 遜色がある; the definition says 多くは「ない」を伴って使う).
+  - ⚠️ **No difficulty ceiling on supporting vocabulary.**「この部屋は書斎と客間を兼ねている」 is the natural
+    sentence even though 書斎/客間 aren't easier than 兼ねる. **The rabbit hole is the feature.**
+    Do not re-impose.
+- **The definitions are AUTHORED, not sourced.** JMdict glosses are target-language only;
+  WordNet's non-English `synset_def` rows (`ingest-wordnet.ts` filters `d.lang = 'eng'`) read
+  like translated English and cover only synset-linked words — verify coverage before
+  treating it as a shortcut.
+
 ### Camera / OCR — photo → text
 - **Built:** Mode A on iOS (Apple Vision via `TextOcrPlugin.swift`, per-line boxes), camera
   **and** photo-library sources, crop-before-recognize, reading-order assembly.
