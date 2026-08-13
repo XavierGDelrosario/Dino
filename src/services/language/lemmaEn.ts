@@ -15,6 +15,9 @@
 // DELIBERATELY NOT HANDLED (the edge still covers these for LOOKUP):
 //   · regular -ing/-ed — needs a verifier to choose strip-3 vs strip-3+e, and -ing
 //     forms are frequently nouns in their own right (building, meeting, feeling).
+//     EXCEPT where Princeton WordNet names the base outright (abetted→abet,
+//     abhorring→abhor): those come from `irregularsEn.generated.ts`, where there is
+//     nothing to guess at, so the objection above does not apply to them.
 //   · -es plurals — "buses"→bus and "cases"→case can't be told apart by suffix.
 //   · irregulars whose surface is a common word (see EN_IRREGULAR_EXCLUDED), where
 //     mapping "left"→leave would cost the direction sense.
@@ -22,9 +25,15 @@
 //     and the common ones are already closed-class words the reader never looks up.
 
 import type { LangCode } from "./registry";
+import { EN_IRREGULARS_WORDNET } from "./irregularsEn.generated";
 
 /** Irregular past/participle → base, plural → singular. INCLUSION RULE: the surface
- *  must not itself be a common English word (see EN_IRREGULAR_EXCLUDED). */
+ *  must not itself be a common English word (see EN_IRREGULAR_EXCLUDED).
+ *
+ *  Kept BY HAND even though the generated WordNet map below covers the long tail:
+ *  WordNet lists exceptions to its own morphology rules, so `does`, `women` and `people`
+ *  are missing from it and `is` is listed against itself. These are the forms a learner
+ *  actually meets, so they stay explicit and stay first. */
 const EN_IRREGULARS: Readonly<Record<string, string>> = {
   // strong verbs — past / past participle → base
   ran: "run", sat: "sit", went: "go", gone: "go", took: "take", taken: "take",
@@ -52,6 +61,12 @@ export const EN_IRREGULAR_EXCLUDED: readonly string[] = [
   "met", "read", "held", "kept", "led", "sent", "spent", "built", "made",
   "paid", "heard", "meant", "thought", "people",
 ];
+
+/** The exclusion applies to the GENERATED map too, and there it is load-bearing rather
+ *  than documentary: the generator drops a surface that is itself a WordNet lemma, which
+ *  independently reproduces 21 of the 23 above — but not `met` or `meant`, which WordNet
+ *  does not list as lemmas. Without this set those two would start resolving. */
+const EXCLUDED = new Set(EN_IRREGULAR_EXCLUDED);
 
 /** Words ending in -s that are not plurals — stripping would invent a word. */
 const NOT_A_PLURAL = new Set([
@@ -92,6 +107,16 @@ export function englishLemma(surface: string): string | null {
 
   const irregular = EN_IRREGULARS[w];
   if (irregular) return irregular;
+
+  // The WordNet long tail (aardwolves→aardwolf, abetted→abet). Filtered at BUILD time to
+  // entries that cannot be wrong without a verifier — single token, exactly one base, and
+  // the surface is not itself a WordNet lemma — which is the mechanical form of this
+  // file's inclusion rule. It also settles the doubled-consonant -ing/-ed forms the
+  // header defers, because WordNet states the base instead of us guessing at the stem.
+  if (!EXCLUDED.has(w)) {
+    const listed = EN_IRREGULARS_WORDNET[w];
+    if (listed) return listed;
+  }
 
   // Gates EVERY -s rule, not just the plain one: "series"/"species" end in -ies and
   // would otherwise become "sery"/"specy" before this check was reached.

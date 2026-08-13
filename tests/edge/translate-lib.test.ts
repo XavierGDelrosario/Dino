@@ -1085,3 +1085,29 @@ describe("preferWrittenForm", () => {
     expect(preferWrittenForm(one, "質")).toBe(one);
   });
 });
+
+describe("lemmaCandidates — the WordNet long tail (_irregulars.generated)", () => {
+  const has = (input: string, lemma: string) => lemmaCandidates(input, "EN").includes(lemma);
+
+  it("offers bases the hand map never listed", () => {
+    expect(has("aardwolves", "aardwolf")).toBe(true);
+    expect(has("crises", "crisis")).toBe(true);
+    expect(has("abetted", "abet")).toBe(true);
+  });
+
+  it("offers EVERY base for an ambiguous entry — the dictionary picks", () => {
+    // The reader map drops these; here over-generating is free because each candidate
+    // is verified, and dropping one would lose a real word.
+    expect(has("axes", "ax")).toBe(true);
+    expect(has("axes", "axis")).toBe(true);
+  });
+
+  it("keeps the surface first and the curated base ahead of the WordNet one", () => {
+    expect(lemmaCandidates("saw", "EN")[0]).toBe("saw");
+    expect(lemmaCandidates("saw", "EN")[1]).toBe("see"); // curated, not WordNet's ordering
+  });
+
+  it("reaches the long tail through a possessive too", () => {
+    expect(has("wolves'", "wolf")).toBe(true);
+  });
+});

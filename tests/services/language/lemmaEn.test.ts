@@ -145,6 +145,47 @@ describe("englishLemma — declines rather than guess", () => {
   });
 });
 
+describe("englishLemma — the WordNet long tail (irregularsEn.generated)", () => {
+  it("resolves irregulars the hand map never listed", () => {
+    expect(englishLemma("aardwolves")).toBe("aardwolf");
+    expect(englishLemma("abaci")).toBe("abacus");
+    expect(englishLemma("criteria")).toBe("criterion");
+    expect(englishLemma("phenomena")).toBe("phenomenon");
+    expect(englishLemma("crises")).toBe("crisis");
+  });
+
+  it("resolves the doubled-consonant forms the rules deliberately refuse to guess", () => {
+    // The header defers regular -ing/-ed because strip-3 vs strip-3+e needs a verifier.
+    // WordNet names the base outright, so there is nothing left to guess.
+    expect(englishLemma("abetted")).toBe("abet");
+    expect(englishLemma("abhorring")).toBe("abhor");
+  });
+
+  it("still honours EN_IRREGULAR_EXCLUDED, which the generator alone would not catch", () => {
+    // WordNet lists met→meet and meant→mean, and does NOT carry either surface as a
+    // lemma — so only the curated set keeps them unresolved. This is the regression
+    // guard for the whole exclusion mechanism.
+    expect(englishLemma("met")).toBeNull();
+    expect(englishLemma("meant")).toBeNull();
+  });
+
+  it("holds back entries whose surface is a word in its own right", () => {
+    // Dropped at BUILD time. "fungi" and "rose" are WordNet lemmas themselves, so the
+    // reader leaves them as written even though the exception list maps them; "axes"
+    // has two bases (ax, axis) and there is no verifier here to choose.
+    expect(englishLemma("fungi")).toBeNull();
+    expect(englishLemma("rose")).toBeNull();
+    expect(englishLemma("axes")).not.toBe("ax");
+    expect(englishLemma("axes")).not.toBe("axis");
+  });
+
+  it("keeps the curated map ahead of the generated one", () => {
+    // WordNet has no entry for these at all; they must not regress to null.
+    expect(englishLemma("women")).toBe("woman");
+    expect(englishLemma("children")).toBe("child");
+  });
+});
+
 describe("readerLemma — language gating", () => {
   it("applies only to English", () => {
     expect(readerLemma("cats", "EN")).toBe("cat");
