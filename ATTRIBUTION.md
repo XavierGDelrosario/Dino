@@ -55,6 +55,13 @@ We ship only the derived `wordnet_*` numbers/mappings (synset ids, lemmas, sense
 ranks), not the original release files. The user-facing app footer notice
 (`AttributionFooter.tsx`) credits these sources alongside JMdict.
 
+**Princeton WordNet is used a second, separate way:** the English irregular-inflection
+maps (`data/irregulars/en.tsv` and the two generated modules built from it by
+`scripts/build-irregulars.ts`) are derived from WordNet 3.0's morphology exception
+lists `dict/{verb,noun,adj,adv}.exc`, with `dict/index.*` used only to decide which
+entries are safe for the reader. Same WordNet License as above; we ship the derived
+surface→base pairs, not the release files.
+
 ## Proficiency band — JLPT (`data/proficiency/ja.tsv`)
 
 The Japanese proficiency-label signal (the JLPT band shown as extra info, and the

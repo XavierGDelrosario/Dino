@@ -145,6 +145,75 @@ describe("englishLemma — declines rather than guess", () => {
   });
 });
 
+describe("englishLemma — the WordNet long tail (irregularsEn.generated)", () => {
+  it("resolves irregulars the hand map never listed", () => {
+    expect(englishLemma("aardwolves")).toBe("aardwolf");
+    expect(englishLemma("abaci")).toBe("abacus");
+    expect(englishLemma("criteria")).toBe("criterion");
+    expect(englishLemma("phenomena")).toBe("phenomenon");
+    expect(englishLemma("crises")).toBe("crisis");
+  });
+
+  it("resolves the doubled-consonant forms the rules deliberately refuse to guess", () => {
+    // The header defers regular -ing/-ed because strip-3 vs strip-3+e needs a verifier.
+    // WordNet names the base outright, so there is nothing left to guess.
+    expect(englishLemma("abetted")).toBe("abet");
+    expect(englishLemma("abhorring")).toBe("abhor");
+  });
+
+  it("still honours EN_IRREGULAR_EXCLUDED, which the generator alone would not catch", () => {
+    // WordNet lists met→meet and meant→mean, and does NOT carry either surface as a
+    // lemma — so only the curated set keeps them unresolved. This is the regression
+    // guard for the whole exclusion mechanism.
+    expect(englishLemma("met")).toBeNull();
+    expect(englishLemma("meant")).toBeNull();
+  });
+
+  it("holds back entries whose surface is a word in its own right", () => {
+    // Dropped at BUILD time. "fungi" and "rose" are WordNet lemmas themselves, so the
+    // reader leaves them as written even though the exception list maps them; "axes"
+    // has two bases (ax, axis) and there is no verifier here to choose.
+    expect(englishLemma("fungi")).toBeNull();
+    expect(englishLemma("rose")).toBeNull();
+    expect(englishLemma("axes")).not.toBe("ax");
+    expect(englishLemma("axes")).not.toBe("axis");
+  });
+
+  it("holds back a plural that is also somebody's -s form, but not its neighbours", () => {
+    // «he lives in Tokyo» must not answer "life". WordNet lists lives→life and knows no
+    // verb reading, so the build rule checks the stripped stem instead: `live`, `shelve`
+    // and `halve` are real verbs, so those three are held back — while `wolves` and
+    // `knives` keep resolving, there being no verb `wolve` or `knive`.
+    for (const w of ["lives", "shelves", "halves", "calves", "thieves"]) {
+      expect(englishLemma(w)).toBeNull();
+    }
+    expect(englishLemma("wolves")).toBe("wolf");
+    expect(englishLemma("knives")).toBe("knife");
+  });
+
+  it("keeps the curated map ahead of the generated one", () => {
+    // WordNet has no entry for these at all; they must not regress to null.
+    expect(englishLemma("women")).toBe("woman");
+    expect(englishLemma("children")).toBe("child");
+  });
+});
+
+describe("englishLemma — keys that are Object.prototype members", () => {
+  it("treats 'constructor' as the ordinary English word it is", () => {
+    // A constructor is a builder, and WordNet lists it. Because the irregular maps are
+    // object literals, `EN_IRREGULARS["constructor"]` used to return a FUNCTION, which
+    // this returned as if it were a lemma.
+    expect(englishLemma("constructor")).toBeNull();
+    expect(englishLemma("constructors")).toBe("constructor");
+  });
+
+  it("survives every other inherited key", () => {
+    for (const w of ["valueOf", "toString", "isPrototypeOf", "hasOwnProperty", "__proto__"]) {
+      expect(typeof englishLemma(w)).not.toBe("function");
+    }
+  });
+});
+
 describe("readerLemma — language gating", () => {
   it("applies only to English", () => {
     expect(readerLemma("cats", "EN")).toBe("cat");

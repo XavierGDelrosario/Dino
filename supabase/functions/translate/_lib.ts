@@ -4,6 +4,19 @@
 // imports supabase-js by URL and starts a server at import. Nothing here touches Deno,
 // Request, env or the network; index.ts does all the I/O and calls these.
 
+// The one import, and it is generated data, not behaviour: Princeton WordNet's irregular
+// inflections. `.ts` extension for Deno; Vitest and tsc both accept it.
+import { EN_IRREGULARS_WORDNET } from "./_irregulars.generated.ts";
+
+/** `map[key]`, but only if `key` is the map's OWN property. An object literal inherits
+ *  Object.prototype, so `EN_IRREGULARS["constructor"]` returns a FUNCTION for a word a
+ *  learner can legitimately type, and this function used to throw on it. Mirrored from
+ *  src/lib/own.ts — separate runtime, so it cannot be imported. */
+function own<T>(map: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
+
 /** One projected sense: translation + optional per-side readings + JMdict identity. */
 export interface ProviderResult {
   translation: string;
@@ -469,9 +482,13 @@ export function isRomanizedName(
   return ROMANIZED_NAME.test(translation.normalize("NFC").trim());
 }
 
-// Irregular English inflections the detachment rules below can't derive. Common forms
-// only; the long tail is Princeton WordNet's verb.exc/noun.exc (a future ingest). A key
-// that is also a valid lemma (saw, rose, left) is harmless — the SURFACE is tried first.
+// Irregular English inflections the detachment rules below can't derive. A key that is
+// also a valid lemma (saw, rose, left) is harmless — the SURFACE is tried first.
+//
+// This hand map stays AHEAD of the generated WordNet one and is not redundant with it:
+// WordNet lists exceptions to its OWN morphology rules, so `does`, `women` and `people`
+// are absent from it entirely and `is` is listed against itself. These are the forms a
+// learner actually types.
 const EN_IRREGULARS: Record<string, string> = {
   // be / have / do
   was: "be", were: "be", been: "be", am: "be", are: "be", is: "be",
@@ -584,7 +601,12 @@ export function lemmaCandidates(input: string, sourceLang: string): string[] {
     const k = c.toLowerCase();
     if (!seen.has(k)) { seen.add(k); cands.push(c); }
   };
-  if (EN_IRREGULARS[w]) push(EN_IRREGULARS[w]);
+  const curated = own(EN_IRREGULARS, w);
+  if (curated) push(curated);
+  // The WordNet long tail, AFTER the curated map so the common reading stays first, and
+  // BEFORE the detachment rules so "abetted"→abet beats the guess "abetted"→abett.
+  // Ambiguous entries (axes → ax, axis) contribute every base: the lookup verifies them.
+  for (const b of own(EN_IRREGULARS_WORDNET, w) ?? []) push(b);
   for (const c of regularLemmaCandidates(w)) push(c);
   // POSSESSIVES: strip the marker and run the same rules over the stem. Without this
   // the only -s rule to fire on "europe's" eats the s and leaves "europe'" — a
@@ -594,7 +616,9 @@ export function lemmaCandidates(input: string, sourceLang: string): string[] {
   const bare = w.replace(/['’]s$/, "").replace(/['’]$/, "");
   if (bare !== w && bare.length >= 2) {
     push(bare);
-    if (EN_IRREGULARS[bare]) push(EN_IRREGULARS[bare]); // children's → children → child
+    const curatedBare = own(EN_IRREGULARS, bare);
+    if (curatedBare) push(curatedBare); // children's → children → child
+    for (const b of own(EN_IRREGULARS_WORDNET, bare) ?? []) push(b); // wolves' → wolves → wolf
     for (const c of regularLemmaCandidates(bare)) push(c); // workers' → workers → worker
   }
   return cands;
@@ -813,7 +837,7 @@ export function applyReadingOverride<T extends { inputReading: string | null }>(
   surface: string,
   senses: T[],
 ): T[] {
-  const pref = SINGLE_WORD_READING_OVERRIDES[surface];
+  const pref = own(SINGLE_WORD_READING_OVERRIDES, surface);
   if (!pref || senses.length < 2) return senses;
   const match = senses.filter((s) => s.inputReading === pref);
   if (match.length === 0 || match.length === senses.length) return senses;
@@ -825,7 +849,7 @@ export function applyWritingOverride<T extends { input: string }>(
   surface: string,
   senses: T[],
 ): T[] {
-  const pref = SINGLE_WORD_WRITING_OVERRIDES[surface];
+  const pref = own(SINGLE_WORD_WRITING_OVERRIDES, surface);
   if (!pref || senses.length < 2) return senses;
   const match = senses.filter((s) => s.input === pref);
   if (match.length === 0 || match.length === senses.length) return senses;

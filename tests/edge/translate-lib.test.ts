@@ -1085,3 +1085,47 @@ describe("preferWrittenForm", () => {
     expect(preferWrittenForm(one, "質")).toBe(one);
   });
 });
+
+describe("lemmaCandidates — the WordNet long tail (_irregulars.generated)", () => {
+  const has = (input: string, lemma: string) => lemmaCandidates(input, "EN").includes(lemma);
+
+  it("offers bases the hand map never listed", () => {
+    expect(has("aardwolves", "aardwolf")).toBe(true);
+    expect(has("crises", "crisis")).toBe(true);
+    expect(has("abetted", "abet")).toBe(true);
+  });
+
+  it("offers EVERY base for an ambiguous entry — the dictionary picks", () => {
+    // The reader map drops these; here over-generating is free because each candidate
+    // is verified, and dropping one would lose a real word.
+    expect(has("axes", "ax")).toBe(true);
+    expect(has("axes", "axis")).toBe(true);
+  });
+
+  it("keeps the surface first and the curated base ahead of the WordNet one", () => {
+    expect(lemmaCandidates("saw", "EN")[0]).toBe("saw");
+    expect(lemmaCandidates("saw", "EN")[1]).toBe("see"); // curated, not WordNet's ordering
+  });
+
+  it("reaches the long tail through a possessive too", () => {
+    expect(has("wolves'", "wolf")).toBe(true);
+  });
+});
+
+describe("lemmaCandidates — keys that are Object.prototype members", () => {
+  it("does not throw on 'constructor', which is a real English word", () => {
+    // Regression: the irregular maps are object literals, so map["constructor"] returned
+    // Object.prototype.constructor — a function — and push() threw
+    // "c.toLowerCase is not a function", 500ing the edge for a legitimate lookup.
+    expect(() => lemmaCandidates("constructor", "EN")).not.toThrow();
+    expect(lemmaCandidates("constructor", "EN")[0]).toBe("constructor");
+  });
+
+  it("survives every other inherited key, in both the plain and possessive paths", () => {
+    for (const w of ["valueOf", "toString", "isPrototypeOf", "hasOwnProperty", "__proto__"]) {
+      expect(() => lemmaCandidates(w, "EN")).not.toThrow();
+      expect(() => lemmaCandidates(`${w}'s`, "EN")).not.toThrow();
+      for (const c of lemmaCandidates(w, "EN")) expect(typeof c).toBe("string");
+    }
+  });
+});
