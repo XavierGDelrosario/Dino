@@ -10,6 +10,7 @@ const MAX_SHOWN = 12; // absolute ceiling, even when expanded
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { SenseText } from "../common/SenseText";
+import { SenseExample } from "../common/SenseExample";
 import { AddToListButton } from "./AddToListButton";
 import { useI18n } from "../../i18n";
 import "./translate.css";
@@ -20,6 +21,7 @@ export function WordResults({
   saved,
   confidence,
   lists,
+  userId,
   onAdd,
   onCreateList,
 }: {
@@ -28,6 +30,8 @@ export function WordResults({
   saved: Set<string>;
   confidence: Map<string, number>;
   lists: List[];
+  /** Enables the knowledge-coloured reader inside an example sentence (SenseExample). */
+  userId: string;
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
 }) {
@@ -56,6 +60,20 @@ export function WordResults({
       {saved.has(word.wordId) && (
         <em className="sense__conf">✓ {confidence.get(word.wordId) ?? 0}/5</em>
       )}
+      {/* "Tell me more about this sense" — grouped with the confidence readout rather
+          than with the add button, the same split Lists makes between information and
+          actions. Renders NOTHING unless the sense actually carries an example or a
+          definition, so most rows are unchanged. For EN→JA that definition is the
+          English one WordNet supplies per synset (20260764), which is what separates
+          spring→春 from spring→ばね at the point of choosing. */}
+      <SenseExample
+        example={word.example}
+        exampleGloss={word.exampleGloss}
+        definitionSource={word.definitionSource}
+        userId={userId}
+        sourceLang={word.sourceLang}
+        targetLang={word.targetLang}
+      />
       <AddToListButton
         words={[word]}
         lists={lists}

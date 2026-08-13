@@ -1069,7 +1069,22 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: wordnet_en_ja_lookup", () => {
     sense_position: number;
     jmdict_entry_id: string | null;
     frequency: number | null;
+    definition_en: string | null;
   };
+
+  /** The candidate lemmas below; whichever resolves first against the loaded JMdict. */
+  const RESOLVABLE = ["cat", "spring", "water", "book", "dog", "hand", "time"];
+  async function firstResolving(
+    svc: NonNullable<ReturnType<typeof serviceClient>>,
+  ): Promise<WnRow[]> {
+    for (const word of RESOLVABLE) {
+      const { data, error } = await svc.rpc("wordnet_en_ja_lookup", { p_input: word });
+      expect(error).toBeNull();
+      const rows = (data ?? []) as WnRow[];
+      if (rows.length > 0) return rows;
+    }
+    return [];
+  }
 
   it("returns synset-grouped JA senses for an English lemma (skips if WordNet/JMdict not ingested)", async () => {
     const svc = serviceClient();
@@ -1101,6 +1116,51 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: wordnet_en_ja_lookup", () => {
     // entries are distinct (deduped by jmdict_entry_id).
     const ids = rows.map((r) => r.jmdict_entry_id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // 20260764 §2. A katakana loanword headwords as its own kana, so the writing and the
+  // reading were the SAME string and the reader rendered コンピューター(コンピューター).
+  // Asserted as the INVARIANT rather than against a fixture word: whichever lemma this
+  // environment's JMdict subset happens to resolve, no row may annotate a term with
+  // itself. (Prod measurement at the time of the fix: 679 of 779 katakana EN→JA rows
+  // were doing exactly this.)
+  it("never returns a translation_reading identical to its translation", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data: probe } = await svc.from("wordnet_senses_en").select("lemma").limit(1);
+    if (!probe || probe.length === 0) return; // WordNet not ingested → skip
+    const rows = await firstResolving(svc);
+    if (rows.length === 0) return; // JMdict absent/minimal → skip
+
+    for (const r of rows) {
+      if (r.translation_reading !== null) {
+        expect(r.translation_reading).not.toBe(r.translation);
+      }
+    }
+  });
+
+  // 20260764 §1. wordnet_synsets.definition_en was populated for every synset and read
+  // by nothing. It now rides out on the row, per SENSE — the definition belongs to the
+  // synset that WON the ranking for that Japanese lemma, which is what lets a learner
+  // tell spring→春 from spring→ばね without reading Japanese first.
+  it("returns the winning synset's English definition", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data: probe } = await svc
+      .from("wordnet_synsets")
+      .select("definition_en")
+      .not("definition_en", "is", null)
+      .limit(1);
+    if (!probe || probe.length === 0) return; // WordNet not ingested → skip
+    const rows = await firstResolving(svc);
+    if (rows.length === 0) return; // JMdict absent/minimal → skip
+
+    // Not every row is guaranteed a definition (a synset may lack one), but the column
+    // must exist and at least one row must carry real prose — a shape-only pass would
+    // let a projection that dropped the value slip through.
+    expect(rows[0]).toHaveProperty("definition_en");
+    const defined = rows.filter((r) => (r.definition_en ?? "").trim().length > 0);
+    expect(defined.length).toBeGreaterThan(0);
   });
 });
 

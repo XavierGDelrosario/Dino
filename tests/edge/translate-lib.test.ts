@@ -160,6 +160,29 @@ describe("projectRows", () => {
     expect(row.translation_reading).toBe("ねこ");
   });
 
+  // 20260764. `definition_source` is "the definition in the SOURCE language", so the
+  // column that carries a Japanese definition on a JA→EN row carries the WordNet
+  // English one on an EN→JA row. Same field, no direction-specific branch — this pins
+  // that, because a projection that quietly dropped it would leave the definition
+  // reaching the cache for one direction only.
+  it("EN→JA: the English definition rides in definition_source", () => {
+    const enja: ProviderResult = {
+      translation: "ばね",
+      entryId: "1610575",
+      sensePos: 0,
+      definitionSource: "a metal elastic device that returns to its shape after being compressed",
+    };
+    const [row] = projectRows([enja], "spring", "EN", "JA", 14);
+    expect(row.definition_source).toBe(
+      "a metal elastic device that returns to its shape after being compressed",
+    );
+  });
+
+  it("a sense with no definition stores null, not undefined", () => {
+    const [row] = projectRows([JA_SENSE], "ねこ", "JA", "EN", 14);
+    expect(row.definition_source).toBeNull();
+  });
+
   it("MT fallback: no entryId → ref 'mt:<input>', input is the search term", () => {
     const mt: ProviderResult = { translation: "[MT] hi" };
     const [row] = projectRows([mt], "やあ", "JA", "EN", 2);

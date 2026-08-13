@@ -54,7 +54,7 @@ import {
 // ANSWER is re-projected. Don't bump when the row can be corrected in place (e.g. an
 // ingest that backfills `words` directly) — that just stampedes the whole cache.
 // See src/lib/projection.ts for the full contract and the version history.
-const CURRENT_PROJECTION_VERSION = 13;
+const CURRENT_PROJECTION_VERSION = 14;
 
 // The READ side of that stamp: a row below the current version is a cache MISS, and the
 // re-projection upserts on `dictionary_ref` so it UPDATEs in place (word_id survives,
@@ -237,12 +237,20 @@ type LookupRow = {
   frequency: number | null;
   proficiency_band: number | null;
   part_of_speech: string[] | null;
+  // 20260764: the winning synset's English definition. Present on WordNet rows only —
+  // jmdict_lookup is the gloss fallback for words WordNet lacks, and a word WordNet
+  // lacks has no definition to give, so it does not return this column at all.
+  definition_en?: string | null;
 };
 function rowToProvider(row: LookupRow): ProviderResult {
   return {
     translation: row.translation,
     inputReading: row.input_reading ?? null,
     translationReading: row.translation_reading ?? null,
+    // Lands in `words.definition_source` — "the definition IN THE SOURCE LANGUAGE",
+    // which for an EN→JA row is English, mirroring the Japanese definition a JA→EN row
+    // carries. Undefined on every non-WordNet row, so this is null everywhere else.
+    definitionSource: row.definition_en ?? null,
     headword: row.writing ?? null,
     entryId: row.jmdict_entry_id ?? null,
     sensePos: row.sense_position ?? null,
@@ -516,7 +524,12 @@ async function applySenseExamples(
       if (!hit) continue;
       r.example = hit.example;
       r.exampleGloss = hit.example_gloss;
-      r.definitionSource = hit.definition_source;
+      // ‼️ `??`, not `=`. Since 20260764 a definition can arrive from TWO places: hand
+      // authored here, or generated from the WordNet synset the EN→JA row resolved
+      // through. Authored still wins — but a curation row written for some OTHER field
+      // (a pinned reading, a sense_rank) carries definition_source NULL, and a plain
+      // assignment would let that blank erase a definition the lookup had supplied.
+      r.definitionSource = hit.definition_source ?? r.definitionSource;
       r.exampleReading = hit.example_reading;
       r.senseRank = hit.sense_rank;
     }
