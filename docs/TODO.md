@@ -257,7 +257,6 @@ It only bites when English is the **learning target**.
 | Per-POS bands | — | CEFR-J ships `headword,pos,CEFR`; `build-proficiency-cefr.py` keeps headword+CEFR only and collapses to the easiest band. Keeping `pos` gives per-POS bands (PK → `(surface, pos)`) — the cheap English down-payment on the per-sense axis. |
 | Sense disambiguation in context | partly the tagger | **75%** of banded EN lemmas are polysemous (mean 4.21 synsets, max 75). Lesk over `definition_en` + the reader's sentence needs no new data. |
 | Derived-form band | per-POS bands | `growing` takes the list's B2 rather than inheriting `grow`'s A1 plus a penalty. Pool ORDERING is handled (`20260761`); placement is not. |
-| Pronunciation | — | No IPA or stress for English. **CMUdict** (BSD-2-Clause, commercial OK, attribution) → `input_reading`, which is NULL on EN rows and already renders as ruby — no schema change. Keep the stress digits: stress matters as much as phonemes for JA natives. |
 | Compound handling | — | JA has `compounds.ts`; EN has nothing (*bus stop* → two words). Marginal. |
 | Frequency source | — | EN uses generic wordfreq; **SUBTLEX-US** (CC-BY-SA, commercial-OK) is the better learner fit. |
 | EN→JA sense quality | — | WordNet synsets lead, gloss fills; grouping never live-verified (spring 春/泉/ばね). ⚠️ `wordnet_senses_en.sense_rank` is **0 on all 206,941 rows** — wnjpn ships no ranks — so the intra-tier tiebreak `20260747` reserves for WordNet's own sense order is INERT. `headline_rank` carries the ordering alone (measured 28/30 top-1). Princeton `index.sense` tag counts would fill it; ids line up (`07125096-n` = offset+POS), so bundle it into any `wordnet_*` re-ingest rather than doing it alone. |
@@ -265,6 +264,8 @@ It only bites when English is the **learning target**.
 **Not gaps — do not file these.** Furigana, the reading/writing override tables, context
 sense ordering (`senseOrder`) and potential-verb/する candidates all key on a **reading**,
 which English does not have; sense examples + JA definitions are JA→EN by design.
+- **Written pronunciation (IPA/stress) — deferred, `services/voice` already speaks the
+  word.** Costing and the `input_reading` cache-key trap live in `QualityLimitations.md` §2.
 - **EN POS offsets in the leveling profile — measured, rejected.** Each class overstates
   its band by adjective **+7** · noun **+3** · verb **−9** · adverb **−11** (Zipf×100, over
   8,316 banded CEFR words) vs Japanese affix **+58** / verb **−75**. ~6× smaller, inside

@@ -90,6 +90,32 @@ services**. Each item notes the fix / upgrade that removes it.
   surfaces, CEFR-J + Octanove) → `english_proficiency` table (migration `20260722`) → edge override
   stamps the ENGLISH input's CEFR band (verified: wonderful→A1, reluctantly→C1). So English now has
   BOTH a difficulty axis AND a curated level label (which leads over frequency).
+- **No WRITTEN pronunciation for English — deferred on purpose, and cheap when we want it.**
+  EN rows carry no IPA or stress (`input_reading` is NULL on all **5,923** of them), so a
+  JA-native learner sees the spelling and nothing about how to say it. **Low priority
+  because the app already SPEAKS the word:** `services/voice` is output-only, free, keyless
+  and quota-less, and gates a listen button wherever a word is shown. What **CMUdict**
+  (BSD-2-Clause, commercial OK, attribution) adds over audio is a *skimmable* phoneme +
+  stress string sitting next to the word — keep the stress digits, since stress matters as
+  much as phonemes for JA natives. **Cost, measured on prod 2026-08-13: ~13 MB.** CMUdict
+  0.7b's 133,854 entries at ~98 B/row, extrapolated from `english_frequency`'s measured
+  44.3 B/row heap + 34.6 B/row index with its int swapped for a ~22-char ARPABET string
+  (ASCII; IPA is multibyte and larger); plus ~140 KB to backfill the EN `words` rows and
+  ~4 MB of TSV in the repo, next to the 3.7 MB `data/frequency/en.tsv`. Prod is at 336.9 of
+  500 MB, so ~8% of what's left. One-time — no API, no per-use cost; the only recurring
+  cost is one extra serial round-trip on the EN→JA **miss** path beside the three existing
+  `applyEnglish*`/`applySenseExamples` awaits, and the per-environment ingest chore (it
+  won't be in `db:dump-seed`, so a fresh env is silently NULL until someone runs it).
+  - **Shape when built:** its own migration + server-only `english_pronunciation (surface
+    PK, …)` + its own `npm run ingest:english-pronunciation`, applied at projection with a
+    one-shot backfill — mirroring `english_frequency` / `english_proficiency`. Never folded
+    into a `wordnet_*` re-ingest.
+  - ⚠️ **`words.input_reading` is not a free landing slot.** It renders as ruby with no
+    schema change, but `fetchVerified` / `fetchVerifiedMany` match `input` **OR
+    `input_reading`** in BOTH directions, so a phonetic string silently becomes a cache
+    lookup key and feeds `preferWrittenForm`'s primary-slot choice (the 質 → たち class of
+    bug). A separate nullable column is inert but needs the ruby wired. Decide before
+    ingesting — reversing it later means rewriting cached rows.
 - **MT fallback (Google) is single-sense, reading-less.** Words JMdict lacks get one Google
   gloss, no reading, no multi-sense — lower quality than dictionary entries.
 
