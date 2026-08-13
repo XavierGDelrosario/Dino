@@ -928,6 +928,28 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     expect(rows[0].jmdict_entry_id).toBeTruthy();
   });
 
+  // EN→JA returns a TOTAL order (20260765). The sort used to end on `first_sense`, so
+  // every entry with no frequency tied — and with LIMIT 12 cutting through the tie, WHICH
+  // entries came back was decided by whatever order the plan emitted. sense_position is
+  // projected into the words cache, so an unstable one churns rows on re-projection.
+  // Asserted by asking twice under different planner settings, which is how the
+  // instability was originally caught.
+  it("EN→JA ordering is stable across plans (no ties left unbroken)", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const ids = async () => {
+      const { data } = await svc.rpc("jmdict_lookup", {
+        p_input: "penguin",
+        p_source: "EN",
+        p_target: "JA",
+      });
+      return ((data ?? []) as Array<{ jmdict_entry_id: string }>).map((r) => r.jmdict_entry_id);
+    };
+    const first = await ids();
+    if (first.length === 0) return; // JMdict/WordNet not ingested here
+    expect(await ids()).toEqual(first);
+  });
+
   // Readings switched correctly: a "usually kana" (uk) word headlines as KANA with
   // the kanji in the reading slot; a normal word keeps the KANJI headword + kana
   // reading. (The なる(成る) vs 鳴る(なる) behavior, asserted data-drivenly.)

@@ -170,16 +170,29 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🐞 Bugs · scalability · hardening</h2></summary>
 
-### EN→JA lookup is slow `[the one real performance item]`
-- **Measured on prod 2026-08-07:** `jmdict_lookup` EN→JA takes **5.0 s for "one"**, 4.3 s
-  "back", 2.9 s "own" — all CEFR A1 — against ~0.2 s for a B1 word. A frequent English word
-  appears in a huge share of JMdict's glosses.
+### EN→JA lookup `[largely addressed — 20260765]`
+- **Re-measured on prod 2026-08-13 and the old numbers no longer hold.** The entry read
+  "5.0 s for one, 4.3 s back, 2.9 s own" (2026-08-07); today those are **404 / 143 / 134 ms**.
+  Something between the two fixed the pathological case; nobody re-measured.
+- **`20260765` capped the candidate fan-out.** The cost was never mostly the gloss scan —
+  for "one" that is 141 ms of 519 ms (27%), the rest being the LATERAL headword resolution
+  running once per candidate entry, **7,693 times to return 12 rows**. The sort's first two
+  keys are computable from the scan alone, so they define tiers that dominate it; once the
+  top tiers hold 12 entries the rest cannot place. **"one" 404 → 191 ms (2.1×); 10 of 24
+  sampled words ≥1.5×; none slower.** A word with a thin top tier ("own": 7) keeps every
+  candidate and pays what it always did.
+- ⚠️ **The `gloss_terms` index this entry used to prescribe was built and REJECTED.** Both
+  shapes, on prod, inside a rolled-back transaction: materialised
+  `gloss_terms(term, entry_id, rank)` = 1,087,028 rows ≈ **85 MB**; `GIN(to_tsvector
+  ('simple', text))` = **10 MB** and measured **0.6–1.2×** over a median of 7 — noise, some
+  slower, because it addresses the 27%. Don't rebuild it. (85 MB would also have taken half
+  the free tier's remaining headroom — the word-map was deleted at 80 MB for that reason.)
+- **Still open, if it ever matters again:** a thin top tier plus a large T2 (`own`: 7 + 451)
+  prunes nothing. Ordering inside T2 needs `pref.frequency`, so it would need a cheap
+  per-entry frequency to pre-rank on — a materialised column, i.e. storage again.
 - **Already routed around** where it was fatal: the learn/placement path skips the gloss
   fallback entirely (`skipGlossFallback`), because the EN pool only emits surfaces WordNet
   can translate. That fixed A1/A2 placement timing out.
-- **Still slow on the ordinary path** — typing "back" into Translate pays those seconds.
-- **Fix if it matters:** materialize `gloss_terms(term, entry_id, rank)` with a btree on
-  `term`, replacing the `gl.text ~* '\yword\y'` regex-over-trigram scan.
 
 ### Test coverage
 - **Edge error-log e2e** — the sink contract is covered; driving a real failing edge path
