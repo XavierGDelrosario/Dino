@@ -257,10 +257,26 @@ It only bites when English is the **learning target**.
 | Per-POS bands | — | CEFR-J ships `headword,pos,CEFR`; `build-proficiency-cefr.py` keeps headword+CEFR only and collapses to the easiest band. Keeping `pos` gives per-POS bands (PK → `(surface, pos)`) — the cheap English down-payment on the per-sense axis. |
 | Sense disambiguation in context | partly the tagger | **75%** of banded EN lemmas are polysemous (mean 4.21 synsets, max 75). Lesk over `definition_en` + the reader's sentence needs no new data. |
 | Derived-form band | per-POS bands | `growing` takes the list's B2 rather than inheriting `grow`'s A1 plus a penalty. Pool ORDERING is handled (`20260761`); placement is not. |
-| Pronunciation | — | No IPA or stress for English. **CMUdict** (BSD-2-Clause, commercial OK, attribution) → `input_reading`, which is NULL on EN rows and already renders as ruby — no schema change. Keep the stress digits: stress matters as much as phonemes for JA natives. |
+| Pronunciation | — | No IPA or stress for English. **CMUdict** (BSD-2-Clause, commercial OK, attribution). Keep the stress digits: stress matters as much as phonemes for JA natives. **Own table, own ingest — see below.** |
 | Compound handling | — | JA has `compounds.ts`; EN has nothing (*bus stop* → two words). Marginal. |
 | Frequency source | — | EN uses generic wordfreq; **SUBTLEX-US** (CC-BY-SA, commercial-OK) is the better learner fit. |
 | EN→JA sense quality | — | WordNet synsets lead, gloss fills; grouping never live-verified (spring 春/泉/ばね). ⚠️ `wordnet_senses_en.sense_rank` is **0 on all 206,941 rows** — wnjpn ships no ranks — so the intra-tier tiebreak `20260747` reserves for WordNet's own sense order is INERT. `headline_rank` carries the ordering alone (measured 28/30 top-1). Princeton `index.sense` tag counts would fill it; ids line up (`07125096-n` = offset+POS), so bundle it into any `wordnet_*` re-ingest rather than doing it alone. |
+
+**Pronunciation is a STANDALONE ingest — it must not ride on anything else.** Mirror
+`english_frequency` / `english_proficiency` (`20260721` / `20260722`): its own migration, a
+server-only `english_pronunciation (surface PK, …)` keyed on the lowercased surface, its own
+`npm run ingest:english-pronunciation` (truncate + reload, one file, one table). Applied at
+projection by an `applyEnglishPronunciation` beside the other two — plus a **one-shot
+backfill of already-cached rows**, because Lists and the article word list read `words`
+straight through PostgREST and never touch the edge, so projection-only starves exactly the
+words a user saved (the `20260740` / sense-curation lesson). It is the one English item that
+must NOT be folded into a `wordnet_*` re-ingest.
+- ⚠️ **`words.input_reading` is not a free landing slot.** It buys ruby rendering with no
+  schema change, but `fetchVerified` / `fetchVerifiedMany` match `input` **OR
+  `input_reading`** in BOTH directions, so a phonetic string silently becomes a cache lookup
+  key and feeds `preferWrittenForm`'s primary-slot choice (the 質 → たち class of bug). A
+  separate nullable column is inert but needs the ruby wired. **Decide before ingesting** —
+  reversing it later means rewriting cached rows.
 
 **Not gaps — do not file these.** Furigana, the reading/writing override tables, context
 sense ordering (`senseOrder`) and potential-verb/する candidates all key on a **reading**,
