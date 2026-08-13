@@ -109,10 +109,12 @@ export function englishLemma(surface: string): string | null {
   if (irregular) return irregular;
 
   // The WordNet long tail (aardwolves→aardwolf, abetted→abet). Filtered at BUILD time to
-  // entries that cannot be wrong without a verifier — single token, exactly one base, and
-  // the surface is not itself a WordNet lemma — which is the mechanical form of this
-  // file's inclusion rule. It also settles the doubled-consonant -ing/-ed forms the
-  // header defers, because WordNet states the base instead of us guessing at the stem.
+  // entries that cannot be wrong without a verifier — single token, exactly one base, the
+  // surface is not itself a WordNet lemma, and it is not also somebody's regular -s form
+  // (lives is the plural of life AND the verb live+s, so it is held back; wolves is not,
+  // there being no verb `wolve`). Those are the mechanical form of this file's own
+  // inclusion rule. It also settles the doubled-consonant -ing/-ed forms the header
+  // defers, because WordNet states the base instead of us guessing at the stem.
   if (!EXCLUDED.has(w)) {
     const listed = EN_IRREGULARS_WORDNET[w];
     if (listed) return listed;

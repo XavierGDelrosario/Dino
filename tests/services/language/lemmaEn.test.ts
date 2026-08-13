@@ -179,6 +179,18 @@ describe("englishLemma — the WordNet long tail (irregularsEn.generated)", () =
     expect(englishLemma("axes")).not.toBe("axis");
   });
 
+  it("holds back a plural that is also somebody's -s form, but not its neighbours", () => {
+    // «he lives in Tokyo» must not answer "life". WordNet lists lives→life and knows no
+    // verb reading, so the build rule checks the stripped stem instead: `live`, `shelve`
+    // and `halve` are real verbs, so those three are held back — while `wolves` and
+    // `knives` keep resolving, there being no verb `wolve` or `knive`.
+    for (const w of ["lives", "shelves", "halves", "calves", "thieves"]) {
+      expect(englishLemma(w)).toBeNull();
+    }
+    expect(englishLemma("wolves")).toBe("wolf");
+    expect(englishLemma("knives")).toBe("knife");
+  });
+
   it("keeps the curated map ahead of the generated one", () => {
     // WordNet has no entry for these at all; they must not regress to null.
     expect(englishLemma("women")).toBe("woman");

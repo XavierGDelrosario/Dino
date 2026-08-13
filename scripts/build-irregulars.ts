@@ -23,6 +23,12 @@
 //      (met, meant) stay hand-listed in EN_IRREGULAR_EXCLUDED, which lemmaEn.ts applies
 //      on top of this map — so the curated list still wins.
 //   4. base ≠ surface, surface ≥ 3 chars (englishLemma ignores shorter tokens anyway)
+//   5. the surface is not ALSO a regular -s/-es form of some other word. WordNet's
+//      noun list knows `lives` only as the plural of life, so without this the reader
+//      answers "life" for «he lives in Tokyo» — the exact silent-wrong-lemma failure
+//      lemmaEn.ts's header warns about. Measured on 119 en.wikinews articles: every
+//      such surface resolved to NOTHING beforehand (englishLemma's -es guard already
+//      refused them), so holding them back costs no working lemma. ~57 entries.
 //
 // The hand-written maps in both runtimes STAY. WordNet's lists are exceptions to ITS
 // morphology rules, not a lemma dictionary: `does`, `women` and `people` are absent
@@ -89,6 +95,17 @@ function readExceptions(dict: string): Map<string, Entry> {
   return bySurface;
 }
 
+/** Rule 5: could this surface just as well be someone else's regular -s/-es form?
+ *  `lives` → life, but strip the s and `live` is a verb; `shelves` → shelf, but
+ *  `shelve` is one too. WordNet lists only the noun, so the map would answer with it
+ *  silently. `wolves` is safe by the same test — there is no verb `wolve`. */
+function alsoARegularPlural(surface: string, base: string, lemmas: Set<string>): boolean {
+  if (!surface.endsWith("s")) return false;
+  const stems = [surface.slice(0, -1)];
+  if (surface.endsWith("es")) stems.push(surface.slice(0, -2));
+  return stems.some((stem) => stem.length >= 3 && stem !== base && lemmas.has(stem));
+}
+
 function applyReaderPolicy(entries: Map<string, Entry>, lemmas: Set<string>): void {
   for (const e of entries.values()) {
     const singleToken = !e.surface.includes("_") && e.bases.every((b) => !b.includes("_"));
@@ -97,7 +114,8 @@ function applyReaderPolicy(entries: Map<string, Entry>, lemmas: Set<string>): vo
       e.bases.length === 1 &&
       e.bases[0] !== e.surface &&
       e.surface.length >= 3 &&
-      !lemmas.has(e.surface);
+      !lemmas.has(e.surface) &&
+      !alsoARegularPlural(e.surface, e.bases[0], lemmas);
   }
 }
 

@@ -55,7 +55,7 @@ after	after	a	0
 agents-general	agent-general	n	1
 aggiornamenti	aggiornamento	n	1
 agnomina	agnomen	n	1
-agones	agon	n	1
+agones	agon	n	0
 agorae	agora	n	1
 agouties	agouti	n	1
 aides-de-camp	aide-de-camp	n	1
@@ -110,16 +110,16 @@ amphorae	amphora	n	1
 amplified	amplify	v	1
 ampullae	ampulla	n	1
 amygdalae	amygdala	n	1
-anabases	anabasis	n	1
+anabases	anabasis	n	0
 anacolutha	anacoluthon	n	1
 anacruses	anacrusis	n	1
 anaerobia	anaerobium	n	1
 anagnorises	anagnorisis	n	1
 analemmata	analemma	n	1
-analyses	analysis	n	1
+analyses	analysis	n	0
 anamneses	anamnesis	n	1
 anamorphoses	anamorphosis	n	1
-anastomoses	anastomosis	n	1
+anastomoses	anastomosis	n	0
 anatyxes	anaptyxis	n	1
 ancones	ancon,ancone	n	0
 androclinia	androclinium	n	1
@@ -159,7 +159,7 @@ antra	antrum	n	1
 anus	anus	n	0
 aortae	aorta	n	1
 aphelia	aphelion	n	1
-aphides	aphis	n	1
+aphides	aphis	n	0
 apices	apex	n	1
 apodoses	apodosis	n	1
 apomixes	apomixis	n	1
@@ -167,7 +167,7 @@ aponeuroses	aponeurosis	n	1
 apophyses	apophysis	n	1
 aposiopeses	aposiopesis	n	1
 apothecia	apothecium	n	1
-apotheoses	apotheosis	n	1
+apotheoses	apotheosis	n	0
 appalled	appal,appall	v	0
 appalling	appal,appall	v	0
 apparatus	apparatus	n	0
@@ -198,7 +198,7 @@ arisen	arise	v	1
 aristae	arista	n	1
 armamentaria	armamentarium	n	1
 arose	arise	v	1
-arses	arsis	n	1
+arses	arsis	n	0
 artal	rotl	n	1
 artel	rotl	n	1
 arterioscleroses	arteriosclerosis	n	1
@@ -209,7 +209,7 @@ asceses	ascesis	n	1
 asci	ascus	n	1
 ascidia	ascidium	n	1
 ascogonia	ascogonium	n	1
-ashes	ash	n	1
+ashes	ash	n	0
 ashier	ashy	a	1
 ashiest	ashy	a	1
 ashkenazim	ashkenazi	n	1
@@ -361,7 +361,7 @@ begotten	beget	v	0
 begun	begin	v	1
 beheld	behold	v	1
 beholden	behold	v	0
-behooves	behoof	n	1
+behooves	behoof	n	0
 bejewelled	bejewel	v	1
 bejewelling	bejewel	v	1
 bellied	belly	v	0
@@ -626,7 +626,7 @@ bushiest	bushy	a	1
 busied	busy	v	1
 busier	busy	a	1
 busiest	busy	a	1
-busses	bus	n	1
+busses	bus	n	0
 buster	buster	a	0
 bustier	busty	a	0
 bustiest	busty	a	1
@@ -654,7 +654,7 @@ caldaria	caldarium	n	1
 calices	calix	n	1
 calicoes	calico	n	1
 calli	callus	n	1
-calves	calf	n	1
+calves	calf	n	0
 calyces	calyx	n	1
 cambia	cambium	n	1
 came	come	v	1
@@ -711,7 +711,7 @@ castrati	castrato	n	1
 catabases	catabasis	n	1
 cataclases	cataclasis	n	1
 cataloes	catalo	n	1
-catalyses	catalysis	n	1
+catalyses	catalysis	n	0
 catchier	catchy	a	1
 catchiest	catchy	a	1
 catenae	catena	n	1
@@ -727,7 +727,7 @@ cattiest	catty	a	1
 catting	cat	v	1
 caudices	caudex	n	1
 caught	catch	v	1
-caules	caulis	n	1
+caules	caulis	n	0
 cavatine	cavatina	n	1
 cavefishes	cavefish	n	1
 cavetti	cavetto	n	1
@@ -859,7 +859,7 @@ chuvashes	chuvash	n	1
 ciboria	ciborium	n	1
 cicadae	cicada	n	1
 cicale	cicala	n	1
-cicatrices	cicatrix	n	1
+cicatrices	cicatrix	n	0
 ciceroni	cicerone	n	1
 cicisbei	cicisbeo	n	1
 cilia	cilium	n	1
@@ -924,10 +924,10 @@ clung	cling	v	1
 clypei	clypeus	n	1
 co-opted	coopt	v	1
 co-opting	coopt	v	1
-co-opts	coopts	v	1
+co-opts	coopts	v	0
 co-ordinate	coordinate	v	0
 co-ordinated	coordinate	v	0
-co-ordinates	coordinate	v	1
+co-ordinates	coordinate	v	0
 co-ordinating	coordinate	v	1
 co-starred	co-star	v	1
 co-starring	co-star	v	1
@@ -1122,7 +1122,7 @@ crustier	crusty	a	1
 crustiest	crusty	a	1
 cruzadoes	cruzado	n	1
 crying	cry	n	0
-cryings	cry	n	1
+cryings	cry	n	0
 ctenidia	ctenidium	n	1
 cubbed	cub	v	1
 cubbing	cub	v	1
@@ -1141,7 +1141,7 @@ cupelling	cupel	v	1
 cupped	cup	v	1
 cupping	cup	v	0
 curetted	curet	v	1
-curettes	curet	v	1
+curettes	curet	v	0
 curetting	curet	v	1
 curiae	curia	n	1
 curlier	curly	a	1
@@ -1155,7 +1155,7 @@ curvetting	curvet	v	1
 custodes	custos	n	1
 customer	customer	a	0
 cuter	cute	a	1
-cutes	cutis	n	1
+cutes	cutis	n	0
 cuticulae	cuticula	n	1
 cutting	cut	v	0
 cuttlefishes	cuttlefish	n	1
@@ -1213,7 +1213,7 @@ decontrolling	decontrol	v	1
 decried	decry	v	1
 deep-freeze	deepfreeze	v	0
 deep-freezed	deepfreeze	v	1
-deep-freezes	deepfreeze	v	1
+deep-freezes	deepfreeze	v	0
 deep-fried	deep-fry	v	0
 deeper	deeply	r	1
 deferred	defer	v	1
@@ -1258,12 +1258,12 @@ dewier	dewy	a	1
 dewiest	dewy	a	1
 diaereses	diaeresis	n	1
 diaerses	diaeresis	n	1
-diagnoses	diagnosis	n	1
+diagnoses	diagnosis	n	0
 diagrammed	diagram	v	1
 diagramming	diagram	v	0
 dialled	dial	v	1
 dialling	dial	v	1
-dialyses	dialysis	n	1
+dialyses	dialysis	n	0
 diaphyses	diaphysis	n	1
 diapophyses	diapophysis	n	1
 diarthroses	diarthrosis	n	1
@@ -1505,7 +1505,7 @@ eisegeses	eisegesis	n	1
 eisteddfodau	eisteddfod	n	1
 electrified	electrify	v	1
 elenchi	elenchus	n	1
-ellipses	ellipsis	n	1
+ellipses	ellipsis	n	0
 eluvia	eluvium	n	1
 elves	elf	n	0
 elytra	elytron,elytrum	n	0
@@ -1574,7 +1574,7 @@ epentheses	epenthesis	n	1
 epexegeses	epexegesis	n	1
 ephemera	ephemeron	n	0
 ephemerae	ephemera	n	1
-ephemerides	ephemeris	n	1
+ephemerides	ephemeris	n	0
 ephori	ephor	n	1
 epicalyces	epicalyx	n	1
 epicanthi	epicanthus	n	1
@@ -1882,7 +1882,7 @@ forspoke	forspeak	v	1
 forspoken	forspeak	v	1
 forswore	forswear	v	1
 forsworn	forswear	v	1
-fortes	fortis	n	1
+fortes	fortis	n	0
 fortified	fortify	v	0
 forwent	forgo	v	1
 fossae	fossa	n	1
@@ -1924,7 +1924,7 @@ friendlier	friendly	a	1
 friendliest	friendly	a	1
 frigged	frig	v	1
 frigging	frig	v	1
-frijoles	frijol	n	1
+frijoles	frijol	n	0
 friskier	frisky	a	1
 friskiest	frisky	a	1
 fritted	frit,fritt	v	0
@@ -1940,7 +1940,7 @@ frogged	frog	v	1
 frogging	frog	v	1
 frolicked	frolic	v	1
 frolicking	frolic	v	1
-frontes	frons	n	1
+frontes	frons	n	0
 frostier	frosty	a	1
 frostiest	frosty	a	1
 frouzier	frouzy	a	1
@@ -2050,7 +2050,7 @@ genii	genius	n	1
 genned-up	gen-up	v	1
 genning-up	gen-up	v	1
 gens-up	gen-up	v	1
-gentes	gens	n	1
+gentes	gens	n	0
 gentlemen-at-arms	gentleman-at-arms	n	1
 gentlemen-farmers	gentleman-farmer	n	1
 genua	genu	n	1
@@ -2095,7 +2095,7 @@ glabellae	glabella	n	1
 gladder	glad	a	1
 gladdest	glad	a	1
 gladioli	gladiolus	n	1
-glandes	glans	n	1
+glandes	glans	n	0
 glassier	glassy	a	1
 glassiest	glassy	a	1
 glibber	glib	a	1
@@ -2294,7 +2294,7 @@ halluces	hallux	n	1
 haloes	halo	n	1
 halter	halter	a	0
 halteres	halter,haltere	n	0
-halves	half	n	1
+halves	half	n	0
 hammed	ham	v	1
 hammier	hammy	a	1
 hammiest	hammy	a	1
@@ -2483,7 +2483,7 @@ hypanthia	hypanthium	n	1
 hyperostoses	hyperostosis	n	1
 hypertrophied	hypertrophy	v	0
 hyphae	hypha	n	1
-hypnoses	hypnosis	n	1
+hypnoses	hypnosis	n	0
 hypochondria	hypochondrium	n	0
 hypogastria	hypogastrium	n	1
 hypogea	hypogeum	n	1
@@ -2505,7 +2505,7 @@ ideata	ideatum	n	1
 identified	identify	v	0
 igorrorote	igorrote	n	1
 ilia	ilium	n	1
-imagines	imago	n	1
+imagines	imago	n	0
 imagoes	imago	n	1
 imbedded	imbed	v	1
 imbedding	imbed	v	1
@@ -2522,7 +2522,7 @@ incudes	incus	n	1
 incurred	incur	v	1
 incurring	incur	v	0
 indemnified	indemnify	v	1
-indices	index	n	1
+indices	index	n	0
 indigoes	indigo	n	1
 indumenta	indumentum	n	1
 indusia	indusium	n	1
@@ -2557,7 +2557,7 @@ interest	interest	a	0
 interlaid	interlay	v	1
 interlapped	interlap	v	1
 interlapping	interlap	v	1
-interleaves	interleaf	n	1
+interleaves	interleaf	n	0
 intermarried	intermarry	v	1
 intermezzi	intermezzo	n	1
 intermitted	intermit	v	1
@@ -2808,7 +2808,7 @@ left	leave	v	0
 left-hander	left-hander	a	0
 left-winger	left-winger	a	0
 left_undone	leave_undone	v	0
-leges	lex	n	1
+leges	lex	n	0
 leggier	leggy	a	1
 leggiest	leggy	a	1
 lei	leu	n	0
@@ -2844,7 +2844,7 @@ limbi	limbus	n	1
 limier	limy	a	1
 limiest	limy	a	1
 limina	limen	n	1
-limites	limes	n	1
+limites	limes	n	0
 limuli	limulus	n	1
 lingoes	lingo	n	1
 linguae	lingua	n	1
@@ -2868,7 +2868,7 @@ litu	litas	n	1
 livelier	lively	a	1
 liveliest	lively	a	1
 liver	liver	a	0
-lives	life	n	1
+lives	life	n	0
 lixivia	lixivium	n	1
 loather	loather	a	0
 loaves	loaf	n	1
@@ -3016,7 +3016,7 @@ masses	mass,masse	n	0
 massier	massy	a	1
 massiest	massy	a	1
 masters-at-arms	master-at-arms	n	1
-matrices	matrix	n	1
+matrices	matrix	n	0
 matted	mat	v	0
 matter	matter	a	0
 matting	mat	v	0
@@ -3075,7 +3075,7 @@ met	meet	v	1
 metacarpi	metacarpus	n	1
 metalled	metal	v	1
 metalling	metal	v	1
-metamorphoses	metamorphosis	n	1
+metamorphoses	metamorphosis	n	0
 metanephroi	metanephros	n	1
 metastases	metastasis	n	1
 metatarsi	metatarsus	n	1
@@ -3372,7 +3372,7 @@ nuttiest	nutty	a	1
 nutting	nut	v	1
 nymphae	nympha	n	1
 oarfishes	oarfish	n	1
-oases	oasis	n	1
+oases	oasis	n	0
 obeli	obelus	n	1
 objectified	objectify	v	1
 objets_d'art	objet_d'art	n	0
@@ -3582,7 +3582,7 @@ parabases	parabasis	n	1
 paraleipses	paraleipsis,paralipsis	n	0
 parallelled	parallel	v	1
 parallelling	parallel	v	1
-paralyses	paralysis	n	1
+paralyses	paralysis	n	0
 paramecia	paramecium	n	0
 paramenta	parament	n	1
 paraphyses	paraphysis	n	1
@@ -3639,7 +3639,7 @@ pearlier	pearly	a	1
 pearliest	pearly	a	1
 pease	pea	n	1
 peccadilloes	peccadillo	n	1
-pectines	pecten	n	1
+pectines	pecten	n	0
 pedaler	pedaler	a	0
 pedalled	pedal	v	1
 pedalling	pedal	v	1
@@ -3652,7 +3652,7 @@ pelves	pelvis	n	1
 pence	penny	n	1
 pencilled	pencil	v	0
 pencilling	pencil	v	1
-penes	penis	n	1
+penes	penis	n	0
 penetralium	penetralia	n	1
 penicillia	penicillium	n	1
 penknives	penknife	n	1
@@ -3909,13 +3909,13 @@ prodding	prod	v	0
 proglottides	proglottid,proglottis	n	0
 prognoses	prognosis	n	1
 programmed	program	v	1
-programmes	program	v	1
+programmes	program	v	0
 programming	program	v	0
 prolegomena	prolegomenon	n	1
 prolepses	prolepsis	n	1
 prologed	prologue	v	1
 prologing	prologue	v	1
-prologs	prologue	v	1
+prologs	prologue	v	0
 prompter	prompter	a	0
 promycelia	promycelium	n	1
 pronephra	pronephros	n	1
@@ -4493,7 +4493,7 @@ shedding	shed	v	0
 shellacked	shellac	v	1
 shellacking	shellac	v	1
 shellfishes	shellfish	n	1
-shelves	shelf	n	1
+shelves	shelf	n	0
 shent	shend	v	1
 shewn	shew	v	1
 shied	shy	v	1
@@ -5146,7 +5146,7 @@ swivelling	swivel	v	1
 swollen	swell	v	0
 swopped	swap	v	1
 swopping	swap	v	1
-swops	swap	v	1
+swops	swap	v	0
 swordfishes	swordfish	n	1
 swore	swear	v	1
 sworn	swear	v	0
@@ -5163,7 +5163,7 @@ symbolling	symbol	v	1
 symphyses	symphysis	n	1
 sympodia	sympodium	n	1
 symposia	symposium	n	1
-synapses	synapsis	n	1
+synapses	synapsis	n	0
 synarthroses	synarthrosis	n	1
 synclinoria	synclinorium	n	1
 syncytia	syncytium	n	1
@@ -5172,7 +5172,7 @@ synopses	synopsis	n	1
 syntagmata	syntagma	n	1
 syntheses	synthesis	n	1
 syphilomata	syphiloma	n	1
-syringes	syrinx	n	1
+syringes	syrinx	n	0
 syssarcoses	syssarcosis	n	1
 tabbed	tab	v	1
 tabbing	tab	v	1
@@ -5288,7 +5288,7 @@ therses	thyrse	n	1
 thesauri	thesaurus	n	1
 theses	thesis	n	1
 thickleaves	thickleaf	n	1
-thieves	thief	n	1
+thieves	thief	n	0
 thinking_the_world_of	think_the_world_of	v	0
 thinks_the_world_of	think_the_world_of	v	0
 thinned	thin	v	0
@@ -5515,7 +5515,7 @@ uglier	ugly	a	1
 uglies	ugli	n	1
 ugliest	ugly	a	1
 uglified	uglify	v	1
-uigurs	uighur	n	1
+uigurs	uighur	n	0
 ulnae	ulna	n	1
 ultimata	ultimatum	n	1
 umbilici	umbilicus	n	1
@@ -5811,7 +5811,7 @@ whistle-stopped	whistle-stop	v	1
 whistle-stopping	whistle-stop	v	1
 whitefishes	whitefish	n	1
 whizzed	whiz	v	1
-whizzes	whiz	v	1
+whizzes	whiz	v	0
 whizzing	whiz	v	1
 wholesaler	wholesaler	a	0
 whopped	whop	v	1
@@ -5850,7 +5850,7 @@ withheld	withhold	v	1
 withstood	withstand	v	1
 wittier	witty	a	1
 wittiest	witty	a	1
-wives	wife	n	1
+wives	wife	n	0
 woke	wake	v	1
 woken	wake	v	1
 wolffishes	wolffish	n	1
@@ -5913,7 +5913,7 @@ yeastier	yeasty	a	1
 yeastiest	yeasty	a	1
 yenned	yen	v	1
 yenning	yen	v	1
-yeshivahs	yeshiva	n	1
+yeshivahs	yeshiva	n	0
 yeshivoth	yeshiva	n	1
 yodelled	yodel	v	1
 yodelling	yodel	v	1
