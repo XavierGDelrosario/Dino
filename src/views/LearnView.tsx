@@ -11,7 +11,7 @@
 // This tab's language picker is LOCAL: it seeds from the profile but never writes
 // back, so studying something else here for one session leaves your saved languages
 // alone. The placement quiz launched from here is handed the same on-screen value.
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { getUserProfile } from "../services/session";
 import { listUserLists, createList, type List } from "../services/lists";
 import {
@@ -22,6 +22,10 @@ import {
 import { getUserProficiencyBand } from "../services/calibration";
 import { fetchLearnWords } from "../services/learn";
 import { CalibrationView } from "./CalibrationView";
+// Lazy, like HomeView loaded it: Articles is a whole second surface (browse + the
+// article analysis + its reader), and folding it into Learn's chunk would make the
+// tab that everyone opens pay for the one they might not.
+const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.MediaView })));
 import {
   DEFAULT_LEARNING_LANGUAGE,
   DEFAULT_NATIVE_LANGUAGE,
@@ -90,6 +94,10 @@ export function LearnView({ userId }: { userId: string }) {
   // not shown here.) Reloaded when calibration finishes.
   const [level, setLevel] = useState<number | null>(null);
   const [calibrating, setCalibrating] = useState(false);
+  // Articles (the former Media tab) is a SUB-SURFACE of Learn rather than a fifth tab:
+  // browsing real news is one way of learning new words, the same as drawing them from
+  // a band, so it belongs behind this tab instead of competing with it for a slot.
+  const [articles, setArticles] = useState(false);
   const loadLevel = () =>
     getUserProficiencyBand(userId)
       .then(setLevel)
@@ -132,10 +140,32 @@ export function LearnView({ userId }: { userId: string }) {
     setError(null);
   };
 
+  /** The Articles launcher — rendered in BOTH branches below (see the guard). */
+  const articlesButton = (
+    <div className="learn__articles">
+      <button className="btn btn--ghost" onClick={() => setArticles(true)}>
+        {t("learn.articles")}
+      </button>
+    </div>
+  );
+
+  // Articles outranks everything else on this tab, INCLUDING the framework guard
+  // below: Wikinews is browsable in a language that has no proficiency scale ingested,
+  // and gating it behind one would have deleted the surface for those learners when it
+  // stopped being a tab of its own.
+  if (articles) {
+    return (
+      <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
+        <MediaView key={userId} userId={userId} onBack={() => setArticles(false)} />
+      </Suspense>
+    );
+  }
+
   // No framework for the learning language (or none ingested yet) → nothing to do.
   if (!framework) {
     return (
-      <section className="review">
+      <section className="review learn">
+        {articlesButton}
         <p className="review__msg">{t("learn.noFramework")}</p>
       </section>
     );
@@ -214,6 +244,8 @@ export function LearnView({ userId }: { userId: string }) {
           ))}
         </select>
       </label>
+
+      {articlesButton}
 
       {/* Placement-quiz launcher + the current calibrated level (if any). */}
       <div className="learn__level">

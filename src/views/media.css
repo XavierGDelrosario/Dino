@@ -23,6 +23,13 @@
   cursor: pointer;
 }
 
+/* The way back to the host surface (Learn). Its own row above everything, so the
+   language picker keeps its place whether or not this view is hosted. */
+.media__nav {
+  display: flex;
+  margin-bottom: 0.6rem;
+}
+
 .media__head {
   display: flex;
   align-items: center;

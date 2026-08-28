@@ -49,7 +49,7 @@ const LANG_NAME: Record<string, MessageKey> = { JA: "lang.JA", EN: "lang.EN" };
 
 type Tab = "browse" | "favorites";
 
-export function MediaView({ userId }: { userId: string }) {
+export function MediaView({ userId, onBack }: { userId: string; onBack?: () => void }) {
   const { t } = useI18n();
   const prefs = useLanguagePrefs(userId);
   // The picker's choice, once made. Null = "follow the profile", so the tab still
@@ -198,6 +198,17 @@ export function MediaView({ userId }: { userId: string }) {
 
   return (
     <section className="review media">
+      {/* Present only when this surface is HOSTED by another one (Learn's "Articles"),
+          so the way back is the same shape as ArticleView's — a top-left ← that names
+          where it goes. As a top-level tab there is nothing to go back to and the
+          control is absent rather than dead. */}
+      {onBack && (
+        <div className="media__nav">
+          <button className="btn btn--ghost btn--sm" onClick={onBack}>
+            ← {t("media.backToLearn")}
+          </button>
+        </div>
+      )}
       <label className="media__lang">
         <span className="media__langlabel">{t("media.language")}</span>
         <select

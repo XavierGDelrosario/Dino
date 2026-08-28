@@ -112,7 +112,7 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🧱 Extendable Features</h2></summary>
 
-### Media tab — deep analysis for longer works
+### Articles (inside Learn) — deep analysis for longer works
 - Extension content
 
 ### Sense enrichment — example sentence + source-language definition per meaning

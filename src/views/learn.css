@@ -1,4 +1,12 @@
 /* Learn tab: the "Find my level" launcher row + a hinted (calibrated) band. */
+/* Articles (Wikinews) — a way INTO words, like the bands below, so it sits with the
+   level row rather than looking like a setting. */
+.learn__articles {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 0.9rem;
+}
+
 .learn__level {
   display: flex;
   align-items: center;
