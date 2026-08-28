@@ -146,6 +146,11 @@ export const en = {
   "lists.reviewAllTitle": "Review every one of these {n} words (no 20-word cap)",
   "common.back": "Back",
   "reader.translateSentence": "Translate this sentence",
+  // "Forgot" — the reader's one-notch confidence drop. The label is the user's own
+  // thought ("I forgot this"), not the mechanism; the aria/title says what it does.
+  "reader.forgot": "Forgot",
+  "reader.forgotAria": "I forgot this word — lower its confidence by one",
+  "reader.forgotDone": "−1 ✓",
   // The mic dictates into the input box; there is no listening SCREEN any more, so
   // the copy names the box. (The transcript view's own strings went with it.)
   "listen.tool": "Dictate into the box",
@@ -575,6 +580,9 @@ export const ja: Record<MessageKey, string> = {
   "lists.reviewAllTitle": "これら{n}語すべてを復習（20語の上限なし）",
   "common.back": "戻る",
   "reader.translateSentence": "この文を翻訳",
+  "reader.forgot": "忘れた",
+  "reader.forgotAria": "この単語を忘れた — 自信度を1つ下げる",
+  "reader.forgotDone": "−1 ✓",
   "listen.tool": "音声で入力する",
   "listen.stop": "音声入力を停止",
   "lists.summaryBtn": "◔ サマリー",

@@ -226,11 +226,47 @@
 /* The flag pinned to the card corner. Absolute so it does not take a row in the flex
    column (the headword must stay on the first line), and the headword reserves room
    for it — see .hovercard__word. */
-.hovercard__flag {
+/* The word-level controls, top-right: "Forgot" then the report flag. One absolutely
+   positioned cluster rather than two, so adding a control never means re-deriving a
+   second `right:` offset. */
+.hovercard__actions {
   position: absolute;
   top: 0.35rem;
   right: 0.4rem;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hovercard__flag {
+  display: inline-flex;
+}
+
+/* Deliberately quiet: this lowers a number the user worked for, so it must be findable
+   without ever competing with ＋ (the card's primary action). */
+.hovercard__forgot {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hovercard__forgot:hover:not(:disabled) {
+  color: var(--text);
+  border-color: currentColor;
+}
+
+/* Spent: the press landed and the new ✓ n/5 is on screen. Stays put (same box, same
+   place) so the card doesn't reflow under a finger that may still be coming down. */
+.hovercard__forgot:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .hovercard {

@@ -8,7 +8,7 @@ vi.mock("@/config/supabaseClient", () => ({
 }));
 
 import { createSupabaseStub, type SupabaseStub } from "@test/supabaseStub";
-import { retrievability, getReviewQueue, recordReview } from "@/services/review";
+import { retrievability, getReviewQueue, recordReview, softenConfidence } from "@/services/review";
 
 const DAY = 86_400_000;
 const NOW = Date.parse("2026-06-18T00:00:00Z");
@@ -182,5 +182,49 @@ describe("recordReview", () => {
   it("throws on an RPC error", async () => {
     stub.rpc.mockResolvedValue({ data: null, error: { message: "nope" } });
     await expect(recordReview({ userWordId: "x", grade: 3 })).rejects.toBeTruthy();
+  });
+});
+
+describe("softenConfidence", () => {
+  it("calls soften_confidence with the word id alone and maps the row back", async () => {
+    stub.rpc.mockResolvedValue({
+      data: {
+        user_word_id: "uw1",
+        stability: 15,
+        confidence_rating: 3,
+        last_reviewed_date: "2026-06-18T00:00:00Z",
+      },
+      error: null,
+    });
+
+    const res = await softenConfidence({ userWordId: "uw1" });
+
+    // No grade and no client-computed target: the server decides how far one notch is,
+    // because the display value is derived from state only it holds (20260766).
+    expect(stub.rpc).toHaveBeenCalledWith("soften_confidence", { p_user_word_id: "uw1" });
+    expect(res.confidenceRating).toBe(3);
+    expect(res.stability).toBe(15);
+  });
+
+  it("reports the confidence the SERVER landed on, not current − 1", async () => {
+    // A word propped up by a cram bounce falls to what its long-term strength supports;
+    // the UI must show that rather than assuming a single notch.
+    stub.rpc.mockResolvedValue({
+      data: {
+        user_word_id: "uw1",
+        stability: 2,
+        confidence_rating: 1,
+        last_reviewed_date: "2026-06-18T00:00:00Z",
+      },
+      error: null,
+    });
+    await expect(softenConfidence({ userWordId: "uw1" })).resolves.toMatchObject({
+      confidenceRating: 1,
+    });
+  });
+
+  it("throws rather than queueing when the call fails (it is not a grade)", async () => {
+    stub.rpc.mockResolvedValue({ data: null, error: { message: "nope" } });
+    await expect(softenConfidence({ userWordId: "uw1" })).rejects.toBeTruthy();
   });
 });

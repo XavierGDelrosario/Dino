@@ -969,6 +969,28 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      soften_confidence: {
+        Args: { p_user_word_id: string }
+        Returns: {
+          confidence_rating: number
+          custom_translation: string | null
+          dictionary_word_id: string | null
+          input: string
+          last_reviewed_date: string | null
+          originally_translated_date: string
+          source_lang: string
+          stability: number | null
+          target_lang: string
+          user_id: string
+          user_word_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_words"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
