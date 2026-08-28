@@ -431,6 +431,12 @@ export const en = {
   "profile.deleteYes": "Delete my account",
   "profile.deleteCancel": "Cancel",
 
+  // appearance (theme picker in the account menu)
+  "theme.label": "Appearance",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+
   // legal
   "legal.privacy": "Privacy",
   "legal.terms": "Terms",
@@ -829,6 +835,11 @@ export const ja: Record<MessageKey, string> = {
   "profile.deleteConfirm": "アカウントと保存したすべての単語が完全に削除されます。元に戻せません。",
   "profile.deleteYes": "アカウントを削除する",
   "profile.deleteCancel": "キャンセル",
+
+  "theme.label": "外観",
+  "theme.system": "システム",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
 
   "legal.privacy": "プライバシー",
   "legal.terms": "利用規約",

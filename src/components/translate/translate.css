@@ -39,7 +39,7 @@
 
 .modetoggle__btn--active {
   background: var(--accent);
-  color: #1b1030;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -212,12 +212,15 @@
   cursor: pointer;
   border-bottom: 2px solid currentColor;
 }
-.tok--c0 { color: #ff6b6b; } /* never reviewed / forgot */
-.tok--c1 { color: #ff9f5a; }
-.tok--c2 { color: #ffd166; }
-.tok--c3 { color: #c9d65a; }
-.tok--c4 { color: #7fce6f; }
-.tok--c5 { color: #3ecb6c; } /* mastered */
+/* The ramp itself is theme-owned (--conf-0…5 in common.css): the dark values are
+   too pale to read as TEXT on a light background, so the light theme substitutes a
+   darkened set with the same hue order. Nothing here changes between themes. */
+.tok--c0 { color: var(--conf-0); } /* never reviewed / forgot */
+.tok--c1 { color: var(--conf-1); }
+.tok--c2 { color: var(--conf-2); }
+.tok--c3 { color: var(--conf-3); }
+.tok--c4 { color: var(--conf-4); }
+.tok--c5 { color: var(--conf-5); } /* mastered */
 
 /* hover popover anchored under a word */
 /* The flag pinned to the card corner. Absolute so it does not take a row in the flex
@@ -242,7 +245,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow);
   /* NOTE: no `overflow: hidden` here — it clips the per-sense add-to-list menu when
      it opens (worst with 1–2 senses / a short card). The senses list scrolls via
      its OWN overflow-y (.hovercard__senses), which doesn't clip the popover. */
@@ -324,7 +327,7 @@
 }
 
 .langbar__swap:hover {
-  background: #2b303c;
+  background: var(--hover);
   border-color: var(--accent);
   transform: rotate(180deg);
 }
@@ -470,7 +473,7 @@ textarea.translate__box::-webkit-scrollbar {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow);
   overflow: hidden;
   text-align: left;
 }
@@ -884,8 +887,8 @@ textarea.translate__box::-webkit-scrollbar {
 
 /* Mic actively listening: red, pulsing, until the user taps to stop. */
 .io__tool--rec {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
+  color: var(--conf-0);
+  border-color: var(--conf-0);
   animation: io-rec-pulse 1.2s ease-in-out infinite;
 }
 
@@ -975,17 +978,20 @@ textarea.translate__box::-webkit-scrollbar {
   font-size: 0.85rem;
 }
 
-/* A dark SLATE, not white paper. The pad was #fafafa with near-black ink — the one
-   bright rectangle in an otherwise dark app, which glares when you open it and puts
-   the ink at the opposite polarity from every other glyph on screen. Ink is white
-   (`INK` in HandwritingCanvas.tsx — keep the two in step). Deliberately its own
-   near-black rather than var(--surface): the pad must read as a writing surface
-   distinct from the panel it sits in, and strokes need maximum contrast. */
+/* Pad and ink are a PAIR, and both come from the theme (--hw-pad / --hw-ink in
+   common.css). In dark that pair is a slate darker than --surface with white ink —
+   deliberately not var(--surface), so the pad reads as a writing surface distinct
+   from the panel it sits in, and strokes get maximum contrast. In light it is paper
+   with near-black ink; the original fixed #0b0d11+white was the one thing that would
+   still have been a black rectangle in an otherwise light app.
+   --hw-ink is read by HandwritingCanvas.tsx off THIS element (a canvas is painted
+   pixels — no stylesheet can recolour a stroke after the fact), which is also why the
+   component repaints when the theme changes. Keep the token on .hw__pad. */
 .hw__pad {
   display: block;
   width: 280px;
   height: 280px;
-  background: #0b0d11;
+  background: var(--hw-pad);
   border: 1px dashed var(--border);
   border-radius: 8px;
   touch-action: none;
@@ -1000,7 +1006,7 @@ textarea.translate__box::-webkit-scrollbar {
 
 .hw__error {
   margin: 0.4rem 0 0;
-  color: #ffb4ad;
+  color: var(--danger-text);
   font-size: 0.85rem;
 }
 

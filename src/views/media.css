@@ -110,7 +110,7 @@
 }
 
 .media__star--on {
-  color: var(--accent, #e0a500);
+  color: var(--accent);
 }
 
 .media__summary {

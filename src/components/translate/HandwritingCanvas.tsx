@@ -17,11 +17,35 @@ import {
 } from "../../services/handwriting";
 import type { LangCode } from "../../services/language";
 import { useI18n } from "../../i18n";
+import { useTheme } from "../../hooks/useTheme";
 
 const PAD_SIZE = 280;
 
-/** Ink colour. White on the dark pad (`.hw__pad`) — keep the two in step. */
-const INK = "#ffffff";
+/** Fallback if the stylesheet hasn't resolved (or --hw-ink is ever removed). */
+const INK_FALLBACK = "#ffffff";
+
+/**
+ * Ink colour, read from the pad's own `--hw-ink` (set per theme in common.css,
+ * alongside the `--hw-pad` background — the two are a pair and must never be
+ * picked independently, or the strokes match the pad and vanish).
+ *
+ * Read from the DOM rather than imported as a constant because a canvas is
+ * PIXELS: CSS can restyle the pad's background when the theme flips, but it
+ * cannot recolour a stroke that has already been painted. So the component asks
+ * the stylesheet what the ink is now, and repaints when the answer changes.
+ */
+function inkColor(canvas: HTMLCanvasElement | null): string {
+  if (!canvas) return INK_FALLBACK;
+  return getComputedStyle(canvas).getPropertyValue("--hw-ink").trim() || INK_FALLBACK;
+}
+
+/** The pen, applied identically to the live trace and the committed repaint. */
+function setPen(ctx: CanvasRenderingContext2D, ink: string) {
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = ink;
+}
 
 function drawStroke(ctx: CanvasRenderingContext2D, points: InkPoint[]) {
   if (points.length === 0) return;
@@ -41,6 +65,9 @@ export function HandwritingCanvas({
   onClose: () => void;
 }) {
   const { t: tr } = useI18n();
+  // Only for the repaint dependency below — the colour itself comes from the CSS
+  // token, so the two can't disagree.
+  const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef<{ points: InkPoint[] } | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -48,17 +75,16 @@ export function HandwritingCanvas({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Repaint the committed strokes whenever they change (undo/clear/new stroke).
+  // Repaint the committed strokes whenever they change (undo/clear/new stroke) —
+  // and whenever the THEME changes, which is what re-inks work already on the pad
+  // instead of leaving white strokes on white paper.
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, PAD_SIZE, PAD_SIZE);
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = INK;
+    setPen(ctx, inkColor(canvasRef.current));
     for (const s of strokes) drawStroke(ctx, s.points);
-  }, [strokes]);
+  }, [strokes, theme]);
 
   // Selection is OFF across the document for as long as the pad is open — a stroke
   // is a drag, and a drag that leaves the canvas sweeps a selection through whatever
@@ -95,13 +121,10 @@ export function HandwritingCanvas({
     // Live-draw the in-progress trace so the pen feels responsive. The repaint effect
     // only runs on COMMITTED strokes, so set the pen here too — otherwise the live
     // trace draws in the canvas default (black), invisible on the dark pad until the
-    // stroke ends and the effect repaints it white.
+    // stroke ends and the effect repaints it in the theme's ink.
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
-    ctx.lineWidth = 6;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = INK;
+    setPen(ctx, inkColor(canvasRef.current));
     drawStroke(ctx, drawing.current.points);
   };
 

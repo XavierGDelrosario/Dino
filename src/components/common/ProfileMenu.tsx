@@ -1,9 +1,15 @@
-// Person-icon dropdown (top-right). Profile link + sign-in (guest) / sign-out
-// (account). The forms live on their own pages now (AuthPage); this just navigates.
+// Person-icon dropdown (top-right). Appearance (theme) + profile link + sign-in
+// (guest) / sign-out (account). The forms live on their own pages now (AuthPage);
+// this just navigates.
+//
+// Appearance sits here rather than on the profile page because a guest — who has
+// no profile page at all — still needs it, and because it is a setting you change
+// while looking at the screen you want changed.
 import { signOut } from "../../services/session";
 import { useI18n } from "../../i18n";
 import { useRouter, Link } from "../../router";
 import { PopoverMenu } from "./PopoverMenu";
+import { ThemePicker } from "./ThemePicker";
 
 // Controlled by App so it and LanguageMenu are mutually exclusive (opening one
 // closes the other).
@@ -27,6 +33,7 @@ export function ProfileMenu({
   return (
     <PopoverMenu icon="👤" ariaLabel={t("profile.menuAria")} open={open} onToggle={onToggle}>
       {!isAnonymous && email && <div className="profilemenu__email">{email}</div>}
+      <ThemePicker />
       {/* Guests have no real account → no profile; just the sign-in/create path. */}
       {!isAnonymous && (
         <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>

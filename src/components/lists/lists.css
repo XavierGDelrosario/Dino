@@ -26,7 +26,7 @@
 .chip--active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #1b1030;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -431,7 +431,7 @@
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 
@@ -442,7 +442,7 @@
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 
@@ -495,7 +495,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.4rem 0.6rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow);
 }
 
 .listrow__info-wrap:hover .listrow__infopanel,
@@ -874,8 +874,8 @@
 }
 
 .iconbtn--danger:hover {
-  border-color: #6a2c2c;
-  background: #2a1416;
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
 }
 
 .listrow__tag {

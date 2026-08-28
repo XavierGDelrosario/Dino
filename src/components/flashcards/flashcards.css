@@ -103,7 +103,7 @@
 .quizflip__btn.is-on {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* Armed but not yet showing (the swap lands on the next card): a static highlight
@@ -116,7 +116,7 @@
   outline-offset: 2px;
 }
 .quizflip__btn.is-on.is-pending {
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* The "next card" hint. Absolute (under the toggle) so showing it can't resize the
@@ -144,9 +144,9 @@
 }
 
 .review__error {
-  background: #2a1416;
-  color: #ffb4ad;
-  border: 1px solid #5a2a2a;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
   font-size: 0.8rem;
@@ -250,10 +250,10 @@
 }
 .quizcard__add:hover:not(:disabled) {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .quizcard__add.is-saved {
-  color: #4caf50;
+  color: var(--success);
   cursor: default;
 }
 .quizcard__add:disabled {
@@ -419,10 +419,10 @@
 }
 .card-add:hover:not(:disabled) {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .card-add.is-saved {
-  color: #4caf50;
+  color: var(--success);
   cursor: default;
 }
 
@@ -481,7 +481,7 @@
   padding: 0.6rem 0.3rem;
   color: var(--text);
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -503,13 +503,26 @@
   cursor: default;
 }
 
-.grade:not(:disabled):hover {
-  filter: brightness(1.2);
+/* red (forgot) → green (easy). Each button names its step of the confidence ramp
+   and the tinting happens ONCE, below — so the five buttons match the colour the
+   reader will paint the word once it is graded, and both themes follow with no
+   second set of hexes: the mix is against --surface, near-black in dark and white
+   in light, giving a dark wash one way and a pale wash the other. */
+.grade--c1 { --grade-tint: var(--conf-0); }
+.grade--c2 { --grade-tint: var(--conf-1); }
+.grade--c3 { --grade-tint: var(--conf-2); }
+.grade--c4 { --grade-tint: var(--conf-4); }
+.grade--c5 { --grade-tint: var(--conf-5); }
+
+.grade[class*="grade--c"] {
+  background: color-mix(in srgb, var(--grade-tint) 20%, var(--surface));
+  border-color: color-mix(in srgb, var(--grade-tint) 45%, var(--surface));
 }
 
-/* red (forgot) → green (easy) */
-.grade--c1 { background: #3a1d1f; border-color: #6a2c2c; }
-.grade--c2 { background: #3a2a1d; border-color: #6a4a2c; }
-.grade--c3 { background: #3a371d; border-color: #6a652c; }
-.grade--c4 { background: #2a3a1d; border-color: #4a6a2c; }
-.grade--c5 { background: #1d3a26; border-color: #2c6a40; }
+/* Hover DEEPENS the tint rather than brightening the button. `brightness()` only
+   reads as "hover" on a dark theme — on a light one it washes a pale button toward
+   white, i.e. the feedback disappears exactly where it is already subtlest. */
+.grade[class*="grade--c"]:not(:disabled):hover {
+  background: color-mix(in srgb, var(--grade-tint) 38%, var(--surface));
+  border-color: color-mix(in srgb, var(--grade-tint) 65%, var(--surface));
+}

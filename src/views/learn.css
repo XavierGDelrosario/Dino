@@ -71,10 +71,10 @@
   font-variant-numeric: tabular-nums;
 }
 .swipe__known {
-  color: #3ecb6c;
+  color: var(--success);
 }
 .swipe__unknown {
-  color: #ff6b6b;
+  color: var(--conf-0);
 }
 .swipe__stop {
   margin-left: auto;
@@ -88,18 +88,18 @@
   gap: 0.6rem;
 }
 .swipe__no {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: var(--conf-0);
+  color: var(--conf-0);
 }
 .swipe__no:hover:not(:disabled) {
-  background: color-mix(in srgb, #ff6b6b 15%, transparent);
+  background: color-mix(in srgb, var(--conf-0) 15%, transparent);
 }
 .swipe__yes {
-  border-color: #3ecb6c;
-  color: #3ecb6c;
+  border-color: var(--success);
+  color: var(--success);
 }
 .swipe__yes:hover:not(:disabled) {
-  background: color-mix(in srgb, #3ecb6c 15%, transparent);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
 }
 
 .swipe__hint {
