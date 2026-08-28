@@ -347,6 +347,16 @@
 /* Input (left) and output (right) side by side; the Translate button is centered
    below them (.translate__submit). Stacks on narrow screens. */
 .translate__io {
+  /* ONE size for the pair. The input and output boxes are read as a unit — the whole
+     layout is "what you typed" beside "what it means" — so their type must match, and
+     two hand-kept numbers is how that stops being true. Set it here, not in each box.
+
+     SIZED IN POINTS, WRITTEN IN REM. The ask was "+2" in the sense a word processor
+     means it (Google Docs' size box), i.e. two POINTS: the boxes were 1.05rem = 16.8px
+     = 12.6pt, and this is 14.6pt. It stays in rem rather than becoming `14.6pt` because
+     pt is absolute — it would ignore a reader who has raised their browser's default
+     font size, which is the one accessibility lever this app doesn't have to build. */
+  --io-font: 1.217rem; /* 14.6pt (12.6pt + 2) */
   display: flex;
   gap: 1rem;
   align-items: stretch;
@@ -368,6 +378,7 @@
 .translate__box {
   flex: 1 1 0;
   min-width: 0;
+  font-size: var(--io-font);
   /* TALL ENOUGH FOR SIX BUTTONS, as a constant.
      The right edge carries the tool column at the top (clear · draw · mic · camera ·
      library today) and read-aloud at the bottom, so the box must fit both:
@@ -419,11 +430,24 @@ textarea.translate__box::-webkit-scrollbar {
      here would silently reset the gutter and put the translation back under the
      read-aloud button. */
   padding: 0.8rem 2.8rem 0.8rem 0.9rem;
-  font-size: 1.05rem;
+  font-size: var(--io-font);
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow-y: auto;
+}
+
+/* ‼️ The platform zoom-guard (common.css) forces EVERY textarea to 16px !important on a
+   touch device, so without this the input would shrink back to 16px on a phone while the
+   output — a div, not a textarea — stayed at --io-font, and the pair would visibly
+   mismatch on the one device the app is mainly used on. Overriding is safe because the
+   guard exists to set a FLOOR: iOS auto-zooms a focused field below 16px, and this is
+   larger, so nothing it protects against comes back. Keep --io-font ≥ 16px (1rem) or this
+   re-introduces the zoom bug. */
+@media (pointer: coarse) {
+  textarea.translate__box {
+    font-size: var(--io-font) !important;
+  }
 }
 
 .translate__submit {
