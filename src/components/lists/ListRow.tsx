@@ -9,22 +9,12 @@ import type { List } from "../../services/lists";
 import { ListMenu } from "../common/ListMenu";
 import { PencilIcon, TrashIcon } from "../common/icons";
 import { WordInfoButton } from "../common/WordInfo";
+import { ConfidenceDots } from "../common/ConfidenceDots";
 import { SpeakButton } from "../common/SpeakButton";
 import { SenseExample } from "../common/SenseExample";
 import { pronounceableText } from "../../services/voice";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
-
-function ConfidenceDots({ rating }: { rating: number }) {
-  const { t } = useI18n();
-  return (
-    <span className="dots" aria-label={t("lists.confidenceOf", { n: rating })}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span key={i} className={`dot${i < rating ? " dot--on" : ""}`} />
-      ))}
-    </span>
-  );
-}
 
 /** ISO timestamp → short readable date in the UI locale, or "never" for null. */
 function fmtDate(iso: string | null, locale: Locale, never: string): string {
@@ -43,6 +33,7 @@ export function ListRow({
   onDelete,
   onTag,
   onCreateList,
+  onForgot,
   onRemoveFromList,
   selectable = false,
   selected = false,
@@ -56,6 +47,9 @@ export function ListRow({
   /** Create a sub-list and tag this word into it (the on-the-fly "New list…").
    *  Only completion is used (the menu closes); the resolved value is ignored. */
   onCreateList: (name: string) => Promise<unknown>;
+  /** "Forgot": drop this word one confidence bucket. Wired to the confidence dots,
+   *  which become the trigger for it; omit and they stay inert text. */
+  onForgot?: () => Promise<unknown>;
   /** Present only when viewing a sub-list (enables un-tagging). */
   onRemoveFromList?: () => void;
   /** Select mode (the Lists "Select" toggle): the row becomes a pickable option. */
@@ -152,7 +146,13 @@ export function ListRow({
             }
           />
 
-          <ConfidenceDots rating={word.confidenceRating} />
+          {/* The dots ARE the "Forgot" control — press them and a "Forgot?" overlay
+              opens above (components/common/ConfidenceDots). Nothing about how they
+              READ changes; the whole affordance is the press. */}
+          <ConfidenceDots
+            rating={word.confidenceRating}
+            onForgot={onForgot && (async () => void (await onForgot()))}
+          />
 
           {!editing && (
             <>

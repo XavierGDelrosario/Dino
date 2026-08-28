@@ -851,6 +851,52 @@
   border-color: var(--accent);
 }
 
+/* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
+   REMOVES the browser's button chrome — the readout must look exactly as it did when
+   it was a <span>, so nothing may add a border, a background or a hover fill. Only the
+   cursor gives it away, which is the one hint a pointer user needs. */
+.dots-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.dots-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-right: 0.3rem; /* .dots' own margin, kept so the row spacing is unchanged */
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* The "Forgot?" overlay, floated ABOVE the dots that opened it. Centred on them and
+   allowed to overhang the row on both sides — a word row is narrow, and shrinking the
+   label to fit would be the one thing that makes it hard to hit. */
+.dots-pop {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.dots-pop:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 /* small icon buttons. Holds BOTH text glyphs (＋ ✓ ✕) and SVG icons (edit/trash —
    see components/common/icons.tsx), so centre the content rather than relying on the
    text baseline, which would drop an inline <svg> a few px low. */

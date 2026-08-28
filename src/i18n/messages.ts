@@ -234,6 +234,11 @@ export const en = {
   "lists.removeFromList": "Remove from this list (keeps it in your vocabulary)",
   "lists.deleteFromVocab": "Delete from vocabulary",
   "lists.confidenceOf": "confidence {n} of 5",
+  // The dots as a "Forgot" trigger (components/common/ConfidenceDots). The label
+  // carries the reading AND what pressing does, because the control has no chrome
+  // to announce itself with.
+  "lists.confidenceForgot": "confidence {n} of 5 — press to say you forgot this word",
+  "lists.forgotQ": "Forgot?",
   "lists.infoAria": "Added {added}, last reviewed {reviewed}",
   "lists.infoTitle": "Added: {added}\nLast reviewed: {reviewed}",
   "lists.never": "never",
@@ -657,6 +662,8 @@ export const ja: Record<MessageKey, string> = {
   "lists.removeFromList": "このリストから削除（語彙には残ります）",
   "lists.deleteFromVocab": "語彙から削除",
   "lists.confidenceOf": "自信度 5段階中{n}",
+  "lists.confidenceForgot": "自信度 5段階中{n} — 押すとこの単語を忘れたと記録します",
+  "lists.forgotQ": "忘れた？",
   "lists.infoAria": "追加日 {added}、最終復習 {reviewed}",
   "lists.infoTitle": "追加日：{added}\n最終復習：{reviewed}",
   "lists.never": "なし",

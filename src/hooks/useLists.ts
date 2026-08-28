@@ -22,6 +22,7 @@ import {
   type UserWord,
 } from "../services/words/userWords";
 import { lookupWord } from "../services/lookup";
+import { softenConfidence } from "../services/review";
 import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 import type { LangCode, SourceSelection } from "../services/language";
@@ -197,6 +198,31 @@ export function useLists(userId: string) {
     [guard, replaceLocal]
   );
 
+  /** "Forgot" from the row's confidence dots: drop this word one displayed-confidence
+   *  bucket (services/review.softenConfidence — a self-report, not a graded review).
+   *  The server no-ops below SOFTEN_MIN_CONFIDENCE and again for a word touched in the
+   *  last 2s, so a double-press returns the same row rather than dropping two notches;
+   *  we patch the cache with whatever it actually returns rather than assuming −1. */
+  const softenWord = useCallback(
+    (userWordId: string) =>
+      guard(async () => {
+        const res = await softenConfidence({ userWordId });
+        setWords((ws) =>
+          ws.map((w) =>
+            w.userWordId === userWordId
+              ? {
+                  ...w,
+                  stability: res.stability,
+                  confidenceRating: res.confidenceRating,
+                  lastReviewedDate: res.lastReviewedDate,
+                }
+              : w,
+          ),
+        );
+      }),
+    [guard],
+  );
+
   const deleteWord = useCallback(
     (userWordId: string) =>
       guard(async () => {
@@ -303,6 +329,7 @@ export function useLists(userId: string) {
     lookupDictionary,
     saveSenseToList,
     editWord,
+    softenWord,
     deleteWord,
     untagWord,
     tagWord,

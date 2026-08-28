@@ -497,6 +497,7 @@ export function ListView({
               }}
               onTag={(listId) => L.tagWord(w.userWordId, listId)}
               onCreateList={(name) => L.createListForWord(w.userWordId, name)}
+              onForgot={() => L.softenWord(w.userWordId)}
               onRemoveFromList={
                 selectedList
                   ? () => {
