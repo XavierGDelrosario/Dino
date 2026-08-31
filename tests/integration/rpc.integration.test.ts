@@ -458,6 +458,76 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: record_review — replay interva
 });
 
 // ── server_now (the offline clock anchor, migration 20260759) ───────────────
+// ── soften_confidence (the "Forgot" control, anon-callable) ────────────────
+// REGRESSION GUARD. 20260766 shipped this function passing COALESCE(peak_confidence, 0)
+// — an INTEGER — into display_confidence's SMALLINT parameter. int4 → int2 is an
+// ASSIGNMENT cast, so no candidate matched and every call raised 42883; a plpgsql body
+// is not resolved until it RUNS, so the migration applied clean on every environment
+// and the button was simply dead in the UI ("Something went wrong. Please try again.").
+// Only executing the function catches that class of bug, which is exactly what this
+// block does — the unit suite mocks the RPC and cannot see it.
+describe.skipIf(!ENABLED)("rpc: soften_confidence", () => {
+  it("drops exactly one displayed bucket and writes NO review_log row", async () => {
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "頑張る", meaning: "to persevere" });
+    // Grade 5 on a fresh word seeds ~40d → 5/5, and stamps last_reviewed_date NOW.
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    // Step clear of the 2s dedupe window without sleeping. No direct DB access → skip
+    // rather than assert against an un-aged card.
+    if (!(await backdateReview(w, 1))) return;
+
+    const { data, error } = await u.client.rpc("soften_confidence", { p_user_word_id: w });
+    expect(error).toBeNull();
+    const row = data as { stability: number; confidence_rating: number; peak_confidence: number };
+    expect(row.confidence_rating).toBe(4);
+    // Landed inside the 4/5 band (confidence_from_stability cuts at 35), never above.
+    expect(row.stability).toBeLessThanOrEqual(34);
+    // The peak-5 display floor is voided the way a fresh lapse voids it, or the word
+    // could never be softened below the 3/5 the button is offered from.
+    expect(row.peak_confidence).toBeLessThanOrEqual(4);
+
+    // The whole point of the separate verb: the schedule moved, but nothing claims the
+    // user was quizzed. Still just the one row from the record_review above.
+    const { data: log } = await u.client.from("review_log").select("grade").eq("user_word_id", w);
+    expect(log ?? []).toHaveLength(1);
+  });
+
+  it("is idempotent inside the dedupe window — a double-tap is ONE notch", async () => {
+    const u = await makeUser();
+    const w = await makeStandaloneWord(u, { input: "続ける", meaning: "to continue" });
+    await u.client.rpc("record_review", { p_user_word_id: w, p_grade: 5 });
+    if (!(await backdateReview(w, 1))) return;
+
+    const { data: first } = await u.client.rpc("soften_confidence", { p_user_word_id: w });
+    const { data: second } = await u.client.rpc("soften_confidence", { p_user_word_id: w });
+    // The second press lands within 2s of the first, so it returns the row untouched
+    // rather than dropping a second bucket.
+    expect((second as { confidence_rating: number }).confidence_rating).toBe(
+      (first as { confidence_rating: number }).confidence_rating,
+    );
+    expect((second as { stability: number }).stability).toBe((first as { stability: number }).stability);
+  });
+
+  it("no-ops below the floor instead of walking a word to 0", async () => {
+    const u = await makeUser();
+    // Never reviewed → no stability → 0/5, which is below MIN_CONFIDENCE (3).
+    const w = await makeStandaloneWord(u, { input: "初めて", meaning: "for the first time" });
+    const { data, error } = await u.client.rpc("soften_confidence", { p_user_word_id: w });
+    expect(error).toBeNull();
+    const row = data as { stability: number | null; confidence_rating: number };
+    expect(row.stability).toBeNull();
+    expect(row.confidence_rating).toBe(0);
+  });
+
+  it("cannot soften someone else's word (SECURITY DEFINER ownership guard)", async () => {
+    const alice = await makeUser();
+    const bob = await makeUser();
+    const w = await makeStandaloneWord(alice, { input: "秘密", meaning: "a secret" });
+    const { error } = await bob.client.rpc("soften_confidence", { p_user_word_id: w });
+    expect(error).not.toBeNull();
+  });
+});
+
 describe.skipIf(!ENABLED)("rpc: server_now", () => {
   it("returns the server clock and is callable by a client", async () => {
     const u = await makeUser();
@@ -1069,6 +1139,78 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     // Every returned row for that entry headlines the SEARCHED writing, not the
     // preferred kanji — so the edge can attribute it back to the search term.
     for (const r of mine) expect(r.writing).toBe(searched.text);
+  });
+
+  // ── letterless writings (20260767) ───────────────────────────────────────
+  // JMdict lists digit forms as "kanji" writings, and the preferred-writing pick used
+  // to take them: よろしく headworded ４６４９ (the goroawase entry 2846370), にじゅう
+  // headworded ２０, ゼロ headworded ０. The reader then offered the digits as a word to
+  // save. Asserted as "digits only", NOT as /\p{L}/: 〇 (U+3007) is Nl, which the
+  // database ctype counts as a letter but JS's \p{L} does not, and 〇 is a legitimate
+  // written form either way. Digits are the failure mode.
+  const DIGITS_ONLY = /^[0-9０-９]+$/u;
+
+  /** Does this environment have the entry loaded? The common subset lacks most of them. */
+  const entryLoaded = async (svc: NonNullable<ReturnType<typeof serviceClient>>, entry: string) => {
+    const { data } = await svc.from("jmdict_entries").select("entry_id").eq("entry_id", entry).limit(1);
+    return (data ?? []).length > 0;
+  };
+
+  it("never headwords a kana search as a digit-only writing (よろしく ≠ ４６４９)", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "2846370"))) return;
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "よろしく", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(r.writing).not.toMatch(DIGITS_ONLY);
+    // The goroawase entry keeps its sense — it just headwords as the word it IS.
+    const goroawase = rows.filter((r) => r.jmdict_entry_id === "2846370");
+    expect(goroawase.length).toBeGreaterThan(0);
+    for (const r of goroawase) expect(r.writing).toBe("よろしく");
+    // And the ordinary entry still leads (it is common; the joke is not).
+    expect(rows[0].writing).toBe("よろしく");
+  });
+
+  it("headwords a number word as its kanji, not its digits (にじゅう → 二十)", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "1462000"))) return;
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "にじゅう", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    const mine = rows.filter((r) => r.jmdict_entry_id === "1462000");
+    expect(mine.length).toBeGreaterThan(0);
+    for (const r of mine) expect(r.writing).toBe("二十");
+  });
+
+  it("still ANSWERS a digit form the user actually typed", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "2846370"))) return;
+
+    // The rule is about which writing we CHOOSE to display, never about what we can
+    // find: matched_kanji is exempt, so an explicit ４６４９ lookup resolves as before.
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "４６４９", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0].writing).toBe("４６４９");
+  });
+
+  it("applies the same rule in the materialized per-entry headword", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "2846370"))) return;
+
+    // The third copy of the pick (wordnet_en_ja_lookup + learn_words_at_band read it).
+    // If it drifts, a word headwords one way in Translate and another in Learn.
+    const { data } = await svc.rpc("jmdict_entry_headword", { p_entry_id: "2846370" });
+    const hw = (data ?? []) as Array<{ writing: string }>;
+    // Empty means the view was never refreshed: `db reset` loads the seed's TABLES and
+    // only scripts/ingest-jmdict.ts refreshes the view, so a seeded-but-not-ingested
+    // database has nothing to assert here. CI ingests, so it does.
+    if (hw.length === 0) return;
+    expect(hw[0].writing).toBe("よろしく");
   });
 });
 
