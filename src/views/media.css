@@ -1,34 +1,6 @@
-/* Media tab — Wikinews headline browse + Refresh. */
-
-/* Corpus language picker — deliberately identical to Learn's (.learn__lang), so the
-   two tabs' switchers read as one control rather than two designs. */
-.media__lang {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin: 0 0 0.8rem;
-}
-.media__langlabel {
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-.media__langselect {
-  font: inherit;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-}
-
-/* The way back to the host surface (Learn). Its own row above everything, so the
-   language picker keeps its place whether or not this view is hosted. */
-.media__nav {
-  display: flex;
-  margin-bottom: 0.6rem;
-}
+/* Articles — the Wikinews headline browse + Refresh, embedded in the Learn tab.
+   No language picker of its own and no back button: Learn owns both (see
+   MediaView's header). */
 
 .media__head {
   display: flex;

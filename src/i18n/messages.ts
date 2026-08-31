@@ -48,9 +48,6 @@ export const en = {
   "media.noFavorites": "No saved articles yet — tap ☆ on a story to keep it here.",
   // in-depth article summary page
   "media.back": "Back",
-  // Shown only when Articles is opened FROM Learn — it names the surface it returns
-  // to, so it can't be mistaken for ArticleView's own "← Back" to the headline list.
-  "media.backToLearn": "Learn",
   "media.backToAnalysis": "Back to analysis",
   "media.analyzing": "Analyzing the article…",
   "media.noWords": "No dictionary words found in this article.",
@@ -347,7 +344,8 @@ export const en = {
   "learn.findLevel": "Find my level",
   "learn.recalibrate": "Retake level check",
   "learn.language": "Language",
-  // Wikinews browsing, the former Media tab, now reached from here.
+  // Heading over the Wikinews browse embedded under the level bands (the former
+  // Media tab, and before that a button that opened it).
   "learn.articles": "📰 Articles",
 
   // calibration ("Find my level" placement quiz)
@@ -491,7 +489,6 @@ export const ja: Record<MessageKey, string> = {
   "media.noFavorites": "保存した記事はまだありません。☆ を押すとここに残ります。",
   // in-depth article summary page
   "media.back": "戻る",
-  "media.backToLearn": "学習",
   "media.backToAnalysis": "分析に戻る",
   "media.analyzing": "記事を分析中…",
   "media.noWords": "この記事に辞書の単語が見つかりませんでした。",

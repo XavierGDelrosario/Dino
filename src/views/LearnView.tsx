@@ -24,7 +24,9 @@ import { fetchLearnWords } from "../services/learn";
 import { CalibrationView } from "./CalibrationView";
 // Lazy, like HomeView loaded it: Articles is a whole second surface (browse + the
 // article analysis + its reader), and folding it into Learn's chunk would make the
-// tab that everyone opens pay for the one they might not.
+// tab that everyone opens pay for the one they might not. It renders INLINE below the
+// band buttons (see the bottom of the return), so the split is about bytes, not about
+// whether the surface is visible.
 const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.MediaView })));
 import {
   DEFAULT_LEARNING_LANGUAGE,
@@ -48,13 +50,18 @@ export function LearnView({ userId }: { userId: string }) {
   const [learning, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
   const [native, setNative] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
   const [lists, setLists] = useState<List[]>([]);
+  // Settled, one way or the other — the embedded Articles browse waits for it so it
+  // doesn't fetch the DEFAULT language's wiki and then immediately refetch the real
+  // one. Set on a FAILED read too, or a broken profile leaves it browsing nothing.
+  const [prefsReady, setPrefsReady] = useState(false);
   useEffect(() => {
     getUserProfile(userId)
       .then((p) => {
         setLearning((p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode);
         setNative((p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode);
       })
-      .catch((e) => console.warn("LearnView: failed to load language prefs", e));
+      .catch((e) => console.warn("LearnView: failed to load language prefs", e))
+      .finally(() => setPrefsReady(true));
     listUserLists(userId)
       .then(setLists)
       .catch((e) => console.warn("LearnView: failed to load sub-lists", e));
@@ -94,10 +101,12 @@ export function LearnView({ userId }: { userId: string }) {
   // not shown here.) Reloaded when calibration finishes.
   const [level, setLevel] = useState<number | null>(null);
   const [calibrating, setCalibrating] = useState(false);
-  // Articles (the former Media tab) is a SUB-SURFACE of Learn rather than a fifth tab:
-  // browsing real news is one way of learning new words, the same as drawing them from
-  // a band, so it belongs behind this tab instead of competing with it for a slot.
-  const [articles, setArticles] = useState(false);
+  // Articles (the former Media tab) is a SECTION of Learn rather than a fifth tab or a
+  // button that leads to one: browsing real news is one way of learning new words, the
+  // same as drawing them from a band, so it sits under the bands as the other way in.
+  // The one thing it still takes over for is the article ANALYSIS, which renders in the
+  // embedded view's own slot — so when it opens, this tab's chrome folds away.
+  const [articleOpen, setArticleOpen] = useState(false);
   const loadLevel = () =>
     getUserProficiencyBand(userId)
       .then(setLevel)
@@ -139,37 +148,6 @@ export function LearnView({ userId }: { userId: string }) {
     setBand(null);
     setError(null);
   };
-
-  /** The Articles launcher — rendered in BOTH branches below (see the guard). */
-  const articlesButton = (
-    <div className="learn__articles">
-      <button className="btn btn--ghost" onClick={() => setArticles(true)}>
-        {t("learn.articles")}
-      </button>
-    </div>
-  );
-
-  // Articles outranks everything else on this tab, INCLUDING the framework guard
-  // below: Wikinews is browsable in a language that has no proficiency scale ingested,
-  // and gating it behind one would have deleted the surface for those learners when it
-  // stopped being a tab of its own.
-  if (articles) {
-    return (
-      <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
-        <MediaView key={userId} userId={userId} onBack={() => setArticles(false)} />
-      </Suspense>
-    );
-  }
-
-  // No framework for the learning language (or none ingested yet) → nothing to do.
-  if (!framework) {
-    return (
-      <section className="review learn">
-        {articlesButton}
-        <p className="review__msg">{t("learn.noFramework")}</p>
-      </section>
-    );
-  }
 
   // "Find my level" takeover: the placement quiz. On close, reload the stored level
   // so the hint + pre-highlighted band reflect the new result.
@@ -215,69 +193,101 @@ export function LearnView({ userId }: { userId: string }) {
     );
   }
 
-  const bandLabel = band != null ? framework.bands.find((b) => b.value === band)?.label : null;
-  const levelLabel = level != null ? labelForBand(framework, level) : null;
+  const bandLabel =
+    framework && band != null ? framework.bands.find((b) => b.value === band)?.label : null;
+  const levelLabel = framework && level != null ? labelForBand(framework, level) : null;
 
   return (
     <section className="review learn">
-      <label className="learn__lang">
-        <span className="learn__langlabel">{t("learn.language")}</span>
-        <select
-          className="learn__langselect"
-          value={learning}
-          // LOCAL ONLY — this picker changes what THIS tab studies and nothing else.
-          // It deliberately does not write to the profile: your saved languages are a
-          // settings decision, and trying a different language here for one session
-          // shouldn't rewrite them behind your back (an earlier version swapped the
-          // native language to keep the pair valid, which is exactly the surprise this
-          // avoids). The placement quiz reads this same value via `langs`, so the tab
-          // stays self-consistent without touching anything outside it.
-          onChange={(e) => {
-            setLearning(e.target.value as LangCode);
-            reset();
-          }}
-        >
-          {targetOptions().map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* Everything above the Articles section hides while the article ANALYSIS is
+          open: it renders inside the embedded browse below, so leaving the picker and
+          the bands stacked on top of it would put a level quiz launcher over a page of
+          prose. The browse itself stays MOUNTED throughout — moving it in the tree to
+          "promote" it would remount it and lose the open article. */}
+      {!articleOpen && (
+        <>
+          <label className="learn__lang">
+            <span className="learn__langlabel">{t("learn.language")}</span>
+            <select
+              className="learn__langselect"
+              value={learning}
+              // LOCAL ONLY — this picker changes what THIS tab studies and nothing else.
+              // It deliberately does not write to the profile: your saved languages are a
+              // settings decision, and trying a different language here for one session
+              // shouldn't rewrite them behind your back (an earlier version swapped the
+              // native language to keep the pair valid, which is exactly the surprise this
+              // avoids). The placement quiz reads this same value via `langs`, so the tab
+              // stays self-consistent without touching anything outside it.
+              onChange={(e) => {
+                setLearning(e.target.value as LangCode);
+                reset();
+              }}
+            >
+              {targetOptions().map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      {articlesButton}
+          {/* Placement-quiz launcher + the current calibrated level (if any). */}
+          <div className="learn__level">
+            <span className="learn__levelnote">
+              {levelLabel ? t("learn.yourLevel", { level: levelLabel }) : t("learn.noLevel")}
+            </span>
+            <button className="btn btn--ghost" onClick={() => setCalibrating(true)}>
+              {levelLabel ? t("learn.recalibrate") : t("learn.findLevel")}
+            </button>
+          </div>
 
-      {/* Placement-quiz launcher + the current calibrated level (if any). */}
-      <div className="learn__level">
-        <span className="learn__levelnote">
-          {levelLabel ? t("learn.yourLevel", { level: levelLabel }) : t("learn.noLevel")}
-        </span>
-        <button className="btn btn--ghost" onClick={() => setCalibrating(true)}>
-          {levelLabel ? t("learn.recalibrate") : t("learn.findLevel")}
-        </button>
-      </div>
+          {/* No framework for the learning language (or none ingested yet) → nothing to
+              pick. Only the BANDS go; the Articles section below stays, because Wikinews is
+              browsable in a language that has no proficiency scale ingested and gating it
+              behind one would delete the surface for exactly those learners. */}
+          {framework ? (
+            <>
+              <p className="learn__bandstitle">{t("learn.learnNewWords")}</p>
+              <div className="tabs learn__bands" role="group" aria-label={t("learn.pickLevel")}>
+                {framework.bands.map((b) => (
+                  <button
+                    key={b.value}
+                    className={`tab${band === b.value ? " tab--active" : ""}`}
+                    onClick={() => start(b.value)}
+                    disabled={status === "loading"}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="review__msg">{t("learn.noFramework")}</p>
+          )}
 
-      <p className="learn__bandstitle">{t("learn.learnNewWords")}</p>
-      <div className="tabs learn__bands" role="group" aria-label={t("learn.pickLevel")}>
-        {framework.bands.map((b) => (
-          <button
-            key={b.value}
-            className={`tab${band === b.value ? " tab--active" : ""}`}
-            onClick={() => start(b.value)}
-            disabled={status === "loading"}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
+          {status === "loading" && <p className="review__msg">{t("learn.loading")}</p>}
+          {status === "empty" && (
+            <div className="review__msg">
+              <p>{t("learn.empty", { level: bandLabel ?? "" })}</p>
+            </div>
+          )}
+          {status === "error" && <ErrorText message={error} />}
 
-      {status === "loading" && <p className="review__msg">{t("learn.loading")}</p>}
-      {status === "empty" && (
-        <div className="review__msg">
-          <p>{t("learn.empty", { level: bandLabel ?? "" })}</p>
-        </div>
+          <p className="learn__bandstitle learn__articlestitle">{t("learn.articles")}</p>
+        </>
       )}
-      {status === "error" && <ErrorText message={error} />}
+
+      {/* The Wikinews browse ⇄ ★ Saved lists, in the flow under the bands — the second
+          way into new words, not a place you navigate to. It owns no language of its
+          own; this tab's picker is the one picker. */}
+      <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
+        <MediaView
+          userId={userId}
+          langs={{ learning, native: explainIn }}
+          ready={prefsReady}
+          onArticleOpen={setArticleOpen}
+        />
+      </Suspense>
     </section>
   );
 }
