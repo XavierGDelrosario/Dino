@@ -4,12 +4,69 @@
   gap: 1rem;
 }
 
-/* list chips */
+/* list chips — ONE line that scrolls sideways, never wraps. A wrapped row grows
+   taller with every list the user makes and pushes the table down the page; a
+   scroller keeps the surface a fixed height however many lists there are. */
 .chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.4rem;
   align-items: center;
+  overflow-x: auto;
+  /* overflow-y can't stay `visible` next to a scrolling x-axis (CSS coerces it to
+     auto), so the ✕ that hangs off a chip's top-right corner has to be paid for in
+     padding on BOTH axes or it clips — 5px up for the badge, 5px right so the last
+     chip's badge survives the end of the scroll. */
+  padding: 5px 5px 0 0;
+  /* No visible scrollbar: it would sit under the chips as a permanent grey line in
+     a row that is usually short enough not to scroll at all. */
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* Chips size to their label and never squeeze — shrinking is what a scroller is
+   there to avoid. */
+.chips > * {
+  flex: 0 0 auto;
+}
+
+/* A chip and its delete ✕ can't nest (no button inside a button), so they share a
+   positioned wrapper instead. */
+.chips__item {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Corner badge on the SELECTED chip only. Overlaps the chip's own border rather
+   than taking layout width, so selecting a list never reflows the row. */
+.chips__del {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chips__del:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  /* Literal white, matching .btn--danger: this sits on the solid danger red in both
+     themes, and red never gets light enough for dark ink. */
+  color: #fff;
 }
 
 .chip {
@@ -21,6 +78,16 @@
   padding: 0.35rem 0.8rem;
   font-size: 0.85rem;
   cursor: pointer;
+  /* The row scrolls instead of wrapping, so a long list name must not wrap INSIDE
+     its chip either — that would make one chip two lines tall and break the row.
+     A name longer than the cap ellipsises instead of pushing every other list off
+     the visible stretch of the scroller; the chip carries the full name in its
+     `title`, so nothing is lost. The cap yields to the viewport on a phone, where
+     11rem is most of the width. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(11rem, 50vw);
 }
 
 .chip--active {
@@ -42,15 +109,19 @@
   gap: 0.3rem;
 }
 
-/* header bar: title + Review together on the left · Delete pushed right */
+/* header bar: title + the Review / Review All / Summary actions, ONE line.
+   The buttons hold their natural width and never wrap their label (a wrapped
+   "Review All (123)" grows two lines tall and stops matching its neighbours);
+   the title is the only thing allowed to shrink, and it ellipsises. */
 .lists__bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
-.lists__deletebtn {
-  margin-left: auto;
+.lists__bar .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .lists__title {
@@ -59,14 +130,32 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .lists__count {
+  flex: 0 0 auto;
   font-size: 0.8rem;
   color: var(--muted);
   background: var(--surface-2);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
+}
+
+/* Phone: three un-wrappable action buttons plus a name need ~300px on their own,
+   which is most of the ~358px an iPhone leaves the app. Trim their padding so the
+   title keeps a readable stub instead of ellipsising to nothing. */
+@media (max-width: 430px) {
+  .lists__bar {
+    gap: 0.35rem;
+  }
+
+  .lists__bar .btn--sm {
+    padding: 0.4rem 0.5rem;
+  }
 }
 
 .lists__addtoggle {
