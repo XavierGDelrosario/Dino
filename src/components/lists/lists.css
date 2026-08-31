@@ -1168,9 +1168,13 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.1rem 0.5rem;
-  font-size: 0.72rem;
-  line-height: 1.5;
+  padding: 0.15rem 0.75rem;
+  /* 1.5× the 0.72rem it opened at. It is a CONFIRMATION — the one press that costs the
+     user a notch of confidence — and at the row's own small type it read as a tooltip
+     you could ignore. The horizontal padding grows with it so the pill keeps its shape;
+     the label may overhang the row, which .dots-pop is already built for. */
+  font-size: 1.08rem;
+  line-height: 1.4;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
