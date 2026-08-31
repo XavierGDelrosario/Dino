@@ -363,14 +363,22 @@ body {
 }
 
 /* person-icon account dropdown (top-right) */
-.profilemenu {
+/* The top-bar control row: appearance · language · account, pinned to the header's
+   top-right corner. It is a FLEX ROW rather than three absolutely-positioned buttons
+   (the old .langmenu { right: 2.6rem } was the width of the icon beside it, written
+   out by hand) — so adding or hiding one shifts the rest instead of leaving a hole. */
+.app__menus {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-/* Language (globe) menu sits just left of the profile icon (2.1rem btn + gap). */
-.langmenu {
-  right: 2.6rem;
+
+/* Still positioned, but only as the anchor its own dropdown panel hangs from. */
+.profilemenu {
+  position: relative;
 }
 
 /* Profile footer: Back (left) · Delete account (right). */
@@ -403,6 +411,8 @@ body {
 .btn--danger:hover {
   filter: brightness(1.12);
 }
+/* The shared top-bar icon button — the globe, the appearance toggle and the person
+   all use it, so they read as one row of controls (see .app__menus). */
 .profilemenu__btn {
   width: 2.1rem;
   height: 2.1rem;
@@ -458,58 +468,6 @@ body {
    what it does, so the panel stays put while you try the other two.
    Divider under it so it reads as a setting above the action rows, not as a
    fourth action. */
-.themepicker {
-  padding: 0.15rem 0.15rem 0.45rem;
-  margin-bottom: 0.25rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.themepicker__label {
-  display: block;
-  padding: 0.15rem 0.45rem 0.3rem;
-  font-size: 0.7rem;
-  color: var(--muted);
-}
-
-.themepicker__seg {
-  display: flex;
-  gap: 0.15rem;
-  padding: 0.15rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-}
-
-.themepicker__btn {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  padding: 0.3rem 0.2rem;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1.2;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.themepicker__btn:hover {
-  color: var(--text);
-}
-
-/* The selected value. Filled with the accent — --on-accent is what makes this
-   legible in BOTH themes (near-black on the dark theme's pale lavender, white on
-   the light theme's deep purple). */
-.themepicker__btn.is-on {
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-}
-
 /* auth + profile pages */
 .authpage,
 .profile {

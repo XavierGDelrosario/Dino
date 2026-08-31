@@ -29,7 +29,6 @@ export const en = {
   // reads the Wikinews edition of that language, so its intro can't say "Japanese".
   "lang.JA": "Japanese",
   "lang.EN": "English",
-  "media.language": "Language",
   "media.intro": "Study real {lang} from the news. Pick an article to read it word-by-word.",
   "media.loading": "Loading news…",
   "media.refresh": "Refresh",
@@ -450,7 +449,8 @@ export const en = {
   "profile.deleteCancel": "Cancel",
 
   // appearance (theme picker in the account menu)
-  "theme.label": "Appearance",
+  // The top-bar appearance button CYCLES, so its label has to say what a click does.
+  "theme.cycleAria": "Appearance: {mode} — switch to {next}",
   "theme.system": "System",
   "theme.light": "Light",
   "theme.dark": "Dark",
@@ -477,7 +477,6 @@ export const ja: Record<MessageKey, string> = {
   "tabs.review": "復習",
   "lang.JA": "日本語",
   "lang.EN": "英語",
-  "media.language": "言語",
   "media.intro": "ニュースで本物の{lang}を学ぼう。記事を選んで単語ごとに読めます。",
   "media.loading": "ニュースを読み込み中…",
   "media.refresh": "更新",
@@ -864,7 +863,7 @@ export const ja: Record<MessageKey, string> = {
   "profile.deleteYes": "アカウントを削除する",
   "profile.deleteCancel": "キャンセル",
 
-  "theme.label": "外観",
+  "theme.cycleAria": "外観: {mode} — {next}に切り替え",
   "theme.system": "システム",
   "theme.light": "ライト",
   "theme.dark": "ダーク",
