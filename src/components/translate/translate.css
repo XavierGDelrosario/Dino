@@ -968,7 +968,15 @@ textarea.translate__box::-webkit-scrollbar {
   inset: 0;
   z-index: 5;
   display: flex;
-  align-items: center;
+  /* SIT LOW ENOUGH TO SEE WHAT YOU WROTE. Picking a candidate appends to the input
+     box behind this overlay, so a centred pad hid the one thing the user needed to
+     check — and the pad is taller than the boxes (~400px vs 18rem), so centring even
+     pushed its top ABOVE them. Anchored to the top and nudged down by the textarea's
+     first line (0.8rem padding + one 1.6 line at --io-font ≈ 2.75rem, rounded to 3),
+     so the growing text stays visible while drawing. The pad spills further below the
+     boxes than it used to; that is the side with room. */
+  align-items: flex-start;
+  padding-top: 3rem;
   justify-content: center;
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg, #16181d) 78%, transparent);
