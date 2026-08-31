@@ -252,6 +252,13 @@ export const en = {
   "period.week": "this week",
   "period.month": "this month",
   "period.year": "this year",
+  // The added/reviewed axes are day SPANS picked on a calendar; these render one.
+  "dates.span": "{from} – {to}",
+  "dates.since": "from {date}",
+  "dates.until": "until {date}",
+  "dates.calendarAria": "{label}: pick a date range",
+  "dates.prevMonth": "Previous month",
+  "dates.nextMonth": "Next month",
 
   // review / flashcards
   "common.retry": "Retry",
@@ -674,6 +681,12 @@ export const ja: Record<MessageKey, string> = {
   "period.week": "今週",
   "period.month": "今月",
   "period.year": "今年",
+  "dates.span": "{from}〜{to}",
+  "dates.since": "{date}以降",
+  "dates.until": "{date}まで",
+  "dates.calendarAria": "{label}: 期間を選択",
+  "dates.prevMonth": "前の月",
+  "dates.nextMonth": "次の月",
 
   "common.retry": "再試行",
   "review.grade1": "忘れた",

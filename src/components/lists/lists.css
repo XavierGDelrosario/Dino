@@ -457,13 +457,207 @@
 
 /* The period selects + confidence slider now live INSIDE the filter box: full
    width of it, not squeezed into the toolbar row. */
-.filtermenu__section .select {
-  width: 100%;
-  font-size: 0.8rem;
-}
-
 .filtermenu__section .dualrange {
   width: 100%;
+}
+
+/* ── The date axes: a trigger and its calendar ──────────────────────────────
+   Added / last reviewed are day SPANS now, not canned periods, so each axis is a
+   button reading its own span with a calendar underneath. Only one calendar is open
+   at a time (FilterMenu owns that), because the panel is IN the page flow — an open
+   one pushes the rows it filters down the page, and two would bury them. */
+.filtermenu__dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.daterange {
+  display: flex;
+  flex-direction: column;
+  /* The trigger sizes to its own text: it and the calendar are stacked, and stretching
+     the button to the calendar's width made a closed "Added: all time" read as an input
+     field the width of the panel. */
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.daterange__trigger {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.daterange__trigger:hover {
+  background: var(--hover);
+}
+
+/* A narrowed axis is marked on the CLOSED trigger — the panel's badge counts it, and
+   without this you'd have to open each calendar to find which one is doing it. */
+.daterange__trigger--on {
+  border-color: var(--accent);
+}
+
+.daterange__name {
+  color: var(--muted);
+}
+
+.daterange__value {
+  font-weight: 600;
+}
+
+.cal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cal__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cal__arrow {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cal__arrow:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.cal__arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Seven fixed columns — a calendar whose columns shift with the number of digits is
+   not a calendar. */
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 2rem);
+  gap: 2px;
+}
+
+.cal__weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.4rem;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.cal__pad {
+  height: 2rem;
+}
+
+.cal__day {
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cal__day:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* Future days hold nothing — a word can't be added or reviewed tomorrow. */
+.cal__day:disabled {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The span: a soft fill for the days inside it, the accent itself for the two ends,
+   so a one-day span and a wide one read as the same object. */
+.cal__day--in {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.cal__day--edge,
+/* Hover is a MORE specific selector than these state classes, so without spelling the
+   hovered case out the day under the cursor loses its fill — which is exactly the day
+   you just clicked, and it read as unselected. */
+.cal__day--edge:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.cal__day--in:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* Today, whether or not it is selected — the anchor the eye looks for first. */
+.cal__day--today {
+  border-color: var(--accent);
+}
+
+.cal__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.cal__preset {
+  padding: 0.2rem 0.5rem;
+  background: none;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.cal__preset:hover {
+  background: var(--hover);
 }
 
 /* dual-thumb range slider: two <input type=range> overlaid on one track */
