@@ -481,6 +481,7 @@ export function TranslateView({
             lists={t.lists}
             onAdd={t.addWords}
             onCreateList={t.createNamedList}
+            onForgot={t.softenSenses}
           />
         </div>
       )}
@@ -508,6 +509,7 @@ export function TranslateView({
               userId={userId}
               onAdd={t.addWords}
               onCreateList={t.createNamedList}
+              onForgot={t.softenSenses}
             />
           )}
 
@@ -563,6 +565,7 @@ export function TranslateView({
                 lists={t.lists}
                 onAdd={t.addWords}
                 onCreateList={t.createNamedList}
+                onForgot={t.softenSenses}
               />
             </>
           )}

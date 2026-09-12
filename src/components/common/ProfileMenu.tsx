@@ -1,5 +1,9 @@
-// Person-icon dropdown (top-right). Profile link + sign-in (guest) / sign-out
+// Person-icon dropdown (top-right): profile link + sign-in (guest) / sign-out
 // (account). The forms live on their own pages now (AuthPage); this just navigates.
+//
+// Appearance USED to head this menu. It moved out to its own top-bar button beside
+// the language globe (ThemeToggle) — a guest needs it too, and behind a person icon
+// it read as account business.
 import { signOut } from "../../services/session";
 import { useI18n } from "../../i18n";
 import { useRouter, Link } from "../../router";

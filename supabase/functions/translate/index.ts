@@ -54,7 +54,7 @@ import {
 // ANSWER is re-projected. Don't bump when the row can be corrected in place (e.g. an
 // ingest that backfills `words` directly) — that just stampedes the whole cache.
 // See src/lib/projection.ts for the full contract and the version history.
-const CURRENT_PROJECTION_VERSION = 14;
+const CURRENT_PROJECTION_VERSION = 15;
 
 // The READ side of that stamp: a row below the current version is a cache MISS, and the
 // re-projection upserts on `dictionary_ref` so it UPDATEs in place (word_id survives,

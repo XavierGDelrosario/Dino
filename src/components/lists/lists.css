@@ -4,12 +4,69 @@
   gap: 1rem;
 }
 
-/* list chips */
+/* list chips — ONE line that scrolls sideways, never wraps. A wrapped row grows
+   taller with every list the user makes and pushes the table down the page; a
+   scroller keeps the surface a fixed height however many lists there are. */
 .chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.4rem;
   align-items: center;
+  overflow-x: auto;
+  /* overflow-y can't stay `visible` next to a scrolling x-axis (CSS coerces it to
+     auto), so the ✕ that hangs off a chip's top-right corner has to be paid for in
+     padding on BOTH axes or it clips — 5px up for the badge, 5px right so the last
+     chip's badge survives the end of the scroll. */
+  padding: 5px 5px 0 0;
+  /* No visible scrollbar: it would sit under the chips as a permanent grey line in
+     a row that is usually short enough not to scroll at all. */
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* Chips size to their label and never squeeze — shrinking is what a scroller is
+   there to avoid. */
+.chips > * {
+  flex: 0 0 auto;
+}
+
+/* A chip and its delete ✕ can't nest (no button inside a button), so they share a
+   positioned wrapper instead. */
+.chips__item {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Corner badge on the SELECTED chip only. Overlaps the chip's own border rather
+   than taking layout width, so selecting a list never reflows the row. */
+.chips__del {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chips__del:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  /* Literal white, matching .btn--danger: this sits on the solid danger red in both
+     themes, and red never gets light enough for dark ink. */
+  color: #fff;
 }
 
 .chip {
@@ -21,12 +78,22 @@
   padding: 0.35rem 0.8rem;
   font-size: 0.85rem;
   cursor: pointer;
+  /* The row scrolls instead of wrapping, so a long list name must not wrap INSIDE
+     its chip either — that would make one chip two lines tall and break the row.
+     A name longer than the cap ellipsises instead of pushing every other list off
+     the visible stretch of the scroller; the chip carries the full name in its
+     `title`, so nothing is lost. The cap yields to the viewport on a phone, where
+     11rem is most of the width. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(11rem, 50vw);
 }
 
 .chip--active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #1b1030;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -42,15 +109,19 @@
   gap: 0.3rem;
 }
 
-/* header bar: title + Review together on the left · Delete pushed right */
+/* header bar: title + the Review / Review All / Summary actions, ONE line.
+   The buttons hold their natural width and never wrap their label (a wrapped
+   "Review All (123)" grows two lines tall and stops matching its neighbours);
+   the title is the only thing allowed to shrink, and it ellipsises. */
 .lists__bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
-.lists__deletebtn {
-  margin-left: auto;
+.lists__bar .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .lists__title {
@@ -59,14 +130,32 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .lists__count {
+  flex: 0 0 auto;
   font-size: 0.8rem;
   color: var(--muted);
   background: var(--surface-2);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
+}
+
+/* Phone: three un-wrappable action buttons plus a name need ~300px on their own,
+   which is most of the ~358px an iPhone leaves the app. Trim their padding so the
+   title keeps a readable stub instead of ellipsising to nothing. */
+@media (max-width: 430px) {
+  .lists__bar {
+    gap: 0.35rem;
+  }
+
+  .lists__bar .btn--sm {
+    padding: 0.4rem 0.5rem;
+  }
 }
 
 .lists__addtoggle {
@@ -85,12 +174,6 @@
 
 .lists__toolbar .lists__addtoggle {
   align-self: auto;
-}
-
-.lists__baractions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
 }
 
 .btn--sm {
@@ -368,13 +451,207 @@
 
 /* The period selects + confidence slider now live INSIDE the filter box: full
    width of it, not squeezed into the toolbar row. */
-.filtermenu__section .select {
-  width: 100%;
-  font-size: 0.8rem;
-}
-
 .filtermenu__section .dualrange {
   width: 100%;
+}
+
+/* ── The date axes: a trigger and its calendar ──────────────────────────────
+   Added / last reviewed are day SPANS now, not canned periods, so each axis is a
+   button reading its own span with a calendar underneath. Only one calendar is open
+   at a time (FilterMenu owns that), because the panel is IN the page flow — an open
+   one pushes the rows it filters down the page, and two would bury them. */
+.filtermenu__dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.daterange {
+  display: flex;
+  flex-direction: column;
+  /* The trigger sizes to its own text: it and the calendar are stacked, and stretching
+     the button to the calendar's width made a closed "Added: all time" read as an input
+     field the width of the panel. */
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.daterange__trigger {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.daterange__trigger:hover {
+  background: var(--hover);
+}
+
+/* A narrowed axis is marked on the CLOSED trigger — the panel's badge counts it, and
+   without this you'd have to open each calendar to find which one is doing it. */
+.daterange__trigger--on {
+  border-color: var(--accent);
+}
+
+.daterange__name {
+  color: var(--muted);
+}
+
+.daterange__value {
+  font-weight: 600;
+}
+
+.cal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cal__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cal__arrow {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cal__arrow:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.cal__arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Seven fixed columns — a calendar whose columns shift with the number of digits is
+   not a calendar. */
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 2rem);
+  gap: 2px;
+}
+
+.cal__weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.4rem;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.cal__pad {
+  height: 2rem;
+}
+
+.cal__day {
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cal__day:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* Future days hold nothing — a word can't be added or reviewed tomorrow. */
+.cal__day:disabled {
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The span: a soft fill for the days inside it, the accent itself for the two ends,
+   so a one-day span and a wide one read as the same object. */
+.cal__day--in {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.cal__day--edge,
+/* Hover is a MORE specific selector than these state classes, so without spelling the
+   hovered case out the day under the cursor loses its fill — which is exactly the day
+   you just clicked, and it read as unselected. */
+.cal__day--edge:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.cal__day--in:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* Today, whether or not it is selected — the anchor the eye looks for first. */
+.cal__day--today {
+  border-color: var(--accent);
+}
+
+.cal__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.cal__preset {
+  padding: 0.2rem 0.5rem;
+  background: none;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.cal__preset:hover {
+  background: var(--hover);
 }
 
 /* dual-thumb range slider: two <input type=range> overlaid on one track */
@@ -431,7 +708,7 @@
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 
@@ -442,65 +719,8 @@
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
-}
-
-/* "?" date badge on a row — a real button that toggles the info panel below. */
-.listrow__info {
-  flex-shrink: 0;
-  width: 1.2rem;
-  height: 1.2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: none;
-  padding: 0;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.listrow__info:hover,
-.listrow__info[aria-expanded="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Tap-revealed date panel (added / last-reviewed), full row width. */
-/* Anchor for the floating info overlay. */
-.listrow__info-wrap {
-  position: relative;
-  display: inline-flex;
-}
-
-/* Floating date overlay above the row content — does NOT reflow the row. Hidden by
-   default; shown on hover (desktop) or when the "?" is toggled open (touch/iOS). */
-.listrow__infopanel {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  flex-direction: column;
-  gap: 0.15rem;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-}
-
-.listrow__info-wrap:hover .listrow__infopanel,
-.listrow__info[aria-expanded="true"] ~ .listrow__infopanel {
-  display: flex;
 }
 
 /* add-custom-word form */
@@ -542,10 +762,6 @@
 
 .addword__added {
   font-size: 0.95rem;
-}
-
-.addword__head {
-  font-weight: 600;
 }
 
 /* SIZE-ONLY modifier of .langbar__swap (translate.css owns the look — the flip
@@ -603,12 +819,6 @@
 }
 
 /* word rows */
-.listrows__more {
-  display: flex;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
 .listrows__count {
   text-align: center;
   margin-top: 0.5rem;
@@ -851,6 +1061,56 @@
   border-color: var(--accent);
 }
 
+/* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
+   REMOVES the browser's button chrome — the readout must look exactly as it did when
+   it was a <span>, so nothing may add a border, a background or a hover fill. Only the
+   cursor gives it away, which is the one hint a pointer user needs. */
+.dots-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.dots-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-right: 0.3rem; /* .dots' own margin, kept so the row spacing is unchanged */
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* The "Forgot?" overlay, floated ABOVE the dots that opened it. Centred on them and
+   allowed to overhang the row on both sides — a word row is narrow, and shrinking the
+   label to fit would be the one thing that makes it hard to hit. */
+.dots-pop {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.75rem;
+  /* 1.5× the 0.72rem it opened at. It is a CONFIRMATION — the one press that costs the
+     user a notch of confidence — and at the row's own small type it read as a tooltip
+     you could ignore. The horizontal padding grows with it so the pill keeps its shape;
+     the label may overhang the row, which .dots-pop is already built for. */
+  font-size: 1.08rem;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.dots-pop:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 /* small icon buttons. Holds BOTH text glyphs (＋ ✓ ✕) and SVG icons (edit/trash —
    see components/common/icons.tsx), so centre the content rather than relying on the
    text baseline, which would drop an inline <svg> a few px low. */
@@ -874,8 +1134,8 @@
 }
 
 .iconbtn--danger:hover {
-  border-color: #6a2c2c;
-  background: #2a1416;
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
 }
 
 .listrow__tag {

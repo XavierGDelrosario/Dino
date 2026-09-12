@@ -43,8 +43,7 @@
 }
 
 .sense__add,
-.sense__saved,
-.sense__busy {
+.sense__saved {
   flex-shrink: 0;
   appearance: none;
   border-radius: 999px;
@@ -68,10 +67,6 @@
 .sense__saved {
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--muted);
-}
-
-.sense__busy {
   color: var(--muted);
 }
 

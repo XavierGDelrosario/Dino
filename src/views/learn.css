@@ -1,4 +1,5 @@
 /* Learn tab: the "Find my level" launcher row + a hinted (calibrated) band. */
+
 .learn__level {
   display: flex;
   align-items: center;
@@ -18,6 +19,13 @@
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);
+}
+
+/* Articles (Wikinews) — the OTHER way into new words, so it reads as a second
+   section under the bands rather than a link to somewhere else. Same heading as the
+   bands', with the air the band row doesn't need above it. */
+.learn__articlestitle {
+  margin-top: 0.5rem;
 }
 
 /* No divider line under the level tabs (the shared .tabs rule adds one). */
@@ -55,31 +63,6 @@
   gap: 1rem;
 }
 
-.swipe__bar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 420px;
-}
-.swipe__level {
-  font-weight: 600;
-}
-.swipe__tally {
-  display: inline-flex;
-  gap: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-.swipe__known {
-  color: #3ecb6c;
-}
-.swipe__unknown {
-  color: #ff6b6b;
-}
-.swipe__stop {
-  margin-left: auto;
-}
-
 .swipe__controls {
   display: flex;
   flex-wrap: wrap;
@@ -88,18 +71,18 @@
   gap: 0.6rem;
 }
 .swipe__no {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: var(--conf-0);
+  color: var(--conf-0);
 }
 .swipe__no:hover:not(:disabled) {
-  background: color-mix(in srgb, #ff6b6b 15%, transparent);
+  background: color-mix(in srgb, var(--conf-0) 15%, transparent);
 }
 .swipe__yes {
-  border-color: #3ecb6c;
-  color: #3ecb6c;
+  border-color: var(--success);
+  color: var(--success);
 }
 .swipe__yes:hover:not(:disabled) {
-  background: color-mix(in srgb, #3ecb6c 15%, transparent);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
 }
 
 .swipe__hint {
@@ -107,16 +90,6 @@
   font-size: 0.85rem;
   color: var(--muted);
   text-align: center;
-}
-
-.swipe--done {
-  text-align: center;
-  gap: 0.8rem;
-  padding: 1.5rem 1rem;
-}
-.swipe__donetitle {
-  margin: 0;
-  font-size: 1.1rem;
 }
 
 /* swipe placement: commit button */

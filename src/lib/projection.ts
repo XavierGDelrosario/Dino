@@ -16,7 +16,7 @@
 // this). Bump BOTH; tests/services/projection-version.test.ts fails if they drift.
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 14;
+export const CURRENT_PROJECTION_VERSION = 15;
 
 /** PostgREST filter for "safe to serve from cache" — MT rows included (see header). */
 export const FRESH = `projection_version.gte.${CURRENT_PROJECTION_VERSION}`;

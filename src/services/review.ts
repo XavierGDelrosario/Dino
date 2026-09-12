@@ -297,3 +297,53 @@ export async function recordReview(params: {
     };
   }
 }
+
+/** Below this displayed confidence there is nothing to soften — the server enforces
+ *  the same floor, so this is the UI's copy of one rule, not a second rule. */
+export const SOFTEN_MIN_CONFIDENCE = 3;
+
+/** Is there anything for "Forgot" to do at this displayed confidence? Every surface
+ *  that offers the control asks through this, so the floor is stated once: the reader
+ *  (whether to show the button), the dots (whether they are inert text) and the hook
+ *  (which senses to actually send) all used to spell it out separately. */
+export function canSoften(confidence: number | null | undefined): boolean {
+  return (confidence ?? 0) >= SOFTEN_MIN_CONFIDENCE;
+}
+
+/**
+ * "Forgot" — drop ONE displayed-confidence bucket for a word the user is reading, and
+ * pull its next review in. Not a graded review: nothing is written to `review_log`
+ * (see migration 20260766 for why that distinction is load-bearing).
+ *
+ * IDEMPOTENT BY CONSTRUCTION, twice over: the server no-ops below
+ * SOFTEN_MIN_CONFIDENCE and again for any word touched in the last 2 seconds, so a
+ * double-tap returns the SAME row rather than dropping two notches. Callers should
+ * still hold the button until the user has seen the new number.
+ *
+ * The returned confidence is what actually happened, which is usually current − 1 but
+ * can be lower: the function never RAISES stability, so a number propped up by a cram
+ * session falls to what the long term really supports.
+ *
+ * Deliberately NOT offline-queueable. The offline store carries grades, and this isn't
+ * one; an unreachable server throws and the button stays as it was.
+ */
+export async function softenConfidence(params: { userWordId: string }): Promise<ReviewResult> {
+  const { data, error } = await supabase.rpc("soften_confidence", {
+    p_user_word_id: params.userWordId,
+  });
+  if (error || !data) throw toServiceError(error, "Failed to lower confidence");
+
+  // RETURNS user_words → a single row (PostgREST may wrap it in an array).
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    user_word_id: string;
+    stability: number;
+    confidence_rating: number;
+    last_reviewed_date: string;
+  };
+  return {
+    userWordId: row.user_word_id,
+    stability: row.stability,
+    confidenceRating: row.confidence_rating,
+    lastReviewedDate: row.last_reviewed_date,
+  };
+}

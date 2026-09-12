@@ -78,8 +78,8 @@
 }
 
 .awl__seg.is-active {
-  background: var(--accent, #a78bfa);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .awl__tools {

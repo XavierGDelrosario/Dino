@@ -229,6 +229,9 @@ export function ListView({
         selectedListId={L.selectedListId}
         onSelect={L.setSelectedListId}
         onCreate={L.addList}
+        onDelete={(l) => {
+          if (confirm(t("lists.deleteConfirm", { name: l.listName }))) L.deleteListById(l.listId);
+        }}
       />
 
       <div className="lists__bar">
@@ -291,18 +294,6 @@ export function ListView({
               {t("lists.summaryBtn")}
             </button>
           </>
-        )}
-        {selectedList && (
-          <button
-            className="btn btn--sm btn--danger lists__deletebtn"
-            onClick={() => {
-              if (confirm(t("lists.deleteConfirm", { name: selectedList.listName })))
-                L.deleteListById(selectedList.listId);
-            }}
-            title={t("lists.deleteListTitle")}
-          >
-            {t("lists.deleteListBtn")}
-          </button>
         )}
       </div>
 
@@ -497,6 +488,7 @@ export function ListView({
               }}
               onTag={(listId) => L.tagWord(w.userWordId, listId)}
               onCreateList={(name) => L.createListForWord(w.userWordId, name)}
+              onForgot={() => L.softenWord(w.userWordId)}
               onRemoveFromList={
                 selectedList
                   ? () => {

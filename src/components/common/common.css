@@ -1,3 +1,12 @@
+/* =========================================================================
+   PALETTE — the only place a raw colour is written.
+   :root is DARK (the brand default, and what index.html's <meta theme-color>
+   says); :root[data-theme="light"] overrides the same token names. The resolved
+   theme is stamped on <html> before first paint (index.html) and maintained by
+   services/theme.ts — so no rule here needs a media query, and nothing below
+   this block should hard-code a hex: add a token instead, or the new colour is
+   correct in exactly one theme.
+   ========================================================================= */
 :root {
   --bg: #0f1115;
   --surface: #1a1d24;
@@ -11,10 +20,14 @@
      lighter tint, and the saturated one is available for solid fills that carry white. */
   --accent: #a78bfa;
   --accent-strong: #7c3aed;
+  /* Glyph/label sitting ON an --accent fill. The two themes need OPPOSITE ink
+     (near-black on the light lavender, white on the light theme's deep purple),
+     which is exactly why it is a token and not a literal at each call site. */
+  --on-accent: #1b1030;
   /* ADDABLE / "new" words — a word with a dictionary entry that isn't in the
      vocabulary yet. Its OWN token, not --accent, because it is a KNOWLEDGE STATE,
      not chrome: it sits in one scale with the red→green confidence ramp
-     (.tok--c0…c5) and has to be legible as a distinct step in it. Painting it with
+     (--conf-0…5) and has to be legible as a distinct step in it. Painting it with
      the brand accent tied it to every button border and active chip on screen, so
      "you can add this" looked like "this is a control". Blue is far from both ends
      of that ramp and carries no success/failure reading of its own.
@@ -23,6 +36,91 @@
   --word-new: #5b9dff;
   --border: #2c313c;
   --radius: 14px;
+
+  /* CONFIDENCE RAMP 0→5, red (forgot) → green (mastered). The app's single most
+     load-bearing colour scale: the reader paints every known word with it, the
+     grade buttons tint from it, and the infographic's confidence bars are it.
+     It is READ as a scale, so the six steps must stay distinguishable from each
+     other AND legible as TEXT — which is why the light set is not the dark set:
+     dark-theme #ffd166 on white is a highlighter, not a word. The light values are
+     darkened to ≈4.5:1 on --bg while keeping the hue order intact. */
+  --conf-0: #ff6b6b; /* never reviewed / forgot */
+  --conf-1: #ff9f5a;
+  --conf-2: #ffd166;
+  --conf-3: #c9d65a;
+  --conf-4: #7fce6f;
+  --conf-5: #3ecb6c; /* mastered */
+
+  /* ORDINAL ramp endpoints (frequency / difficulty charts): common+easy → rare+hard.
+     Interpolated with color-mix at render time — see services/analyze/palette.ts. */
+  --ord-common: #35c06d;
+  --ord-rare: #2b5fc4;
+
+  /* Semantic status colours. --danger-* are the destructive set (delete account,
+     errors); --success is the affirmative one (a saved word, a "known" swipe). */
+  --danger: #c0392b;
+  --danger-text: #ffb4ad;
+  --danger-bg: #2a1416;
+  --danger-border: #6a2c2c;
+  --success: #3ecb6c;
+
+  /* Hover fill for the default button/chip — a step away from --surface-2 in
+     whichever direction the theme has room for (lighter on dark, darker on light). */
+  --hover: #2b303c;
+
+  /* Drop shadows. A dark theme lifts with near-black; a light one needs a tinted,
+     much softer shade or every panel gets a dirty grey halo. */
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  /* HANDWRITING PAD. The pad is a CANVAS: its ink is painted by JS
+     (HandwritingCanvas.tsx reads --hw-ink off the element), not styled by CSS, so
+     these two must be picked as a PAIR — a stroke drawn under one theme is pixels,
+     and the component repaints on theme change precisely because of that.
+     Dark: a slate darker than --surface so the pad reads as a writing surface
+     distinct from the panel, with white ink. Light: paper with near-black ink. */
+  --hw-pad: #0b0d11;
+  --hw-ink: #ffffff;
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef0f6;
+  --text: #1b1e26;
+  --muted: #5c6472;
+  /* Inverse of the dark split: on white the LIGHT lavender is the unreadable one
+     (~1.9:1), so the saturated brand purple becomes the text/UI colour and white
+     is what sits on top of it. */
+  --accent: #6d28d9;
+  --accent-strong: #5b21b6;
+  --on-accent: #ffffff;
+  --word-new: #1d63d1;
+  --border: #d7dae4;
+
+  --conf-0: #d3261d;
+  --conf-1: #b45309;
+  --conf-2: #8a6d00;
+  --conf-3: #59760d;
+  --conf-4: #1e7a33;
+  --conf-5: #0b7248;
+
+  --ord-common: #1f9d5c;
+  --ord-rare: #2148ac;
+
+  --danger: #b3261e;
+  --danger-text: #a3200f;
+  --danger-bg: #fdecea;
+  --danger-border: #f0b9b4;
+  --success: #0b7248;
+
+  --hover: #e2e5ee;
+
+  --shadow: 0 8px 24px rgba(27, 30, 38, 0.16);
+  --shadow-sm: 0 1px 3px rgba(27, 30, 38, 0.14);
+
+  --hw-pad: #ffffff;
+  --hw-ink: #12151c;
 }
 
 * {
@@ -177,17 +275,6 @@ body {
   position: relative;
 }
 
-.langpicker {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
 .account {
   position: absolute;
   top: 0;
@@ -198,33 +285,6 @@ body {
   font-size: 0.8rem;
   color: var(--muted);
   text-align: left;
-}
-
-.account__email {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account__panel {
-  position: absolute;
-  top: 1.9rem;
-  left: 0;
-  z-index: 20;
-  width: 16rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.8rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.account__actions {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .account__note {
@@ -265,14 +325,22 @@ body {
 }
 
 /* person-icon account dropdown (top-right) */
-.profilemenu {
+/* The top-bar control row: appearance · language · account, pinned to the header's
+   top-right corner. It is a FLEX ROW rather than three absolutely-positioned buttons
+   (the old .langmenu { right: 2.6rem } was the width of the icon beside it, written
+   out by hand) — so adding or hiding one shifts the rest instead of leaving a hole. */
+.app__menus {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-/* Language (globe) menu sits just left of the profile icon (2.1rem btn + gap). */
-.langmenu {
-  right: 2.6rem;
+
+/* Still positioned, but only as the anchor its own dropdown panel hangs from. */
+.profilemenu {
+  position: relative;
 }
 
 /* Profile footer: Back (left) · Delete account (right). */
@@ -286,7 +354,7 @@ body {
   border-top: 1px solid var(--border);
 }
 .profile__deletelink {
-  color: #c0392b;
+  color: var(--danger);
 }
 /* Warning copy + confirm button on the delete-account page. */
 .profile__dangerwarn {
@@ -295,10 +363,18 @@ body {
   color: var(--muted);
 }
 .btn--danger {
-  background: #c0392b;
-  border-color: #c0392b;
+  background: var(--danger);
+  border-color: var(--danger);
+  /* Literal white, not a token: this label sits on the solid danger red in BOTH
+     themes, and red never gets light enough for dark ink. */
   color: #fff;
 }
+
+.btn--danger:hover {
+  filter: brightness(1.12);
+}
+/* The shared top-bar icon button — the globe, the appearance toggle and the person
+   all use it, so they read as one row of controls (see .app__menus). */
 .profilemenu__btn {
   width: 2.1rem;
   height: 2.1rem;
@@ -382,7 +458,7 @@ body {
   gap: 0.45rem;
   font-size: 0.72rem;
   line-height: 1.35;
-  color: #555;
+  color: var(--muted);
 }
 .authpage__agree input {
   margin-top: 0.15rem;
@@ -401,13 +477,6 @@ body {
   color: var(--muted);
   font-size: 0.85rem;
 }
-.profile__actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
 .app__footer-links {
   margin: 0 0 0.5rem;
 }
@@ -478,7 +547,7 @@ body {
 }
 
 .btn:hover {
-  background: #2b303c;
+  background: var(--hover);
   border-color: var(--accent);
 }
 
@@ -499,19 +568,9 @@ body {
   filter: brightness(1.1);
 }
 
-.btn--danger {
-  color: #ffb4ad;
-}
-
-.btn--danger:hover {
-  background: #2a1416;
-  border-color: #6a2c2c;
-}
-
 /* tab nav */
-/* Five tabs (Translate · Lists · Learn · Media · Review) don't fit a phone at the
-   desktop size — the row needs ~400px and an iPhone leaves the app ~358px, so it
-   spilled off-screen.
+/* The tab row has to fit a phone at the desktop size — an iPhone leaves the app
+   ~358px, and a row sized by hand spilled off-screen.
 
    The tabs FILL the row rather than being sized by hand: `flex: 1 0 auto` gives
    each one its content width plus an equal share of whatever is left over, so the

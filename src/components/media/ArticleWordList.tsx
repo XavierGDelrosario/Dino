@@ -27,6 +27,7 @@ import { SortControls, type SortOption } from "../common/SortControls";
 import { Pager } from "../common/Pager";
 import { PAGE_SIZE } from "../../lib/pagination";
 import { WordInfoButton } from "../common/WordInfo";
+import { ConfidenceDots } from "../common/ConfidenceDots";
 import { AddToListButton } from "../translate/AddToListButton";
 import { SenseExample } from "../common/SenseExample";
 import type { Word } from "../../services/words/repository";
@@ -50,23 +51,12 @@ function asFilterTarget(r: ArticleWord): FilterTarget {
   };
 }
 
-/** The Lists confidence UI: five dots filled to the rating. */
-function ConfidenceDots({ rating }: { rating: number }) {
-  const { t } = useI18n();
-  return (
-    <span className="dots" aria-label={t("lists.confidenceOf", { n: rating })}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <span key={i} className={`dot${i < rating ? " dot--on" : ""}`} />
-      ))}
-    </span>
-  );
-}
-
 function ArticleRow({
   row,
   lists,
   onAdd,
   onCreateList,
+  onForgot,
   userId,
 }: {
   row: ArticleWord;
@@ -75,6 +65,8 @@ function ArticleRow({
   lists: List[];
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
+  /** "Forgot": lower every saved sense of this word by one confidence bucket. */
+  onForgot?: (words: Word[]) => Promise<void>;
 }) {
   const { t } = useI18n();
   const meanings = row.primary.translation
@@ -99,7 +91,13 @@ function ArticleRow({
             ×{row.occurrences}
           </span>
           {row.status === "known" ? (
-            <ConfidenceDots rating={row.confidence} />
+            /* The dots ARE the "Forgot" control — press them and a "Forgot?" overlay
+               opens above (components/common/ConfidenceDots). It acts on the WORD, i.e.
+               every saved sense of it, the same unit the reader's hovercard uses. */
+            <ConfidenceDots
+              rating={row.confidence}
+              onForgot={onForgot && (() => onForgot(row.senses))}
+            />
           ) : (
             <AddToListButton
               words={row.senses}
@@ -146,6 +144,7 @@ export function ArticleWordList({
   lists,
   onAdd,
   onCreateList,
+  onForgot,
   userId,
 }: {
   rows: ArticleWord[];
@@ -153,6 +152,8 @@ export function ArticleWordList({
   lists: List[];
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
+  /** "Forgot" for a known row's confidence dots. Omit and they stay inert text. */
+  onForgot?: (words: Word[]) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -252,6 +253,7 @@ export function ArticleWordList({
                 lists={lists}
                 onAdd={onAdd}
                 onCreateList={onCreateList}
+                onForgot={onForgot}
               />
             ))}
           </ul>

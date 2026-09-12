@@ -8,7 +8,8 @@
 // Two kinds of axis, with OPPOSITE resting states — the thing to keep straight when
 // adding another:
 //  * SET axes (language, usage, POS) — checkboxes. EMPTY = INERT.
-//  * RANGE axes (added, reviewed, confidence) — a span with a full default.
+//  * RANGE axes (added, reviewed, confidence) — a span with a full default. The two
+//    date axes are DAY spans picked on a calendar (see DateRange).
 //    WIDE-OPEN = INERT; they narrow as you close them in.
 //
 // PROFICIENCY is the deliberate hybrid: checking a language auto-checks all its bands,
@@ -22,8 +23,27 @@ import { frequencyCommonness, type LevelValue } from "../difficulty";
 import { proficiencyFrameworkFor } from "../proficiency";
 import { partOfSpeechCategory, type LangCode, type PosCategory } from "../language";
 
-/** A calendar period (the added/reviewed axes). */
+/** A named span, offered as a shortcut inside the calendar (see `periodRange`). */
 export type DatePeriod = "all" | "today" | "week" | "month" | "year";
+
+/**
+ * An INCLUSIVE span of calendar days — the added/reviewed axes. Either end may be
+ * null (open), and both null is the resting state.
+ *
+ * DAYS, not timestamps: the user picks squares on a calendar, so the unit stored is
+ * the square. Each end is a LOCAL `YYYY-MM-DD` (`dayKey`), never an ISO instant —
+ * "added on the 3rd" means the 3rd where the user is, and a UTC instant would move
+ * that boundary by up to a day for anyone east or west of Greenwich. The stored word
+ * dates ARE instants, so the comparison widens each end to its local day bounds
+ * (`rangeBounds`): `from` opens at 00:00, `to` closes at 23:59:59.999.
+ */
+export interface DateRange {
+  from: string | null;
+  to: string | null;
+}
+
+/** The resting range — narrows nothing. */
+export const ANY_DATES: DateRange = { from: null, to: null };
 
 /** Confidence is a 0–5 mastery bucket; the range defaults wide open. */
 export const CONF_MIN = 0;
@@ -54,10 +74,10 @@ export interface WordFilters {
   usage: LevelValue[];
   /** Coarse word classes to keep; empty = any. */
   pos: PosCategory[];
-  /** Added within this period; "all" = any time. */
-  added: DatePeriod;
-  /** LAST REVIEWED within this period; "all" = any time (and never-reviewed words stay). */
-  reviewed: DatePeriod;
+  /** Added within this span; both ends null = any time. */
+  added: DateRange;
+  /** LAST REVIEWED within this span; open = any time (and never-reviewed words stay). */
+  reviewed: DateRange;
   /** The two confidence thumbs, stored RAW and allowed to CROSS — never clamped against
    *  each other. Clamping made the range stick when both landed on the same value: the
    *  moving thumb's update got cancelled, so it couldn't be dragged either way. The
@@ -71,8 +91,8 @@ export const NO_FILTERS: WordFilters = {
   bands: {},
   usage: [],
   pos: [],
-  added: "all",
-  reviewed: "all",
+  added: ANY_DATES,
+  reviewed: ANY_DATES,
   confA: CONF_MIN,
   confB: CONF_MAX,
 };
@@ -82,16 +102,47 @@ export function confBounds(f: WordFilters): { lo: number; hi: number } {
   return { lo: Math.min(f.confA, f.confB), hi: Math.max(f.confA, f.confB) };
 }
 
-/** Earliest timestamp a period includes ("today" = since midnight, "week" = since
- *  Monday, "month" = since the 1st, "year" = since Jan 1). */
-export function periodCutoff(period: DatePeriod): number {
-  if (period === "all") return -Infinity;
+/** A Date → its LOCAL calendar day, `YYYY-MM-DD`. The one place a Date becomes a
+ *  range endpoint; `toISOString().slice(0,10)` is the bug this exists to avoid (it is
+ *  the UTC day, which is yesterday's for most of the evening in Japan). */
+export function dayKey(d: Date): string {
+  const mm = `${d.getMonth() + 1}`.padStart(2, "0");
+  const dd = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/** A `YYYY-MM-DD` back to LOCAL midnight (`new Date("2026-08-31")` would be UTC). */
+export function parseDayKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Does this span exclude anything? (Both ends open = resting.) */
+export function rangeNarrows(r: DateRange): boolean {
+  return r.from !== null || r.to !== null;
+}
+
+/**
+ * The span as an instant window: `from` at the START of its day, `to` at the END of
+ * its. Ordered by min/max rather than trusted, so a reversed range (however it got
+ * written) still selects the days between the two rather than nothing.
+ */
+function rangeBounds(r: DateRange): { from: number; to: number } {
+  const a = r.from ? parseDayKey(r.from).setHours(0, 0, 0, 0) : -Infinity;
+  const b = r.to ? parseDayKey(r.to).setHours(23, 59, 59, 999) : Infinity;
+  return { from: Math.min(a, b), to: Math.max(a, b) };
+}
+
+/** A preset as a real span, ending TODAY ("today" = today, "week" = since Monday,
+ *  "month" = since the 1st, "year" = since Jan 1) — so the calendar can draw it. */
+export function periodRange(period: DatePeriod): DateRange {
+  if (period === "all") return ANY_DATES;
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   if (period === "week") d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   else if (period === "month") d.setDate(1);
   else if (period === "year") d.setMonth(0, 1);
-  return d.getTime();
+  return { from: dayKey(d), to: dayKey(new Date()) };
 }
 
 /** A framework's band values plus the "—" no-level band — what a freshly-checked
@@ -133,8 +184,10 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
   const langs = new Set(f.langs);
   const usage = new Set(f.usage);
   const pos = new Set(f.pos);
-  const addedCut = periodCutoff(f.added);
-  const reviewedCut = periodCutoff(f.reviewed);
+  const added = rangeBounds(f.added);
+  const reviewed = rangeBounds(f.reviewed);
+  const addedNarrows = rangeNarrows(f.added);
+  const reviewedNarrows = rangeNarrows(f.reviewed);
   const { lo, hi } = confBounds(f);
   // Only languages whose bands actually narrow (all-checked = inert; see header).
   const narrowingBands = new Map<LangCode, Set<number>>();
@@ -161,12 +214,19 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
       if (category == null || !pos.has(category)) return false;
     }
 
-    if (Date.parse(word.originallyTranslatedDate) < addedCut) return false;
+    // Gated like the reviewed axis below: at rest the bounds are ±Infinity, so parsing
+    // every word's date to compare against them is work for an inert filter — and this
+    // pass re-runs on every pointer event of a confidence-thumb drag.
+    if (addedNarrows) {
+      const addedAt = Date.parse(word.originallyTranslatedDate);
+      if (addedAt < added.from || addedAt > added.to) return false;
+    }
 
     // A reviewed-date filter excludes never-reviewed words (they have no date to match).
-    if (f.reviewed !== "all") {
+    if (reviewedNarrows) {
       if (word.lastReviewedDate == null) return false;
-      if (Date.parse(word.lastReviewedDate) < reviewedCut) return false;
+      const reviewedAt = Date.parse(word.lastReviewedDate);
+      if (reviewedAt < reviewed.from || reviewedAt > reviewed.to) return false;
     }
 
     return word.confidenceRating >= lo && word.confidenceRating <= hi;
@@ -187,8 +247,8 @@ export function activeFilterCount(f: WordFilters): number {
     f.usage.length +
     f.pos.length +
     bandAxes +
-    (f.added !== "all" ? 1 : 0) +
-    (f.reviewed !== "all" ? 1 : 0) +
+    (rangeNarrows(f.added) ? 1 : 0) +
+    (rangeNarrows(f.reviewed) ? 1 : 0) +
     (lo !== CONF_MIN || hi !== CONF_MAX ? 1 : 0)
   );
 }

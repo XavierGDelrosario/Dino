@@ -71,10 +71,12 @@ vi.mock("@/services/session", () => ({
 
 import { MediaView } from "@/views/MediaView";
 
-const view = () =>
+// The pair and the profile-settled flag are the HOST's now (Learn's picker), so the
+// spec supplies them the way Learn does.
+const view = (langs = { learning: "JA", native: "EN" }, ready = true) =>
   render(
     <LocaleProvider>
-      <MediaView userId="u" />
+      <MediaView userId="u" langs={langs} ready={ready} />
     </LocaleProvider>,
   );
 
@@ -129,9 +131,8 @@ describe("MediaView — ★ favourites", () => {
     expect(screen.queryByText("台風が九州に接近")).toBeNull();
   });
 
-  it("browses the Wikinews edition of the language being learned", async () => {
-    getUserProfile.mockResolvedValueOnce({ learningLanguage: "EN", nativeLanguage: "JA" });
-    view();
+  it("browses the Wikinews edition of the language it is handed", async () => {
+    view({ learning: "EN", native: "JA" });
     await screen.findByText("台風が九州に接近");
 
     // Both the browse fetch and the ★ list are scoped to that corpus — a JA-learner's
@@ -140,29 +141,47 @@ describe("MediaView — ★ favourites", () => {
       expect.objectContaining({ site: "wikinews", lang: "EN" }),
     );
     expect(listFavorites).toHaveBeenCalledWith("u", { site: "wikinews", lang: "EN" });
-    // No request goes out on the DEFAULT language before the profile answers.
     expect(randomHeadlines).toHaveBeenCalledTimes(1);
   });
 
-  it("switches corpus from the language picker, without touching the profile", async () => {
-    view();
+  it("fetches nothing until the host says the profile has settled", async () => {
+    // Otherwise the first paint browses the DEFAULT language's wiki and immediately
+    // refetches the real one — a wasted round-trip and a visible flash of the wrong
+    // corpus.
+    const { rerender } = view({ learning: "JA", native: "EN" }, false);
+    expect(randomHeadlines).not.toHaveBeenCalled();
+
+    rerender(
+      <LocaleProvider>
+        <MediaView userId="u" langs={{ learning: "EN", native: "JA" }} ready />
+      </LocaleProvider>,
+    );
+    await waitFor(() => expect(randomHeadlines).toHaveBeenCalledTimes(1));
+    expect(randomHeadlines).toHaveBeenCalledWith(
+      expect.objectContaining({ site: "wikinews", lang: "EN" }),
+    );
+  });
+
+  it("follows the host's language, re-scoping the browse and the ★ list", async () => {
+    // The picker lives in Learn now, so a switch arrives as a new prop rather than an
+    // onChange — and everything keyed on the corpus has to move with it. Nothing here
+    // may write the profile back: browsing another language's news for one session
+    // must not rewrite the saved pair.
+    const { rerender } = view();
     await screen.findByText("台風が九州に接近");
-    const picker = screen.getByRole("combobox", { name: /Language/ }) as HTMLSelectElement;
-    // Opens on the profile's learning language.
-    expect(picker.value).toBe("JA");
 
-    fireEvent.change(picker, { target: { value: "EN" } });
+    rerender(
+      <LocaleProvider>
+        <MediaView userId="u" langs={{ learning: "EN", native: "JA" }} ready />
+      </LocaleProvider>,
+    );
 
-    // The new corpus is fetched, and the ★ list re-scopes with it.
     await waitFor(() =>
       expect(randomHeadlines).toHaveBeenLastCalledWith(
         expect.objectContaining({ site: "wikinews", lang: "EN" }),
       ),
     );
     expect(listFavorites).toHaveBeenLastCalledWith("u", { site: "wikinews", lang: "EN" });
-    expect(picker.value).toBe("EN");
-    // LOCAL ONLY, like Learn's: browsing another language's news for one session must
-    // not rewrite the saved pair. Nothing here may write the profile back.
     expect(updateUserLanguages).not.toHaveBeenCalled();
   });
 

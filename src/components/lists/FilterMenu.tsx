@@ -21,7 +21,7 @@ import { proficiencyFrameworkFor } from "../../services/proficiency";
 import { targetOptions, type LangCode, type PosCategory } from "../../services/language";
 import type { LevelValue } from "../../services/difficulty";
 import { useI18n } from "../../i18n";
-import { PeriodSelect } from "./PeriodSelect";
+import { DateRangeSelect } from "./DateRangeSelect";
 import {
   activeFilterCount,
   confBounds,
@@ -221,6 +221,8 @@ export function FilterPanel({
   const { t } = useI18n();
   const active = activeFilterCount(filters);
   const { lo, hi } = confBounds(filters);
+  // Which date axis has its calendar open (at most one — see the section below).
+  const [openDates, setOpenDates] = useState<"added" | "reviewed" | null>(null);
 
   // Escape still closes it (a keyboard user shouldn't have to tab back to the
   // funnel) — but a click OUTSIDE does not: the panel is part of the page now, and
@@ -342,22 +344,32 @@ export function FilterPanel({
         </section>
       )}
 
-      {/* The study-history axes (RANGES, wide open by default — see services/words/filters). */}
+      {/* The study-history axes (RANGES, wide open by default — see services/words/filters).
+          Full width: each one opens a calendar, which a half-width column can't hold at
+          the panel's phone breakpoint. Only ONE is open at a time — they are alternatives
+          far more often than a pair, and two 7-column grids stacked in an in-flow panel
+          push the rows they filter off the screen. */}
       {showHistory && (
-        <section className="filtermenu__section">
+        <section className="filtermenu__section filtermenu__section--wide">
           <h4 className="filtermenu__label">{t("lists.filterWhen")}</h4>
-          <PeriodSelect
-            label={t("lists.added")}
-            value={filters.added}
-            onChange={(added) => onChange({ ...filters, added })}
-            ariaLabel={t("lists.addedAria")}
-          />
-          <PeriodSelect
-            label={t("lists.reviewed")}
-            value={filters.reviewed}
-            onChange={(reviewed) => onChange({ ...filters, reviewed })}
-            ariaLabel={t("lists.reviewedAria")}
-          />
+          <div className="filtermenu__dates">
+            <DateRangeSelect
+              label={t("lists.added")}
+              value={filters.added}
+              onChange={(added) => onChange({ ...filters, added })}
+              ariaLabel={t("lists.addedAria")}
+              open={openDates === "added"}
+              onToggle={() => setOpenDates((d) => (d === "added" ? null : "added"))}
+            />
+            <DateRangeSelect
+              label={t("lists.reviewed")}
+              value={filters.reviewed}
+              onChange={(reviewed) => onChange({ ...filters, reviewed })}
+              ariaLabel={t("lists.reviewedAria")}
+              open={openDates === "reviewed"}
+              onToggle={() => setOpenDates((d) => (d === "reviewed" ? null : "reviewed"))}
+            />
+          </div>
         </section>
       )}
 

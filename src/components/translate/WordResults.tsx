@@ -11,6 +11,7 @@ import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { SenseText } from "../common/SenseText";
 import { SenseExample } from "../common/SenseExample";
+import { ConfidenceDots } from "../common/ConfidenceDots";
 import { AddToListButton } from "./AddToListButton";
 import { useI18n } from "../../i18n";
 import "./translate.css";
@@ -24,6 +25,7 @@ export function WordResults({
   userId,
   onAdd,
   onCreateList,
+  onForgot,
 }: {
   headword: string;
   meanings: Word[];
@@ -34,6 +36,9 @@ export function WordResults({
   userId: string;
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
+  /** "Forgot": drop this sense one confidence bucket. Wired to the dots below, the
+   *  same control Lists and the article word table use. Omit and they stay inert. */
+  onForgot?: (words: Word[]) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useI18n();
@@ -56,9 +61,21 @@ export function WordResults({
       {/* `headword` is what the user searched: a uk entry found BY ITS KANJI
           headlines as that kanji rather than flipping to kana (displayHeadword). */}
       <SenseText word={word} primary={isPrimary} query={headword} />
-      {/* Added + confidence indicator, shown ONLY for senses actually in vocab. */}
+      {/* Confidence, shown ONLY for senses actually in vocab — and as the shared DOTS,
+          which are also the "Forgot" control (press → a "Forgot?" overlay). This was a
+          plain "✓ n/5", the one saved-word readout in the app that was still text: the
+          same word offered a way to say "I don't actually know this" in Lists, in the
+          article table and in the reader's hovercard, but not in the lookup you were
+          most likely looking at when you realised it. The ✓ is not lost — the add
+          button beside it already says the sense is saved. */}
       {saved.has(word.wordId) && (
-        <em className="sense__conf">✓ {confidence.get(word.wordId) ?? 0}/5</em>
+        <ConfidenceDots
+          rating={confidence.get(word.wordId) ?? 0}
+          // Per SENSE here, not per word: this row IS one sense and shows that sense's
+          // own confidence, so the control has to act on what it reads. (The reader's
+          // hovercard is headed by the WORD and softens all of its senses.)
+          onForgot={onForgot && (() => onForgot([word]))}
+        />
       )}
       {/* "Tell me more about this sense" — grouped with the confidence readout rather
           than with the add button, the same split Lists makes between information and

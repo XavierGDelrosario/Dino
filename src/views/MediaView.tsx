@@ -5,10 +5,13 @@
 // prose. "Study" opens the in-depth analysis (ArticleView), which also hosts the
 // reading mode — the whole Study → analyze → read → back loop stays in this tab.
 //
-// The corpus OPENS on the profile's learning language, and a picker (the same
-// local-only one Learn has) switches it per session: ArticleView analyzes through
-// useTranslate, which reads the SOURCE off that language, so a corpus that ignored
-// it would hand the reader (say) English prose to segment as Japanese.
+// This surface is EMBEDDED in Learn (below its band buttons), not a tab and not a
+// takeover, so it owns no language of its own: the corpus + the analysis pair arrive
+// as `langs` from the host's picker. ArticleView analyzes through useTranslate, which
+// reads the SOURCE off that pair, so a corpus that ignored it would hand the reader
+// (say) English prose to segment as Japanese. It tells the host when an article opens
+// (`onArticleOpen`) so the host can fold its own chrome away and let the analysis have
+// the tab.
 //
 // Every Wikinews edition went read-only in May 2026 (the WMF closed the project), so
 // each is a fixed archive rather than a live feed — which is what the tab already
@@ -28,13 +31,7 @@ import {
   type WikiSite,
 } from "../services/media/mediawiki";
 import { useFavorites } from "../hooks/useFavorites";
-import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
-import {
-  targetOptions,
-  DEFAULT_LEARNING_LANGUAGE,
-  DEFAULT_NATIVE_LANGUAGE,
-  type LangCode,
-} from "../services/language";
+import { type LangCode } from "../services/language";
 import { FavoriteStar } from "../components/media/FavoriteStar";
 import { ArticleView } from "./ArticleView";
 import { ErrorText } from "../components/common/ErrorText";
@@ -49,30 +46,27 @@ const LANG_NAME: Record<string, MessageKey> = { JA: "lang.JA", EN: "lang.EN" };
 
 type Tab = "browse" | "favorites";
 
-export function MediaView({ userId }: { userId: string }) {
-  const { t } = useI18n();
-  const prefs = useLanguagePrefs(userId);
-  // The picker's choice, once made. Null = "follow the profile", so the tab still
-  // opens on what you study without the picker having to guess before the profile
-  // loads — and a choice made here is never overwritten when it does.
-  const [picked, setPicked] = useState<LangCode | null>(null);
-  const lang = picked ?? prefs.learning;
-  const ready = picked !== null || prefs.ready;
+export function MediaView({
+  userId,
+  langs,
+  ready,
+  onArticleOpen,
+}: {
+  userId: string;
   /**
-   * The pair the ARTICLE is analyzed in: its own language, explained in the profile's
-   * native one — except when the picker has landed on that same native language, where
-   * the pair would collapse (EN→EN) and submit would just echo the text and render no
-   * reader. Same fallback Learn uses for the same reason (LearnView's `explainIn`).
+   * The pair the corpus is browsed in and the ARTICLE is analyzed in — the host's
+   * picker, passed down rather than duplicated here. `learning` picks the wiki;
+   * `native` is what the article is explained in, already collapsed-pair-safe by the
+   * host (LearnView's `explainIn`).
    */
-  const langs = {
-    learning: lang,
-    native:
-      prefs.native !== lang
-        ? prefs.native
-        : lang !== DEFAULT_NATIVE_LANGUAGE
-          ? DEFAULT_NATIVE_LANGUAGE
-          : DEFAULT_LEARNING_LANGUAGE,
-  };
+  langs: { learning: LangCode; native: LangCode };
+  /** False while the host is still reading the profile — see the load guard below. */
+  ready: boolean;
+  /** Told when the article analysis opens/closes, so the host can hide its chrome. */
+  onArticleOpen?: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const lang = langs.learning;
   const [tab, setTab] = useState<Tab>("browse");
   const [items, setItems] = useState<Headline[] | null>(null);
   // Starts LOADING, not idle: the first fetch waits for the profile to say which
@@ -110,6 +104,21 @@ export function MediaView({ userId }: { userId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The language now changes from OUTSIDE (the host's picker), so the close-what's-open
+  // that used to live in the local picker's onChange has to be an effect: an article is
+  // only studiable in the direction it was opened in.
+  useEffect(() => {
+    setArticle(null);
+    setOpenedFrom(null);
+    setTab("browse");
+  }, [lang]);
+
+  // Report the takeover rather than letting the host guess: the analysis renders in
+  // this component's slot, so the host has to fold its own chrome away for it.
+  useEffect(() => {
+    onArticleOpen?.(article !== null);
+  }, [article, onArticleOpen]);
 
   // Fetch the full article, then open its in-depth summary page. Keyed on the URL
   // (not the title) so the spinner lands on the row that was clicked even when the
@@ -198,31 +207,8 @@ export function MediaView({ userId }: { userId: string }) {
 
   return (
     <section className="review media">
-      <label className="media__lang">
-        <span className="media__langlabel">{t("media.language")}</span>
-        <select
-          className="media__langselect"
-          value={lang}
-          // LOCAL ONLY, exactly like Learn's: it changes what THIS tab browses and
-          // writes nothing to the profile — trying another language's news for one
-          // session shouldn't rewrite your saved settings behind your back. The open
-          // article closes with it, because an article is only studiable in the
-          // direction it was opened in.
-          onChange={(e) => {
-            setPicked(e.target.value as LangCode);
-            setArticle(null);
-            setOpenedFrom(null);
-            setTab("browse");
-          }}
-        >
-          {targetOptions().map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
+      {/* No language picker and no back button: this is embedded in Learn, which owns
+          both — one picker for the tab, and the way out is the tab itself. */}
       <div className="media__head">
         <p className="review__scope">{t("media.intro", { lang: t(LANG_NAME[lang] ?? "lang.JA") })}</p>
         {tab === "browse" && (

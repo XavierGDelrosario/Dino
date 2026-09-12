@@ -22,7 +22,6 @@ export const en = {
   "app.startingSession": "Starting session…",
   "app.sessionErrorTitle": "Couldn’t start a session.",
   "tabs.translate": "Translate",
-  "tabs.media": "Media",
   "tabs.lists": "Lists",
   "tabs.learn": "Learn",
   "tabs.review": "Review",
@@ -30,7 +29,6 @@ export const en = {
   // reads the Wikinews edition of that language, so its intro can't say "Japanese".
   "lang.JA": "Japanese",
   "lang.EN": "English",
-  "media.language": "Language",
   "media.intro": "Study real {lang} from the news. Pick an article to read it word-by-word.",
   "media.loading": "Loading news…",
   "media.refresh": "Refresh",
@@ -64,7 +62,6 @@ export const en = {
   "media.leastOccurrences": "Least occurrences",
   "media.mostOccurrences": "Most occurrences",
   "media.add": "＋",
-  "media.confidence": "Confidence {n}/5",
   "media.occurrences": "Appears {n}× in this article",
   "media.noWordsFilter": "No words match this filter.",
 
@@ -92,7 +89,6 @@ export const en = {
 
   // handwriting input (native, on-device)
   "handwriting.draw": "✍️ Draw",
-  "handwriting.hide": "✕ Close drawing",
   "handwriting.hint": "Draw a character",
   "handwriting.padAria": "Handwriting input area",
   "handwriting.candidatesAria": "Recognized characters",
@@ -104,10 +100,6 @@ export const en = {
   "handwriting.error": "Couldn’t recognize. Try again.",
 
   // voice input (native, on-device speech)
-  "speech.start": "Voice input",
-  "speech.stop": "Stop recording",
-  "speech.denied": "Microphone access denied. Enable it in Settings.",
-  "speech.error": "Couldn’t capture speech. Try again.",
 
   // read aloud (text-to-speech, free + on-device everywhere)
   "voice.speak": "Listen",
@@ -129,7 +121,6 @@ export const en = {
   "common.create": "Create",
   "common.close": "Close",
   "common.save": "Save",
-  "common.loadMore": "Load more",
 
   // lists surface
   "lists.allWords": "All words",
@@ -142,8 +133,12 @@ export const en = {
   "lists.reviewCappedTitle": "Review up to 20 of these words with flashcards",
   "lists.reviewAll": "▶ Review All ({n})",
   "lists.reviewAllTitle": "Review every one of these {n} words (no 20-word cap)",
-  "common.back": "Back",
   "reader.translateSentence": "Translate this sentence",
+  // "Forgot" — the reader's one-notch confidence drop. The label is the user's own
+  // thought ("I forgot this"), not the mechanism; the aria/title says what it does.
+  "reader.forgot": "Forgot",
+  "reader.forgotAria": "I forgot this word — lower its confidence by one",
+  "reader.forgotDone": "−1 ✓",
   // The mic dictates into the input box; there is no listening SCREEN any more, so
   // the copy names the box. (The transcript view's own strings went with it.)
   "listen.tool": "Dictate into the box",
@@ -154,7 +149,6 @@ export const en = {
   "lists.deleteWordConfirm": "Delete \"{word}\" from your vocabulary? This removes it from all lists and its review history.",
   "lists.removeFromListConfirm": "Remove \"{word}\" from \"{list}\"? It stays in your vocabulary.",
   "lists.deleteListTitle": "Delete this list",
-  "lists.deleteListBtn": "Delete list",
   "lists.sortNewest": "Newest",
   "lists.sortOldest": "Oldest",
   // shared sort control (Lists + article summary) — axis labels for the dropdown
@@ -223,12 +217,14 @@ export const en = {
   "lists.selectedCount": "{n} selected",
   "lists.addSelectedToList": "Add to list",
   "lists.addSelectedTitle": "Add {n} selected to a list",
-  "lists.addListOption": "＋ list",
   "lists.removeFromList": "Remove from this list (keeps it in your vocabulary)",
   "lists.deleteFromVocab": "Delete from vocabulary",
   "lists.confidenceOf": "confidence {n} of 5",
-  "lists.infoAria": "Added {added}, last reviewed {reviewed}",
-  "lists.infoTitle": "Added: {added}\nLast reviewed: {reviewed}",
+  // The dots as a "Forgot" trigger (components/common/ConfidenceDots). The label
+  // carries the reading AND what pressing does, because the control has no chrome
+  // to announce itself with.
+  "lists.confidenceForgot": "confidence {n} of 5 — press to say you forgot this word",
+  "lists.forgotQ": "Forgot?",
   "lists.never": "never",
   // sense enrichment (20260750) — the example-sentence disclosure on a word row
   "sense.showExample": "Example",
@@ -244,6 +240,13 @@ export const en = {
   "period.week": "this week",
   "period.month": "this month",
   "period.year": "this year",
+  // The added/reviewed axes are day SPANS picked on a calendar; these render one.
+  "dates.span": "{from} – {to}",
+  "dates.since": "from {date}",
+  "dates.until": "until {date}",
+  "dates.calendarAria": "{label}: pick a date range",
+  "dates.prevMonth": "Previous month",
+  "dates.nextMonth": "Next month",
 
   // review / flashcards
   "common.retry": "Retry",
@@ -258,7 +261,6 @@ export const en = {
   "review.emptyList": "No words in this list to review yet.",
   "review.emptyAll": "Nothing to review yet — add some words to your vocabulary first.",
   "review.done": "Done — reviewed {n} {noun}. 🎉",
-  "review.again": "Review again",
   "review.retrySame": "Retry quiz",
   "review.newQuiz": "New quiz",
   "review.recallAria": "How well did you recall it?",
@@ -311,8 +313,6 @@ export const en = {
   "quiz.scopeReview": "Reviewing words from this text",
   "quiz.scopeLearn": "Quizzing new words from this text",
   "quiz.scopeLearnLevel": "Quizzing new words at this level",
-  "quiz.addToList": "Add this meaning to your list",
-  "quiz.added": "Added to your list",
   "quiz.showContext": "Show in context",
   "quiz.hideContext": "Hide context",
   "quiz.prevMeaning": "Previous meaning",
@@ -324,9 +324,7 @@ export const en = {
   "quiz.flipNext": "From next card",
 
   // learn (level-based new-words quiz)
-  "learn.intro": "Pick a {framework} level to quiz new words you haven't saved yet.",
   "learn.pickLevel": "Choose a level",
-  "learn.hint": "Choose a level above to begin.",
   "learn.learnNewWords": "Learn new words",
   "learn.loading": "Finding new words…",
   "learn.empty": "No new words left at {level} — try another level. 🎉",
@@ -336,29 +334,20 @@ export const en = {
   "learn.findLevel": "Find my level",
   "learn.recalibrate": "Retake level check",
   "learn.language": "Language",
+  // Heading over the Wikinews browse embedded under the level bands (the former
+  // Media tab, and before that a button that opened it).
+  "learn.articles": "📰 Articles",
 
   // calibration ("Find my level" placement quiz)
-  "calib.instruction": "Tap the words you DON'T know.",
-  "calib.round": "Round {n}",
   "calib.loading": "Loading words…",
-  "calib.next": "Next ({n} unknown)",
-  "calib.knowAll": "I know all these",
   "calib.back": "← Back",
   "calib.unavailable": "The level check isn't available for this language yet.",
   "calib.resultLevel": "Your level is around {level}.",
   "calib.resultBeginner": "You're just getting started — welcome!",
-  "calib.resultSaved": "Added {n} words you know to your list at full confidence.",
-  "calib.resultNote": "We'll use this to pace new words. You can retake it anytime.",
-  "calib.missed": "Words you didn't know",
   "calib.again": "Retake",
-  "calib.soFar": "Level so far: {level}",
-  "calib.gathering": "Rate words to find your level",
   "calib.dontKnow": "Don't know",
   "calib.know": "Know",
-  "calib.reveal": "Reveal",
-  "calib.placeMe": "Finish — place me at {level}",
   "calib.finish": "Finish",
-  "calib.keepGoing": "Rate ~{n} more to place you",
   "calib.swipeHint": "Swipe → if you know it, ← if you don't. Tap the card to reveal.",
 
   // add-to-list button / destination picker
@@ -366,8 +355,6 @@ export const en = {
   "add.menuTitle": "Add to a list",
   "add.newListEllipsis": "＋ New list…",
   "add.done": "Done",
-  "dest.addTo": "Add to:",
-  "dest.all": "ALL (everything)",
 
   // word results
   "results.noTranslation": "No translation found.",
@@ -396,7 +383,6 @@ export const en = {
   "auth.resetTitle": "Set a new password",
   "auth.newPasswordPlaceholder": "New password",
   "auth.updatePassword": "Update password",
-  "auth.resetDone": "Password updated — you're signed in.",
   "auth.pwShort": "Password must be at least 8 characters.",
   "auth.pwWeak": "Password must include both letters and numbers.",
   "auth.confirmPasswordPlaceholder": "Confirm password",
@@ -431,6 +417,13 @@ export const en = {
   "profile.deleteYes": "Delete my account",
   "profile.deleteCancel": "Cancel",
 
+  // appearance (theme picker in the account menu)
+  // The top-bar appearance button CYCLES, so its label has to say what a click does.
+  "theme.cycleAria": "Appearance: {mode} — switch to {next}",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+
   // legal
   "legal.privacy": "Privacy",
   "legal.terms": "Terms",
@@ -448,13 +441,11 @@ export const ja: Record<MessageKey, string> = {
   "app.startingSession": "セッションを開始しています…",
   "app.sessionErrorTitle": "セッションを開始できませんでした。",
   "tabs.translate": "翻訳",
-  "tabs.media": "メディア",
   "tabs.lists": "リスト",
   "tabs.learn": "学習",
   "tabs.review": "復習",
   "lang.JA": "日本語",
   "lang.EN": "英語",
-  "media.language": "言語",
   "media.intro": "ニュースで本物の{lang}を学ぼう。記事を選んで単語ごとに読めます。",
   "media.loading": "ニュースを読み込み中…",
   "media.refresh": "更新",
@@ -488,7 +479,6 @@ export const ja: Record<MessageKey, string> = {
   "media.leastOccurrences": "出現が少ない順",
   "media.mostOccurrences": "出現が多い順",
   "media.add": "＋",
-  "media.confidence": "自信度 {n}/5",
   "media.occurrences": "この記事に{n}回出現",
   "media.noWordsFilter": "この条件に一致する単語はありません。",
 
@@ -515,7 +505,6 @@ export const ja: Record<MessageKey, string> = {
 
   // handwriting input (native, on-device)
   "handwriting.draw": "✍️ 手書き",
-  "handwriting.hide": "✕ 手書きを閉じる",
   "handwriting.hint": "文字を書いてください",
   "handwriting.padAria": "手書き入力エリア",
   "handwriting.candidatesAria": "認識された文字",
@@ -527,10 +516,6 @@ export const ja: Record<MessageKey, string> = {
   "handwriting.error": "認識できませんでした。もう一度お試しください。",
 
   // voice input (native, on-device speech)
-  "speech.start": "音声入力",
-  "speech.stop": "録音を停止",
-  "speech.denied": "マイクへのアクセスが拒否されました。設定で有効にしてください。",
-  "speech.error": "音声を認識できませんでした。もう一度お試しください。",
 
   // read aloud (text-to-speech, free + on-device everywhere)
   "voice.speak": "読み上げ",
@@ -551,7 +536,6 @@ export const ja: Record<MessageKey, string> = {
   "common.create": "作成",
   "common.close": "閉じる",
   "common.save": "保存",
-  "common.loadMore": "もっと読み込む",
 
   "lists.allWords": "すべての単語",
   "lists.allChip": "すべて",
@@ -563,8 +547,10 @@ export const ja: Record<MessageKey, string> = {
   "lists.reviewCappedTitle": "これらの単語を最大20語までフラッシュカードで復習",
   "lists.reviewAll": "▶ すべて復習 ({n})",
   "lists.reviewAllTitle": "これら{n}語すべてを復習（20語の上限なし）",
-  "common.back": "戻る",
   "reader.translateSentence": "この文を翻訳",
+  "reader.forgot": "忘れた",
+  "reader.forgotAria": "この単語を忘れた — 自信度を1つ下げる",
+  "reader.forgotDone": "−1 ✓",
   "listen.tool": "音声で入力する",
   "listen.stop": "音声入力を停止",
   "lists.summaryBtn": "◔ サマリー",
@@ -573,7 +559,6 @@ export const ja: Record<MessageKey, string> = {
   "lists.deleteWordConfirm": "「{word}」を語彙から削除しますか？すべてのリストと復習履歴からも削除されます。",
   "lists.removeFromListConfirm": "「{word}」を「{list}」から外しますか？語彙には残ります。",
   "lists.deleteListTitle": "このリストを削除",
-  "lists.deleteListBtn": "リストを削除",
   "lists.sortNewest": "新しい順",
   "lists.sortOldest": "古い順",
   // shared sort control (Lists + article summary) — axis labels for the dropdown
@@ -635,12 +620,11 @@ export const ja: Record<MessageKey, string> = {
   "lists.selectedCount": "{n}件選択中",
   "lists.addSelectedToList": "リストに追加",
   "lists.addSelectedTitle": "選択した{n}件をリストに追加",
-  "lists.addListOption": "＋ リスト",
   "lists.removeFromList": "このリストから削除（語彙には残ります）",
   "lists.deleteFromVocab": "語彙から削除",
   "lists.confidenceOf": "自信度 5段階中{n}",
-  "lists.infoAria": "追加日 {added}、最終復習 {reviewed}",
-  "lists.infoTitle": "追加日：{added}\n最終復習：{reviewed}",
+  "lists.confidenceForgot": "自信度 5段階中{n} — 押すとこの単語を忘れたと記録します",
+  "lists.forgotQ": "忘れた？",
   "lists.never": "なし",
   "sense.showExample": "例文",
   "sense.hideExample": "例文を隠す",
@@ -654,6 +638,12 @@ export const ja: Record<MessageKey, string> = {
   "period.week": "今週",
   "period.month": "今月",
   "period.year": "今年",
+  "dates.span": "{from}〜{to}",
+  "dates.since": "{date}以降",
+  "dates.until": "{date}まで",
+  "dates.calendarAria": "{label}: 期間を選択",
+  "dates.prevMonth": "前の月",
+  "dates.nextMonth": "次の月",
 
   "common.retry": "再試行",
   "review.grade1": "忘れた",
@@ -667,7 +657,6 @@ export const ja: Record<MessageKey, string> = {
   "review.emptyList": "このリストに復習する単語がまだありません。",
   "review.emptyAll": "まだ復習するものがありません — まず語彙に単語を追加してください。",
   "review.done": "完了 — {n}{noun}を復習しました。🎉",
-  "review.again": "もう一度復習",
   "review.retrySame": "同じクイズをやり直す",
   "review.newQuiz": "新しいクイズ",
   "review.recallAria": "どれくらい思い出せましたか？",
@@ -716,8 +705,6 @@ export const ja: Record<MessageKey, string> = {
   "quiz.scopeReview": "このテキストの単語を復習中",
   "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
   "quiz.scopeLearnLevel": "このレベルの新しい単語をクイズ中",
-  "quiz.addToList": "この意味をリストに追加",
-  "quiz.added": "リストに追加済み",
   "quiz.showContext": "文脈を表示",
   "quiz.hideContext": "文脈を隠す",
   "quiz.prevMeaning": "前の意味",
@@ -728,9 +715,7 @@ export const ja: Record<MessageKey, string> = {
   "quiz.frontMeaning": "意味 → 単語",
   "quiz.flipNext": "次のカードから",
 
-  "learn.intro": "{framework}のレベルを選んで、まだ保存していない新しい単語をクイズしましょう。",
   "learn.pickLevel": "レベルを選択",
-  "learn.hint": "上のレベルを選んで始めてください。",
   "learn.learnNewWords": "新しい単語を学ぶ",
   "learn.loading": "新しい単語を検索中…",
   "learn.empty": "{level}に新しい単語はありません — 別のレベルをお試しください。🎉",
@@ -740,37 +725,24 @@ export const ja: Record<MessageKey, string> = {
   "learn.findLevel": "レベルを診断",
   "learn.recalibrate": "レベル診断をやり直す",
   "learn.language": "言語",
+  "learn.articles": "📰 記事",
 
   // calibration ("Find my level" placement quiz)
-  "calib.instruction": "知らない単語をタップしてください。",
-  "calib.round": "ラウンド {n}",
   "calib.loading": "単語を読み込み中…",
-  "calib.next": "次へ（{n}語 未知）",
-  "calib.knowAll": "すべて知っている",
   "calib.back": "← 戻る",
   "calib.unavailable": "この言語ではまだレベル診断を利用できません。",
   "calib.resultLevel": "あなたのレベルは{level}前後です。",
   "calib.resultBeginner": "まだ始めたばかりですね — ようこそ！",
-  "calib.resultSaved": "知っている単語{n}個を自信度満点でリストに追加しました。",
-  "calib.resultNote": "この結果を新しい単語のペース配分に使います。いつでもやり直せます。",
-  "calib.missed": "知らなかった単語",
   "calib.again": "やり直す",
-  "calib.soFar": "現在のレベル：{level}",
-  "calib.gathering": "単語を評価してレベルを診断",
   "calib.dontKnow": "わからない",
   "calib.know": "わかる",
-  "calib.reveal": "答えを見る",
-  "calib.placeMe": "完了 — {level} に設定",
   "calib.finish": "完了",
-  "calib.keepGoing": "あと約{n}語でレベルを判定",
   "calib.swipeHint": "知っていれば右へ、知らなければ左へスワイプ。タップで答えを表示。",
 
   "add.addedAria": "追加しました",
   "add.menuTitle": "リストに追加",
   "add.newListEllipsis": "＋ 新しいリスト…",
   "add.done": "完了",
-  "dest.addTo": "追加先：",
-  "dest.all": "すべて（全体）",
 
   "results.noTranslation": "翻訳が見つかりません。",
   "results.showMore": "他に{n}件を表示",
@@ -796,7 +768,6 @@ export const ja: Record<MessageKey, string> = {
   "auth.resetTitle": "新しいパスワードを設定",
   "auth.newPasswordPlaceholder": "新しいパスワード",
   "auth.updatePassword": "パスワードを更新",
-  "auth.resetDone": "パスワードを更新しました — ログインしました。",
   "auth.pwShort": "パスワードは8文字以上にしてください。",
   "auth.pwWeak": "パスワードには英字と数字の両方を含めてください。",
   "auth.confirmPasswordPlaceholder": "パスワードを再入力",
@@ -829,6 +800,11 @@ export const ja: Record<MessageKey, string> = {
   "profile.deleteConfirm": "アカウントと保存したすべての単語が完全に削除されます。元に戻せません。",
   "profile.deleteYes": "アカウントを削除する",
   "profile.deleteCancel": "キャンセル",
+
+  "theme.cycleAria": "外観: {mode} — {next}に切り替え",
+  "theme.system": "システム",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
 
   "legal.privacy": "プライバシー",
   "legal.terms": "利用規約",
