@@ -74,6 +74,29 @@ describe("ConfidenceDots — the dots as a Forgot trigger", () => {
     expect(popups()).toHaveLength(0);
   });
 
+  // The other Forgot surface (ParagraphReader) guards with a synchronous ref because
+  // both halves of a double-tap land in ONE render, where a `busy` state check still
+  // reads false and `disabled` has not applied yet. This is the same control, so it
+  // must hold the same line — one press, one RPC.
+  it("fires ONCE when the confirm is double-pressed inside a single render", async () => {
+    let resolve!: () => void;
+    const onForgot = vi.fn(() => new Promise<void>((r) => (resolve = r)));
+    renderDots([{ rating: 4, onForgot }]);
+
+    fireEvent.click(trigger()[0]);
+    const confirm = popups()[0];
+    // Dispatched RAW, not through fireEvent: fireEvent wraps each event in act(), which
+    // flushes the `busy` state between the two clicks and so cannot reproduce the race
+    // at all. Two native clicks in one task is what a double-tap actually delivers.
+    const tap = () => confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    tap();
+    tap();
+
+    expect(onForgot).toHaveBeenCalledTimes(1);
+    resolve();
+    await waitFor(() => expect(popups()).toHaveLength(0));
+  });
+
   it("re-arms after a dismissal — the singleton must not stay latched", () => {
     renderDots([{ rating: 4, onForgot: async () => {} }]);
     fireEvent.click(trigger()[0]);

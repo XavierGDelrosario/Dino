@@ -10,7 +10,7 @@ import { ReportFlagButton } from "../common/ReportFlagButton";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { wordKey, type SentenceGloss } from "../../services/lookup";
-import { SOFTEN_MIN_CONFIDENCE } from "../../services/review";
+import { canSoften } from "../../services/review";
 import { AddToListButton } from "./AddToListButton";
 import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { summarizeReader } from "../../services/analyze/summarize";
@@ -338,14 +338,12 @@ function ParagraphReaderImpl({
 
   // ── "Forgot" (top-right of the card) ────────────────────────────────────────
   // Offered only for senses the app currently claims you know: below
-  // SOFTEN_MIN_CONFIDENCE there is nothing left to soften, and a button that silently
-  // does nothing is worse than no button. Acts on the WORD — every saved sense of it
+  // the soften floor (see canSoften) there is nothing left to soften, and a button
+  // that silently does nothing is worse than no button. Acts on the WORD — every saved sense of it
   // that is still above the floor — because that is what the card is headed by.
   const forgettable =
     onForgot && hover
-      ? hoveredSenses.filter(
-          (s) => saved.has(s.wordId) && (confidence.get(s.wordId) ?? 0) >= SOFTEN_MIN_CONFIDENCE,
-        )
+      ? hoveredSenses.filter((s) => saved.has(s.wordId) && canSoften(confidence.get(s.wordId)))
       : [];
   // idle → pending → done → (FORGET_HOLD_MS later) idle. The `done` hold IS the
   // client-side double-tap defence: the press has landed, the new ✓ n/5 is already on

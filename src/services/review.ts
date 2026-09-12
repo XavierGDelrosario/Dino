@@ -302,6 +302,14 @@ export async function recordReview(params: {
  *  the same floor, so this is the UI's copy of one rule, not a second rule. */
 export const SOFTEN_MIN_CONFIDENCE = 3;
 
+/** Is there anything for "Forgot" to do at this displayed confidence? Every surface
+ *  that offers the control asks through this, so the floor is stated once: the reader
+ *  (whether to show the button), the dots (whether they are inert text) and the hook
+ *  (which senses to actually send) all used to spell it out separately. */
+export function canSoften(confidence: number | null | undefined): boolean {
+  return (confidence ?? 0) >= SOFTEN_MIN_CONFIDENCE;
+}
+
 /**
  * "Forgot" — drop ONE displayed-confidence bucket for a word the user is reading, and
  * pull its next review in. Not a graded review: nothing is written to `review_log`

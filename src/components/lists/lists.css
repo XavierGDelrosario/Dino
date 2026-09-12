@@ -176,12 +176,6 @@
   align-self: auto;
 }
 
-.lists__baractions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
 .btn--sm {
   font-size: 0.85rem;
   padding: 0.4rem 0.8rem;
@@ -729,63 +723,6 @@
   cursor: pointer;
 }
 
-/* "?" date badge on a row — a real button that toggles the info panel below. */
-.listrow__info {
-  flex-shrink: 0;
-  width: 1.2rem;
-  height: 1.2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: none;
-  padding: 0;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.listrow__info:hover,
-.listrow__info[aria-expanded="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Tap-revealed date panel (added / last-reviewed), full row width. */
-/* Anchor for the floating info overlay. */
-.listrow__info-wrap {
-  position: relative;
-  display: inline-flex;
-}
-
-/* Floating date overlay above the row content — does NOT reflow the row. Hidden by
-   default; shown on hover (desktop) or when the "?" is toggled open (touch/iOS). */
-.listrow__infopanel {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  flex-direction: column;
-  gap: 0.15rem;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  box-shadow: var(--shadow);
-}
-
-.listrow__info-wrap:hover .listrow__infopanel,
-.listrow__info[aria-expanded="true"] ~ .listrow__infopanel {
-  display: flex;
-}
-
 /* add-custom-word form */
 .addword {
   display: flex;
@@ -825,10 +762,6 @@
 
 .addword__added {
   font-size: 0.95rem;
-}
-
-.addword__head {
-  font-weight: 600;
 }
 
 /* SIZE-ONLY modifier of .langbar__swap (translate.css owns the look — the flip
@@ -886,12 +819,6 @@
 }
 
 /* word rows */
-.listrows__more {
-  display: flex;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
 .listrows__count {
   text-align: center;
   margin-top: 0.5rem;

@@ -12,7 +12,6 @@
 // back, so studying something else here for one session leaves your saved languages
 // alone. The placement quiz launched from here is handed the same on-screen value.
 import { Suspense, lazy, useEffect, useState } from "react";
-import { getUserProfile } from "../services/session";
 import { listUserLists, createList, type List } from "../services/lists";
 import {
   proficiencyFrameworkFor,
@@ -20,6 +19,7 @@ import {
   type ProficiencyFramework,
 } from "../services/proficiency";
 import { getUserProficiencyBand } from "../services/calibration";
+import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
 import { fetchLearnWords } from "../services/learn";
 import { CalibrationView } from "./CalibrationView";
 // Lazy, like HomeView loaded it: Articles is a whole second surface (browse + the
@@ -45,23 +45,19 @@ import "./learn.css";
 export function LearnView({ userId }: { userId: string }) {
   const { t } = useI18n();
 
-  // SEEDED from the profile, then owned by this tab (see the picker below) — the
-  // registry defaults cover a fresh guest.
-  const [learning, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
-  const [native, setNative] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
+  // The profile pair, through the ONE hook that owns the
+  // getUserProfile → `?? DEFAULT` → warn policy (and the stale-load guard a
+  // hand-rolled copy here kept losing). `prefs.ready` is its settled flag: the
+  // embedded Articles browse waits on it so it doesn't fetch the DEFAULT language's
+  // wiki and immediately refetch the real one. It is set on a FAILED read too.
+  const prefs = useLanguagePrefs(userId);
+  // OVERRIDDEN by this tab's own picker (see below). Null = follow the profile, so a
+  // profile that lands late can never overwrite a choice the user already made.
+  const [picked, setPicked] = useState<LangCode | null>(null);
+  const learning = picked ?? prefs.learning;
+  const native = prefs.native;
   const [lists, setLists] = useState<List[]>([]);
-  // Settled, one way or the other — the embedded Articles browse waits for it so it
-  // doesn't fetch the DEFAULT language's wiki and then immediately refetch the real
-  // one. Set on a FAILED read too, or a broken profile leaves it browsing nothing.
-  const [prefsReady, setPrefsReady] = useState(false);
   useEffect(() => {
-    getUserProfile(userId)
-      .then((p) => {
-        setLearning((p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode);
-        setNative((p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode);
-      })
-      .catch((e) => console.warn("LearnView: failed to load language prefs", e))
-      .finally(() => setPrefsReady(true));
     listUserLists(userId)
       .then(setLists)
       .catch((e) => console.warn("LearnView: failed to load sub-lists", e));
@@ -219,7 +215,7 @@ export function LearnView({ userId }: { userId: string }) {
               // avoids). The placement quiz reads this same value via `langs`, so the tab
               // stays self-consistent without touching anything outside it.
               onChange={(e) => {
-                setLearning(e.target.value as LangCode);
+                setPicked(e.target.value as LangCode);
                 reset();
               }}
             >
@@ -284,7 +280,7 @@ export function LearnView({ userId }: { userId: string }) {
         <MediaView
           userId={userId}
           langs={{ learning, native: explainIn }}
-          ready={prefsReady}
+          ready={prefs.ready}
           onArticleOpen={setArticleOpen}
         />
       </Suspense>

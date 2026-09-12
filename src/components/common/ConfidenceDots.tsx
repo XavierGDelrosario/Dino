@@ -14,7 +14,7 @@
 // the article table each render their own rows, and a second surface must be able to
 // close the first one's overlay without the two knowing about each other.
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
-import { SOFTEN_MIN_CONFIDENCE } from "../../services/review";
+import { canSoften } from "../../services/review";
 import { useI18n } from "../../i18n";
 import "../lists/lists.css"; // .dots / .dot live with the Lists row this mirrors
 
@@ -25,7 +25,6 @@ const subscribe = (fn: () => void) => {
   listeners.add(fn);
   return () => void listeners.delete(fn);
 };
-const getOpenId = () => openId;
 function setOpenId(id: string | null) {
   if (openId === id) return;
   openId = id;
@@ -44,10 +43,14 @@ export function ConfidenceDots({
 }) {
   const { t } = useI18n();
   const id = useId();
-  const open = useSyncExternalStore(subscribe, getOpenId, getOpenId) === id;
+  // The snapshot is this row's OWN boolean, not the global id: a snapshot of `openId`
+  // itself changes for every subscriber on every open/close, so React would re-render
+  // all ~100 rows of a page to move one overlay.
+  const isOpen = useCallback(() => openId === id, [id]);
+  const open = useSyncExternalStore(subscribe, isOpen, isOpen);
   const wrapRef = useRef<HTMLSpanElement>(null);
   const [busy, setBusy] = useState(false);
-  const interactive = !!onForgot && rating >= SOFTEN_MIN_CONFIDENCE;
+  const interactive = !!onForgot && canSoften(rating);
 
   // Never leave the singleton pointing at a row that has been paged/filtered away —
   // it would swallow the NEXT row's first press (the store would already read "open"
@@ -79,16 +82,26 @@ export function ConfidenceDots({
     };
   }, [open]);
 
-  const press = useCallback(async () => {
-    if (!onForgot || busy) return;
+  // ‼️ The latch is the REF, not `busy`, and `disabled` is not the guard either: both
+  // apply on the NEXT render, and the two halves of a double-tap arrive in the same
+  // one — so a state check reads "not busy" twice and fires two RPCs. The ref flips
+  // synchronously inside the first handler, which is the only thing the second is
+  // guaranteed to see. `busy` remains purely the visual disabled state.
+  // Same reasoning as ParagraphReader's forgetBusy — these are one control on two
+  // surfaces and must not disagree about it.
+  const pressBusy = useRef(false);
+  const press = async () => {
+    if (!onForgot || pressBusy.current) return;
+    pressBusy.current = true;
     setBusy(true);
     try {
       await onForgot();
       setOpenId(null); // the overlay closing IS the acknowledgement; the dots then drop
     } finally {
+      pressBusy.current = false;
       setBusy(false);
     }
-  }, [onForgot, busy]);
+  };
 
   const dots = (
     <>

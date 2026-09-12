@@ -24,16 +24,18 @@ export type Theme = "light" | "dark";
 
 export const THEME_PREFS: readonly ThemePref[] = ["system", "light", "dark"] as const;
 
-const STORAGE_KEY = "dino.theme";
+/** Also hard-coded in index.html's pre-paint script — see the header.
+ *  tests/services/theme-inline-script.test.ts fails if the two drift. */
+export const STORAGE_KEY = "dino.theme";
 
 /** Browser-chrome colour per theme (the <meta name="theme-color"> in index.html). */
-const THEME_COLOR: Record<Theme, string> = { dark: "#0f1115", light: "#f6f7fb" };
+export const THEME_COLOR: Record<Theme, string> = { dark: "#0f1115", light: "#f6f7fb" };
 
 const isPref = (v: unknown): v is ThemePref =>
   v === "system" || v === "light" || v === "dark";
 
 /** Saved choice → "system". Storage can throw (private mode); never let it break boot. */
-export function readThemePref(): ThemePref {
+function readThemePref(): ThemePref {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (isPref(saved)) return saved;
@@ -62,7 +64,7 @@ export function resolveTheme(pref: ThemePref): Theme {
  * OWN widgets — form controls, scrollbars, the caret — flip with us; without it a
  * light page keeps dark native scrollbars.
  */
-export function applyTheme(theme: Theme): void {
+function applyTheme(theme: Theme): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   root.dataset.theme = theme;

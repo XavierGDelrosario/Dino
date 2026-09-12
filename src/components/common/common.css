@@ -275,17 +275,6 @@ body {
   position: relative;
 }
 
-.langpicker {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
 .account {
   position: absolute;
   top: 0;
@@ -296,33 +285,6 @@ body {
   font-size: 0.8rem;
   color: var(--muted);
   text-align: left;
-}
-
-.account__email {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account__panel {
-  position: absolute;
-  top: 1.9rem;
-  left: 0;
-  z-index: 20;
-  width: 16rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.8rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.account__actions {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .account__note {
@@ -462,12 +424,6 @@ body {
   background: var(--surface);
 }
 
-/* ---- Appearance picker (account menu) -------------------------------------
-   A segmented control inside the popover: one setting, three values, current one
-   filled. It does NOT close the menu on click — you pick a theme by looking at
-   what it does, so the panel stays put while you try the other two.
-   Divider under it so it reads as a setting above the action rows, not as a
-   fourth action. */
 /* auth + profile pages */
 .authpage,
 .profile {
@@ -521,13 +477,6 @@ body {
   color: var(--muted);
   font-size: 0.85rem;
 }
-.profile__actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
 .app__footer-links {
   margin: 0 0 0.5rem;
 }
@@ -620,9 +569,8 @@ body {
 }
 
 /* tab nav */
-/* Five tabs (Translate · Lists · Learn · Media · Review) don't fit a phone at the
-   desktop size — the row needs ~400px and an iPhone leaves the app ~358px, so it
-   spilled off-screen.
+/* The tab row has to fit a phone at the desktop size — an iPhone leaves the app
+   ~358px, and a row sized by hand spilled off-screen.
 
    The tabs FILL the row rather than being sized by hand: `flex: 1 0 auto` gives
    each one its content width plus an equal share of whatever is left over, so the

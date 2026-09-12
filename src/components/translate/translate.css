@@ -9,38 +9,10 @@
   margin-inline: calc((100% - min(810px, 94vw)) / 2);
 }
 
-.wordpanel,
 .paragraph {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-/* Word | Paragraph toggle */
-.modetoggle {
-  display: inline-flex;
-  gap: 0.25rem;
-  background: var(--surface-2);
-  border-radius: 999px;
-  padding: 0.2rem;
-  align-self: center;
-}
-
-.modetoggle__btn {
-  appearance: none;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  padding: 0.35rem 1rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.modetoggle__btn--active {
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
 }
 
 /* paragraph reader */
@@ -65,16 +37,6 @@
 .textarea:focus {
   outline: none;
   border-color: var(--accent);
-}
-
-.para__translation {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 10px;
-  padding: 0.8rem 1rem;
-  color: var(--muted);
-  line-height: 1.5;
 }
 
 .reader {
@@ -176,19 +138,6 @@
   padding-inline: 0.6rem;
   font-size: clamp(0.8rem, 3.2vw, 1rem);
   line-height: 1.25;
-}
-
-/* "Add to: [list]" destination picker */
-.destpicker {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.destpicker__label {
-  font-size: 0.85rem;
-  color: var(--muted);
 }
 
 .tok {
@@ -313,19 +262,6 @@
 
 /* .sense* and .results__more moved to common/SenseText.css (shared sense-list
    styling, used by word results, the paragraph popover, and Lists "Add word"). */
-
-.hovercard__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.worddetail__status {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
 
 /* The row above the input/output boxes: the centred language bar, plus the
    history clock pinned to its right edge. Anchor for .thistory.
@@ -699,11 +635,6 @@ textarea.translate__box::-webkit-scrollbar {
 }
 
 /* auto-ish textarea for the unified word/sentence input */
-.textarea--auto {
-  flex: 1;
-  min-height: 6rem;
-}
-
 .input {
   flex: 1;
   background: var(--surface);
@@ -760,10 +691,6 @@ textarea.translate__box::-webkit-scrollbar {
   padding: 0.95rem 1rem;
 }
 
-.result--primary .result__meaning {
-  font-size: 1.3rem;
-}
-
 .results__others {
   list-style: none;
   margin: 0;
@@ -771,31 +698,6 @@ textarea.translate__box::-webkit-scrollbar {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-
-.result__text {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.result__head {
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-
-.result--primary .result__head {
-  font-size: 1.5rem;
-}
-
-.result__arrow {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.result__meaning {
-  font-size: 1.1rem;
 }
 
 .result__reading {
@@ -1101,38 +1003,6 @@ textarea.translate__box::-webkit-scrollbar {
   border-color: var(--accent);
 }
 
-/* ---- Live listener (EXPERIMENT) -------------------------------------------
-   Transcript column: the committed, analyzed utterances render through the shared
-   reader above; this is the chrome around them. */
-.listen__bar {
-  display: flex;
-  align-items: stretch; /* one height for every control in the row */
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-/* Listen/Stop, Clear and Add sit on one line, so they share a height. Padding
-   alone doesn't guarantee it once one of them wraps its label. */
-.listen__bar .btn {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.1rem;
-}
-
-.listen__close {
-  margin-left: auto;
-}
-
-/* The utterance still forming. Deliberately plain and muted — recognition rewrites
-   it on every syllable, so colouring it would strobe; committing is what earns the
-   colour. Italic marks it as provisional without adding chrome. */
-.listen__partial {
-  margin: 0.6rem 0 0;
-  color: var(--muted);
-  font-style: italic;
-  min-height: 1.4em; /* reserve the line so the transcript doesn't jump */
-}
-
 /* ---- Per-sentence translate --------------------------------------------------
    The sentence's closing 。 IS the button. It has to read as punctuation at rest —
    the reader is for reading Japanese, and a row of buttons down the text would be
@@ -1176,25 +1046,6 @@ textarea.translate__box::-webkit-scrollbar {
   font-size: 0.95rem;
   line-height: 1.5;
   color: var(--muted);
-}
-
-/* Back sits at the head of the bar; the actions that DO something (listen, clear,
-   add) follow it, so the leftmost control is always the way out. */
-/* Discrete: no button chrome at rest, muted like the surrounding text, brightening
-   only on hover. It is the way out, not something to be drawn toward. */
-.listen__back {
-  background: none;
-  border: none;
-  padding: 0.2rem;
-  color: var(--muted);
-  opacity: 0.75;
-}
-
-.listen__back:hover,
-.listen__back:focus-visible {
-  color: var(--text);
-  opacity: 1;
-  background: none;
 }
 
 /* A sentence currently showing its translation gets its own line, with the English

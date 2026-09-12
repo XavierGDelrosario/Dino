@@ -127,7 +127,7 @@ export function rangeNarrows(r: DateRange): boolean {
  * its. Ordered by min/max rather than trusted, so a reversed range (however it got
  * written) still selects the days between the two rather than nothing.
  */
-export function rangeBounds(r: DateRange): { from: number; to: number } {
+function rangeBounds(r: DateRange): { from: number; to: number } {
   const a = r.from ? parseDayKey(r.from).setHours(0, 0, 0, 0) : -Infinity;
   const b = r.to ? parseDayKey(r.to).setHours(23, 59, 59, 999) : Infinity;
   return { from: Math.min(a, b), to: Math.max(a, b) };
@@ -186,6 +186,7 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
   const pos = new Set(f.pos);
   const added = rangeBounds(f.added);
   const reviewed = rangeBounds(f.reviewed);
+  const addedNarrows = rangeNarrows(f.added);
   const reviewedNarrows = rangeNarrows(f.reviewed);
   const { lo, hi } = confBounds(f);
   // Only languages whose bands actually narrow (all-checked = inert; see header).
@@ -213,8 +214,13 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
       if (category == null || !pos.has(category)) return false;
     }
 
-    const addedAt = Date.parse(word.originallyTranslatedDate);
-    if (addedAt < added.from || addedAt > added.to) return false;
+    // Gated like the reviewed axis below: at rest the bounds are ±Infinity, so parsing
+    // every word's date to compare against them is work for an inert filter — and this
+    // pass re-runs on every pointer event of a confidence-thumb drag.
+    if (addedNarrows) {
+      const addedAt = Date.parse(word.originallyTranslatedDate);
+      if (addedAt < added.from || addedAt > added.to) return false;
+    }
 
     // A reviewed-date filter excludes never-reviewed words (they have no date to match).
     if (reviewedNarrows) {

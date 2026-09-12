@@ -10,7 +10,7 @@
 //
 // The range model + its day maths live with the rest of the filter model
 // (services/words/filters.ts); this file is only the surface.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useI18n, type Locale, type MessageKey, type TFn } from "../../i18n";
 import {
   ANY_DATES,
@@ -22,9 +22,6 @@ import {
   type DateRange,
 } from "../../services/words/filters";
 import "./lists.css";
-
-/** Monday-first, matching `periodRange`'s "this week". */
-const WEEK_START_MONDAY = true;
 
 const PRESETS: { period: DatePeriod; label: MessageKey }[] = [
   { period: "today", label: "period.today" },
@@ -66,20 +63,38 @@ function summarize(r: DateRange, locale: Locale, t: TFn): string {
  *  is generated from real dates rather than a hand-written list per language. */
 function weekdayNames(locale: Locale): string[] {
   const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
-  return Array.from({ length: 7 }, (_, i) =>
-    fmt.format(new Date(2024, 0, (WEEK_START_MONDAY ? 1 : 0) + i)),
-  );
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
 }
 
 /** One month as 7-column rows: leading/trailing blanks rather than the neighbouring
- *  month's days, so every clickable square belongs to the month in the title. */
-function monthCells(cursor: Date): (string | null)[] {
+ *  month's days, so every clickable square belongs to the month in the title.
+ *
+ *  Each cell carries its finished label and day NUMBER, because everything here
+ *  depends only on the month and the locale — building it in the render body meant
+ *  re-deriving ~42 cells and constructing a fresh `Intl` formatter per cell on every
+ *  pointer move across the grid. */
+interface Cell {
+  key: string;
+  day: number;
+  label: string;
+}
+
+function monthCells(cursor: Date, locale: Locale): (Cell | null)[] {
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
-  const lead = (new Date(year, month, 1).getDay() + (WEEK_START_MONDAY ? 6 : 7)) % 7;
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
   const length = new Date(year, month + 1, 0).getDate();
-  const cells: (string | null)[] = Array.from({ length: lead }, () => null);
-  for (let d = 1; d <= length; d++) cells.push(dayKey(new Date(year, month, d)));
+  const fmt = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const cells: (Cell | null)[] = Array.from({ length: lead }, () => null);
+  for (let d = 1; d <= length; d++) {
+    const date = new Date(year, month, d);
+    cells.push({ key: dayKey(date), day: d, label: fmt.format(date) });
+  }
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
@@ -130,14 +145,14 @@ function Calendar({
   const now = new Date();
   const atCurrentMonth =
     cursor.getFullYear() === now.getFullYear() && cursor.getMonth() === now.getMonth();
-  const title = new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(cursor);
-  const dayLabel = (day: string) =>
-    parseDayKey(day).toLocaleDateString(locale, {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  // The month grid, its heading and the weekday strip depend on the month and the
+  // locale ONLY — never on `hover`, which changes on every cell the pointer crosses.
+  const title = useMemo(
+    () => new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(cursor),
+    [cursor, locale],
+  );
+  const cells = useMemo(() => monthCells(cursor, locale), [cursor, locale]);
+  const weekdays = useMemo(() => weekdayNames(locale), [locale]);
 
   return (
     <div className="cal" role="group" aria-label={t("dates.calendarAria", { label })}>
@@ -165,31 +180,33 @@ function Calendar({
       </div>
 
       <div className="cal__grid" onPointerLeave={() => setHover(null)}>
-        {weekdayNames(locale).map((name, i) => (
+        {weekdays.map((name, i) => (
           <span key={`wd-${i}`} className="cal__weekday" aria-hidden="true">
             {name}
           </span>
         ))}
-        {monthCells(cursor).map((day, i) =>
-          day === null ? (
+        {cells.map((cell, i) =>
+          cell === null ? (
             <span key={`pad-${i}`} className="cal__pad" />
           ) : (
             <button
-              key={day}
+              key={cell.key}
               type="button"
               className={[
                 "cal__day",
-                inSpan(day) ? " cal__day--in" : "",
-                day === lo || day === hi ? " cal__day--edge" : "",
-                day === today ? " cal__day--today" : "",
+                inSpan(cell.key) ? " cal__day--in" : "",
+                cell.key === lo || cell.key === hi ? " cal__day--edge" : "",
+                cell.key === today ? " cal__day--today" : "",
               ].join("")}
-              disabled={day > today}
-              aria-pressed={inSpan(day)}
-              aria-label={dayLabel(day)}
-              onPointerEnter={() => setHover(day)}
-              onClick={() => pick(day)}
+              disabled={cell.key > today}
+              aria-pressed={inSpan(cell.key)}
+              aria-label={cell.label}
+              // Only meaningful while anchored — that is the one state the highlight
+              // follows — so an idle sweep across the grid re-renders nothing.
+              onPointerEnter={anchor === null ? undefined : () => setHover(cell.key)}
+              onClick={() => pick(cell.key)}
             >
-              {parseDayKey(day).getDate()}
+              {cell.day}
             </button>
           ),
         )}

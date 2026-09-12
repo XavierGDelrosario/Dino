@@ -12,7 +12,7 @@ import { translate, glossSentences, getCachedGloss } from "../services/translati
 import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
-import { recordReview, softenConfidence, SOFTEN_MIN_CONFIDENCE } from "../services/review";
+import { canSoften, softenConfidence } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { contextByWord as contextForWords, type WordContext } from "../services/analyze/context";
@@ -656,29 +656,6 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     [userId, markSaved, level]
   );
 
-  /** "Don't know" for an already-saved sense: a review lapse (lowers confidence). */
-  const markUnknown = useCallback(
-    async (word: Word) => {
-      const uwid = userWordIds.get(word.wordId);
-      if (!uwid || saving.has(word.wordId)) return;
-      setSaving((s) => new Set(s).add(word.wordId));
-      setError(null);
-      try {
-        const res = await recordReview({ userWordId: uwid, grade: 1 });
-        setConfidence((m) => new Map(m).set(word.wordId, res.confidenceRating));
-      } catch (e) {
-        setError(message(e));
-      } finally {
-        setSaving((s) => {
-          const n = new Set(s);
-          n.delete(word.wordId);
-          return n;
-        });
-      }
-    },
-    [userWordIds, saving]
-  );
-
   /**
    * "Forgot" for a word the reader claims you know: drop EACH of its saved senses by
    * one displayed-confidence bucket (services/review.softenConfidence — a self-report,
@@ -699,7 +676,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
         (w) =>
           userWordIds.has(w.wordId) &&
           !saving.has(w.wordId) &&
-          (confidence.get(w.wordId) ?? 0) >= SOFTEN_MIN_CONFIDENCE,
+          canSoften(confidence.get(w.wordId)),
       );
       if (targets.length === 0) return;
       setSaving((s) => {
@@ -791,7 +768,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     // Google-Translate-style output box + swap (langs + text + re-translate)
     output, swap,
     // shared per-sense state
-    saved, saving, confidence, addSense, markUnknown, softenSenses, syncSenseState,
+    saved, saving, confidence, addSense, softenSenses, syncSenseState,
     // word mode
     headword, meanings,
     // paragraph mode

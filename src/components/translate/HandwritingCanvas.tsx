@@ -69,6 +69,11 @@ export function HandwritingCanvas({
   // token, so the two can't disagree.
   const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // The resolved ink, refreshed by the repaint effect below (the only place it can
+  // change). Read from here while drawing: resolving the custom property per
+  // pointermove is a style recalc 60–120×/s on the one interaction that must feel
+  // like a pen, and it cannot return anything the effect did not already compute.
+  const ink = useRef<string>("");
   const drawing = useRef<{ points: InkPoint[] } | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [candidates, setCandidates] = useState<RecognitionCandidate[]>([]);
@@ -82,7 +87,8 @@ export function HandwritingCanvas({
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, PAD_SIZE, PAD_SIZE);
-    setPen(ctx, inkColor(canvasRef.current));
+    ink.current = inkColor(canvasRef.current);
+    setPen(ctx, ink.current);
     for (const s of strokes) drawStroke(ctx, s.points);
   }, [strokes, theme]);
 
@@ -124,7 +130,8 @@ export function HandwritingCanvas({
     // stroke ends and the effect repaints it in the theme's ink.
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
-    setPen(ctx, inkColor(canvasRef.current));
+    if (!ink.current) ink.current = inkColor(canvasRef.current); // before the first repaint
+    setPen(ctx, ink.current);
     drawStroke(ctx, drawing.current.points);
   };
 
