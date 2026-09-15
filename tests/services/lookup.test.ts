@@ -227,6 +227,51 @@ describe("translateParagraph", () => {
     expect(res.tokens.find((t) => t.text === "辛い")?.reading).toBe("からい"); // kuromoji's context guess kept
   });
 
+  // Quality report #17: a `uk` entry carries its KANJI in inputReading (おおむね / 概ね),
+  // and the overlay printed that kanji as the furigana of 概ね.
+  it("reads a uk entry by its kana HEADWORD, never its kanji annotation (概ね → おおむね)", async () => {
+    mockTranslate.mockResolvedValue({ translated: true, translation: "generally", word: null });
+    mockFindBatch.mockResolvedValue(
+      new Map([["概ね", [
+        makeWord({ input: "おおむね", translation: "in general", inputReading: "概ね" }),
+        makeWord({ input: "おおむね", translation: "gist", inputReading: "概ね" }),
+      ]]])
+    );
+    mockAnalyze.mockResolvedValue([{ text: "概ね", start: 0, end: 2, reading: "がいね", lemma: "概ね", pos: null }]);
+
+    const res = await translateParagraph({ input: "概ね", targetLang: "EN" });
+    expect(res.tokens[0].reading).toBe("おおむね");
+  });
+
+  // Quality report #24: 為 is い (a koto string), ため AND す. Only the い row headwords as
+  // 為, so counting headwords alone made it look unambiguous and overwrote ため with い.
+  it("counts uk entries sharing the spelling, so 為 stays ambiguous and keeps kuromoji's ため", async () => {
+    mockTranslate.mockResolvedValue({ translated: true, translation: "for", word: null });
+    mockFindBatch.mockResolvedValue(
+      new Map([["為", [
+        makeWord({ input: "為", translation: "second string of a koto", inputReading: "い" }),
+        makeWord({ input: "ため", translation: "sake; purpose", inputReading: "為" }),
+        makeWord({ input: "す", translation: "to do", inputReading: "為" }),
+      ]]])
+    );
+    mockAnalyze.mockResolvedValue([{ text: "為", start: 0, end: 1, reading: "ため", lemma: "為", pos: null }]);
+
+    const res = await translateParagraph({ input: "為", targetLang: "EN" });
+    expect(res.tokens[0].reading).toBe("ため");
+  });
+
+  // Quality reports #22/#23: くだり printed 件 above itself.
+  it("never gives a KANA token a furigana (くだり stays くだり, not 件)", async () => {
+    mockTranslate.mockResolvedValue({ translated: true, translation: "passage", word: null });
+    mockFindBatch.mockResolvedValue(
+      new Map([["くだり", [makeWord({ input: "くだり", translation: "passage", inputReading: "件" })]]])
+    );
+    mockAnalyze.mockResolvedValue([{ text: "くだり", start: 0, end: 3, reading: "くだり", lemma: "くだり", pos: null }]);
+
+    const res = await translateParagraph({ input: "くだり", targetLang: "EN" });
+    expect(res.tokens[0].reading).toBe("くだり");
+  });
+
   it("does NOT override a CONJUGATED surface — keeps kuromoji's reading (行った → いった, not lemma いく)", async () => {
     mockTranslate.mockResolvedValue({ translated: true, translation: "went", word: null });
     // Looked up by LEMMA 行く (stored reading いく), but the surface 行った reads いった.
