@@ -44,6 +44,7 @@ export function CalibrationView({
   const swipe = useSwipeCard({
     onLeft: useCallback(() => rate(false), [rate]),
     onRight: useCallback(() => rate(true), [rate]),
+    onUp: reveal, // same gesture as the flashcard quiz: up reveals the meaning
   });
   const { fling } = swipe;
 

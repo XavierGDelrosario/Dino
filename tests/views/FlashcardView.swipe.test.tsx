@@ -75,6 +75,7 @@ describe("FlashcardView — swipe to grade", () => {
     state.flipped = false;
     state.submitting = false;
     grade.mockClear();
+    flipCard.mockClear();
   });
   afterEach(() => {
     cleanup();
@@ -91,6 +92,17 @@ describe("FlashcardView — swipe to grade", () => {
     const stage = renderView().querySelector(".swipecard")!;
     swipe(stage, -90);
     expect(grade).toHaveBeenCalledWith(1);
+  });
+
+  it("swiping UP on a face-down card reveals it, without grading", () => {
+    const stage = renderView().querySelector(".swipecard")!;
+    pointer(stage, "pointerdown", 200, 200);
+    pointer(stage, "pointermove", 200, 150);
+    pointer(stage, "pointermove", 200, 100);
+    pointer(stage, "pointerup", 200, 100);
+    act(() => void vi.advanceTimersByTime(300));
+    expect(flipCard).toHaveBeenCalledTimes(1);
+    expect(grade).not.toHaveBeenCalled();
   });
 
   it("a REVEALED card is not swipe-gradable — the 1–5 bar owns the decision", () => {

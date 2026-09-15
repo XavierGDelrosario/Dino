@@ -41,10 +41,12 @@ export function FlashcardView({
   // everywhere. Only while the card is face-down — once it's revealed the 1–5
   // GradeBar is the affordance, and a swipe there would silently pick 1 or 5 for a
   // user who was reaching for a 3.
-  const { grade } = r;
+  // Swipe UP reveals the meaning — the same as tapping the card.
+  const { grade, flip: reveal } = r;
   const swipe = useSwipeCard({
     onLeft: useCallback(() => grade(1), [grade]),
     onRight: useCallback(() => grade(5), [grade]),
+    onUp: reveal,
   });
 
   const { t } = useI18n();

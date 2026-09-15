@@ -9,8 +9,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, act, cleanup } from "@testing-library/react";
 import { useSwipeCard } from "@/components/flashcards/useSwipeCard";
 
-function Harness({ onLeft, onRight, onFlip }: { onLeft: () => void; onRight: () => void; onFlip: () => void }) {
-  const { props, fling } = useSwipeCard({ onLeft, onRight });
+function Harness({
+  onLeft,
+  onRight,
+  onFlip,
+  onUp,
+}: {
+  onLeft: () => void;
+  onRight: () => void;
+  onFlip: () => void;
+  onUp?: () => void;
+}) {
+  const { props, fling } = useSwipeCard({ onLeft, onRight, onUp });
   return (
     <div>
       <div data-testid="stage" {...props}>
@@ -22,14 +32,17 @@ function Harness({ onLeft, onRight, onFlip }: { onLeft: () => void; onRight: () 
   );
 }
 
-function setup() {
-  const onLeft = vi.fn(), onRight = vi.fn(), onFlip = vi.fn();
+function setup({ withUp = false } = {}) {
+  const onLeft = vi.fn(), onRight = vi.fn(), onFlip = vi.fn(), onUp = vi.fn();
   // Query inside THIS render's container — the suite has no global auto-cleanup.
-  const { container } = render(<Harness onLeft={onLeft} onRight={onRight} onFlip={onFlip} />);
+  const { container } = render(
+    <Harness onLeft={onLeft} onRight={onRight} onFlip={onFlip} onUp={withUp ? onUp : undefined} />,
+  );
   return {
     onLeft,
     onRight,
     onFlip,
+    onUp,
     get: (id: string) => container.querySelector(`[data-testid="${id}"]`) as HTMLElement,
   };
 }
@@ -87,13 +100,57 @@ describe("useSwipeCard", () => {
     expect(get("stage").style.transform).toBe("");
   });
 
-  it("a vertical drag is a page scroll — the card neither moves nor rates", () => {
+  it("without onUp, a vertical drag is ignored — the card neither moves nor rates", () => {
     const { onLeft, onRight, get } = setup();
     drag(get("stage"), -90, 120);
     act(() => void vi.advanceTimersByTime(300));
     expect(get("stage").style.transform).toBe("");
     expect(onLeft).not.toHaveBeenCalled();
     expect(onRight).not.toHaveBeenCalled();
+  });
+
+  describe("swipe UP (onUp)", () => {
+    it("reveals on an up-swipe past the commit distance, without rating or flying out", () => {
+      const { onUp, onLeft, onRight, get } = setup({ withUp: true });
+      pointer(get("stage"), "pointerdown", 200, 200);
+      pointer(get("stage"), "pointermove", 200, 150);
+      // The card lifts with the finger, capped — it is not leaving.
+      expect(get("stage").style.transform).toMatch(/translateY\(-\d+px\)/);
+      pointer(get("stage"), "pointermove", 200, 100);
+      pointer(get("stage"), "pointerup", 200, 100);
+
+      expect(onUp).toHaveBeenCalledTimes(1);
+      act(() => void vi.advanceTimersByTime(300));
+      expect(onLeft).not.toHaveBeenCalled();
+      expect(onRight).not.toHaveBeenCalled();
+      expect(get("stage").style.transform).toBe(""); // settled back
+    });
+
+    it("a short up-drag or a DOWN-drag reveals nothing", () => {
+      const { onUp, get } = setup({ withUp: true });
+      drag(get("stage"), 0, -30);
+      drag(get("stage"), 0, 120);
+      expect(onUp).not.toHaveBeenCalled();
+    });
+
+    it("stays vertical once claimed: drifting sideways never turns it into a rating", () => {
+      const { onUp, onLeft, onRight, get } = setup({ withUp: true });
+      pointer(get("stage"), "pointerdown", 200, 200);
+      pointer(get("stage"), "pointermove", 205, 170); // claimed as vertical
+      pointer(get("stage"), "pointermove", 110, 120); // then wanders 90px left
+      pointer(get("stage"), "pointerup", 110, 120);
+      act(() => void vi.advanceTimersByTime(300));
+      expect(onUp).toHaveBeenCalledTimes(1);
+      expect(onLeft).not.toHaveBeenCalled();
+      expect(onRight).not.toHaveBeenCalled();
+    });
+
+    it("the click ending an up-swipe does not also flip the card", () => {
+      const { onFlip, get } = setup({ withUp: true });
+      drag(get("stage"), 0, -90);
+      fireEvent.click(get("card"));
+      expect(onFlip).not.toHaveBeenCalled();
+    });
   });
 
   it("the click ending a drag does not flip the card, but a plain tap does", () => {

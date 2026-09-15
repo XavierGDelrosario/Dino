@@ -354,7 +354,7 @@ export const en = {
   "calib.dontKnow": "Don't know",
   "calib.know": "Know",
   "calib.finish": "Finish",
-  "calib.swipeHint": "Swipe → if you know it, ← if you don't. Tap the card to reveal.",
+  "calib.swipeHint": "Swipe → if you know it, ← if you don't. Swipe up or tap the card to reveal.",
 
   // add-to-list button / destination picker
   "add.addedAria": "Added",
@@ -750,7 +750,7 @@ export const ja: Record<MessageKey, string> = {
   "calib.dontKnow": "わからない",
   "calib.know": "わかる",
   "calib.finish": "完了",
-  "calib.swipeHint": "知っていれば右へ、知らなければ左へスワイプ。タップで答えを表示。",
+  "calib.swipeHint": "知っていれば右へ、知らなければ左へスワイプ。上へスワイプかタップで答えを表示。",
 
   "add.addedAria": "追加しました",
   "add.menuTitle": "リストに追加",

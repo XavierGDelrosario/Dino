@@ -79,10 +79,12 @@ export function TextQuizView({
   // and the placement quiz). Revealed, the card's own swipe cycles meanings instead
   // — the two never both apply, because this wrapper's handlers are only attached
   // while `!q.flipped` and the card's own only while `q.flipped`.
-  const { grade } = q;
+  // Swipe UP reveals the meaning — the same as tapping the card.
+  const { grade, flip: reveal } = q;
   const swipe = useSwipeCard({
     onLeft: useCallback(() => grade(1), [grade]),
     onRight: useCallback(() => grade(5), [grade]),
+    onUp: reveal,
   });
 
   const { t } = useI18n();

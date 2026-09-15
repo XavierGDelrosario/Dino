@@ -9,6 +9,10 @@
 //
 // `fling()` is the imperative door in, so the ←/→ buttons and the arrow keys animate
 // exactly like a real swipe instead of teleporting to the next card.
+//
+// An UP-swipe is the optional third gesture (`onUp`): it reveals the answer. It never
+// flies the card out — revealing isn't a rating — so the card lifts a little with the
+// finger and settles back once it lets go. Without `onUp` a vertical drag is ignored.
 import {
   useCallback,
   useEffect,
@@ -32,6 +36,9 @@ const TILT_PER_PX = 0.06;
 const MAX_TILT = 14;
 /** How far off-stage the card flies — past 100% it is fully out of the frame. */
 const EXIT_DISTANCE = "140%";
+/** How far the card lifts with an up-swipe: it follows the finger at half speed and
+ *  stops here, so it reads as "flip" rather than as the card leaving. */
+const MAX_LIFT_PX = 36;
 
 const tilt = (dx: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, dx * TILT_PER_PX));
 
@@ -49,18 +56,31 @@ export interface SwipeCardProps {
   onClickCapture: (e: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
-export function useSwipeCard({ onLeft, onRight }: { onLeft: () => void; onRight: () => void }): {
+export function useSwipeCard({
+  onLeft,
+  onRight,
+  onUp,
+}: {
+  onLeft: () => void;
+  onRight: () => void;
+  /** Up-swipe past the commit distance — reveal the answer. Omit to ignore vertical drags. */
+  onUp?: () => void;
+}): {
   /** Spread onto the element that should move (it wraps the card). */
   props: SwipeCardProps;
   /** Rate in a direction WITH the fly-out — for buttons and keyboard. */
   fling: (dir: SwipeDir) => void;
 } {
   const [dx, setDx] = useState(0);
+  const [dy, setDy] = useState(0);
   const [exit, setExit] = useState<SwipeDir | null>(null);
   const drag = useRef<{ x: number; y: number; id: number } | null>(null);
   // A drag that passed TAP_SLOP: suppresses the click it would otherwise end in
   // (a click on the card flips it, which is not what a swipe meant).
   const moved = useRef(false);
+  // Which way the drag was claimed once it passed TAP_SLOP. Fixed for the rest of the
+  // gesture, so a swipe up that drifts sideways never turns into a rating.
+  const axis = useRef<"x" | "y">("x");
   const exiting = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,35 +122,48 @@ export function useSwipeCard({ onLeft, onRight }: { onLeft: () => void; onRight:
     const moveX = e.clientX - d.x;
     const moveY = e.clientY - d.y;
     if (!moved.current) {
-      // Vertical intent → this pointer is a page scroll, not a swipe. Drop it.
-      if (Math.abs(moveY) > TAP_SLOP && Math.abs(moveY) > Math.abs(moveX)) {
-        drag.current = null;
-        return;
+      const vertical = Math.abs(moveY) > TAP_SLOP && Math.abs(moveY) > Math.abs(moveX);
+      if (vertical) {
+        // Vertical intent with no up-gesture to offer → not ours. Drop it.
+        if (!onUp) {
+          drag.current = null;
+          return;
+        }
+        axis.current = "y";
+      } else {
+        if (Math.abs(moveX) <= TAP_SLOP) return;
+        axis.current = "x";
       }
-      if (Math.abs(moveX) <= TAP_SLOP) return;
       moved.current = true;
       // Keep receiving moves/up even if the pointer leaves the card.
       e.currentTarget.setPointerCapture?.(e.pointerId);
     }
-    setDx(moveX);
-  }, []);
+    if (axis.current === "y") setDy(Math.max(-MAX_LIFT_PX, Math.min(0, moveY / 2)));
+    else setDx(moveX);
+  }, [onUp]);
 
   const onPointerUp = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const d = drag.current;
       if (!d || d.id !== e.pointerId) return;
       drag.current = null;
+      if (moved.current && axis.current === "y") {
+        setDy(0); // settle back either way — revealing doesn't move the card on
+        if (e.clientY - d.y <= -COMMIT_PX) onUp?.();
+        return;
+      }
       const moveX = e.clientX - d.x;
       if (moved.current && Math.abs(moveX) >= COMMIT_PX) fling(moveX < 0 ? "left" : "right");
       else setDx(0); // spring back
     },
-    [fling],
+    [fling, onUp],
   );
 
   const onPointerCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (drag.current?.id !== e.pointerId) return;
     drag.current = null;
     setDx(0);
+    setDy(0);
   }, []);
 
   const onClickCapture = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
@@ -141,7 +174,7 @@ export function useSwipeCard({ onLeft, onRight }: { onLeft: () => void; onRight:
     moved.current = false;
   }, []);
 
-  const dragging = dx !== 0 && exit == null;
+  const dragging = (dx !== 0 || dy !== 0) && exit == null;
   // A transform is emitted ONLY while the card is moving: a permanent one would make
   // this element the containing block for the add-to-list menu (position: fixed) and
   // land it in the wrong place.
@@ -151,7 +184,9 @@ export function useSwipeCard({ onLeft, onRight }: { onLeft: () => void; onRight:
         opacity: 0,
       }
     : dragging
-      ? { transform: `translateX(${dx}px) rotate(${tilt(dx).toFixed(2)}deg)` }
+      ? dy !== 0
+        ? { transform: `translateY(${dy}px)` }
+        : { transform: `translateX(${dx}px) rotate(${tilt(dx).toFixed(2)}deg)` }
       : {};
 
   return {
