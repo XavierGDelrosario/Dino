@@ -747,6 +747,51 @@ function isReverseIntoJa(sourceLang: string, targetLang: string): boolean {
   return sourceLang.toUpperCase() !== "JA" && targetLang.toUpperCase() === "JA";
 }
 
+// ── The completeness-aware cache read (migration 20260771) ───────────────────
+// For a Japanese term the cache only ANSWERS when it holds every JMdict entry for that
+// spelling; an incomplete set comes back empty, i.e. a miss, so the lookup re-resolves
+// and the upsert fills the gaps. The old input/input_reading match served any partial
+// set forever (質 answered only たち, never "quality"). The rule lives in SQL
+// (cached_senses) so the client, which reads `words` directly, applies the same one.
+//
+// null = not applicable (non-JA source) or the database predates the function; the
+// caller then uses the previous read. Latched per isolate so a missing function costs
+// one failed call, not one per request.
+let cachedSensesAvailable = true;
+const CACHED_SENSES_CHUNK = 500; // the function's own cap
+
+async function fetchCachedSenses(
+  supabase: Supa,
+  terms: string[],
+  sourceLang: string,
+  targetLang: string,
+): Promise<Map<string, WordRow[]> | null> {
+  if (sourceLang.toUpperCase() !== "JA" || !cachedSensesAvailable) return null;
+  const out = new Map<string, WordRow[]>();
+  for (let i = 0; i < terms.length; i += CACHED_SENSES_CHUNK) {
+    const { data, error } = await supabase.rpc("cached_senses", {
+      p_terms: terms.slice(i, i + CACHED_SENSES_CHUNK),
+      p_source: sourceLang,
+      p_target: targetLang,
+      p_min_version: CURRENT_PROJECTION_VERSION,
+    });
+    if (error) {
+      if (error.code === "PGRST202" || error.code === "42883") {
+        cachedSensesAvailable = false;
+        console.warn("cached_senses unavailable (pre-20260771 database); using the input/reading match");
+        return null;
+      }
+      throw new Error(error.message);
+    }
+    // One row per answered term, its senses already ordered (see the migration).
+    for (const { term, words } of (data ?? []) as { term: string; words: WordRow[] }[]) {
+      out.set(term, words);
+    }
+  }
+  for (const [term, rows] of out) out.set(term, preferWrittenForm(rows, term));
+  return out;
+}
+
 /** All verified `words` rows for a lookup tuple (the multi-sense cache read). */
 async function fetchVerified(
   supabase: Supa,
@@ -754,6 +799,8 @@ async function fetchVerified(
   sourceLang: string,
   targetLang: string,
 ): Promise<WordRow[]> {
+  const complete = await fetchCachedSenses(supabase, [input], sourceLang, targetLang);
+  if (complete) return complete.get(input) ?? [];
   // Match the term against the stored headword (猫) OR its reading (ねこ), so a kana
   // search resolves the kanji rows. QUOTE the value: PostgREST's `or` grammar treats
   // comma/parens/period as syntax, so a raw term like "cat, dog" corrupts the filter.
@@ -1001,8 +1048,9 @@ async function resolveBatch(
   if (inputs.length === 0) return [];
 
   // 1. One batched cache read; the still-uncached terms need resolving.
-  const cachedRows = await fetchVerifiedMany(supabase, inputs, sourceLang, targetLang);
-  const cachedByInput = groupByInput(cachedRows, inputs);
+  const cachedByInput =
+    (await fetchCachedSenses(supabase, inputs, sourceLang, targetLang)) ??
+    groupByInput(await fetchVerifiedMany(supabase, inputs, sourceLang, targetLang), inputs);
   const missing = inputs.filter((i) => (cachedByInput.get(i) ?? []).length === 0);
 
   // 2. Resolve all misses in ONE batched RPC (two for EN→JA) regardless of miss count.
@@ -1096,7 +1144,10 @@ async function resolveBatch(
   //    produced them, which is what covers WRITING VARIANTS — 速い is stored under
   //    headword 早い, so neither its headword nor its reading equals the search term and
   //    groupByInput alone would drop it.
-  const cachedByTerm = groupByInput([...cachedRows, ...revivedRows], inputs);
+  const cachedByTerm = new Map(cachedByInput);
+  for (const [term, rows] of groupByInput(revivedRows, inputs)) {
+    if (rows.length > 0) cachedByTerm.set(term, [...(cachedByTerm.get(term) ?? []), ...rows]);
+  }
   const refToTerms = new Map<string, string[]>();
   for (const { input, results } of perInput) {
     for (const r of projectRows(results, input, sourceLang, targetLang, CURRENT_PROJECTION_VERSION)) {

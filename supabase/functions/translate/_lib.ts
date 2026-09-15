@@ -251,9 +251,14 @@ export function resolveServiceKey(
 
 /**
  * Project provider results into verified `words` rows. Stores the canonical headword as
- * `input` so a kana search keeps the kanji. DEDUPEs by (headword, translation): JMdict
- * can yield several senses aggregating to the SAME string (私 → "I; me" twice), and a
- * single ON CONFLICT can't update one row twice (Postgres 21000). See dictionaryRefFor.
+ * `input` so a kana search keeps the kanji. DEDUPEs by (entry, headword, translation):
+ * JMdict can yield several senses of one entry aggregating to the SAME string (私 → "I; me"
+ * twice), which would only show twice.
+ *
+ * The ENTRY is in the key on purpose (20260771): two different entries that happen to
+ * project the same headword and gloss are different words, and dropping one left that
+ * entry with no cached row at all — which cached_senses() reads as an incomplete set, so
+ * every lookup of the term would re-resolve it forever.
  */
 export function projectRows(
   results: ProviderResult[],
@@ -266,7 +271,7 @@ export function projectRows(
   const rows: WordRowInsert[] = [];
   for (const r of results) {
     const head = r.headword ?? input;
-    const key = `${head} ${r.translation}`;
+    const key = `${r.entryId ?? ""} ${head} ${r.translation}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const ref = dictionaryRefFor(r, input);

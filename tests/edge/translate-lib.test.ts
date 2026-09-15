@@ -200,6 +200,14 @@ describe("projectRows", () => {
     expect(rows[0].dictionary_ref).toBe("1311110:0"); // keeps the first (primary)
   });
 
+  it("keeps the same (headword, translation) from two DIFFERENT entries — each entry needs a row", () => {
+    // Otherwise the dropped entry is never cached and cached_senses() (20260771) reads the
+    // term as incomplete on every lookup.
+    const a: ProviderResult = { translation: "mon (currency)", headword: "文", entryId: "1957010", sensePos: 0 };
+    const b: ProviderResult = { translation: "mon (currency)", headword: "文", entryId: "2145190", sensePos: 0 };
+    expect(projectRows([a, b], "文", "JA", "EN", 2).map((r) => r.dictionary_ref)).toEqual(["1957010:0", "2145190:0"]);
+  });
+
   it("keeps distinct translations of the same headword as separate rows", () => {
     const a: ProviderResult = { translation: "spicy", headword: "辛い", entryId: "1365850", sensePos: 0 };
     const b: ProviderResult = { translation: "painful", headword: "辛い", entryId: "1365860", sensePos: 0 };

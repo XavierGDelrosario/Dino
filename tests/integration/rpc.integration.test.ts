@@ -1296,6 +1296,50 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     }
   });
 
+  // ── cached_senses: only a COMPLETE cached set answers (20260771) ─────────
+  // A partial set used to be served forever: after たち (uk, kanji 質) was cached, 質 was a
+  // hit with only that, and "quality" never appeared.
+  it("answers a term only once every JMdict entry for it is cached", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // A kana spelling shared by exactly two entries, neither of them cached yet.
+    const { data: kana } = await svc.from("jmdict_kana").select("text, entry_id").limit(5000);
+    const byText = new Map<string, Set<string>>();
+    for (const k of (kana ?? []) as { text: string; entry_id: string }[]) {
+      byText.set(k.text, (byText.get(k.text) ?? new Set()).add(k.entry_id));
+    }
+    let term: string | undefined;
+    let entries: string[] = [];
+    for (const [text, ids] of byText) {
+      if (ids.size !== 2 || !/^[ぁ-ゖ]{3,}$/u.test(text)) continue;
+      const { count } = await svc.from("jmdict_kanji").select("entry_id", { count: "exact", head: true }).eq("text", text);
+      const { data: cached } = await svc.from("words").select("word_id").in("jmdict_entry_id", [...ids]).limit(1);
+      if (!count && (cached ?? []).length === 0) { term = text; entries = [...ids]; break; }
+    }
+    if (!term) return; // JMdict not ingested
+
+    const stamp = Date.now();
+    const seed = (entry: string) => ({
+      input: term!, translation: `cached_senses probe ${entry} ${stamp}`, source_lang: "JA", target_lang: "EN",
+      jmdict_entry_id: entry, jmdict_sense_pos: 0, dictionary_ref: `${entry}:0`,
+      projection_version: 999, is_verified: true,
+    });
+    const ask = async () => ((await svc.rpc("cached_senses", {
+      p_terms: [term], p_source: "JA", p_target: "EN", p_min_version: 1,
+    })).data ?? []) as { term: string; words: { jmdict_entry_id: string }[] }[];
+    try {
+      await svc.from("words").insert(seed(entries[0]));
+      expect(await ask()).toEqual([]); // one of two entries cached → incomplete → a miss
+
+      await svc.from("words").insert(seed(entries[1]));
+      const rows = await ask();
+      expect(rows.map((r) => r.term)).toEqual([term]); // one row per term
+      expect(new Set(rows[0].words.map((w) => w.jmdict_entry_id))).toEqual(new Set(entries));
+    } finally {
+      await svc.from("words").delete().in("dictionary_ref", entries.map((e) => `${e}:0`)).like("translation", `%${stamp}`);
+    }
+  });
+
   it("still ANSWERS a digit form the user actually typed", async () => {
     const svc = serviceClient();
     if (!svc || !(await entryLoaded(svc, "2846370"))) return;

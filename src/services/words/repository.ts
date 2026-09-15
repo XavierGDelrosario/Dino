@@ -7,7 +7,7 @@
 import { supabase } from "../../config/supabaseClient";
 import { nfc } from "../../lib/text";
 import { toServiceError } from "../errors";
-import { FRESH } from "../../lib/projection";
+import { CURRENT_PROJECTION_VERSION, FRESH } from "../../lib/projection";
 import { chunkForUrlFilter } from "../../lib/urlFilter";
 import { mapLimit } from "../../lib/concurrency";
 import { getCachedSenses, setCachedSenses } from "./cache";
@@ -161,6 +161,13 @@ export async function findWordTranslations(params: {
   const cached = getCachedSenses(input, sourceLang, targetLang);
   if (cached) return cached;
 
+  const complete = await readCompleteSenses([input], sourceLang, targetLang);
+  if (complete) {
+    const words = complete.get(input) ?? [];
+    setCachedSenses(input, sourceLang, targetLang, words); // no-op when empty
+    return words;
+  }
+
   const { data, error } = await readOrdered<WordRow[]>((orderCol) => byTerm(
     supabase
       .from("words")
@@ -180,6 +187,62 @@ export async function findWordTranslations(params: {
   const words = orderSenses((data ?? []).map(toWord), input, sourceLang, targetLang);
   setCachedSenses(input, sourceLang, targetLang, words); // no-op when empty
   return words;
+}
+
+/**
+ * The completeness-aware read (migration 20260771) — how a JAPANESE term is read.
+ *
+ * `words` is a lazy cache, and matching a term's rows by input/input_reading served any
+ * PARTIAL set it happened to hold: once a kana lookup had cached the uk entry たち
+ * (kanji 質), 質 was a hit with only that and "quality" never appeared — and a client hit
+ * never asks the edge. `cached_senses` answers a term only when every JMdict entry for it
+ * is cached; an incomplete term is simply absent, which is a miss here, so it goes to the
+ * edge, which re-resolves it and caches the rest. jmdict_* is server-only, which is why
+ * this is a SECURITY DEFINER function and not a PostgREST filter.
+ *
+ * null = not applicable (non-JA source) or the database predates the function; callers
+ * then fall back to the input/input_reading match below. Latched for the session.
+ */
+let completeReadAvailable = true;
+const COMPLETE_READ_CHUNK = 500; // the function's own cap
+
+/** TEST SEAM — the latch is module-global. */
+export function __resetCompleteReadProbe(): void {
+  completeReadAvailable = true;
+}
+
+async function readCompleteSenses(
+  terms: string[],
+  sourceLang: LangCode,
+  targetLang: LangCode,
+): Promise<Map<string, Word[]> | null> {
+  if (sourceLang.toUpperCase() !== "JA" || !completeReadAvailable || terms.length === 0) return null;
+  const rows: { term: string; words: WordRow[] }[] = [];
+  for (let i = 0; i < terms.length; i += COMPLETE_READ_CHUNK) {
+    const { data, error } = await supabase.rpc("cached_senses", {
+      p_terms: terms.slice(i, i + COMPLETE_READ_CHUNK),
+      p_source: sourceLang,
+      p_target: targetLang,
+      p_min_version: CURRENT_PROJECTION_VERSION,
+    });
+    if (error) {
+      // Availability: a client ahead of the migration must keep reading the dictionary.
+      if (error.code === "PGRST202" || error.code === "42883") {
+        completeReadAvailable = false;
+        console.warn("[repository] database predates migration 20260771; using the input/reading match.");
+        return null;
+      }
+      throw toServiceError(error);
+    }
+    // One row per answered term with its senses as an array — a row per sense hit
+    // PostgREST's 1000-row response cap on a long paragraph (see the migration).
+    rows.push(...((data ?? []) as unknown as { term: string; words: WordRow[] }[]));
+  }
+  const byTerm = new Map<string, Word[]>();
+  for (const { term, words } of rows) {
+    byTerm.set(term, orderSenses(words.map(toWord), term, sourceLang, targetLang));
+  }
+  return byTerm;
 }
 
 /**
@@ -233,6 +296,15 @@ export async function findWordTranslationsBatch(params: {
     else misses.push(input);
   }
   if (misses.length === 0) return byWord;
+
+  const complete = await readCompleteSenses(misses, sourceLang, targetLang);
+  if (complete) {
+    for (const [input, senses] of complete) {
+      setCachedSenses(input, sourceLang, targetLang, senses);
+      byWord.set(input, senses);
+    }
+    return byWord;
+  }
 
   // CHUNK the `.in()` filter by encoded size: inlining every term builds a GET URL a
   // long paste can push past the request limit, and then the caller sees NO meanings for

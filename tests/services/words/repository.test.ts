@@ -7,6 +7,7 @@ vi.mock("@/config/supabaseClient", () => ({
 }));
 
 import {
+  __resetCompleteReadProbe,
   findCachedWord,
   findWordTranslations,
   findWordTranslationsBatch,
@@ -19,6 +20,10 @@ beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
   __clearWordsCache(); // the read cache is module-global — reset between cases
+  // Unless a case says otherwise, the database predates cached_senses (20260771), so
+  // these cases exercise the input/input_reading read the client falls back to.
+  __resetCompleteReadProbe();
+  stub.rpc.mockResolvedValue({ data: null, error: { code: "PGRST202", message: "not found" } });
 });
 
 const row = (over: Record<string, unknown> = {}) => ({
@@ -276,5 +281,59 @@ describe("a kanji term also collects the uk rows written that way", () => {
     const map = await findWordTranslationsBatch({ inputs: ["為", "ため"], sourceLang: "JA", targetLang: "EN" });
     expect(map.get("為")?.map((w) => w.wordId)).toEqual(["tame", "su", "koto"]);
     expect(map.get("ため")?.map((w) => w.wordId)).toEqual(["tame"]);
+  });
+});
+
+// The partial-cache gap. Matching by input/input_reading served whatever rows the cache
+// held: after a kana lookup cached the uk entry たち (kanji 質), 質 was a hit with only
+// that, so "quality" never appeared. cached_senses answers only COMPLETE sets.
+describe("cached_senses — a Japanese term is read only when its cached set is complete", () => {
+  const sitsu = row({ word_id: "sitsu", input: "質", input_reading: "しつ", translation: "quality", jmdict_entry_id: "1320640", frequency: 465, is_common: true });
+  const tachi = row({ word_id: "tachi", input: "たち", input_reading: "質", translation: "nature", jmdict_entry_id: "1320650", frequency: 577, is_common: false });
+
+  it("asks the function with the current projection version, not the words table", async () => {
+    stub.rpc.mockResolvedValue({ data: [{ term: "質", words: [tachi, sitsu] }], error: null });
+    const senses = await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" });
+    expect(stub.rpc).toHaveBeenCalledWith("cached_senses", {
+      p_terms: ["質"], p_source: "JA", p_target: "EN", p_min_version: CURRENT_PROJECTION_VERSION,
+    });
+    expect(stub.fromCalls).toEqual([]);
+    expect(senses.map((w) => w.wordId)).toEqual(["sitsu", "tachi"]); // written this way AND common first
+  });
+
+  it("an incomplete term comes back absent — a miss, so the edge fills it in", async () => {
+    stub.rpc.mockResolvedValue({ data: [], error: null });
+    expect(await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" })).toEqual([]);
+    const batch = await findWordTranslationsBatch({ inputs: ["質"], sourceLang: "JA", targetLang: "EN" });
+    expect(batch.has("質")).toBe(false);
+  });
+
+  it("the batch groups by the term the function answered", async () => {
+    stub.rpc.mockResolvedValue({ data: [{ term: "質", words: [sitsu] }, { term: "たち", words: [tachi] }], error: null });
+    const map = await findWordTranslationsBatch({ inputs: ["質", "たち", "猫"], sourceLang: "JA", targetLang: "EN" });
+    expect(map.get("質")?.map((w) => w.wordId)).toEqual(["sitsu"]);
+    expect(map.get("たち")?.map((w) => w.wordId)).toEqual(["tachi"]);
+    expect(map.has("猫")).toBe(false);
+    expect(stub.fromCalls).toEqual([]);
+  });
+
+  it("a database without the function falls back ONCE, then stops asking", async () => {
+    stub.queueFrom("words", { data: [sitsu], error: null }, { data: [sitsu], error: null });
+    await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" });
+    __clearWordsCache();
+    await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" });
+    expect(stub.rpc).toHaveBeenCalledTimes(1);
+    expect(stub.fromCalls).toEqual(["words", "words"]);
+  });
+
+  it("any other error is a real failure, not a silent fallback", async () => {
+    stub.rpc.mockResolvedValue({ data: null, error: { code: "57014", message: "statement timeout" } });
+    await expect(findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" })).rejects.toThrow();
+  });
+
+  it("never applies to a non-Japanese source", async () => {
+    stub.queueFrom("words", { data: [], error: null });
+    await findWordTranslations({ input: "cat", sourceLang: "EN", targetLang: "JA" });
+    expect(stub.rpc).not.toHaveBeenCalled();
   });
 });
