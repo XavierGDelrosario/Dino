@@ -148,6 +148,54 @@ describe("analyze — Japanese (kuromoji)", () => {
   );
 });
 
+// Quality report #20: 活かせる "not registering". kuromoji knows 活かす but splits its
+// plain potential two different wrong ways depending on what follows.
+describe("analyze — a potential verb IPADIC splits (活かせる)", () => {
+  const view = (toks: Awaited<ReturnType<typeof analyze>>) =>
+    toks.map((t) => [t.text, t.lemma, t.pos, t.reading]);
+
+  it(
+    "re-joins 活か + せる mid-sentence into 活かせる → 活かす",
+    async () => {
+      const src = "スキルを活かせる仕事";
+      const toks = await analyze(src, "JA");
+      expect(view(toks)).toContainEqual(["活かせる", "活かす", "動詞", "いかせる"]);
+      for (const t of toks) expect(src.slice(t.start, t.end)).toBe(t.text);
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "re-joins 活 + かせる at the end of a sentence, and alone it is ONE word",
+    async () => {
+      expect(view(await analyze("経験が活かせる。", "JA"))).toContainEqual(
+        ["活かせる", "活かす", "動詞", "いかせる"],
+      );
+      const alone = await analyze("活かせる", "JA");
+      expect(view(alone)).toEqual([["活かせる", "活かす", "動詞", "いかせる"]]);
+      expect(isSingleWord(alone, "JA")).toBe(true);
+      expect(await dictionaryForm("活かせる", "JA")).toBe("活かす");
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "leaves a REAL causative alone — 読ませる is still 読む plus grammar",
+    async () => {
+      for (const [src, verb, lemma] of [
+        ["本を読ませる", "読ま", "読む"],
+        ["子供を行かせる", "行か", "行く"],
+        ["野菜を食べさせる", "食べ", "食べる"],
+      ]) {
+        const toks = await analyze(src, "JA");
+        expect(toks.find((t) => t.pos === "動詞")?.text, src).toBe(verb);
+        expect(toks.find((t) => t.pos === "動詞")?.lemma, src).toBe(lemma);
+      }
+    },
+    KUROMOJI_TIMEOUT
+  );
+});
+
 describe("analyze — specific short words (今 / これ / 単語)", () => {
   it(
     "単語 → one content token read たんご (unambiguous)",
