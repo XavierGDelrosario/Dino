@@ -627,6 +627,8 @@ export type Database = {
           frequency: number | null
           input: string
           input_reading: string | null
+          // Migration 20260769 — trigger-maintained from jmdict_*.
+          is_common: boolean | null
           is_verified: boolean
           jmdict_entry_id: string | null
           jmdict_sense_pos: number | null
@@ -650,6 +652,7 @@ export type Database = {
           frequency?: number | null
           input: string
           input_reading?: string | null
+          is_common?: boolean | null
           is_verified?: boolean
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
@@ -673,6 +676,7 @@ export type Database = {
           frequency?: number | null
           input?: string
           input_reading?: string | null
+          is_common?: boolean | null
           is_verified?: boolean
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null

@@ -11,6 +11,7 @@ import { FRESH } from "../../lib/projection";
 import { chunkForUrlFilter } from "../../lib/urlFilter";
 import { mapLimit } from "../../lib/concurrency";
 import { getCachedSenses, setCachedSenses } from "./cache";
+import { matchesReadingSide, orderSenses } from "./senseOrder";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 
@@ -60,6 +61,9 @@ export interface Word {
   /** How the target reads inside `example` — set only where kuromoji reads it wrong and
    *  no rewrite fixes it (辛い→つらい). Null means kuromoji is trusted, as elsewhere. */
   exampleReading: string | null;
+  /** JMdict's "common" flag for the sense's ENTRY; null for non-JMdict rows, and on a
+   *  database that predates migration 20260769. Ranks a kanji search (senseOrder.ts). */
+  isCommon?: boolean | null;
   isVerified: boolean;
 }
 
@@ -120,6 +124,7 @@ function toWord(row: WordRow): Word {
     exampleGloss: row.example_gloss ?? null,
     definitionSource: row.definition_source ?? null,
     exampleReading: row.example_reading ?? null,
+    isCommon: row.is_common ?? null,
     isVerified: row.is_verified,
   };
 }
@@ -133,32 +138,11 @@ export async function findCachedWord(params: {
   sourceLang: LangCode;
   targetLang: LangCode;
 }): Promise<Word | null> {
-  const { sourceLang, targetLang } = params;
-  const input = nfc(params.input);
-
-  // A memoized sense list has the preferred sense first, so serve it with no round-trip.
-  // A miss keeps the cheaper limit(1) query and does NOT populate the cache — one row is
-  // an incomplete sense list, and only findWordTranslations caches the complete set.
-  const cached = getCachedSenses(input, sourceLang, targetLang);
-  if (cached) return cached[0] ?? null;
-
-  const { data, error } = await readOrdered<WordRow[]>((orderCol) => supabase
-    .from("words")
-    .select<string, WordRow>("*")
-    .eq("input", input)
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    // Skip rows projected by OLDER logic: a stale hit here would short-circuit the edge
-    // and serve the pre-fix projection forever. As a miss it goes to the edge, which
-    // re-projects it in place. See src/lib/projection.ts.
-    .or(FRESH)
-    .order("is_verified", { ascending: false })
-    .order(orderCol, { ascending: true, nullsFirst: false })
-    .limit(1));
-
-  if (error) throw toServiceError(error);
-
-  return data?.[0] ? toWord(data[0]) : null;
+  // The full sense list, not a limit(1) read: which sense is preferred is decided by
+  // orderSenses over ALL of them (a kanji term's uk rows included), and a one-row query
+  // could only ever pick by the database order.
+  const senses = await findWordTranslations(params);
+  return senses[0] ?? null;
 }
 
 /**
@@ -177,20 +161,51 @@ export async function findWordTranslations(params: {
   const cached = getCachedSenses(input, sourceLang, targetLang);
   if (cached) return cached;
 
-  const { data, error } = await readOrdered<WordRow[]>((orderCol) => supabase
-    .from("words")
-    .select<string, WordRow>("*")
-    .eq("input", input)
-    .eq("source_lang", sourceLang)
-    .eq("target_lang", targetLang)
-    .or(FRESH) // stale projections are a MISS (see findCachedWord)
+  const { data, error } = await readOrdered<WordRow[]>((orderCol) => byTerm(
+    supabase
+      .from("words")
+      .select<string, WordRow>("*")
+      .eq("source_lang", sourceLang)
+      .eq("target_lang", targetLang)
+      // Skip rows projected by OLDER logic: a stale hit here would short-circuit the edge
+      // and serve the pre-fix projection forever. As a miss it goes to the edge, which
+      // re-projects it in place. See src/lib/projection.ts.
+      .or(FRESH),
+    [input],
+  )
     .order("is_verified", { ascending: false })
     .order(orderCol, { ascending: true, nullsFirst: false }));
 
   if (error) throw toServiceError(error);
-  const words = (data ?? []).map(toWord);
+  const words = orderSenses((data ?? []).map(toWord), input, sourceLang, targetLang);
   setCachedSenses(input, sourceLang, targetLang, words); // no-op when empty
   return words;
+}
+
+/**
+ * A cache row answers `term` when it headwords as it — or, for a KANJI term, when it
+ * carries the term as its reading. That second arm is a `uk` entry: it headwords as its
+ * kana and keeps its kanji in input_reading, so an input-only read for 為 found just 為
+ * read い ("the second string of a koto") and never ため. The edge has always matched
+ * both sides; this is the client catching up, for kanji terms only — a kana term already
+ * misses here and is resolved by the edge.
+ */
+function belongsTo(word: Word, term: string): boolean {
+  return word.input === term || (matchesReadingSide(term) && word.inputReading === term);
+}
+
+/** PostgREST `or` grammar treats , ( ) . as syntax, so every value is quoted. */
+const quoteFilterValue = (v: string) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+
+/** Narrow a words query to `terms`: input only, plus input_reading for kanji terms. */
+function byTerm<Q extends { in(column: string, values: string[]): Q; or(filter: string): Q }>(
+  query: Q,
+  terms: string[],
+): Q {
+  const kanji = terms.filter(matchesReadingSide);
+  if (kanji.length === 0) return query.in("input", terms);
+  const list = (values: string[]) => values.map(quoteFilterValue).join(",");
+  return query.or(`input.in.(${list(terms)}),input_reading.in.(${list(kanji)})`);
 }
 
 /** Cap in-flight chunk queries so a long paste can't open a request per chunk. */
@@ -223,33 +238,34 @@ export async function findWordTranslationsBatch(params: {
   // long paste can push past the request limit, and then the caller sees NO meanings for
   // ANY word. Each term lands in exactly one chunk, so the per-input ordering the
   // grouping below relies on survives. See lib/urlFilter.ts.
-  const chunks = chunkForUrlFilter(misses);
+  // A kanji term can put the list in the URL twice (input + input_reading).
+  const chunks = chunkForUrlFilter(misses, { repeats: misses.some(matchesReadingSide) ? 2 : 1 });
   const rowsPerChunk = await mapLimit(chunks, URL_FILTER_CONCURRENCY, async (inputs) => {
-    const { data, error } = await readOrdered<WordRow[]>((orderCol) => supabase
-      .from("words")
-      .select<string, WordRow>("*")
-      .in("input", inputs)
-      .eq("source_lang", sourceLang)
-      .eq("target_lang", targetLang)
-      .or(FRESH) // stale projections are a MISS (see findCachedWord)
+    const { data, error } = await readOrdered<WordRow[]>((orderCol) => byTerm(
+      supabase
+        .from("words")
+        .select<string, WordRow>("*")
+        .eq("source_lang", sourceLang)
+        .eq("target_lang", targetLang)
+        .or(FRESH), // stale projections are a MISS (see findWordTranslations)
+      inputs,
+    )
       .order("is_verified", { ascending: false })
       .order(orderCol, { ascending: true, nullsFirst: false }));
     if (error) throw toServiceError(error);
     return data ?? [];
   });
 
-  // Group by stored headword (= the query input for these dictionary-form lookups),
-  // then memoize each non-empty group.
-  const fetched = new Map<string, Word[]>();
-  for (const row of rowsPerChunk.flat()) {
-    const word = toWord(row);
-    const list = fetched.get(word.input) ?? [];
-    list.push(word);
-    fetched.set(word.input, list);
-  }
-  for (const [input, words] of fetched) {
-    setCachedSenses(input, sourceLang, targetLang, words);
-    byWord.set(input, words);
+  // Assign each row to every term it answers (a kanji term also collects the uk rows
+  // that carry it as their reading), order each term's senses, memoize non-empty ones.
+  // Deduped by word_id: a row can come back from two chunks.
+  const seen = new Set<string>();
+  const words = rowsPerChunk.flat().filter((row) => !seen.has(row.word_id) && seen.add(row.word_id)).map(toWord);
+  for (const input of misses) {
+    const senses = orderSenses(words.filter((w) => belongsTo(w, input)), input, sourceLang, targetLang);
+    if (senses.length === 0) continue;
+    setCachedSenses(input, sourceLang, targetLang, senses);
+    byWord.set(input, senses);
   }
   return byWord;
 }

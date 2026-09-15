@@ -1075,9 +1075,35 @@ describe("preferWrittenForm", () => {
 
   it("is a no-op when every row matches, or none does", () => {
     const all = [row("質", "quality"), row("質", "pawn")];
-    expect(preferWrittenForm(all, "質")).toBe(all);
-    const none = [row("たち", "nature")];
-    expect(preferWrittenForm(none, "質")).toBe(none);
+    expect(preferWrittenForm(all, "質")).toEqual(all);
+    const none = [row("たち", "nature"), row("たち", "disposition")];
+    expect(preferWrittenForm(none, "質")).toEqual(none);
+  });
+
+  // Quality report #24 (20260769): the only entry headwording as 為 is 為 read い, "the
+  // second string of a koto". Written-that-way alone handed it the primary over ため.
+  describe("with is_common — the same four tiers as jmdict_lookup", () => {
+    const r = (input: string, translation: string, is_common: boolean) => ({ input, translation, is_common });
+
+    it("a common word beats a rare entry that is merely written this way (為 → ため)", () => {
+      const rows = [r("為", "koto string", false), r("ため", "sake", true), r("す", "to do", true)];
+      expect(preferWrittenForm(rows, "為").map((x) => x.translation)).toEqual(["sake", "to do", "koto string"]);
+    });
+
+    it("written this way AND common still comes first (質 → しつ over たち)", () => {
+      const rows = [r("たち", "nature", true), r("質", "quality", true)];
+      expect(preferWrittenForm(rows, "質").map((x) => x.translation)).toEqual(["quality", "nature"]);
+    });
+
+    it("among RARE entries, written this way still wins (栄 → えい, not ロン)", () => {
+      const rows = [r("ロン", "winning (mahjong)", false), r("栄", "glory", false)];
+      expect(preferWrittenForm(rows, "栄").map((x) => x.translation)).toEqual(["glory", "winning (mahjong)"]);
+    });
+
+    it("keeps the caller's order inside a tier", () => {
+      const rows = [r("ため", "sake", true), r("す", "to do", true), r("ため", "purpose", true)];
+      expect(preferWrittenForm(rows, "為").map((x) => x.translation)).toEqual(["sake", "to do", "purpose"]);
+    });
   });
 
   it("leaves a single row untouched", () => {

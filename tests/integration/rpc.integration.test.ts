@@ -1246,6 +1246,56 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     for (const r of mine) expect(r.writing).toBe("二十");
   });
 
+  // ── a kanji search ranks common words first (20260769) ──────────────────
+  // Quality report #24: the only entry headwording as 為 is 為 read い, "the second string
+  // of a koto" (2870964, not common). 20260758's "written this way first" gave it the
+  // primary over ため (1157080, common). Needs the FULL dictionary for the koto entry.
+  it("answers 為 with ため, not the rare entry that merely headwords as 為", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "2870964")) || !(await entryLoaded(svc, "1157080"))) return;
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "為", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    expect(rows[0].jmdict_entry_id).toBe("1157080");
+    expect(rows.some((r) => r.jmdict_entry_id === "2870964")).toBe(true); // demoted, not dropped
+  });
+
+  it("still answers 質 with しつ — written this way AND common stays first", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "1320640"))) return;
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "質", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    expect(rows[0].jmdict_entry_id).toBe("1320640");
+  });
+
+  it("stamps words.is_common from the entry, on insert and when the entry changes", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data: common } = await svc.from("jmdict_kanji").select("entry_id").eq("common", true).limit(1);
+    const commonEntry = (common?.[0] as { entry_id: string } | undefined)?.entry_id;
+    if (!commonEntry) return; // JMdict not ingested
+
+    const ref = `it-is-common:${Date.now()}`;
+    const { data: inserted, error } = await svc.from("words").insert({
+      input: "テスト", translation: `is_common probe ${ref}`, source_lang: "JA", target_lang: "EN",
+      jmdict_entry_id: commonEntry, jmdict_sense_pos: 0, dictionary_ref: ref,
+      is_common: false, // the trigger owns this column — a caller's value is overwritten
+      is_verified: true,
+    }).select("word_id, is_common").single();
+    expect(error).toBeNull();
+    try {
+      expect((inserted as { is_common: boolean }).is_common).toBe(true);
+      const { data: cleared } = await svc.from("words").update({ jmdict_entry_id: null })
+        .eq("word_id", (inserted as { word_id: string }).word_id).select("is_common").single();
+      expect((cleared as { is_common: boolean | null }).is_common).toBeNull();
+    } finally {
+      await svc.from("words").delete().eq("dictionary_ref", ref);
+    }
+  });
+
   it("still ANSWERS a digit form the user actually typed", async () => {
     const svc = serviceClient();
     if (!svc || !(await entryLoaded(svc, "2846370"))) return;

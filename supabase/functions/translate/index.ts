@@ -104,6 +104,8 @@ interface WordRow {
   example_gloss: string | null;
   definition_source: string | null;
   example_reading: string | null;
+  /** Trigger-maintained (20260769); absent on a database that predates it. */
+  is_common?: boolean | null;
   is_verified: boolean;
 }
 
@@ -127,6 +129,7 @@ function toWord(r: WordRow) {
     exampleGloss: r.example_gloss ?? null,
     definitionSource: r.definition_source ?? null,
     exampleReading: r.example_reading ?? null,
+    isCommon: r.is_common ?? null,
     isVerified: r.is_verified,
   };
 }

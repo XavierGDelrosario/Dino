@@ -704,13 +704,25 @@ const HAS_KANJI = /[\u4E00-\u9FFF]/u;
  *
  * Kanji-guarded for the same reason as the SQL: on kana input a kana-headword entry
  * would leapfrog the kanji entry a searcher usually wants (ねこ must still answer 猫).
+ *
+ * FOUR TIERS since 20260769, the same as jmdict_lookup's ORDER BY — written this way
+ * AND common, then common, then written this way, then the rest. "Written this way"
+ * alone let a rare entry take the primary from a common word: the only entry that
+ * headwords as 為 is 為 read い, "the second string of a koto", which beat ため.
+ * `is_common` is trigger-maintained on `words`; a row without it (a database that
+ * predates the column) counts as not common, which degrades to the old two-way split.
+ *
+ * ‼️ Client twin: src/services/words/senseOrder.ts. Keep in sync —
+ * tests/services/words/senseOrder.test.ts runs both over the same rows.
  */
-export function preferWrittenForm<T extends { input: string }>(rows: T[], term: string): T[] {
+export function preferWrittenForm<T extends { input: string; is_common?: boolean | null }>(
+  rows: T[],
+  term: string,
+): T[] {
   if (rows.length < 2 || !HAS_KANJI.test(term)) return rows;
-  const exact: T[] = [];
-  const rest: T[] = [];
-  for (const r of rows) (r.input === term ? exact : rest).push(r);
-  return exact.length === 0 || rest.length === 0 ? rows : [...exact, ...rest];
+  const tiers: T[][] = [[], [], [], []];
+  for (const r of rows) tiers[3 - ((r.is_common === true ? 2 : 0) + (r.input === term ? 1 : 0))].push(r);
+  return tiers.flat();
 }
 
 export function groupByInput<
