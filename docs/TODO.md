@@ -194,6 +194,15 @@ Fix VOLUME first, then price.
   fallback entirely (`skipGlossFallback`), because the EN pool only emits surfaces WordNet
   can translate. That fixed A1/A2 placement timing out.
 
+### JA→EN partial cache hit for a kanji term
+- **A kanji lookup is served from whatever is cached, even an incomplete set.** Both cache
+  reads match `input_reading`, so once a kana lookup has cached a `uk` entry (たち, written
+  質), 質 is a hit with only those rows and never reaches `jmdict_lookup` — prod 2026-09-15:
+  質 answers "nature (of a person)" only, no しつ "quality".
+- **Fix:** treat a kanji term whose hit came only through `input_reading` as a miss (edge
+  `fetchVerified` / `groupByInput` and client `repository.ts`), so it re-resolves once and
+  the full set is cached. Heal existing partials by lowering those rows' `projection_version`.
+
 ### Test coverage
 - **Edge error-log e2e** — the sink contract is covered; driving a real failing edge path
   isn't (not deterministically forceable over HTTP).
