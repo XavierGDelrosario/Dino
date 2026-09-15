@@ -1246,6 +1246,100 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup", () => {
     for (const r of mine) expect(r.writing).toBe("二十");
   });
 
+  // ── a kanji search ranks common words first (20260769) ──────────────────
+  // Quality report #24: the only entry headwording as 為 is 為 read い, "the second string
+  // of a koto" (2870964, not common). 20260758's "written this way first" gave it the
+  // primary over ため (1157080, common). Needs the FULL dictionary for the koto entry.
+  it("answers 為 with ため, not the rare entry that merely headwords as 為", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "2870964")) || !(await entryLoaded(svc, "1157080"))) return;
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "為", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    expect(rows[0].jmdict_entry_id).toBe("1157080");
+    expect(rows.some((r) => r.jmdict_entry_id === "2870964")).toBe(true); // demoted, not dropped
+  });
+
+  it("still answers 質 with しつ — written this way AND common stays first", async () => {
+    const svc = serviceClient();
+    if (!svc || !(await entryLoaded(svc, "1320640"))) return;
+
+    const rows = ((await svc.rpc("jmdict_lookup", {
+      p_input: "質", p_source: "JA", p_target: "EN",
+    })).data ?? []) as LookupRow[];
+    expect(rows[0].jmdict_entry_id).toBe("1320640");
+  });
+
+  it("stamps words.is_common from the entry, on insert and when the entry changes", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const { data: common } = await svc.from("jmdict_kanji").select("entry_id").eq("common", true).limit(1);
+    const commonEntry = (common?.[0] as { entry_id: string } | undefined)?.entry_id;
+    if (!commonEntry) return; // JMdict not ingested
+
+    const ref = `it-is-common:${Date.now()}`;
+    const { data: inserted, error } = await svc.from("words").insert({
+      input: "テスト", translation: `is_common probe ${ref}`, source_lang: "JA", target_lang: "EN",
+      jmdict_entry_id: commonEntry, jmdict_sense_pos: 0, dictionary_ref: ref,
+      is_common: false, // the trigger owns this column — a caller's value is overwritten
+      is_verified: true,
+    }).select("word_id, is_common").single();
+    expect(error).toBeNull();
+    try {
+      expect((inserted as { is_common: boolean }).is_common).toBe(true);
+      const { data: cleared } = await svc.from("words").update({ jmdict_entry_id: null })
+        .eq("word_id", (inserted as { word_id: string }).word_id).select("is_common").single();
+      expect((cleared as { is_common: boolean | null }).is_common).toBeNull();
+    } finally {
+      await svc.from("words").delete().eq("dictionary_ref", ref);
+    }
+  });
+
+  // ── cached_senses: only a COMPLETE cached set answers (20260771) ─────────
+  // A partial set used to be served forever: after たち (uk, kanji 質) was cached, 質 was a
+  // hit with only that, and "quality" never appeared.
+  it("answers a term only once every JMdict entry for it is cached", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    // A kana spelling shared by exactly two entries, neither of them cached yet.
+    const { data: kana } = await svc.from("jmdict_kana").select("text, entry_id").limit(5000);
+    const byText = new Map<string, Set<string>>();
+    for (const k of (kana ?? []) as { text: string; entry_id: string }[]) {
+      byText.set(k.text, (byText.get(k.text) ?? new Set()).add(k.entry_id));
+    }
+    let term: string | undefined;
+    let entries: string[] = [];
+    for (const [text, ids] of byText) {
+      if (ids.size !== 2 || !/^[ぁ-ゖ]{3,}$/u.test(text)) continue;
+      const { count } = await svc.from("jmdict_kanji").select("entry_id", { count: "exact", head: true }).eq("text", text);
+      const { data: cached } = await svc.from("words").select("word_id").in("jmdict_entry_id", [...ids]).limit(1);
+      if (!count && (cached ?? []).length === 0) { term = text; entries = [...ids]; break; }
+    }
+    if (!term) return; // JMdict not ingested
+
+    const stamp = Date.now();
+    const seed = (entry: string) => ({
+      input: term!, translation: `cached_senses probe ${entry} ${stamp}`, source_lang: "JA", target_lang: "EN",
+      jmdict_entry_id: entry, jmdict_sense_pos: 0, dictionary_ref: `${entry}:0`,
+      projection_version: 999, is_verified: true,
+    });
+    const ask = async () => ((await svc.rpc("cached_senses", {
+      p_terms: [term], p_source: "JA", p_target: "EN", p_min_version: 1,
+    })).data ?? []) as { term: string; words: { jmdict_entry_id: string }[] }[];
+    try {
+      await svc.from("words").insert(seed(entries[0]));
+      expect(await ask()).toEqual([]); // one of two entries cached → incomplete → a miss
+
+      await svc.from("words").insert(seed(entries[1]));
+      const rows = await ask();
+      expect(rows.map((r) => r.term)).toEqual([term]); // one row per term
+      expect(new Set(rows[0].words.map((w) => w.jmdict_entry_id))).toEqual(new Set(entries));
+    } finally {
+      await svc.from("words").delete().in("dictionary_ref", entries.map((e) => `${e}:0`)).like("translation", `%${stamp}`);
+    }
+  });
+
   it("still ANSWERS a digit form the user actually typed", async () => {
     const svc = serviceClient();
     if (!svc || !(await entryLoaded(svc, "2846370"))) return;

@@ -60,6 +60,12 @@ services**. Each item notes the fix / upgrade that removes it.
   kana surface is where unrelated words collide (疎雨 "drizzle" would take N4 off the
   adverb そう; 犯る would be labelled N5 off やる). ~171 kana-only rows stay unlevelled as
   the price of that.
+- **A kanji writing's band is reading-matched (2026-09-15).** A kanji spelling collides
+  like a kana one does: every entry written 為 wore ため's N4, including 為 read い, a
+  koto string, which Learn dealt as an N4 card. The JLPT source carries readings, so
+  `data/proficiency/ja.tsv` is now `surface, reading, band` and a kanji writing is levelled
+  only for the entry that reads it that way (`scripts/lib/proficiency.ts`). Measured on
+  staging: 1,011 borrowed bands dropped, 110 moved to their own reading's level.
 - **Frequency measures COMMONNESS, not LEVEL.** wordfreq is adult/written-text-skewed (的 is
   ~12th-most-frequent kanji yet N3), and its tokenizer **can't rank multi-kanji compounds**
   (唐揚げ splits → no whole-word frequency → NULL). The **borrowed-kana** issue (a rare kanji

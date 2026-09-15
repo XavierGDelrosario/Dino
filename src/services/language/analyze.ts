@@ -313,7 +313,81 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
   applyCounterReadings(out, kept);
   // Re-merge whole words IPADIC over-segmented (大規模 → 大＋規模) BEFORE lookup — a
   // curated compound pass, since kuromoji.js has no user dictionary.
-  return mergeJapaneseCompounds(mergeCounterTokens(out, kept));
+  return mergeJapaneseCompounds(
+    mergeMisparsedPotentials(mergeCounterTokens(out, kept), tokenizer),
+  );
+}
+
+/**
+ * Re-join a POTENTIAL verb IPADIC split in two (quality report #20: 活かせる).
+ *
+ * kuromoji knows 活かす — 活かせます and 活かして parse fine — but the plain potential
+ * 活かせる comes out as one of two wrong splits, and neither half looks up anything:
+ *   A. 活か (動詞, lemma 活かる) + せる (助動詞)   — mid-sentence: スキルを活かせる
+ *   B. 活 (名詞) + かせる (動詞)                   — sentence-final or alone
+ *
+ * Both are rewritten to ONE verb token whose lemma is the 〜す base, but only when
+ * kuromoji itself parses that base as a single verb with that dictionary form. The
+ * analyzer vouching for the word is what keeps this from inventing joins.
+ *
+ * A is further pinned to its misparse signature — a lemma that is just the surface + る
+ * (一段-shaped) — because a real causative (読ま + せる, lemma 読む) must stay the verb
+ * 読む plus grammar. A 一段 verb's own causative takes させる, never せる, so that
+ * signature doesn't occur in correct parses.
+ */
+function mergeMisparsedPotentials(
+  tokens: AnalyzedToken[],
+  tokenizer: Tokenizer<IpadicFeatures>,
+): AnalyzedToken[] {
+  const out: AnalyzedToken[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const a = tokens[i];
+    const b = tokens[i + 1];
+    if (!b || a.end !== b.start) {
+      out.push(a);
+      continue;
+    }
+    let base: string | null = null;
+    if (a.pos === "動詞" && b.pos === "助動詞" && b.text === "せる" && a.lemma === `${a.text}る`) {
+      base = `${a.text}す`; // A: 活か + せる → 活かす
+    } else if (
+      a.pos === "名詞" && b.pos === "動詞" && b.lemma === b.text &&
+      b.text.length > 2 && b.text.endsWith("せる")
+    ) {
+      base = `${a.text}${b.text.slice(0, -2)}す`; // B: 活 + かせる → 活かす
+    }
+    const reading = base ? singleVerbReading(tokenizer, base) : undefined;
+    if (base === null || reading === undefined) {
+      out.push(a);
+      continue;
+    }
+    out.push({
+      text: a.text + b.text,
+      start: a.start,
+      end: b.end,
+      reading: reading === null ? null : `${reading.slice(0, -1)}せる`,
+      lemma: base,
+      pos: "動詞",
+    });
+    i += 1; // b is folded in
+  }
+  return out;
+}
+
+/**
+ * If kuromoji parses `verb` as exactly one 動詞 in dictionary form, its hiragana reading
+ * (null when it has none, or it doesn't end in す); otherwise undefined.
+ */
+function singleVerbReading(
+  tokenizer: Tokenizer<IpadicFeatures>,
+  verb: string,
+): string | null | undefined {
+  const parsed = tokenizer.tokenize(verb);
+  if (parsed.length !== 1) return undefined;
+  const [t] = parsed;
+  if (t.pos !== "動詞" || t.basic_form !== verb || t.surface_form !== verb) return undefined;
+  const reading = t.reading && t.reading !== UNKNOWN ? katakanaToHiragana(t.reading) : null;
+  return reading !== null && reading.endsWith("す") ? reading : null;
 }
 
 // Merge a kanji number run + its counter into ONE composite token (三本 → reading さんぼん

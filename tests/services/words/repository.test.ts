@@ -7,6 +7,7 @@ vi.mock("@/config/supabaseClient", () => ({
 }));
 
 import {
+  __resetCompleteReadProbe,
   findCachedWord,
   findWordTranslations,
   findWordTranslationsBatch,
@@ -19,6 +20,10 @@ beforeEach(() => {
   stub = createSupabaseStub();
   holder.client = stub.client;
   __clearWordsCache(); // the read cache is module-global — reset between cases
+  // Unless a case says otherwise, the database predates cached_senses (20260771), so
+  // these cases exercise the input/input_reading read the client falls back to.
+  __resetCompleteReadProbe();
+  stub.rpc.mockResolvedValue({ data: null, error: { code: "PGRST202", message: "not found" } });
 });
 
 const row = (over: Record<string, unknown> = {}) => ({
@@ -59,6 +64,7 @@ describe("findCachedWord", () => {
       exampleGloss: null,
       definitionSource: null,
       exampleReading: null,
+      isCommon: null, // 20260769 — absent on this row, so unknown rather than false
       isVerified: true,
     });
   });
@@ -197,8 +203,8 @@ describe("NFC normalization at the cache + DB boundary", () => {
   it("queries the DB with the NFC-composed input, even given a decomposed one", async () => {
     stub.queueFrom("words", { data: [], error: null });
     await findWordTranslations({ input: DECOMPOSED, sourceLang: "JA", targetLang: "EN" });
-    const eqInput = stub.callsFor("words", "eq").find((c) => c.args[0] === "input");
-    expect(eqInput?.args[1]).toBe(COMPOSED); // normalized for the query, not raw decomposed
+    const inInput = stub.callsFor("words", "in").find((c) => c.args[0] === "input");
+    expect(inInput?.args[1]).toEqual([COMPOSED]); // normalized for the query, not raw decomposed
   });
 
   it("a decomposed lookup hits a cache entry primed under the composed form", async () => {
@@ -236,5 +242,98 @@ describe("stale-projection gate", () => {
     // MT rows are NOT exempt (v8): the client must miss a stale one so the edge gets to
     // re-check the dictionary for free (it revives the paid row if nothing turns up).
     expect(FRESH).not.toContain("mt:");
+  });
+});
+
+// Quality report #24. A `uk` entry headwords as its KANA and keeps the kanji in
+// input_reading, so reading `words` by input alone found only 為 read い ("the second
+// string of a koto") for 為 — and served it, because a client hit never asks the edge.
+describe("a kanji term also collects the uk rows written that way", () => {
+  const koto = row({ word_id: "koto", input: "為", input_reading: "い", translation: "koto string", jmdict_entry_id: "2870964", frequency: 514, is_common: false });
+  const tame = row({ word_id: "tame", input: "ため", input_reading: "為", translation: "sake; purpose", jmdict_entry_id: "1157080", frequency: 611, is_common: true });
+  const suru = row({ word_id: "su", input: "す", input_reading: "為", translation: "to do", jmdict_entry_id: "2219050", frequency: 533, is_common: true });
+
+  it("queries input_reading for a kanji term, quoted", async () => {
+    stub.queueFrom("words", { data: [], error: null });
+    await findWordTranslations({ input: "為", sourceLang: "JA", targetLang: "EN" });
+    const filters = stub.callsFor("words", "or").map((c) => c.args[0]);
+    expect(filters).toContain('input.in.("為"),input_reading.in.("為")');
+    expect(stub.callsFor("words", "in")).toEqual([]);
+  });
+
+  it("keeps a kana term on input alone — the edge resolves those", async () => {
+    stub.queueFrom("words", { data: [], error: null });
+    await findWordTranslations({ input: "ねこ", sourceLang: "JA", targetLang: "EN" });
+    expect(stub.callsFor("words", "in").map((c) => c.args)).toEqual([["input", ["ねこ"]]]);
+  });
+
+  it("answers 為 with ため: a common word outranks a rare entry merely written this way", async () => {
+    stub.queueFrom("words", { data: [koto, tame, suru], error: null });
+    const senses = await findWordTranslations({ input: "為", sourceLang: "JA", targetLang: "EN" });
+    expect(senses.map((w) => w.wordId)).toEqual(["tame", "su", "koto"]);
+    __clearWordsCache();
+    stub.queueFrom("words", { data: [koto, tame, suru], error: null });
+    expect((await findCachedWord({ input: "為", sourceLang: "JA", targetLang: "EN" }))?.wordId).toBe("tame");
+  });
+
+  it("the batch read assigns a uk row to the kanji term, and still to its own kana", async () => {
+    stub.queueFrom("words", { data: [koto, tame, suru], error: null });
+    const map = await findWordTranslationsBatch({ inputs: ["為", "ため"], sourceLang: "JA", targetLang: "EN" });
+    expect(map.get("為")?.map((w) => w.wordId)).toEqual(["tame", "su", "koto"]);
+    expect(map.get("ため")?.map((w) => w.wordId)).toEqual(["tame"]);
+  });
+});
+
+// The partial-cache gap. Matching by input/input_reading served whatever rows the cache
+// held: after a kana lookup cached the uk entry たち (kanji 質), 質 was a hit with only
+// that, so "quality" never appeared. cached_senses answers only COMPLETE sets.
+describe("cached_senses — a Japanese term is read only when its cached set is complete", () => {
+  const sitsu = row({ word_id: "sitsu", input: "質", input_reading: "しつ", translation: "quality", jmdict_entry_id: "1320640", frequency: 465, is_common: true });
+  const tachi = row({ word_id: "tachi", input: "たち", input_reading: "質", translation: "nature", jmdict_entry_id: "1320650", frequency: 577, is_common: false });
+
+  it("asks the function with the current projection version, not the words table", async () => {
+    stub.rpc.mockResolvedValue({ data: [{ term: "質", words: [tachi, sitsu] }], error: null });
+    const senses = await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" });
+    expect(stub.rpc).toHaveBeenCalledWith("cached_senses", {
+      p_terms: ["質"], p_source: "JA", p_target: "EN", p_min_version: CURRENT_PROJECTION_VERSION,
+    });
+    expect(stub.fromCalls).toEqual([]);
+    expect(senses.map((w) => w.wordId)).toEqual(["sitsu", "tachi"]); // written this way AND common first
+  });
+
+  it("an incomplete term comes back absent — a miss, so the edge fills it in", async () => {
+    stub.rpc.mockResolvedValue({ data: [], error: null });
+    expect(await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" })).toEqual([]);
+    const batch = await findWordTranslationsBatch({ inputs: ["質"], sourceLang: "JA", targetLang: "EN" });
+    expect(batch.has("質")).toBe(false);
+  });
+
+  it("the batch groups by the term the function answered", async () => {
+    stub.rpc.mockResolvedValue({ data: [{ term: "質", words: [sitsu] }, { term: "たち", words: [tachi] }], error: null });
+    const map = await findWordTranslationsBatch({ inputs: ["質", "たち", "猫"], sourceLang: "JA", targetLang: "EN" });
+    expect(map.get("質")?.map((w) => w.wordId)).toEqual(["sitsu"]);
+    expect(map.get("たち")?.map((w) => w.wordId)).toEqual(["tachi"]);
+    expect(map.has("猫")).toBe(false);
+    expect(stub.fromCalls).toEqual([]);
+  });
+
+  it("a database without the function falls back ONCE, then stops asking", async () => {
+    stub.queueFrom("words", { data: [sitsu], error: null }, { data: [sitsu], error: null });
+    await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" });
+    __clearWordsCache();
+    await findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" });
+    expect(stub.rpc).toHaveBeenCalledTimes(1);
+    expect(stub.fromCalls).toEqual(["words", "words"]);
+  });
+
+  it("any other error is a real failure, not a silent fallback", async () => {
+    stub.rpc.mockResolvedValue({ data: null, error: { code: "57014", message: "statement timeout" } });
+    await expect(findWordTranslations({ input: "質", sourceLang: "JA", targetLang: "EN" })).rejects.toThrow();
+  });
+
+  it("never applies to a non-Japanese source", async () => {
+    stub.queueFrom("words", { data: [], error: null });
+    await findWordTranslations({ input: "cat", sourceLang: "EN", targetLang: "JA" });
+    expect(stub.rpc).not.toHaveBeenCalled();
   });
 });

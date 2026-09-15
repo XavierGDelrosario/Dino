@@ -26,6 +26,7 @@
 // =========================================================
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
+import { bandForWriting, loadProficiency } from "./lib/proficiency";
 
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
@@ -78,34 +79,12 @@ function loadFrequencies(lang: string): Map<string, number> {
 }
 
 // PROFICIENCY band (the curated proficiency-label axis, services/proficiency) is
-// sourced like frequency: data/proficiency/<lang>.tsv ("<surface>\t<band>", built
-// by scripts/build-proficiency.py — JLPT for JA), joined onto jmdict_kanji/kana by
-// surface. jmdict_lookup then takes the HEADWORD's band (same pick as frequency)
-// and the edge projects it onto words.proficiency_band. Missing surface → NULL.
-const PROF_FILE = (lang: string) =>
-  new URL(`../data/proficiency/${lang}.tsv`, import.meta.url);
-
-/** Load "<surface>\t<band>" → Map(surface → band). Empty map if the file is absent. */
-function loadProficiency(lang: string): Map<string, number> {
-  const map = new Map<string, number>();
-  let raw: string;
-  try {
-    raw = readFileSync(PROF_FILE(lang), "utf8");
-  } catch {
-    console.warn(
-      `No proficiency file for '${lang}' (data/proficiency/${lang}.tsv) — bands will be NULL. ` +
-        `Generate it with: scripts/build-proficiency.py <src-dir> --lang ${lang}`
-    );
-    return map;
-  }
-  for (const line of raw.split("\n")) {
-    if (!line) continue;
-    const tab = line.indexOf("\t");
-    if (tab === -1) continue;
-    map.set(nfc(line.slice(0, tab)), Number(line.slice(tab + 1)));
-  }
-  return map;
-}
+// sourced from data/proficiency/<lang>.tsv (built by scripts/build-proficiency.py —
+// JLPT for JA) and joined onto jmdict_kanji/kana by surface AND reading: a kanji
+// writing is levelled only for the entry that reads it the way the list does. The rule
+// is shared with scripts/apply-proficiency-bands.ts — see scripts/lib/proficiency.ts.
+// jmdict_lookup then takes the HEADWORD's band and the edge projects it onto
+// words.proficiency_band. Unlisted → NULL.
 
 /** Bulk multi-row INSERT, chunked to stay under Postgres' ~65535 param cap. */
 async function bulkInsert(
@@ -174,9 +153,8 @@ async function main(): Promise<void> {
   const freq = loadFrequencies("ja");
   const freqOf = (surface: string) => freq.get(nfc(surface)) ?? null;
 
-  // JLPT surface → band (see loadProficiency). Joined by surface like frequency.
+  // JLPT (surface, reading) → band. See scripts/lib/proficiency.ts for the rule.
   const prof = loadProficiency("ja");
-  const bandOf = (surface: string) => prof.get(nfc(surface)) ?? null;
 
   // Flatten into per-table row arrays. Senses keep their glosses so we can wire
   // them up once Postgres hands back the generated sense ids (in insertion order).
@@ -188,6 +166,8 @@ async function main(): Promise<void> {
 
   for (const w of words) {
     entries.push([w.id]);
+    const readings = w.kana.map((k) => k.text);
+    const bandOf = (surface: string) => bandForWriting(prof, surface, readings);
     w.kanji.forEach((k, i) =>
       kanji.push([w.id, nfc(k.text), k.common, freqOf(k.text), bandOf(k.text), i])
     );

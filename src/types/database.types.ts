@@ -627,6 +627,8 @@ export type Database = {
           frequency: number | null
           input: string
           input_reading: string | null
+          // Migration 20260769 — trigger-maintained from jmdict_*.
+          is_common: boolean | null
           is_verified: boolean
           jmdict_entry_id: string | null
           jmdict_sense_pos: number | null
@@ -650,6 +652,7 @@ export type Database = {
           frequency?: number | null
           input: string
           input_reading?: string | null
+          is_common?: boolean | null
           is_verified?: boolean
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
@@ -673,6 +676,7 @@ export type Database = {
           frequency?: number | null
           input?: string
           input_reading?: string | null
+          is_common?: boolean | null
           is_verified?: boolean
           jmdict_entry_id?: string | null
           jmdict_sense_pos?: number | null
@@ -762,6 +766,11 @@ export type Database = {
       }
       // Migration 20260757 — the USER-facing counterpart of admin_report_quality_issue.
       // Description and word id are optional; the RPC stores a blank note as NULL.
+      // Migration 20260771 — a JA term's cached senses, only when the set is complete.
+      cached_senses: {
+        Args: { p_terms: string[]; p_source: string; p_target: string; p_min_version: number }
+        Returns: { term: string; words: Json }[]
+      }
       report_quality_issue: {
         Args: { p_input: string; p_description?: string; p_word_id?: string }
         Returns: {

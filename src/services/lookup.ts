@@ -245,6 +245,28 @@ async function mergeDictionaryCompounds(
   return mergeConfirmedCompounds(tokens, confirmed);
 }
 
+const HAS_KANJI = /\p{Script=Han}/u;
+
+/** A reading we may print as furigana: present, and no kanji in it. */
+function isKanaReading(r: string | null): r is string {
+  return r !== null && r !== "" && !HAS_KANJI.test(r);
+}
+
+/**
+ * How `sense` reads the spelling `surface`, or null.
+ *
+ * `inputReading` is "the OTHER form shown beside the headword", not always a reading.
+ * A normal entry headwords as kanji with the kana there (猫 / ねこ); a `uk` entry is the
+ * inverse — kana headword, KANJI there (おおむね / 概ね). Reading it straight put 概ね
+ * over 概ね as its own furigana, and counted a uk entry's kanji as a candidate reading,
+ * so 為 looked unambiguous (い) when ため and す share the spelling too.
+ */
+function readingOfSpelling(sense: Word, surface: string): string | null {
+  if (sense.input === surface) return sense.inputReading;
+  if (sense.inputReading === surface) return sense.input; // uk: the headword IS the reading
+  return null;
+}
+
 /**
  * Translates a paragraph two ways: the WHOLE paragraph in context for display only
  * (NEVER persisted — we won't store thousands of unique paragraphs), and each distinct
@@ -419,9 +441,13 @@ export async function translateParagraph(params: {
   if (resolvedSource.toUpperCase() === "JA") {
     for (const token of tokens) {
       const isDictionaryForm = token.lemma === null || token.lemma === token.text;
-      if (!isDictionaryForm) continue;
+      // A token with no kanji needs no furigana — and its "dictionary reading" would be
+      // a uk entry's KANJI (くだり → 件), which is what the reader used to print over it.
+      if (!isDictionaryForm || !HAS_KANJI.test(token.text)) continue;
       const senses = meaningsByKey.get(keyOf(token)) ?? [];
-      const distinct = [...new Set(senses.map((s) => s.inputReading).filter(Boolean))];
+      const distinct = [
+        ...new Set(senses.map((s) => readingOfSpelling(s, token.text)).filter(isKanaReading)),
+      ];
       if (distinct.length === 1) token.reading = distinct[0];
     }
   }
