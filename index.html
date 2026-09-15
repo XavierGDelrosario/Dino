@@ -21,6 +21,38 @@
     <meta name="theme-color" content="#0f1115" />
 
     <!--
+      Theme, stamped BEFORE first paint. React can't do this: the palette is chosen
+      by <html data-theme>, and by the time the bundle mounts the browser has already
+      painted the default (dark) background — so a light-mode user got a black flash
+      on every load. This mirrors readThemePref/resolveTheme in src/services/theme.ts;
+      the storage key and the prefers-color-scheme test must stay identical in both.
+      Dark is the fallback everywhere (brand default, and what this document's own
+      theme-color says), so a failure here degrades to today's behaviour.
+    -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem("dino.theme");
+          var theme =
+            pref === "light" || pref === "dark"
+              ? pref
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+          if (theme === "light") {
+            document
+              .querySelector('meta[name="theme-color"]')
+              .setAttribute("content", "#f6f7fb");
+          }
+        } catch (e) {
+          /* storage blocked → dark, same as the app's own fallback */
+        }
+      })();
+    </script>
+
+    <!--
       Social-share (Open Graph) card. LinkedIn, Slack, iMessage and X all fetch this
       page with a crawler that NEVER runs JS — so these have to be static here in
       index.html, not set from React, or every share is a bare grey link.

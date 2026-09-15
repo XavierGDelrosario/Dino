@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { beforeAll, describe, it, expect } from "vitest";
 import { analyze, dictionaryForm, isContentPos, isSingleWord } from "@/services/language/analyze";
+import { __internal as posEn } from "@/services/language/posEn";
 
 // These exercise the REAL kuromoji engine (no mock): building the tokenizer
 // loads the IPADIC dictionary on first use, hence the generous timeout. This is
@@ -244,6 +245,13 @@ describe("analyze — Japanese counter readings (助数詞)", () => {
 // Every OTHER non-Japanese language does still fall back, which the Spanish case below
 // pins.
 describe("analyze — non-Japanese: English is tagged, everything else segments", () => {
+  // The tagger's model is a 2.7 MB JSON import, loaded lazily by whichever English call
+  // comes first. In the full suite (100+ files transforming in parallel) that cold load
+  // alone ran past the 5s per-test timeout, so the FIRST test here failed intermittently
+  // while every later one passed on the warm model. Load it once up front, with the same
+  // generous budget the kuromoji dictionary gets.
+  beforeAll(() => posEn.loadModel(), KUROMOJI_TIMEOUT);
+
   it("returns tokens with null reading/lemma for English", async () => {
     const toks = await analyze("hello world", "EN");
     expect(toks.map((t) => t.text)).toEqual(["hello", "world"]);

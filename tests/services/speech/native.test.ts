@@ -77,6 +77,11 @@ describe("nativeRecognizer (streaming)", () => {
     });
   });
 
+  it("asks iOS to punctuate from the audio", async () => {
+    await listen();
+    expect(start.mock.calls[0][0]).toMatchObject({ addsPunctuation: true });
+  });
+
   it("streams the utterance as it forms", async () => {
     const { listeners, onPartial, onFinal } = await listen();
     listeners.partialResults?.({ matches: ["こんにち"] });
@@ -228,6 +233,21 @@ describe("nativeRecognizer (streaming)", () => {
       await vi.advanceTimersByTimeAsync(1500);
       await flush();
       expect(onFinal).toHaveBeenCalledTimes(2);
+    });
+
+    // With punctuation on, iOS inserts marks INSIDE text already committed — a 、
+    // mid-line, and the line's 。 once the next words arrive. A raw-length cut would
+    // repeat one character of the old line per inserted mark.
+    it("does not shift the cut when iOS punctuates text already committed", async () => {
+      const { listeners, onPartial, onFinal } = await listen();
+      listeners.partialResults?.({ matches: ["今日は雨です"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenLastCalledWith("今日は雨です");
+
+      listeners.partialResults?.({ matches: ["今日は、雨です。明日は晴れ"] });
+      // The late 。 rides at the head of the tail; the dictation layer moves it back.
+      expect(onPartial).toHaveBeenLastCalledWith("。明日は晴れ");
     });
 
     it("treats a SHORTER hypothesis as a fresh one rather than swallowing it", async () => {

@@ -112,7 +112,7 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🧱 Extendable Features</h2></summary>
 
-### Media tab — deep analysis for longer works
+### Articles (inside Learn) — deep analysis for longer works
 - Extension content
 
 ### Sense enrichment — example sentence + source-language definition per meaning
@@ -122,7 +122,7 @@ Fix VOLUME first, then price.
   `words` — a saved word is read straight off `words`, so skipping it starves exactly the
   words a user studies). Shows in the reader hover card, the flashcard back, Lists, and the
   article word list.
-- **What's left is the CORPUS.** `data/sense_examples/ja.tsv` = **659 senses / 374 entries**.
+- **What's left is the CORPUS.** `data/sense_examples/ja.tsv` = **1,030 senses / 611 entries**.
   Senses by headword frequency ≥500 = 4,534 · ≥400 = 16,880 · all 251,734 (~280 B/row
   measured on prod ⇒ ≈1.3 MB · ≈5 MB · ≈70 MB).
 - **No coverage query** — batches are picked by hand. A script listing the highest-frequency

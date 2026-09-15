@@ -5,7 +5,9 @@ import { describe, it, expect } from "vitest";
 import {
   activeFilterCount,
   allBandsOf,
+  dayKey,
   matchesFilters,
+  periodRange,
   toggleLang,
   NO_FILTERS,
   type FilterTarget,
@@ -24,6 +26,12 @@ const word = (over: Partial<FilterTarget> = {}): FilterTarget => ({
 });
 
 const LONG_AGO = "2020-01-01T00:00:00.000Z";
+const TODAY = dayKey(new Date());
+/** A LOCAL instant on a given local day — the boundaries the ranges are about. */
+const at = (day: string, h: number, m = 0) => {
+  const [y, mo, d] = day.split("-").map(Number);
+  return new Date(y, mo - 1, d, h, m).toISOString();
+};
 
 describe("matchesFilters", () => {
   it("matches everything when nothing is checked", () => {
@@ -74,16 +82,58 @@ describe("matchesFilters", () => {
 
 describe("the moved axes — added / reviewed / confidence (RANGES: wide open = inert)", () => {
   it("narrows by date added", () => {
-    const f = { ...NO_FILTERS, added: "today" as const };
+    const f = { ...NO_FILTERS, added: { from: TODAY, to: TODAY } };
     expect(matchesFilters(word(), f)).toBe(true);
     expect(matchesFilters(word({ originallyTranslatedDate: LONG_AGO }), f)).toBe(false);
   });
 
   it("narrows by last reviewed, excluding never-reviewed words", () => {
-    const f = { ...NO_FILTERS, reviewed: "today" as const };
+    const f = { ...NO_FILTERS, reviewed: { from: TODAY, to: TODAY } };
     expect(matchesFilters(word({ lastReviewedDate: new Date().toISOString() }), f)).toBe(true);
     expect(matchesFilters(word({ lastReviewedDate: LONG_AGO }), f)).toBe(false);
     expect(matchesFilters(word({ lastReviewedDate: null }), f)).toBe(false);
+  });
+
+  it("includes BOTH endpoint days whole, in local time", () => {
+    // The ends are calendar days, not instants: a word added at 23:30 on the last day
+    // of the span is in it, and one added a minute after midnight on the first is too.
+    // (A UTC day boundary would drop one of them for most of the world.)
+    const f = { ...NO_FILTERS, added: { from: "2026-03-02", to: "2026-03-04" } };
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-03-02", 0, 1) }), f)).toBe(true);
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-03-04", 23, 30) }), f)).toBe(
+      true,
+    );
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-03-01", 23, 30) }), f)).toBe(
+      false,
+    );
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-03-05", 0, 1) }), f)).toBe(
+      false,
+    );
+  });
+
+  it("takes either end alone — the calendar can leave a span half-open", () => {
+    const since = { ...NO_FILTERS, added: { from: "2026-03-02", to: null } };
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-06-01", 12) }), since)).toBe(
+      true,
+    );
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-03-01", 12) }), since)).toBe(
+      false,
+    );
+
+    const until = { ...NO_FILTERS, added: { from: null, to: "2026-03-02" } };
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-01-01", 12) }), until)).toBe(
+      true,
+    );
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-06-01", 12) }), until)).toBe(
+      false,
+    );
+  });
+
+  it("reads a REVERSED span as the days between, not as nothing", () => {
+    // The picker sorts the two clicks, but the model is what a stale or hand-written
+    // range hits — and silently matching zero words looks like lost data.
+    const f = { ...NO_FILTERS, added: { from: "2026-03-04", to: "2026-03-02" } };
+    expect(matchesFilters(word({ originallyTranslatedDate: at("2026-03-03", 12) }), f)).toBe(true);
   });
 
   it("narrows by confidence range", () => {
@@ -114,10 +164,33 @@ describe("activeFilterCount", () => {
   });
 
   it("counts the moved axes too — one each for added, reviewed, a closed-in confidence range", () => {
-    expect(activeFilterCount({ ...NO_FILTERS, added: "week" })).toBe(1);
-    expect(activeFilterCount({ ...NO_FILTERS, reviewed: "month" })).toBe(1);
+    expect(activeFilterCount({ ...NO_FILTERS, added: periodRange("week") })).toBe(1);
+    expect(activeFilterCount({ ...NO_FILTERS, reviewed: { from: null, to: "2026-03-02" } })).toBe(1);
     expect(activeFilterCount({ ...NO_FILTERS, confA: 1, confB: 5 })).toBe(1);
     // the full 0-5 span narrows nothing, however the thumbs are ordered
     expect(activeFilterCount({ ...NO_FILTERS, confA: 5, confB: 0 })).toBe(0);
+    // …and an open date span is the resting state, not an axis.
+    expect(activeFilterCount({ ...NO_FILTERS, added: periodRange("all") })).toBe(0);
+  });
+});
+
+describe("periodRange — the calendar's presets", () => {
+  it("is the resting span for 'all', and a real one ending today otherwise", () => {
+    expect(periodRange("all")).toEqual({ from: null, to: null });
+    expect(periodRange("today")).toEqual({ from: TODAY, to: TODAY });
+    for (const p of ["week", "month", "year"] as const) {
+      const r = periodRange(p);
+      expect(r.to).toBe(TODAY);
+      expect(r.from! <= TODAY).toBe(true);
+    }
+  });
+
+  it("selects a word added today under every preset", () => {
+    // The presets all END today, so "this week" can never exclude what you just added
+    // — the bug an end-less cutoff can't have and a span can.
+    const w = word({ originallyTranslatedDate: new Date().toISOString() });
+    for (const p of ["today", "week", "month", "year"] as const) {
+      expect(matchesFilters(w, { ...NO_FILTERS, added: periodRange(p) })).toBe(true);
+    }
   });
 });

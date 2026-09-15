@@ -1,24 +1,25 @@
-// Drives the "Find my level" placement quiz — now a one-word-at-a-time SWIPE test
-// whose level is DERIVED FROM VOCABULARY (services/calibration.levelFromVocab), not
-// from one small quiz round. Each swipe saves the word (know → full-confidence seed,
-// don't-know → cold start) so your growing rated vocabulary IS the saved progress,
-// and the placement is a fraction over ALL your words at a band — stable (a few
-// misses can't demote you) and it sharpens as you rate more.
+// Drives the "Find my level" placement quiz — a one-word-at-a-time SWIPE test whose
+// level is DERIVED FROM EVERY PLACEMENT ANSWER the user has given
+// (services/calibration.levelFromRatings), not from one small round. Each swipe is
+// recorded as a placement answer AND saves the word (know → full-confidence seed,
+// don't-know → cold start). Only the answers feed the level — never the rest of the
+// vocabulary, which is mostly words saved BECAUSE they were unknown.
 //
-// The level is only DETERMINED once there's enough coverage (VocabLevel.sufficient);
+// The level is only DETERMINED once there's enough coverage (PlacementLevel.sufficient);
 // before that the UI shows a provisional "keep rating" state. Word selection is
-// adaptive: it draws around your current provisional band (±1), so it spends swipes
-// where they sharpen the placement.
+// adaptive: it draws from one band below to TWO above the provisional band, so the
+// quiz can find a higher level rather than only confirming the current one.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserProfile } from "../services/session";
 import { profileToLangs } from "./useLanguagePrefs";
 import {
-  getVocabRatings,
-  levelFromVocab,
+  getPlacementRatings,
+  levelFromRatings,
+  recordPlacementAnswer,
   setUserLevel,
   setUserProficiencyBand,
-  type VocabLevel,
-  type VocabRating,
+  type PlacementLevel,
+  type PlacementRating,
 } from "../services/calibration";
 import { fetchLearnWords } from "../services/learn";
 import { saveDictionaryWord } from "../services/words/userWords";
@@ -69,8 +70,8 @@ export function useCalibration(
     native: DEFAULT_NATIVE_LANGUAGE,
   });
   const maxBand = useRef(1);
-  const baseline = useRef<VocabRating[]>([]); // rated vocabulary before this session
-  const session = useRef<VocabRating[]>([]); // this session's swipes
+  const baseline = useRef<PlacementRating[]>([]); // answers from earlier sessions
+  const session = useRef<PlacementRating[]>([]); // this session's swipes
   const shown = useRef<Set<string>>(new Set()); // word ids offered this session
   const fetching = useRef(false);
 
@@ -78,21 +79,23 @@ export function useCalibration(
   const [deck, setDeck] = useState<Word[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const [live, setLive] = useState<VocabLevel | null>(null);
+  const [live, setLive] = useState<PlacementLevel | null>(null);
   const [known, setKnown] = useState(0);
   const [unknown, setUnknown] = useState(0);
   const [tagged, setTagged] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
-  const recompute = useCallback((): VocabLevel => {
-    const l = levelFromVocab([...baseline.current, ...session.current], maxBand.current);
+  const recompute = useCallback((): PlacementLevel => {
+    const l = levelFromRatings([...baseline.current, ...session.current], maxBand.current);
     setLive(l);
     return l;
   }, []);
 
-  // Draw words around `band` (band ± 1), interleaved, affix-filtered, deduped.
+  // Draw words from band − 1 … band + 2, interleaved, affix-filtered, deduped. Two
+  // bands UP, not one: with only ±1 a user placed at N5 was dealt N5/N4 and never saw
+  // an N3 word, so the quiz could confirm a low placement but never overturn it.
   const fetchAround = useCallback(async (band: number): Promise<Word[]> => {
-    const bands = [band, band - 1, band + 1].filter((b) => b >= 1 && b <= maxBand.current);
+    const bands = [band, band + 1, band - 1, band + 2].filter((b) => b >= 1 && b <= maxBand.current);
     const batches = await Promise.all(
       bands.map((b) =>
         fetchLearnWords({
@@ -142,7 +145,7 @@ export function useCalibration(
         setStatus("unavailable");
         return;
       }
-      const base = await getVocabRatings(userId, langsRef.current.learning);
+      const base = await getPlacementRatings(langsRef.current.learning);
       if (!base) {
         setStatus("unavailable");
         return;
@@ -154,7 +157,7 @@ export function useCalibration(
       setKnown(0);
       setUnknown(0);
       setTagged(new Set());
-      const l = levelFromVocab(base.ratings, base.maxBand);
+      const l = levelFromRatings(base.ratings, base.maxBand);
       setLive(l);
       const start = l.band > 0 ? l.band : Math.ceil(base.maxBand / 2);
       const batch = await fetchAround(start);
@@ -181,10 +184,11 @@ export function useCalibration(
     (didKnow: boolean) => {
       const word = deck[index];
       if (!word) return;
-      // Both verdicts save to the vocabulary (ALL): known → full-confidence seed,
-      // don't-know → cold start. Saving the misses too is what makes the per-band
-      // percent (known / seen) persist correctly across sessions — the denominator
-      // includes the words you've seen-but-don't-know, not just the ones you know.
+      // The ANSWER is the placement evidence; the save puts the word in the vocabulary
+      // (known → full-confidence seed, don't-know → cold start) so it's there to study.
+      void recordPlacementAnswer({ userId, wordId: word.wordId, known: didKnow }).catch((e) =>
+        console.warn("calibration: record answer failed", e),
+      );
       void saveDictionaryWord({
         userId,
         word,
@@ -193,7 +197,7 @@ export function useCalibration(
       session.current.push({
         band: word.proficiencyBand,
         difficulty: getDifficulty(word).level,
-        confidence: didKnow ? 5 : 0,
+        known: didKnow,
       });
       if (didKnow) setKnown((n) => n + 1);
       else setUnknown((n) => n + 1);
@@ -244,7 +248,7 @@ export function useCalibration(
     finish,
     /** Retake from scratch. */
     restart: load,
-    /** The live vocabulary-based level (perBand / band / sufficient / needMore). */
+    /** The live placement level (perBand / band / sufficient / needMore). */
     live,
     /** Learner-facing label of the provisional/determined band ("N3"), or null. */
     bandLabel,

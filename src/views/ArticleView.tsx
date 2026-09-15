@@ -146,6 +146,7 @@ export function ArticleView({
           lists={t.lists}
           onAdd={t.addWords}
           onCreateList={t.createNamedList}
+          onForgot={t.softenSenses}
         />
       </section>
     );
@@ -202,6 +203,7 @@ export function ArticleView({
             lists={t.lists}
             onAdd={t.addWords}
             onCreateList={t.createNamedList}
+            onForgot={t.softenSenses}
           />
         </>
       ) : (

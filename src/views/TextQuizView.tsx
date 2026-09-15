@@ -14,6 +14,7 @@ import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
+import { QuizWordList } from "../components/flashcards/QuizWordList";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n, plural } from "../i18n";
@@ -135,6 +136,7 @@ export function TextQuizView({
           )}
           {close}
         </div>
+        <QuizWordList words={q.gradedWords.map((w) => ({ ...w, key: w.wordId }))} />
       </div>
     );
   }

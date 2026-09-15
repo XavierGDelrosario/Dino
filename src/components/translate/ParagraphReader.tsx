@@ -1,14 +1,16 @@
 // Presentational sentence reader. Words are colored by knowledge (grey = no entry ·
 // accent = addable · red→green by confidence once saved). HOVER lists EVERY sense with
 // its own add button, so a homograph (辛い → からい / つらい) can be added by the exact
-// meaning; saved senses show confidence + a "don't know" lapse. State lives in the
-// parent (useTranslate).
+// meaning; saved senses show confidence (✓ n/5), and a word the app claims you know
+// carries a top-right "Forgot" that drops it one bucket. State lives in the parent
+// (useTranslate).
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
 import { ReportFlagButton } from "../common/ReportFlagButton";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { wordKey, type SentenceGloss } from "../../services/lookup";
+import { canSoften } from "../../services/review";
 import { AddToListButton } from "./AddToListButton";
 import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { summarizeReader } from "../../services/analyze/summarize";
@@ -19,6 +21,13 @@ import "../common/SenseText.css"; // shared .sense* row/action styles
 // Only offer the Summary infographic once the text is long enough for the
 // distributions to be meaningful (short outputs read fine as-is).
 const SUMMARY_MIN_WORDS = 12;
+
+// How long "Forgot" stays visibly spent after a press. Longer than the server's own 2s
+// dedupe window (20260766) on purpose: the guard the USER experiences should be the one
+// they can see, and by the time the button re-arms the new ✓ n/5 has been on screen for
+// well over a second. Raise it and a deliberate second notch feels blocked; drop it below
+// the server window and a legitimate press gets silently swallowed.
+const FORGET_HOLD_MS = 2500;
 
 // The marks that can BE a per-sentence control. Deliberately NOT `splitSentences`' full
 // set: ASCII "." is also a decimal point, and a button mid-number reads as a typo.
@@ -54,6 +63,7 @@ function ParagraphReaderImpl({
   lists,
   onAdd,
   onCreateList,
+  onForgot,
 }: {
   text: string;
   tokens: AnalyzedToken[];
@@ -79,6 +89,9 @@ function ParagraphReaderImpl({
   /** Add/tag a sense to ALL (no listId) or into a sub-list (idempotent). */
   onAdd: (words: Word[], listId?: string) => Promise<void>;
   onCreateList: (name: string) => Promise<string>;
+  /** "Forgot": lower each given sense by one confidence bucket. Omit to hide the
+   *  affordance entirely (a surface with no user-word ids can't act on it). */
+  onForgot?: (words: Word[]) => Promise<void>;
 }) {
   const { t: tr } = useI18n();
   // `key` is the token's wordKey, carried so the card looks its senses up exactly as
@@ -323,6 +336,55 @@ function ParagraphReaderImpl({
   // there's no "show more" — just trim the noisy tail.
   const hoveredSenses = (hover ? meaningsByWord.get(hover.key) ?? [] : []).slice(0, 12);
 
+  // ── "Forgot" (top-right of the card) ────────────────────────────────────────
+  // Offered only for senses the app currently claims you know: below
+  // the soften floor (see canSoften) there is nothing left to soften, and a button
+  // that silently does nothing is worse than no button. Acts on the WORD — every saved sense of it
+  // that is still above the floor — because that is what the card is headed by.
+  const forgettable =
+    onForgot && hover
+      ? hoveredSenses.filter((s) => saved.has(s.wordId) && canSoften(confidence.get(s.wordId)))
+      : [];
+  // idle → pending → done → (FORGET_HOLD_MS later) idle. The `done` hold IS the
+  // client-side double-tap defence: the press has landed, the new ✓ n/5 is already on
+  // screen, and the button stays visibly spent long enough to be read before it will
+  // accept another press. The server refuses a second drop inside its own 2s window
+  // regardless (20260766) — the hold is what makes that refusal never need to happen.
+  const [forgetState, setForgetState] = useState<"idle" | "pending" | "done">("idle");
+  const forgetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // ‼️ The latch is a REF, not the state above, and `disabled` is not the guard either.
+  // Both are applied on the next render, and the two halves of a double-tap arrive in
+  // the SAME one — so a state check reads "idle" twice and fires twice (pinned in
+  // tests/components/translate/ParagraphReader.forgot.test.tsx). A ref flips
+  // synchronously inside the first handler, which is the only thing the second handler
+  // is guaranteed to see.
+  const forgetBusy = useRef(false);
+  // A new word is a new question, so the next card is never born spent. The cleanup
+  // also runs on unmount, which is what stops the timer outliving the reader.
+  useEffect(() => {
+    setForgetState("idle");
+    forgetBusy.current = false;
+    return () => clearTimeout(forgetTimer.current);
+  }, [hover?.key]);
+
+  const pressForgot = async () => {
+    if (!onForgot || forgetBusy.current || forgettable.length === 0) return;
+    forgetBusy.current = true;
+    setForgetState("pending");
+    try {
+      await onForgot(forgettable);
+      setForgetState("done");
+      forgetTimer.current = setTimeout(() => {
+        forgetBusy.current = false;
+        setForgetState("idle");
+      }, FORGET_HOLD_MS);
+    } catch {
+      // The owning hook surfaces the error; here just re-arm so it can be retried.
+      forgetBusy.current = false;
+      setForgetState("idle");
+    }
+  };
+
   // Place the card below the word, flipping above when there's more room there, and cap
   // its height to the space available on the chosen side (with a floor, so it's never a
   // sliver) — otherwise a long sense list runs off the bottom with no way to reach it.
@@ -390,18 +452,35 @@ function ParagraphReaderImpl({
           onMouseEnter={cancelHide}
           onMouseLeave={scheduleHide}
         >
-          {/* Flag, TOP-RIGHT of the card: the word itself is the subject of the
-              report, so the control belongs beside it rather than under the senses,
-              and the senses list is scrollable — anything below it can scroll away.
-              Reports the hovered word and, when it has exactly one sense, that senses
-              id; with several the user has not told us WHICH is wrong, so the report
-              carries the headword alone rather than guessing. */}
-          <span className="hovercard__flag">
-            <ReportFlagButton
-              input={hover.word}
-              wordId={hoveredSenses.length === 1 ? hoveredSenses[0].wordId : null}
-              size={14}
-            />
+          {/* TOP-RIGHT cluster — the two controls whose subject is the WORD rather
+              than one sense, so they belong beside the headword rather than under the
+              senses list, which is scrollable and can carry anything below it away.
+              The flag reports the hovered word and, when it has exactly one sense, that
+              sense's id; with several the user has not told us WHICH is wrong, so the
+              report carries the headword alone rather than guessing. */}
+          <span className="hovercard__actions">
+            {/* "Forgot": one notch down for a word the colouring claims you know.
+                Appears only when there is something to lower, so it is absent rather
+                than disabled on a word you have just met. */}
+            {forgettable.length > 0 && (
+              <button
+                type="button"
+                className={`hovercard__forgot${forgetState === "done" ? " is-done" : ""}`}
+                onClick={pressForgot}
+                disabled={forgetState !== "idle"}
+                aria-label={tr("reader.forgotAria")}
+                title={tr("reader.forgotAria")}
+              >
+                {forgetState === "done" ? tr("reader.forgotDone") : tr("reader.forgot")}
+              </button>
+            )}
+            <span className="hovercard__flag">
+              <ReportFlagButton
+                input={hover.word}
+                wordId={hoveredSenses.length === 1 ? hoveredSenses[0].wordId : null}
+                size={14}
+              />
+            </span>
           </span>
           <div className="hovercard__word">
             {hover.word}

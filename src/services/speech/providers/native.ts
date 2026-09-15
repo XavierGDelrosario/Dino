@@ -19,6 +19,48 @@ const HEALTH_MS = 5_000;
  *  task that is still finishing, and the native exception takes the whole app down. */
 const RESTART_DELAY_MS = 400;
 
+/**
+ * Let iOS punctuate. On iOS 16+ SFSpeechRecognizer places 。、？ from the AUDIO itself —
+ * pauses and question intonation included — which is the only honest source of
+ * punctuation for speech (the English gloss can't be mapped back: one spoken line may
+ * become several English sentences, in a different order). Earlier iOS ignores it and
+ * the pause-as-newline boundary (services/speech/dictation) carries on alone.
+ *
+ * Not a stock plugin option: `patches/@capacitor-community+speech-recognition+*.patch`
+ * adds it, applied on install by patch-package.
+ */
+const ADDS_PUNCTUATION = true;
+
+/** Punctuation and whitespace — what iOS inserts and revises around words. */
+const NON_CONTENT = /[\p{P}\s]/u;
+
+/** Characters that are neither punctuation nor whitespace. */
+function contentLength(text: string): number {
+  let n = 0;
+  for (const ch of text) if (!NON_CONTENT.test(ch)) n++;
+  return n;
+}
+
+/**
+ * What follows the first `content` content characters of `full` — the part of the
+ * hypothesis not yet committed. Counting CONTENT, not raw length, because with
+ * punctuation on iOS routinely inserts a mark INSIDE text already committed (a 、
+ * mid-line, the line's 。 once the next words arrive); a raw-length cut would shift by
+ * one for every such mark and repeat a character of the previous line each time. A mark
+ * sitting right at the seam stays at the head of the tail, where the dictation layer
+ * hands it back to the line it closes.
+ */
+export function uncommittedTail(full: string, content: number): string {
+  let seen = 0;
+  let i = 0;
+  for (const ch of full) {
+    if (seen >= content) break;
+    if (!NON_CONTENT.test(ch)) seen++;
+    i += ch.length;
+  }
+  return full.slice(i);
+}
+
 /** App LangCode → BCP-47 speech locale, or null if we don't support it. */
 function toSpeechTag(lang: LangCode): string | null {
   switch (lang.toUpperCase()) {
@@ -67,6 +109,7 @@ export const nativeRecognizer: SpeechRecognizer = {
       language: tag,
       partialResults: false,
       maxResults: 1,
+      addsPunctuation: ADDS_PUNCTUATION,
     });
     return res.matches ?? [];
   },
@@ -119,6 +162,7 @@ export const nativeRecognizer: SpeechRecognizer = {
           partialResults: true,
           popup: false, // Android: a system dialog would take over the screen
           maxResults: 1,
+          addsPunctuation: ADDS_PUNCTUATION,
         });
       } catch (e) {
         if (!stopped) onError?.(e);
@@ -183,9 +227,12 @@ export const nativeRecognizer: SpeechRecognizer = {
         // and falling back to the whole hypothesis re-emits every committed line. A
         // revision rewrites words without restarting the utterance, so the boundary
         // holds; a revision that changes the committed part's LENGTH shifts the cut by
-        // a few characters, which beats repeating a paragraph.
-        if (full.length < committed.length) committed = ""; // a new hypothesis, not a continuation
-        const rest = full.slice(committed.length).trim();
+        // a few characters, which beats repeating a paragraph. The length counted is
+        // CONTENT only, so punctuation iOS adds or moves never shifts it (see
+        // uncommittedTail).
+        const done = contentLength(committed);
+        if (contentLength(full) < done) committed = ""; // a new hypothesis, not a continuation
+        const rest = uncommittedTail(full, committed ? done : 0).trim();
         if (!rest) return;
         forming = rest;
         onPartial(rest);

@@ -1,0 +1,37 @@
+diff --git a/node_modules/@capacitor-community/speech-recognition/dist/esm/definitions.d.ts b/node_modules/@capacitor-community/speech-recognition/dist/esm/definitions.d.ts
+index a80565c..d2f08c9 100644
+--- a/node_modules/@capacitor-community/speech-recognition/dist/esm/definitions.d.ts
++++ b/node_modules/@capacitor-community/speech-recognition/dist/esm/definitions.d.ts
+@@ -119,4 +119,9 @@ export interface UtteranceOptions {
+      * return partial results if found
+      */
+     partialResults?: boolean;
++    /**
++     * DINO patch — iOS 16+ only: let the recognizer insert punctuation from the audio
++     * (SFSpeechRecognitionRequest.addsPunctuation). Ignored elsewhere.
++     */
++    addsPunctuation?: boolean;
+ }
+diff --git a/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift b/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift
+index 5d1b35b..b1fe0c0 100644
+--- a/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift
++++ b/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift
+@@ -54,6 +54,7 @@ public class SpeechRecognition: CAPPlugin {
+             let language: String = call.getString("language") ?? "en-US"
+             let maxResults: Int = call.getInt("maxResults") ?? self.defaultMatches
+             let partialResults: Bool = call.getBool("partialResults") ?? false
++            let addsPunctuation: Bool = call.getBool("addsPunctuation") ?? false
+ 
+             if self.recognitionTask != nil {
+                 self.recognitionTask?.cancel()
+@@ -79,6 +80,10 @@ public class SpeechRecognition: CAPPlugin {
+ 
+             self.recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+             self.recognitionRequest?.shouldReportPartialResults = partialResults
++            // DINO patch: let the recognizer punctuate from the audio (iOS 16+).
++            if #available(iOS 16.0, *) {
++                self.recognitionRequest?.addsPunctuation = addsPunctuation
++            }
+ 
+             let inputNode: AVAudioInputNode = self.audioEngine!.inputNode
+             let format: AVAudioFormat = inputNode.outputFormat(forBus: 0)

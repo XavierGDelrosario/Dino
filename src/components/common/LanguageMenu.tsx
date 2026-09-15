@@ -1,7 +1,7 @@
-// Globe-icon dropdown (top-right, left of the profile icon) for choosing the APP
-// UI language (i18n locale) — distinct from the translation source/target. Always
-// available (localization works before any session). Reuses the ProfileMenu
-// button/panel styles; positioned left of it via the .langmenu class.
+// Globe-icon dropdown (top-right) for choosing the APP UI language (i18n locale) —
+// distinct from the translation source/target. Always available (localization works
+// before any session). Reuses the ProfileMenu button/panel styles; the top bar lays
+// the three controls out as a flex row (.app__menus), so this positions nothing.
 import { useI18n, LOCALES, type Locale } from "../../i18n";
 import { PopoverMenu } from "./PopoverMenu";
 
@@ -19,7 +19,7 @@ export function LanguageMenu({
   const { t, locale, setLocale } = useI18n();
 
   return (
-    <PopoverMenu icon="🌐" ariaLabel={t("ui.language")} open={open} onToggle={onToggle} className="langmenu">
+    <PopoverMenu icon="🌐" ariaLabel={t("ui.language")} open={open} onToggle={onToggle}>
       {LOCALES.map((l) => (
         <button
           key={l.code}

@@ -80,20 +80,26 @@ export function App() {
     // panels. Widen the column for that one route; every other view is unchanged.
     <main className={`app${path === "/admin" ? " app--wide" : ""}`}>
       <header className="app__header">
-        <LanguageMenu
-          open={openMenu === "lang"}
-          onToggle={() => setOpenMenu((m) => (m === "lang" ? null : "lang"))}
-          onClose={() => setOpenMenu(null)}
-        />
-        {userId && (
-          <ProfileMenu
-            isAnonymous={isAnonymous}
-            email={email}
-            open={openMenu === "profile"}
-            onToggle={() => setOpenMenu((m) => (m === "profile" ? null : "profile"))}
+        {/* The top-bar controls, as ONE row: language · account. They used
+            to position themselves individually (right: 0, right: 2.6rem), which meant
+            every new one had to know the width of the ones beside it — and the account
+            icon is conditional, so the arithmetic was wrong before the session loaded. */}
+        <div className="app__menus">
+          <LanguageMenu
+            open={openMenu === "lang"}
+            onToggle={() => setOpenMenu((m) => (m === "lang" ? null : "lang"))}
             onClose={() => setOpenMenu(null)}
           />
-        )}
+          {userId && (
+            <ProfileMenu
+              isAnonymous={isAnonymous}
+              email={email}
+              open={openMenu === "profile"}
+              onToggle={() => setOpenMenu((m) => (m === "profile" ? null : "profile"))}
+              onClose={() => setOpenMenu(null)}
+            />
+          )}
+        </div>
         <Link to="/" className="app__titlelink"><h1 className="app__title">DINO</h1></Link>
       </header>
 

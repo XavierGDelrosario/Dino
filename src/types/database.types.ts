@@ -343,6 +343,42 @@ export type Database = {
           },
         ]
       }
+      placement_answers: {
+        Row: {
+          answered_at: string
+          known: boolean
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          answered_at?: string
+          known: boolean
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          answered_at?: string
+          known?: boolean
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_answers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "placement_answers_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "words"
+            referencedColumns: ["word_id"]
+          },
+        ]
+      }
       review_log: {
         Row: {
           elapsed_days: number | null
@@ -855,6 +891,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      placement_evidence: {
+        Args: { p_source_lang: string }
+        Returns: { band: number | null; frequency: number | null; known: boolean }[]
+      }
       record_review: {
         Args: { p_grade: number; p_user_word_id: string; p_reviewed_at?: string }
         Returns: {
@@ -969,6 +1009,28 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      soften_confidence: {
+        Args: { p_user_word_id: string }
+        Returns: {
+          confidence_rating: number
+          custom_translation: string | null
+          dictionary_word_id: string | null
+          input: string
+          last_reviewed_date: string | null
+          originally_translated_date: string
+          source_lang: string
+          stability: number | null
+          target_lang: string
+          user_id: string
+          user_word_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_words"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

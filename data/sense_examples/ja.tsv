@@ -1222,3 +1222,650 @@
 # ── ADVERBS and the rest ──────────────────────────────────────────────────────
 
 1254730:0	結局、彼は来なかった。	In the end he never came.	いろいろあった末に落ち着くところ。
+
+# ── もう (1012480) — already / before long / one more ──────────────────────────
+1012480:0	宿題はもう終わった。	I've already finished the homework.	すでにその状態になっているようす。
+1012480:1	春はもう近い。	Spring is nearly here.	間もなくその時になるようす。
+1012480:2	コーヒーをもう一杯ください。	One more coffee, please.	今までの上に、さらに加えるようす。
+
+# ── また (1524930) — again / also ─────────────────────────────────────────────
+1524930:0	また明日会いましょう。	Let's meet again tomorrow.	同じことがくり返されるようす。
+1524930:1	彼は医者であり、また作家でもある。	He is a doctor and also a writer.	前のものに並べて、同じことが言えるようす。
+
+# ── ちょっと (1163940) — a little / for a moment / hey ────────────────────────
+1163940:0	スープに塩をちょっと入れた。	I put a little salt in the soup.	量や程度がわずかであるようす。
+1163940:1	ちょっと待ってください。	Just a moment, please.	ほんの短い間であるようす。
+1163940:4	ちょっと、財布を落としましたよ。	Hey, you dropped your wallet.	人に声をかけて、立ち止まらせるときに言う語。
+
+# ── よく (1605870) — properly / often ─────────────────────────────────────────
+1605870:0	手をよく洗ってから食べなさい。	Wash your hands well before you eat.	十分に、また上手にするようす。
+1605870:1	母はよく歌を歌う。	My mother often sings.	同じことがたびたび起こるようす。
+
+# ── まだ (1527110) — still / not yet ──────────────────────────────────────────
+1527110:0	彼はまだ会社にいる。	He is still at the office.	前からの状態が今も続いているようす。
+1527110:1	荷物はまだ届いていない。	The parcel hasn't arrived yet.	打ち消しの言い方とともに使い、その時までそうなっていないようす。
+
+# ── すぐ (1430610) — at once / right nearby ───────────────────────────────────
+1430610:0	電話をもらってすぐ家を出た。	I left the house right after the call.	間を置かずに行うようす。
+1430610:3	駅はすぐそこにある。	The station is right over there.	隔たりがとても小さいようす。
+
+# ── とても (1008630) — very / (not) at all ────────────────────────────────────
+1008630:0	今日はとても疲れた。	I'm very tired today.	程度がはなはだしいようす。
+1008630:1	一日ではとても終わらない。	There's no way to finish it in a day.	打ち消しの言い方とともに使い、どうやってもできないようす。
+
+# ── いつも (1188890) — always / the usual ─────────────────────────────────────
+1188890:0	父はいつも六時に起きる。	My father always gets up at six.	どの時も変わらずそうであるようす。
+1188890:2	いつもの店で待っている。	I'll be waiting at the usual place.	ふだんと同じであること。
+
+# ── 少し (1348870) — a small amount / a short while ───────────────────────────
+1348870:0	コーヒーに砂糖を少し入れた。	I put a little sugar in the coffee.	数や量、程度がわずかであるようす。
+1348870:1	少し休んでから出かけよう。	Let's rest a while and then head out.	時間がわずかであるようす。
+
+# ── ずっと (1006380) — the whole time / far more ──────────────────────────────
+1006380:0	朝からずっと本を読んでいた。	I was reading all morning.	途中で切れずに続くようす。
+1006380:1	こちらの方がずっと安い。	This one is far cheaper.	比べて、程度の差が大きいようす。
+
+# ── やっぱり (1012810) — sure enough / after all ──────────────────────────────
+1012810:0	やっぱり彼が一番速かった。	Sure enough, he was the fastest.	思っていた通りであるようす。
+1012810:1	迷ったが、やっぱり行くことにした。	I wavered, but in the end I decided to go.	いろいろ考えた末に、初めと同じ結果になるようす。
+
+# ── なかなか (1599420) — quite / not readily ──────────────────────────────────
+1599420:0	この店の料理はなかなかおいしい。	The food at this place is really quite good.	思っていた以上に程度が高いようす。
+1599420:1	バスがなかなか来ない。	The bus just won't come.	打ち消しの言い方とともに使い、思うように進まないようす。
+
+# ── ほとんど (1522050) — almost all / hardly ──────────────────────────────────
+1522050:0	宿題はほとんど終わった。	I've finished almost all the homework.	全部に近いようす。
+1522050:1	昨日はほとんど眠れなかった。	I hardly slept last night.	打ち消しの言い方とともに使い、わずかしかそうでないようす。
+
+# ── まず (1387240) — first of all / most likely ───────────────────────────────
+1387240:0	まず手を洗いなさい。	Wash your hands first.	ほかのことより先に行うようす。
+1387240:1	あの人ならまず大丈夫だろう。	If it's him, it'll most likely be fine.	たぶんそうなるだろうと考えるようす。
+
+# ── とりあえず (1598980) — right away / for now ───────────────────────────────
+1598980:0	知らせを聞いてとりあえず家に帰った。	I heard the news and went straight home.	ほかのことより先に、急いでするようす。
+1598980:1	とりあえずビールを頼んだ。	We ordered beer to start with.	先のことは決めずに、今のところそうするようす。
+
+# ── しっかり (1594400) — firmly / properly ────────────────────────────────────
+1594400:0	手すりをしっかり持ってください。	Please hold the handrail firmly.	力を入れて、離れないようにするようす。
+1594400:2	朝ごはんをしっかり食べた。	I had a proper breakfast.	十分な程度に行うようす。
+
+# ── ちゃんと (1007720) — conscientiously / neatly ─────────────────────────────
+1007720:0	彼は毎日ちゃんと働いている。	He works conscientiously every day.	まじめに、また確かに行うようす。
+1007720:1	靴をちゃんと並べなさい。	Line the shoes up properly.	きちんと整った状態であるようす。
+
+# ── 全然 (1395620) — (not) at all ─────────────────────────────────────────────
+1395620:0	その話は全然知らなかった。	I knew nothing at all about that.	打ち消しの言い方とともに使い、少しもそうでないようす。
+
+# ── 全く (1394800) — entirely ─────────────────────────────────────────────────
+1394800:0	二つの絵は全く同じだ。	The two pictures are exactly the same.	程度が完全であるようす。
+
+# ── つまり (1610430) — that is to say ─────────────────────────────────────────
+1610430:0	つまり、明日は休みということだ。	In other words, tomorrow is a day off.	前に言ったことを言いかえて示す語。
+
+# ── the single-sense adverbs a first year meets ──────────────────────────────
+1415870:0	庭に花がたくさん咲いている。	There are lots of flowers in bloom in the garden.	数や量が多いようす。
+1535780:0	もちろん私も行きます。	Of course I'm going too.	言うまでもなくそうであるようす。
+1454670:0	特に問題はありません。	There's no particular problem.	ほかと比べて、その点が目立つようす。
+1590560:0	駅までかなり歩いた。	It was quite a walk to the station.	程度が思ったより大きいようす。
+1279310:0	雨はさらに強くなった。	The rain grew even heavier.	今までの上に、程度が増すようす。
+1320830:0	実は、まだ話していないことがある。	Actually, there's something I haven't told you yet.	表に出していない本当のことを打ち明けるときに言う語。
+1407980:0	多分明日は雨だろう。	It'll probably rain tomorrow.	はっきりしないが、そうなる見込みが高いようす。
+1551940:0	準備はほぼ終わった。	The preparations are nearly done.	完全ではないが、それに近いようす。
+1012620:0	もっと詳しく教えてください。	Please tell me in more detail.	今の程度をこえて、さらに増すようす。
+1293700:0	この山が日本で最も高い。	This is the highest mountain in Japan.	比べたものの中で程度が一番であるようす。
+1396130:0	皿を全部洗った。	I washed all the dishes.	あるもののすべて。
+1596690:0	三人はそれぞれ違う道を選んだ。	The three each chose a different path.	いくつかのものの一つ一つ。
+1386840:0	明日は絶対に遅れない。	I absolutely will not be late tomorrow.	何があってもそうであるようす。
+1342550:0	初めて一人で電車に乗った。	I rode the train alone for the first time.	今までになく、その時が最初であるようす。
+
+# ── MORE EVERYDAY VERBS ───────────────────────────────────────────────────────
+
+# ── 来る (1547720, くる) — to arrive / to stem from ───────────────────────────
+1547720:0	友だちが家に来る。	A friend is coming over.	こちらへ近づいて、その場に着く。
+1547720:3	失敗は準備不足から来ている。	The failure stems from a lack of preparation.	あるものが元になって生じる。
+
+# ── 見える (1259140, みえる) — to be in sight / to seem ───────────────────────
+1259140:0	窓から海が見える。	You can see the sea from the window.	目に入って、その姿がわかる。
+1259140:1	彼は元気に見える。	He looks well.	そのように思われる。ある様子に受け取れる。
+
+# ── 受ける (1329590, うける) — to receive / to catch / to sit (an exam) ───────
+1329590:0	多くの人から助けを受けた。	I received help from many people.	差し出されたものを自分のものとして取る。
+1329590:1	投げたボールを両手で受けた。	I caught the thrown ball with both hands.	飛んでくるものを手などで止める。
+1329590:4	来月、試験を受ける。	I'm sitting the exam next month.	検査や試験などを自分の身に引き受けて行う。
+
+# ── 呼ぶ (1266440, よぶ) — to call out / to invite / to name ──────────────────
+1266440:0	後ろから名前を呼ばれた。	Someone called my name from behind.	声を出して相手の注意を向けさせる。
+1266440:2	誕生日に友だちを呼んだ。	I had friends over for my birthday.	人を招いて来てもらう。
+1266440:3	この花を桜と呼ぶ。	This flower is called a cherry blossom.	そのものに名前をつけて言う。
+
+# ── 入れる (1465610, いれる) — to put in / to make (tea) ──────────────────────
+1465610:0	かばんに本を入れた。	I put the book in my bag.	物を中へ移す。
+1465610:6	お茶を入れましょうか。	Shall I make some tea?	湯を注いで飲み物を作る。
+
+# ── 始める (1307550, はじめる) — to begin / to open a business ────────────────
+1307550:0	九時に仕事を始めた。	I started work at nine.	物事を新しく起こして、その最初を作る。
+1307550:1	駅の近くで店を始めた。	They opened a shop near the station.	商売や活動を新しく起こす。
+
+# ── 進む (1365980, すすむ) — to move forward / to make progress / to run fast ─
+1365980:0	行列が少しずつ進む。	The queue moves forward little by little.	前の方へ動いていく。
+1365980:2	工事は順調に進んでいる。	The construction is coming along nicely.	物事がはかどって先へ運ぶ。
+1365980:4	この時計は五分進んでいる。	This clock is five minutes fast.	時計が正しい時刻より先を指す。
+
+# ── 置く (1421850, おく) — to set down / to leave behind ──────────────────────
+1421850:0	机の上に本を置いた。	I put the book on the desk.	物をある場所にとどめる。
+1421850:1	傘を電車に置いてきた。	I left my umbrella on the train.	そのままにして、あとに残す。
+
+# ── 見せる (1259210, みせる) — to show / to have looked at ────────────────────
+1259210:0	写真を見せてください。	Please show me the photo.	相手の目に入るようにする。
+1259210:4	医者に足を見せた。	I had a doctor look at my leg.	けがや病気を医者に調べてもらう。
+
+# ── 戻る (1535880, もどる) — to head back / to be returned ────────────────────
+1535880:1	忘れ物を取りに家へ戻った。	I went back home for something I'd forgotten.	元いた所へ帰る。
+1535880:2	なくした鍵が戻ってきた。	The key I lost came back to me.	離れていたものが元の持ち主や状態に返る。
+
+# ── 済む (1295070, すむ) — to be over / to get off lightly ────────────────────
+1295070:0	用事が早く済んだ。	My errand was over quickly.	物事が終わって、それ以上しなくてよくなる。
+1295070:1	けがは軽い傷で済んだ。	The injury turned out to be only a light cut.	思ったより悪くない程度で終わる。
+
+# ── 与える (1544730, あたえる) — to grant / to inflict ────────────────────────
+1544730:0	先生が生徒に賞を与えた。	The teacher gave the pupil a prize.	目下の相手に物や機会をさずける。
+1544730:3	台風が町に大きな被害を与えた。	The typhoon did great damage to the town.	ある働きを及ぼして、そうさせる。
+
+# ── 求める (1229350, もとめる) — to demand / to go looking for ────────────────
+1229350:1	会社に説明を求めた。	We demanded an explanation from the company.	相手にそうしてほしいと申し出る。
+1229350:2	仕事を求めて町に出た。	He went to the city looking for work.	ほしいものをあちこち探す。
+
+# ── 生きる (1378520, いきる) — to be alive / to be put to good use ────────────
+1378520:0	祖母は百歳まで生きた。	My grandmother lived to a hundred.	命があって、生き続けている。
+1378520:2	その経験が今の仕事に生きている。	That experience is being put to use in my present job.	力や価値が十分に働く。
+
+# ── 頼む (1548370, たのむ) — to ask a favour / to order ───────────────────────
+1548370:0	友だちに手伝いを頼んだ。	I asked a friend for help.	相手にそうしてくれるように言う。
+1548370:1	店員にコーヒーを頼んだ。	I ordered a coffee from the waiter.	店などに品物を持ってくるように言う。
+
+# ── 守る (1327120, まもる) — to defend / to keep (a promise) ──────────────────
+1327120:0	町を火事から守る。	To protect the town from fire.	危険が及ばないように防ぐ。
+1327120:1	約束は必ず守ります。	I will keep my promise without fail.	決められたことにそむかずに行う。
+
+# ── 売る (1473950, うる) — to sell / to sell out (a person) ───────────────────
+1473950:0	駅前で野菜を売っている。	They sell vegetables in front of the station.	品物を渡して代金を受け取る。
+1473950:1	仲間を売るようなことはしない。	I would never sell out a friend.	自分の利益のために味方にそむく。
+
+# ── 向かう (1604800, むかう) — to face / to head for ──────────────────────────
+1604800:0	鏡に向かって立つ。	To stand facing the mirror.	そちらの方に正面を向ける。
+1604800:1	車で駅へ向かった。	We headed for the station by car.	そちらの方へ進んでいく。
+
+# ── 合う (1284430, あう) — to fit / to be worth the effort ────────────────────
+1284430:1	この服は私によく合う。	These clothes suit me well.	二つのものがよくつり合う。
+1284430:2	この仕事は割に合わない。	This job isn't worth the trouble.	かけた手間と得るものがつり合う。
+
+# ── しまう (1305380) — to put away ────────────────────────────────────────────
+1305380:2	洗った皿を棚にしまった。	I put the washed plates away in the cupboard.	物をあるべき所に入れて片づける。
+
+# ── the one-sense staples ─────────────────────────────────────────────────────
+1405800:0	毎日日記を続けている。	I keep a diary every day.	同じことを切らずに行っていく。
+1510650:0	机の場所を変えた。	I moved the desk somewhere else.	前と違う状態にする。
+1212260:0	背中に痛みを感じた。	I felt a pain in my back.	体や心で受け止めて気づく。
+1216880:0	会費には食事の代金を含む。	The fee includes the cost of the meal.	中にそのものを一緒に持っている。
+1310730:0	飼っていた犬が死んだ。	The dog we kept died.	命がなくなる。
+1535910:0	兄から時計をもらった。	I got a watch from my brother.	人から物を受け取って自分のものにする。
+1269130:0	父が本をくれた。	My father gave me a book.	相手が自分や身内に物を与える。
+1206530:0	大学で歴史を学ぶ。	I study history at university.	教わったり調べたりして身につける。
+1441870:0	その話を母に伝えた。	I passed the news on to my mother.	知らせや思いを相手に届ける。
+1309260:0	子どものころをよく思い出す。	I often remember my childhood.	忘れていたことをもう一度心に浮かべる。
+1378690:0	弟に子どもが生まれた。	My brother has had a child.	母親の体から出て、新しい命として世に出る。
+1207270:0	休みの日は音楽を楽しむ。	On my days off I enjoy music.	心を満たして、うれしく過ごす。
+1198180:0	駅で先生に会った。	I ran into my teacher at the station.	人と顔を合わせる。
+1223680:0	町で事故が起こった。	An accident happened in town.	物事が新しく生じる。
+1157510:0	二人の考えは異なる。	The two of them think differently.	同じでなく、違いがある。
+1270990:0	祖父が昔の話を語った。	My grandfather told a story of the old days.	筋のある話を口に出して聞かせる。
+
+# ── MORE NOUNS — what a learner points at, and the second meaning behind it ───
+
+# ── 足 (1404630, あし) — the foot / a way of getting there ────────────────────
+1404630:0	靴が小さくて足が痛い。	The shoes are small and my feet hurt.	体の一番下にあって、地面につく部分。
+1404630:5	終電がなくなって足がない。	The last train has gone and I've no way home.	目的の場所まで行くための乗り物。
+
+# ── 光 (1272780, ひかり) — light / a ray of hope ──────────────────────────────
+1272780:0	窓から朝の光が入る。	Morning light comes in through the window.	目に明るさを感じさせるもの。
+1272780:2	暗い時代にも光が見えた。	Even in dark times there was a glimmer of hope.	先の明るい見通し。
+
+# ── 星 (1376310, ほし) — a star in the sky / a star of the game ───────────────
+1376310:0	今夜は星がよく見える。	The stars are clear tonight.	夜空に光って見える天体。
+1376310:2	彼は野球界の星だ。	He is a star of the baseball world.	大勢の中でとくに目立つ人。
+
+# ── 面 (1584695, めん) — a mask / an aspect ───────────────────────────────────
+1584695:1	祭りで面をかぶった。	I wore a mask at the festival.	顔につけて、顔をかくす道具。
+1584695:5	この計画にはよい面と悪い面がある。	This plan has a good side and a bad side.	物事のある一つの側。
+
+# ── 白 (1474900, しろ) / 黒 (1287410, くろ) — the colour, and the verdict ─────
+1474900:0	壁を白にぬった。	We painted the wall white.	雪のような明るい色。
+1474900:1	調べの結果、彼は白だった。	The inquiry found him innocent.	罪がないこと。また、その人。
+1287410:0	黒のペンで書いてください。	Please write with a black pen.	墨のような暗い色。
+1287410:2	証拠から見て黒だ。	The evidence says he's guilty.	罪があること。また、その人。
+
+# ── 姿 (1307710, すがた) — a figure / the state something is in ───────────────
+1307710:0	鏡に自分の姿が映る。	I can see myself in the mirror.	目に見える体つきや形。
+1307710:2	町は昔の姿を残している。	The town keeps the look it had long ago.	そのもののありさま。ようす。
+
+# ── 流れ (1552130, ながれ) — a current / the passing of things ────────────────
+1552130:0	川の流れが速い。	The current of the river is fast.	水などが動いていくこと。
+1552130:1	時の流れは止められない。	The passing of time cannot be stopped.	人や物、時が移っていくこと。
+
+# ── 訳 (1538330, わけ) — the reason / the sense of it ─────────────────────────
+1538330:0	休んだ訳を話した。	I explained why I was away.	そうなった理由。
+1538330:1	言っている訳が分からない。	I can't make out what he means.	言葉や物事の表す意味。
+
+# ── つもり (1382980) — what one means to do / what one takes to be true ───────
+1382980:0	明日は早く帰るつもりだ。	I mean to go home early tomorrow.	そうしようと心に決めていること。
+1382980:1	分かったつもりでいた。	I took it that I had understood.	実際とは違うが、そうだと思い込んでいること。
+
+# ── 違い (1158870, ちがい) — a difference / an error ──────────────────────────
+1158870:0	二つの色の違いが分からない。	I can't tell the two colours apart.	同じでないところ。
+1158870:1	計算の違いに気づいた。	I noticed an error in the calculation.	正しくないこと。まちがい。
+
+# ── 効果 (1275130, こうか) — an effect / stage effects ────────────────────────
+1275130:0	薬の効果が出てきた。	The medicine is starting to work.	働きかけによって現れるよい結果。
+1275130:1	この映画は音の効果がすばらしい。	The sound effects in this film are superb.	劇や映画で、場面を助けるために加える音や光。
+
+# ── 楽しみ (1207250, たのしみ) — a pleasure / looking forward to it ───────────
+1207250:0	読書が一番の楽しみだ。	Reading is my greatest pleasure.	心を満たしてくれるもの。
+1207250:1	来月の旅行が楽しみだ。	I'm looking forward to next month's trip.	先のよいことを待ち望む気持ち。
+
+# ── 場 (1355790, ば) — a place set aside / the moment you are in ──────────────
+1355790:0	話し合いの場を用意した。	We arranged a place to talk.	何かが行われる所。
+1355790:2	その場の空気が変わった。	The mood of the moment changed.	ある物事が起きているとき。
+
+# ── 勉強 (1512670, べんきょう) — study / knocking the price down ──────────────
+1512670:0	毎晩二時間勉強する。	I study for two hours every night.	学問や技術を身につけようと努めること。
+1512670:3	もう少し勉強してくれませんか。	Couldn't you come down a little on the price?	品物の値段を安くすること。
+
+# ── 妻 (1294330, つま) — one's wife / the garnish beside the sashimi ──────────
+1294330:0	妻と二人で店をしている。	My wife and I run the shop together.	結婚している相手の女性。
+1294330:1	刺身のつまを残した。	I left the garnish beside the sashimi.	刺身などに添える野菜。
+
+# ── the plain ones ────────────────────────────────────────────────────────────
+1226960:0	言われたのと逆のことをした。	I did the opposite of what I was told.	向きや順序が反対であること。
+1523060:0	その話は本当だ。	That story is true.	うそでない、実際のこと。
+1172400:0	彼は平気で嘘をつく。	He lies without batting an eye.	事実でないことを本当のように言うこと。
+1220570:0	息子の成長を期待している。	I have high hopes for my son's growth.	よい結果になるだろうと待ち望むこと。
+1219910:0	大学に進む希望を持っている。	She hopes to go on to university.	こうなってほしいと願うこと。
+1467640:0	うちの猫は魚が好きだ。	Our cat loves fish.	人に飼われる小さな動物。ねずみを捕る。
+1258330:0	犬を連れて散歩に出た。	I took the dog out for a walk.	昔から人に飼われている動物。番や狩りをする。
+1531190:0	娘は今年小学校に入った。	My daughter started primary school this year.	親から見た女の子ども。
+1413240:0	兄は大学で法律を学んでいる。	My brother studies law at university.	高い程度の学問を教える学校。
+1313850:0	駅の近くで事故が起きた。	There was an accident near the station.	急に起こる悪い出来事。
+1252390:0	事故のあと警察を呼んだ。	We called the police after the accident.	人々の安全を守る役所。
+1505390:0	小さい文字は読みにくい。	Small print is hard to read.	言葉を書くために使うしるし。
+1490430:0	秒を数えながら待った。	I waited counting the seconds.	時間の単位。一分を六十に分けた長さ。
+1473230:0	去年の倍の人が集まった。	Twice as many people came as last year.	同じ数を二つ合わせた数。
+
+# ── MORE ADJECTIVES — な and い, and the second meaning behind them ───────────
+
+# ── 結構 (1254760, けっこう) — splendid / no thank you / quite ────────────────
+1254760:0	結構な品をいただいた。	I received a lovely gift.	十分に満足できて、りっぱなようす。
+1254760:2	お茶はもう結構です。	No more tea for me, thank you.	それ以上はいらないと、丁寧に断るときに言う語。
+1254760:3	この店は結構込んでいる。	This place is quite crowded.	思ったよりも程度が大きいようす。
+
+# ── 大事 (1413940, だいじ) — important / a serious business ───────────────────
+1413940:0	これは大事な書類だ。	This is an important document.	大切に扱う必要があるようす。
+1413940:2	大事に至らずに済んだ。	It didn't come to anything serious.	大きな事件や困った出来事。
+
+# ── 確か (1596930, たしか) — certain / if I remember rightly ──────────────────
+1596930:0	確かな証拠がある。	There is firm evidence.	まちがいがなく、はっきりしているようす。
+1596930:2	確か、去年も同じことがあった。	If I remember rightly, the same thing happened last year.	記憶をたどって言うときに使う語。言い切れない気持ちを表す。
+
+# ── 嫌 (1587610, いや) — not wanting to / unpleasant ──────────────────────────
+1587610:0	今日は行くのが嫌だ。	I don't want to go today.	したくないと思うようす。
+1587610:1	嫌なにおいがする。	There's a nasty smell.	感じが悪くて、心地よくないようす。
+
+# ── 面倒 (1533550, めんどう) — a bother / looking after someone ───────────────
+1533550:0	片づけが面倒だ。	Tidying up is a bother.	手間がかかって、わずらわしいこと。
+1533550:2	弟の面倒を見る。	I look after my little brother.	人の世話をすること。
+
+# ── 勝手 (1346190, かって) — as one pleases / the way a thing handles ─────────
+1346190:0	勝手なことばかり言う。	He only ever says what suits him.	自分の都合だけを考えること。
+1346190:2	新しい機械は勝手が違う。	The new machine handles differently.	使いやすさ。物事のやり方。
+
+# ── 急 (1228560, きゅう) — sudden / steep ─────────────────────────────────────
+1228560:0	急に雨が降ってきた。	It suddenly started to rain.	前ぶれもなく起こるようす。
+1228560:2	この坂は急だ。	This slope is steep.	上り下りの角度が大きいようす。
+
+# ── 失礼 (1320230, しつれい) — rudeness / "excuse me" ─────────────────────────
+1320230:0	失礼な言い方をするな。	Don't put it so rudely.	礼儀に外れていること。
+1320230:1	お先に失礼します。	Excuse me, I'll be off first.	別れるときや席を立つときに言う言葉。
+
+# ── だめ (1409110) — no good / not allowed ────────────────────────────────────
+1409110:0	この時計はもうだめだ。	This watch has had it.	役に立たない状態であること。
+1409110:2	ここで遊んではだめだ。	You mustn't play here.	してはいけないと止めるときに言う語。
+
+# ── 無事 (1530030, ぶじ) — safe and sound / without incident ──────────────────
+1530030:0	家族は皆無事だった。	The whole family was safe.	変わったことがなく、安らかであること。
+1530030:1	船は無事に港へ着いた。	The ship reached port without incident.	何事も起こらずに終わるようす。
+
+# ── おかしい (1190860) — funny / not right ────────────────────────────────────
+1190860:0	その話がおかしくて笑った。	The story was so funny I laughed.	笑いたくなるようす。
+1190860:1	この機械は少しおかしい。	There's something a bit wrong with this machine.	ふつうと違っていて、変であるようす。
+
+# ── ひどい (1602060) — harsh / severe ─────────────────────────────────────────
+1602060:0	ひどい言い方をされた。	I was spoken to harshly.	思いやりがなく、厳しいようす。
+1602060:1	ひどい雨で外に出られない。	The rain is too heavy to go out in.	勢いや程度が強いようす。
+
+# ── うまい (1310460) — good at it / good to eat ───────────────────────────────
+1310460:0	彼は絵がうまい。	He is good at drawing.	物事のやり方が上手であるようす。
+1310460:1	この店のパンはうまい。	The bread at this shop is delicious.	味がよいようす。
+
+# ── かわいい (1577200) — cute / dear to one ───────────────────────────────────
+1577200:0	この犬はとてもかわいい。	This dog is very cute.	見た目や様子が小さくて、大切にしたくなるようす。
+1577200:1	かわいい孫が遊びに来た。	My dear grandchild came to visit.	大切で、いとしく思うようす。
+
+# ── 低い (1434180, ひくい) — low / short / deep (of a voice) ──────────────────
+1434180:0	気温が低い日が続く。	The low temperatures are continuing.	程度や数量が小さいようす。
+1434180:2	弟は私より背が低い。	My brother is shorter than me.	高さが小さいようす。
+1434180:3	低い声で答えた。	He answered in a low voice.	音が太くて、下の方に感じられるようす。
+
+# ── 早い (1404975, はやい) — earlier than expected / too soon ─────────────────
+1404975:1	今日は早い時間に着いた。	I arrived early today.	決まった時よりも前であるようす。
+1404975:2	まだ帰るのは早い。	It's too soon to go home.	その時になるには、まだ間があるようす。
+
+# ── 反対 (1480670, はんたい) — objection / the opposite side ──────────────────
+1480670:0	その案には反対だ。	I'm against that proposal.	相手の考えに従わず、逆らうこと。
+1480670:1	反対の方へ歩いていった。	He walked off in the opposite direction.	向きや位置が逆であること。
+
+# ── 綺麗 (1591900, きれい) — pretty / clean ───────────────────────────────────
+1591900:0	庭に綺麗な花が咲いている。	Pretty flowers are blooming in the garden.	形や色が整っていて、美しいようす。
+1591900:1	部屋を綺麗にしてから出かけた。	I tidied the room before going out.	よごれや乱れがなく、整っているようす。
+
+# ── the plain ones ────────────────────────────────────────────────────────────
+1414340:0	健康は何より大切だ。	Health matters more than anything.	とくに重んじて、大事にするようす。
+1211510:0	準備は完全に終わった。	The preparations are completely done.	欠けたところがなく、そろっているようす。
+1336820:0	ここは重要な場面だ。	This is an important scene.	物事の中で、とくに重みがあるようす。
+1318720:0	自由に使ってかまいません。	You're free to use it as you like.	自分の思うままにできること。
+1153930:0	この道は夜でも安全だ。	This road is safe even at night.	危ないことがなく、心配のないこと。
+1218560:0	この川で泳ぐのは危険だ。	Swimming in this river is dangerous.	命や体に害が及びそうなこと。
+1455280:0	今日は特別な日だ。	Today is a special day.	ほかのものとは違う扱いをするようす。
+1593480:0	暗い道は怖い。	Dark roads are frightening.	危ないと感じて、心が落ち着かないようす。
+1594060:0	家族といる時が一番幸せだ。	I'm happiest when I'm with my family.	心が満ち足りて、めぐまれているようす。
+1153890:0	無事だと聞いて安心した。	I was relieved to hear he was safe.	心配がなくなって、心が落ち着くこと。
+1587850:0	店にはいろいろな種類がある。	The shop has all sorts of kinds.	同じでないものが多くあるようす。
+1492570:0	不思議なことが起きた。	Something strange happened.	どうしてそうなるのか分からず、心をひかれるようす。
+1512610:0	この道具はとても便利だ。	This tool is very handy.	使いやすくて、役に立つようす。
+1486650:0	母の作る料理はおいしい。	My mother's cooking is delicious.	味がよくて、口に合うようす。
+1376600:0	正しい答えを選びなさい。	Choose the correct answer.	決まりや事実に合っていて、まちがいがないようす。
+1541620:0	この町は祭りで有名だ。	This town is famous for its festival.	多くの人に名前を知られているようす。
+1397300:0	素晴らしい景色を見た。	We saw a wonderful view.	とてもすぐれていて、心を打たれるようす。
+1532310:0	答えは明らかだ。	The answer is obvious.	はっきりしていて、疑いのないようす。
+1449190:0	怒られるのは当然だ。	It's only natural that he was told off.	そうなるのがあたりまえであるようす。
+1377590:0	正直な人と仕事がしたい。	I want to work with honest people.	うそがなく、思った通りに言うようす。
+1530510:0	時間を無駄にしたくない。	I don't want to waste time.	役に立たず、かいがないこと。
+1457040:0	突然、電気が消えた。	The lights went out all of a sudden.	思いがけないときに、急に起こるようす。
+
+# ── する-NOUNS — the daily activities, and the ones with a second meaning ─────
+
+# ── サービス (1055000) — service / on the house ───────────────────────────────
+1055000:0	この店はサービスがいい。	The service at this shop is good.	客を大切に扱うこと。
+1055000:2	デザートをサービスしてくれた。	They gave us the dessert on the house.	代金を取らずに、おまけとして出すこと。
+
+# ── 対応 (1409840, たいおう) — corresponding to / dealing with ────────────────
+1409840:0	この文字は数字と対応している。	This letter corresponds to a number.	二つのものがそれぞれ組になって、つり合う関係にあること。
+1409840:2	店員が親切に対応してくれた。	The shop assistant dealt with us kindly.	相手に応じて、物事を処理すること。
+
+# ── 登場 (1444800, とうじょう) — coming on stage / hitting the market ─────────
+1444800:0	主人公が登場する場面を見た。	I watched the scene where the hero appears.	舞台や物語に人が現れること。
+1444800:1	新しい機械が登場した。	A new machine has come out.	新しいものが世に現れること。
+
+# ── 攻撃 (1279170, こうげき) — an attack / an attack in words ─────────────────
+1279170:0	敵の攻撃が始まった。	The enemy's attack began.	相手を攻めること。
+1279170:1	言葉で人を攻撃してはいけない。	You mustn't attack people with words.	相手のあやまちを強く責めること。
+
+# ── 記念 (1223340, きねん) — commemorating / a keepsake ───────────────────────
+1223340:0	卒業を記念して写真を撮った。	We took a photo to mark our graduation.	出来事をあとまで忘れないように残すこと。
+1223340:1	旅行の記念に皿を買った。	I bought a plate as a memento of the trip.	思い出として残しておく品物。
+
+# ── 評価 (1490010, ひょうか) — appraising / thinking highly of ────────────────
+1490010:0	作品を正しく評価する。	To appraise a work fairly.	物事の値打ちを調べて決めること。
+1490010:1	その働きは高く評価された。	His work was highly regarded.	値打ちを認めて、よいとすること。
+
+# ── 意識 (1156640, いしき) — consciousness / being conscious of ───────────────
+1156640:0	事故で意識を失った。	He lost consciousness in the accident.	自分や周りのことが分かる心の働き。
+1156640:1	人の目を意識してしまう。	I can't help being conscious of how people see me.	あるものに気づいて、心にとめること。
+
+# ── 設定 (1386060, せってい) — the setting of a story / settings on a device ──
+1386060:0	この物語は設定が面白い。	The setting of this story is interesting.	話や場面の決まりごとを作ること。
+1386060:1	音の設定を変えた。	I changed the sound settings.	機械などの動き方を選んで決めること。
+
+# ── 施設 (1310410, しせつ) — a facility / a care home ─────────────────────────
+1310410:0	町に新しい施設ができた。	A new facility has opened in town.	ある目的のために作られた建物や設備。
+1310410:1	祖父は施設で暮らしている。	My grandfather lives in a care home.	年寄りや子どもの世話をする所。
+
+# ── 誕生 (1419080, たんじょう) — a birth / the coming into being of a thing ───
+1419080:0	弟の誕生をみんなで祝った。	We all celebrated my brother's birth.	人が新しく生まれること。
+1419080:1	新しい店の誕生だ。	A new shop is born.	新しいものができること。
+
+# ── 案内 (1154860, あんない) — showing the way / a notice ─────────────────────
+1154860:0	係の人が席まで案内してくれた。	An attendant showed us to our seats.	行き先まで連れて行って教えること。
+1154860:1	会の案内が届いた。	The notice about the meeting arrived.	知らせ。また、その知らせを書いたもの。
+
+# ── the daily ones ────────────────────────────────────────────────────────────
+1543750:0	店を予約しておいた。	I booked the restaurant in advance.	前もって席や品物を取り決めておくこと。
+1546220:0	客が来るので食事を用意した。	I got a meal ready because guests were coming.	必要なものを前もってそろえておくこと。
+1349610:0	友だちを夕食に招待した。	I invited a friend to dinner.	客として来てくれるように頼むこと。
+1340000:0	朝六時に出発する。	We set off at six in the morning.	目的の場所へ向かって、その場を出ること。
+1449870:0	荷物は明日到着する。	The parcel arrives tomorrow.	目的の場所に着くこと。
+1399790:0	土曜日に部屋を掃除する。	I clean my room on Saturdays.	ごみやよごれを取り除いて、きれいにすること。
+1254790:0	姉は去年結婚した。	My sister got married last year.	男女が夫婦になること。
+1258520:0	大学で虫の研究をしている。	She researches insects at the university.	物事を深く調べて、明らかにしようとすること。
+1477840:0	会社が新しい計画を発表した。	The company announced a new plan.	多くの人に広く知らせること。
+1351430:0	友だちに妹を紹介した。	I introduced my sister to my friend.	知らない人どうしの間に立って、たがいに知らせること。
+1252090:0	夏の旅行を計画している。	We're planning a trip for the summer.	前もって、やり方や順序を考えておくこと。
+1429120:0	事故の原因を調査する。	They are investigating the cause of the accident.	物事のようすを詳しく調べること。
+1202760:0	試合は二時に開始する。	The match starts at two.	物事を始めること。
+1333040:0	工事は今月で終了する。	The work finishes this month.	物事が終わること。
+1254380:0	行き先はまだ決定していない。	The destination hasn't been decided yet.	はっきりとそう決めること。
+1282100:0	彼の行動はいつも早い。	He is always quick to act.	考えを実際の動きに移すこと。
+1432460:0	料理をもう一品追加した。	We added one more dish.	すでにあるものに、あとから加えること。
+1257900:0	分からない言葉を検索する。	I look up words I don't know.	調べたいことを、資料などの中から探すこと。
+1477310:0	新しい星を発見した。	A new star has been discovered.	まだ知られていなかったものを初めて見つけること。
+1591720:0	近所の人が協力してくれた。	The neighbours lent a hand.	力を合わせて、一緒に事に当たること。
+1320140:0	一度失敗しても続ければいい。	Even if you fail once, just keep going.	思った通りにいかず、うまくできないこと。
+1198960:0	問題は話し合いで解決した。	The problem was settled by talking it over.	困った事を、うまく片づけること。
+1261190:0	火事の原因はまだ分からない。	The cause of the fire is still unknown.	その事が起こるもとになったもの。
+1271750:0	電池を新しいものと交換した。	I swapped the battery for a new one.	たがいに取りかえること。
+1549660:0	毎朝バスを利用している。	I use the bus every morning.	役に立つように使うこと。
+1516750:0	試合は今夜放送される。	The match will be broadcast tonight.	電波にのせて、広く伝えること。
+1273370:0	その映画は来月公開される。	The film comes out next month.	多くの人が見られるようにすること。
+1444810:0	名前と住所を登録した。	I registered my name and address.	名前などを役所や店の記録に残すこと。
+1214200:0	父は店の管理を任されている。	My father is trusted with running the shop.	物事がうまくいくように、目を配って世話をすること。
+1298800:0	海で映画の撮影をしていた。	They were filming a movie at the sea.	写真や映像を写しとること。
+
+# ── EVERYDAY THINGS AND ACTIONS — the learner tier, with its second meanings ──
+
+# ── 調子 (1429170, ちょうし) — pitch / how one is doing / getting carried away ─
+1429170:0	ピアノの調子を合わせる。	To tune the piano.	音の高さ。また、その動き。
+1429170:2	今日は体の調子がいい。	I'm feeling good today.	体や機械などの、その時のようす。
+1429170:3	調子に乗って話しすぎた。	I got carried away and talked too much.	物事の進む勢い。
+
+# ── 都合 (1444980, つごう) — how things stand / in all ────────────────────────
+1444980:0	都合が悪ければ言ってください。	Tell me if it doesn't suit you.	物事を行うのに具合のよい、または悪い事情。
+1444980:3	都合三日かかった。	It took three days in all.	全部合わせて。
+
+# ── 具合 (1592500, ぐあい) — how a thing is working / how one feels ───────────
+1592500:0	この機械は具合が悪い。	Something is wrong with this machine.	物事の進み方やようす。
+1592500:1	祖母の具合はよくなった。	My grandmother is feeling better.	体の調子。健康のようす。
+
+# ── 電気 (1443000, でんき) — electricity / the light ──────────────────────────
+1443000:0	この村に電気が通った。	Electricity reached this village.	物を動かしたり明かりをつけたりする力。
+1443000:1	寝る前に電気を消した。	I turned the light off before bed.	電気で光る明かり。
+
+# ── 山 (1302680, やま) — a mountain / a pile of it ────────────────────────────
+1302680:0	夏に高い山に登った。	I climbed a high mountain in the summer.	地面が高く盛り上がっている所。
+1302680:3	机の上に本が山になっている。	Books are piled up on the desk.	物が高く積まれたもの。
+
+# ── 席 (1382250, せき) — a seat / the gathering itself ────────────────────────
+1382250:0	窓の近くの席に座った。	I sat in a window seat.	座るために決められた場所。
+1382250:1	お祝いの席で挨拶をした。	I gave a speech at the celebration.	人が集まって何かを行う場。
+
+# ── 空 (1245290, そら) — the sky ──────────────────────────────────────────────
+1245290:0	空に星が出ている。	Stars are out in the sky.	頭の上に広がる、はるかに高い所。
+1245290:1	空があやしくなってきた。	The sky is turning threatening.	その時の天気のようす。
+
+# ── 傘 (1301940, かさ) — an umbrella / the cap of a mushroom ──────────────────
+1301940:0	雨なので傘を持って出た。	It was raining so I took an umbrella.	雨や日の光をよけるためにさす道具。
+1301940:1	きのこの傘が開いている。	The mushroom's cap has opened out.	傘のような形をしたもの。
+
+# ── 返す (1512130, かえす) — to give back / to turn over / to answer back ─────
+1512130:0	借りた本を返した。	I gave back the book I'd borrowed.	借りたものを持ち主に戻す。
+1512130:1	カードを返して表を見せた。	I turned the card over to show its face.	上下や裏表を逆にする。
+1512130:3	何を言われても返さなかった。	Whatever was said, he said nothing back.	相手の言葉に対して言葉を返す。
+
+# ── 押す (1180470, おす) — to shove / to press / to stamp ─────────────────────
+1180470:0	重い戸を押して開けた。	I pushed the heavy door open.	力を加えて、向こうへ動かそうとする。
+1180470:1	赤いボタンを押してください。	Please press the red button.	上から力を加えて、へこませる。
+1180470:2	書類に判を押した。	I put my seal on the document.	しるしを紙などに写しつける。
+
+# ── 借りる (1323560, かりる) — to borrow / to rent / to get help ──────────────
+1323560:0	友だちに傘を借りた。	I borrowed an umbrella from a friend.	返す約束をして、人のものを使わせてもらう。
+1323560:1	駅の近くに部屋を借りている。	I rent a room near the station.	お金を払って、しばらく使わせてもらう。
+1323560:2	友人の力を借りて仕上げた。	I finished it with a friend's help.	人の助けや知恵を受ける。
+
+# ── 貸す (1411160, かす) — to lend / to let out / to lend a hand ──────────────
+1411160:0	弟にペンを貸した。	I lent my brother a pen.	返してもらう約束で、自分のものを使わせる。
+1411160:1	空いた部屋を人に貸している。	We let the spare room out.	お金を取って、しばらく使わせる。
+1411160:2	引っ越しに力を貸してくれた。	He gave me a hand with the move.	助けとなる力を差し出す。
+
+# ── 座る (1291800, すわる) — to sit down / to take a post ─────────────────────
+1291800:0	空いた席に座った。	I sat down in an empty seat.	腰を下ろして体を落ち着ける。
+1291800:1	彼が社長の席に座った。	He took the president's chair.	ある地位や役目につく。
+
+# ── 育てる (1160570, そだてる) — to bring up / to train ───────────────────────
+1160570:0	三人の子どもを育てた。	She brought up three children.	世話をして、大きくなるようにする。
+1160570:1	若い選手を育てている。	He is bringing on the young players.	教えて、力がつくようにする。
+
+# ── 慣れる (1212670, なれる) — to get used to / to get the knack / to tame ────
+1212670:0	新しい仕事にやっと慣れた。	I've finally got used to the new job.	何度も経験して、いつものことになる。
+1212670:1	手が慣れて速くなった。	My hands got the knack of it and sped up.	何度も行って、上手になる。
+1212670:2	この鳥は人に慣れている。	This bird is used to people.	動物が人をこわがらなくなる。
+
+# ── 足りる (1404740, たりる) — to be enough / to be worth it ──────────────────
+1404740:0	千円あれば足りる。	A thousand yen will be enough.	必要なだけの数や量がある。
+1404740:1	信じるに足りる話だ。	It's a story worth believing.	そうするだけの値打ちがある。
+
+# ── 決まる (1591420, きまる) — to be settled / to look sharp ──────────────────
+1591420:0	出発の日が決まった。	The date of departure has been settled.	迷いがなくなって、そうと定まる。
+1591420:4	その服はよく決まっている。	Those clothes really suit you.	身なりなどが、よく似合って見える。
+
+# ── 迎える (1253190, むかえる) — to go and meet / to reach a time ─────────────
+1253190:0	駅まで客を迎えに行った。	I went to the station to meet a guest.	来る人を待って、出て行って会う。
+1253190:3	父は今年七十歳を迎えた。	My father turned seventy this year.	ある時やある時期になる。
+
+# ── 別れる (1606590, わかれる) — to part / to split up ────────────────────────
+1606590:0	駅で友だちと別れた。	I parted from my friend at the station.	一緒にいた人と離れる。
+1606590:1	二人は去年別れた。	The two of them split up last year.	夫婦や恋人が関係を絶つ。
+
+# ── 願う (1217950, ねがう) — to wish / to ask ─────────────────────────────────
+1217950:0	家族の幸せを願っている。	I wish for my family's happiness.	そうなってほしいと心から思う。
+1217950:1	静かにするよう願います。	I ask that you keep quiet.	相手にそうしてくれるように頼む。
+
+# ── the plain ones ────────────────────────────────────────────────────────────
+1196000:0	夏休みを祖母の家で過ごした。	I spent the summer holidays at my grandmother's.	時をある場所やようすの中で送る。
+1193610:0	紙に火がついた。	The paper caught fire.	物が燃えるときに出る、熱と光。
+1390020:0	橋の下を川が流れている。	A river flows under the bridge.	水が細長く続いて流れている所。
+1201190:0	夏は毎年海へ行く。	We go to the sea every summer.	地球の広い部分をおおう塩水。
+1386500:0	朝から雪が降っている。	It has been snowing since morning.	空から白く降ってくる、こおった水。
+1327720:0	祖母に手紙を書いた。	I wrote a letter to my grandmother.	用件や思いを書いて相手に送るもの。
+1588120:0	みんなで歌を歌った。	We all sang a song.	声に節をつけて出す。
+1359040:0	彼の言うことを信じている。	I believe what he says.	本当だと思って、疑わない。
+
+# ── THE BODY — and the figurative sense the gloss list never explains ─────────
+
+# ── 腕 (1562850, うで) — the arm / skill at something ─────────────────────────
+1562850:0	腕を上げて手を振った。	I raised my arm and waved.	肩から手首までの部分。
+1562850:1	あの店は主人の腕がいい。	The owner of that place is a fine cook.	物事を上手に行う力。
+
+# ── 首 (1592270, くび) — the neck / the sack ──────────────────────────────────
+1592270:0	首が痛くて回らない。	My neck hurts and won't turn.	頭と体をつなぐ細い部分。
+1592270:2	会社を首になった。	He got the sack from the company.	仕事をやめさせられること。
+
+# ── 腹 (1501110, はら) — the belly / what one is really thinking ──────────────
+1501110:0	食べすぎて腹が苦しい。	I ate too much and my stomach aches.	体の前の方で、胃や腸のある部分。
+1501110:2	相手の腹が読めない。	I can't read what he's really after.	心の中で考えていること。
+
+# ── 胸 (1237820, むね) — the chest / the heart ────────────────────────────────
+1237820:0	胸に手を当てて考えた。	I put a hand on my chest and thought.	首と腹の間の、体の前の方。
+1237820:5	その話を聞いて胸がいっぱいになった。	Hearing that filled my heart.	心。気持ち。
+
+# ── 耳 (1317170, みみ) — the ear / an ear for it / the crust of the loaf ──────
+1317170:0	耳の後ろをかいた。	I scratched behind my ear.	音を聞き取る部分。
+1317170:2	彼女は耳がいい。	She has a good ear.	音の細かい違いが分かる力。
+1317170:3	パンの耳を残した。	I left the crusts of the bread.	物のふちの部分。
+
+# ── 歯 (1313000, は) — a tooth / the teeth of a saw ──────────────────────────
+1313000:0	歯を磨いてから寝る。	I brush my teeth before bed.	口の中にあって、食べ物をかみ切る固いもの。
+1313000:1	のこぎりの歯が欠けた。	A tooth of the saw has chipped.	道具のふちに並ぶ、とがった部分。
+
+# ── 骨 (1288550, ほね) — a bone / hard going ─────────────────────────────────
+1288550:0	魚の骨を取ってから食べた。	I took the bones out of the fish before eating.	体を支える固い部分。
+1288550:4	引っ越しは骨が折れる。	Moving house is hard going.	手間がかかって、大変であるようす。
+
+# ── 血 (1255060, ち) — blood / the blood one comes from ──────────────────────
+1255060:0	指を切って血が出た。	I cut my finger and it bled.	体の中を流れる赤い液。
+1255060:1	二人は血がつながっている。	The two of them are related by blood.	親から子へ受け継がれるつながり。
+
+# ── 息 (1404320, いき) — breath / being in step with someone ─────────────────
+1404320:0	走ったので息が切れた。	I was out of breath from running.	口や鼻から出入りする空気。
+1404320:1	二人は息が合っている。	The two of them are in step with each other.	一緒に何かをするときの調子が合うこと。
+
+# ── the plain parts ───────────────────────────────────────────────────────────
+1555930:0	涙が止まらなかった。	I couldn't stop my tears.	目から出る水。
+1258950:0	重い荷物で肩が凝った。	The heavy bag made my shoulders stiff.	首の下の、腕とつながる部分。
+1309650:0	指で地図を指した。	I pointed at the map with my finger.	手や足の先の、分かれた細い部分。
+1486720:0	鼻がつまって苦しい。	My nose is blocked and I can't breathe.	顔の真ん中にあって、においをかぐ部分。
+
+# ── MORE ACTIONS ─────────────────────────────────────────────────────────────
+
+# ── 逃げる (1450330, にげる) — to run away / to dodge the question ────────────
+1450330:0	犬が家から逃げた。	The dog got out of the house.	つかまらないように、その場から離れる。
+1450330:1	答えにくい質問から逃げた。	He dodged the awkward question.	しなければならないことを避ける。
+
+# ── 追う (1432410, おう) — to chase / to be pressed for time ──────────────────
+1432410:0	逃げた犬を追った。	I chased after the dog that had run off.	前を行くものに追いつこうとして進む。
+1432410:4	毎日仕事に追われている。	I'm run off my feet with work every day.	やることが多くて、余裕がなくなる。
+
+# ── 助ける (1344410, たすける) — to rescue / to lend a hand ───────────────────
+1344410:0	川で子どもを助けた。	He rescued a child from the river.	危ないところから救う。
+1344410:1	母の仕事を助けている。	I help my mother with her work.	力を貸して、うまくいくようにする。
+
+# ── 投げる (1447000, なげる) — to throw / to throw in the towel ───────────────
+1447000:0	川に石を投げた。	I threw a stone into the river.	手に持ったものを遠くへ飛ばす。
+1447000:1	途中で仕事を投げてしまった。	He gave up on the job halfway through.	続けるのをやめて、そのままにする。
+
+# ── 運ぶ (1172660, はこぶ) — to carry / to go well ────────────────────────────
+1172660:0	荷物を二階へ運んだ。	I carried the luggage up to the first floor.	物をある場所から別の場所へ移す。
+1172660:4	話はうまく運んでいる。	The talks are going well.	物事が先へ進む。
+
+# ── 焼く (1350600, やく) — to burn / to grill ─────────────────────────────────
+1350600:0	古い手紙を焼いた。	I burned the old letters.	火をつけて燃やす。
+1350600:1	魚を焼いて食べた。	We grilled the fish and ate it.	火を通して食べられるようにする。
+
+# ── 割る (1208000, わる) — to divide / to break ───────────────────────────────
+1208000:0	十を二で割った。	I divided ten by two.	数を等しく分ける。
+1208000:2	皿を割ってしまった。	I broke a plate.	力を加えて、こわす。
+
+# ── 曲がる (1239730, まがる) — to bend / to turn a corner ─────────────────────
+1239730:0	この道は大きく曲がっている。	This road curves sharply.	まっすぐでなくなる。
+1239730:1	次の角を右に曲がってください。	Please turn right at the next corner.	進む向きを変える。
+
+# ── 現れる (1263510, あらわれる) — to appear / to show on one's face ──────────
+1263510:0	雲の間から月が現れた。	The moon came out from between the clouds.	見えなかったものが見えるようになる。
+1263510:1	気持ちが顔に現れる。	His feelings show on his face.	内にあるものが外に出て、分かるようになる。
+
+# ── 降りる (1589500, おりる) — to come down / to get off ──────────────────────
+1589500:0	ゆっくり山を降りた。	We came down the mountain slowly.	高い所から低い所へ移る。
+1589500:1	次の駅で降ります。	I'm getting off at the next station.	乗り物から外に出る。
+
+# ── the plain actions ─────────────────────────────────────────────────────────
+1352570:0	ゆっくり階段を上った。	I went slowly up the stairs.	高い所へ向かって進む。
+1357980:0	絵に触らないでください。	Please don't touch the paintings.	手などを軽くつける。
+1170650:0	本を後ろに隠した。	I hid the book behind my back.	人に見つからないようにする。
+1584060:0	紙で本を包んだ。	I wrapped the book in paper.	紙や布で外側からおおう。
+1290310:0	卵と砂糖を混ぜる。	Mix the egg and the sugar.	二つ以上のものを一つに合わせる。

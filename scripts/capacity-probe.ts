@@ -78,7 +78,7 @@ async function main() {
          LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
         WHERE n.nspname = 'public' AND c.relkind = 'r'
           AND c.relname IN ('users','user_words','lists','list_words','review_log',
-                          'media_favorites','translation_usage','user_limits','words',
+                          'media_favorites','placement_answers','translation_usage','user_limits','words',
                           'account_deletion_log','error_log')
         ORDER BY pg_total_relation_size(c.oid) DESC`,
     );

@@ -96,7 +96,7 @@ const allStars = () => screen.getAllByRole("button", { name: /Save this article|
 async function openArticle() {
   render(
     <LocaleProvider>
-      <MediaView userId="u" />
+      <MediaView userId="u" langs={{ learning: "JA", native: "EN" }} ready />
     </LocaleProvider>,
   );
   await screen.findByText(headlines[0].title);
@@ -185,25 +185,22 @@ describe("ArticleView — ★ on the article", () => {
   });
 
   it("analyzes in the ARTICLE's language, not the profile's", async () => {
-    // Media can browse a corpus you aren't studying (its picker is local, like
-    // Learn's). Analyzing an English article as Japanese resolves nothing — and
-    // with EN as the native language too, the pair collapses to EN→EN, which
-    // submit answers by echoing the text and rendering no reader at all.
+    // The browse is embedded in Learn and handed Learn's pair, which can be a corpus
+    // you aren't studying. Analyzing an English article as Japanese resolves nothing —
+    // and with EN on both sides the pair collapses to EN→EN, which submit answers by
+    // echoing the text and rendering no reader at all.
     render(
       <LocaleProvider>
-        <MediaView userId="u" />
+        <MediaView userId="u" langs={{ learning: "EN", native: "JA" }} ready />
       </LocaleProvider>,
     );
     await screen.findByText(headlines[0].title);
-    fireEvent.change(screen.getByRole("combobox", { name: /Language/ }), {
-      target: { value: "EN" },
-    });
     await waitFor(() => expect(screen.getByRole("button", { name: /^Study$/ })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /^Study$/ }));
     await screen.findByRole("button", { name: /Back/ });
 
-    // Profile is learning JA / native EN, and the corpus is now EN — so the pair
-    // must be EN→(not EN), never EN→EN and never JA→anything.
+    // The corpus is EN — so the pair must be EN→(not EN), never EN→EN and never
+    // JA→anything.
     const langs = translateArgs[translateArgs.length - 1][1] as {
       learning: string;
       native: string;
