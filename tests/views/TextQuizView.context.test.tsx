@@ -35,7 +35,6 @@ vi.mock("@/hooks/useTextQuiz", () => ({
     position: 1,
     total: 1,
     reviewedCount: 0,
-    addedCount: 0,
     restart: vi.fn(),
   }),
 }));

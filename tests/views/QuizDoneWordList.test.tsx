@@ -36,7 +36,6 @@ vi.mock("@/hooks/useTextQuiz", () => ({
       { word: inu, userWordId: "uw-inu", confidence: 1 },
     ],
     reviewedCount: 2,
-    addedCount: 2,
     position: 3,
     total: 2,
     restart: vi.fn(),
