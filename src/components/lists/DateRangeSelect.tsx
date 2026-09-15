@@ -1,17 +1,16 @@
-// The added / last-reviewed filter axes: an inclusive span of calendar DAYS, picked
-// on a calendar rather than chosen from a list of canned periods.
+// The added / last-reviewed filter axes: an inclusive span of calendar DAYS.
 //
-// It replaced a five-option <select> (All time / Today / This week / This month /
-// This year), which could only ever express "since <a boundary the code chose>" —
-// there was no way to ask for the words you added on the trip in May, and no upper
-// bound at all. The presets survive as one row inside the calendar, because "this
-// week" is still the common ask and two clicks plus month navigation is a bad way to
-// answer it.
+// Each axis is a DROPDOWN — all time · today · this week · this month · this year ·
+// custom — because the named spans are the common ask and one pick answers them. Only
+// "custom" opens the calendar, which is the tall part: the panel is in the page flow, so
+// a calendar nobody asked for pushes the rows it filters down the page. The calendar has
+// its own ✕, and every day in it prints how many words fall on it ("24" under the 3rd),
+// so you can see WHERE your words are before choosing a span.
 //
 // The range model + its day maths live with the rest of the filter model
 // (services/words/filters.ts); this file is only the surface.
 import { useMemo, useState } from "react";
-import { useI18n, type Locale, type MessageKey, type TFn } from "../../i18n";
+import { useI18n, plural, type Locale, type MessageKey, type TFn } from "../../i18n";
 import {
   ANY_DATES,
   dayKey,
@@ -23,12 +22,31 @@ import {
 } from "../../services/words/filters";
 import "./lists.css";
 
-const PRESETS: { period: DatePeriod; label: MessageKey }[] = [
-  { period: "today", label: "period.today" },
-  { period: "week", label: "period.week" },
-  { period: "month", label: "period.month" },
-  { period: "year", label: "period.year" },
+/** The dropdown's options. "custom" is the one that isn't a span by itself — it opens
+ *  the calendar. */
+type DateMode = DatePeriod | "custom";
+
+const OPTIONS: { mode: DateMode; label: MessageKey }[] = [
+  { mode: "all", label: "period.allTime" },
+  { mode: "today", label: "period.today" },
+  { mode: "week", label: "period.week" },
+  { mode: "month", label: "period.month" },
+  { mode: "year", label: "period.year" },
+  { mode: "custom", label: "dates.custom" },
 ];
+
+const PRESETS: DatePeriod[] = ["today", "week", "month", "year"];
+
+/** Which named span a range IS, if any — so a stored "this week" reads back as "this
+ *  week" rather than as two dates. Anything else that narrows is custom. */
+function modeOf(r: DateRange): DateMode {
+  if (!rangeNarrows(r)) return "all";
+  const preset = PRESETS.find((p) => {
+    const span = periodRange(p);
+    return span.from === r.from && span.to === r.to;
+  });
+  return preset ?? "custom";
+}
 
 /** Ordered ends of a span. Both set → sorted (they may arrive either way round, see
  *  rangeBounds); one set → it keeps its own side, so a half-open span stays half-open. */
@@ -49,9 +67,9 @@ function fmtDay(key: string, locale: Locale): string {
   );
 }
 
-/** The whole span in one line — what the closed trigger reads. */
+/** The whole span in one line — what the custom-range button reads. */
 function summarize(r: DateRange, locale: Locale, t: TFn): string {
-  if (!rangeNarrows(r)) return t("period.allTime");
+  if (!rangeNarrows(r)) return t("dates.pickDays");
   const [lo, hi] = ends(r.from, r.to);
   if (lo && hi && lo === hi) return fmtDay(lo, locale);
   if (lo && hi) return t("dates.span", { from: fmtDay(lo, locale), to: fmtDay(hi, locale) });
@@ -99,14 +117,23 @@ function monthCells(cursor: Date, locale: Locale): (Cell | null)[] {
   return cells;
 }
 
-function Calendar({
+/**
+ * The custom-span calendar for one axis. Rendered by the panel BELOW both dropdowns at
+ * full width (one at a time), so the day cells are big enough to carry a word count.
+ */
+export function DateRangeCalendar({
   label,
   value,
   onChange,
+  onClose,
+  counts,
 }: {
   label: string;
   value: DateRange;
   onChange: (r: DateRange) => void;
+  onClose: () => void;
+  /** Words per local day (`YYYY-MM-DD`) on this axis; omitted → no numbers. */
+  counts?: ReadonlyMap<string, number>;
 }) {
   const { t, locale } = useI18n();
   const today = dayKey(new Date());
@@ -156,6 +183,19 @@ function Calendar({
 
   return (
     <div className="cal" role="group" aria-label={t("dates.calendarAria", { label })}>
+      <div className="cal__head">
+        <span className="cal__label">{label}</span>
+        <button
+          type="button"
+          className="cal__close"
+          onClick={onClose}
+          aria-label={t("dates.close")}
+          title={t("dates.close")}
+        >
+          ✕
+        </button>
+      </div>
+
       <div className="cal__nav">
         <button
           type="button"
@@ -185,10 +225,10 @@ function Calendar({
             {name}
           </span>
         ))}
-        {cells.map((cell, i) =>
-          cell === null ? (
-            <span key={`pad-${i}`} className="cal__pad" />
-          ) : (
+        {cells.map((cell, i) => {
+          if (cell === null) return <span key={`pad-${i}`} className="cal__pad" />;
+          const n = counts?.get(cell.key) ?? 0;
+          return (
             <button
               key={cell.key}
               type="button"
@@ -200,86 +240,101 @@ function Calendar({
               ].join("")}
               disabled={cell.key > today}
               aria-pressed={inSpan(cell.key)}
-              aria-label={cell.label}
+              // The count is part of the name only when there is one, so a day reads
+              // "Tuesday, March 3, 2026 — 24 words" and an empty day just its date.
+              aria-label={
+                n > 0
+                  ? t("dates.dayWithCount", {
+                      date: cell.label,
+                      n,
+                      noun: plural(t, n, "common.word", "common.words"),
+                    })
+                  : cell.label
+              }
               // Only meaningful while anchored — that is the one state the highlight
               // follows — so an idle sweep across the grid re-renders nothing.
               onPointerEnter={anchor === null ? undefined : () => setHover(cell.key)}
               onClick={() => pick(cell.key)}
             >
-              {cell.day}
+              <span className="cal__num">{cell.day}</span>
+              <span className="cal__count" aria-hidden="true">
+                {n > 0 ? n : ""}
+              </span>
             </button>
-          ),
-        )}
-      </div>
-
-      {/* The old <select>'s options, kept as one-click answers to the common asks. */}
-      <div className="cal__presets">
-        <button
-          type="button"
-          className="cal__preset"
-          onClick={() => {
-            setAnchor(null);
-            onChange(ANY_DATES);
-          }}
-        >
-          {t("period.allTime")}
-        </button>
-        {PRESETS.map((p) => (
-          <button
-            key={p.period}
-            type="button"
-            className="cal__preset"
-            onClick={() => {
-              setAnchor(null);
-              const r = periodRange(p.period);
-              setCursor(parseDayKey(r.from as string));
-              onChange(r);
-            }}
-          >
-            {t(p.label)}
-          </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
 /**
- * One date axis: a trigger reading "Added: Mar 3 – Mar 9", and the calendar below it
- * when open. WHICH axis is open is the caller's state, so opening one closes the
- * other — two calendars side by side in a half-width column is unreadable, and the
- * panel is in the page flow (never floating), so an open one pushes the rows down.
+ * One date axis: "Added [this week ▾]". Picking a named span applies it at once;
+ * "custom" asks the panel to open this axis's calendar (`onOpenCalendar`), and while a
+ * custom span is set a button reading it ("Mar 3 – Mar 9") re-opens the calendar.
  */
 export function DateRangeSelect({
   label,
   value,
   onChange,
   ariaLabel,
-  open,
-  onToggle,
+  calendarOpen,
+  onOpenCalendar,
 }: {
   label: string;
   value: DateRange;
   onChange: (v: DateRange) => void;
   ariaLabel: string;
-  open: boolean;
-  onToggle: () => void;
+  calendarOpen: boolean;
+  onOpenCalendar: (open: boolean) => void;
 }) {
   const { t, locale } = useI18n();
-  const narrowed = rangeNarrows(value);
+  // "custom" was CHOSEN but no day picked yet: the range is still all-time, which would
+  // otherwise read back as "all time" and snap the dropdown away from what was chosen.
+  const [customPicked, setCustomPicked] = useState(false);
+  const derived = modeOf(value);
+  const mode: DateMode =
+    customPicked && (calendarOpen || rangeNarrows(value)) ? "custom" : derived;
+
+  const choose = (next: DateMode) => {
+    if (next === "custom") {
+      setCustomPicked(true);
+      onOpenCalendar(true);
+      return;
+    }
+    setCustomPicked(false);
+    onOpenCalendar(false);
+    onChange(next === "all" ? ANY_DATES : periodRange(next));
+  };
+
   return (
     <div className="daterange">
-      <button
-        type="button"
-        className={`daterange__trigger${narrowed ? " daterange__trigger--on" : ""}`}
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        onClick={onToggle}
-      >
+      <label className="daterange__field">
         <span className="daterange__name">{label}</span>
-        <span className="daterange__value">{summarize(value, locale, t)}</span>
-      </button>
-      {open && <Calendar label={label} value={value} onChange={onChange} />}
+        <select
+          className={`select select--sm daterange__select${rangeNarrows(value) ? " daterange__select--on" : ""}`}
+          value={mode}
+          aria-label={ariaLabel}
+          onChange={(e) => choose(e.target.value as DateMode)}
+        >
+          {OPTIONS.map((o) => (
+            <option key={o.mode} value={o.mode}>
+              {t(o.label)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {mode === "custom" && (
+        <button
+          type="button"
+          className="daterange__custom"
+          aria-expanded={calendarOpen}
+          aria-label={t("dates.editCustom", { label })}
+          onClick={() => onOpenCalendar(!calendarOpen)}
+        >
+          {summarize(value, locale, t)}
+        </button>
+      )}
     </div>
   );
 }

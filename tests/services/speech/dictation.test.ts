@@ -44,6 +44,41 @@ describe("commitUtterance", () => {
   });
 });
 
+describe("recognizer punctuation (iOS addsPunctuation)", () => {
+  // iOS often adds the mark that closes a line only once the NEXT words arrive, so it
+  // lands at the head of the next utterance. It belongs to the line it closes.
+  it("moves a leading 。 back onto the end of the previous line", () => {
+    let box = commitUtterance("", "今日は雨です");
+    box = commitUtterance(box, "。明日は晴れます。");
+    expect(box).toBe("今日は雨です。\n明日は晴れます。\n");
+    expect(splitSentences(box).map((s) => s.text)).toEqual(["今日は雨です。", "明日は晴れます。"]);
+  });
+
+  it("does the same while the next line is still forming", () => {
+    const box = commitUtterance("", "本当");
+    expect(withPartial(box, "？そうか")).toBe("本当？\nそうか");
+  });
+
+  it("an utterance that is ONLY the late mark closes the line and adds nothing", () => {
+    const box = commitUtterance("", "行きました");
+    expect(commitUtterance(box, "。")).toBe("行きました。\n");
+  });
+
+  it("does not double a mark the line already has", () => {
+    const box = commitUtterance("", "行きました。");
+    expect(commitUtterance(box, "。次")).toBe("行きました。\n次\n");
+  });
+
+  it("drops a leading mark when there is no line for it to close", () => {
+    expect(commitUtterance("", "。こんにちは")).toBe("こんにちは\n");
+  });
+
+  it("leaves an OPENING bracket at the start of its own line", () => {
+    const box = commitUtterance("", "彼は言った");
+    expect(commitUtterance(box, "「行こう」")).toBe("彼は言った\n「行こう」\n");
+  });
+});
+
 describe("withPartial", () => {
   it("shows the forming utterance after everything committed", () => {
     const box = commitUtterance("", "こんにちは");

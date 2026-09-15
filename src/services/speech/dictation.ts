@@ -23,6 +23,12 @@
 // A newline is the honest encoding of "they stopped talking here", and because the
 // text lands in an EDITABLE box, anyone who wants real punctuation can type it.
 //
+// PUNCTUATION THE RECOGNIZER SUPPLIES IS KEPT. iOS 16+ punctuates from the audio
+// (providers/native), and that is evidence of which mark belongs where. It has one
+// timing quirk handled here: the mark that closes a line often arrives only once the
+// NEXT words do, so it shows up at the head of the next utterance (「。明日は」). A
+// leading closing mark is moved back onto the end of the line it closes.
+//
 // PURE (no I/O), like `splitSentences` and `furiganaFor` — the hook owns the
 // recognizer, this owns the string.
 // =========================================================
@@ -34,6 +40,27 @@
  * a space would silently collapse an entire conversation into one sentence again.
  */
 const SEPARATOR = "\n";
+
+/** Closing marks at the very start of an utterance — punctuation that belongs to the
+ *  line before it. Opening brackets (「) are not in the set: they start the new line;
+ *  nor are straight quotes, which open a line as often as they close one. */
+const LEADING_CLOSERS = /^[。．.、，,！？!?…」』）〉》】)”’]+/u;
+
+/**
+ * Hand an utterance's leading closing marks back to the end of `base`, before its
+ * trailing boundary. With nothing to attach to (an empty box) the marks are dropped —
+ * a line starting with 。 is never right. A mark `base` already ends with isn't doubled.
+ */
+function reattachLeadingMarks(base: string, text: string): { base: string; text: string } {
+  const marks = LEADING_CLOSERS.exec(text)?.[0];
+  if (!marks) return { base, text };
+  const rest = text.slice(marks.length).trim();
+  if (base === "") return { base, text: rest };
+  const hadBoundary = base.endsWith(SEPARATOR);
+  const line = hadBoundary ? base.slice(0, -SEPARATOR.length) : base;
+  const closed = line.endsWith(marks) ? line : line + marks;
+  return { base: closed + (hadBoundary ? SEPARATOR : ""), text: rest };
+}
 
 /** Ensure `base` ends on a boundary, so whatever comes next starts its own sentence. */
 function onBoundary(base: string): string {
@@ -52,9 +79,9 @@ function onBoundary(base: string): string {
  * one when a pause brought no speech, and it would otherwise open a blank line.
  */
 export function commitUtterance(base: string, utterance: string): string {
-  const text = utterance.trim();
-  if (!text) return base;
-  return onBoundary(base) + text + SEPARATOR;
+  const moved = reattachLeadingMarks(base, utterance.trim());
+  if (!moved.text) return moved.base;
+  return onBoundary(moved.base) + moved.text + SEPARATOR;
 }
 
 /**
@@ -65,7 +92,7 @@ export function commitUtterance(base: string, utterance: string): string {
  * gets no trailing separator, because it is not finished.
  */
 export function withPartial(base: string, partial: string): string {
-  const text = partial.trim();
-  if (!text) return base;
-  return onBoundary(base) + text;
+  const moved = reattachLeadingMarks(base, partial.trim());
+  if (!moved.text) return moved.base;
+  return onBoundary(moved.base) + moved.text;
 }

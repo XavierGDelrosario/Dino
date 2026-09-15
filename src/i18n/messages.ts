@@ -247,6 +247,11 @@ export const en = {
   "dates.calendarAria": "{label}: pick a date range",
   "dates.prevMonth": "Previous month",
   "dates.nextMonth": "Next month",
+  "dates.custom": "custom",
+  "dates.close": "Close calendar",
+  "dates.pickDays": "pick days",
+  "dates.editCustom": "{label}: edit custom range",
+  "dates.dayWithCount": "{date} — {n} {noun}",
 
   // review / flashcards
   "common.retry": "Retry",
@@ -260,7 +265,7 @@ export const en = {
   "review.errorTitle": "Couldn’t load the review.",
   "review.emptyList": "No words in this list to review yet.",
   "review.emptyAll": "Nothing to review yet — add some words to your vocabulary first.",
-  "review.done": "Done — reviewed {n} {noun}. 🎉",
+  "review.done": "Done — reviewed {n} {noun}.",
   "review.retrySame": "Retry quiz",
   "review.newQuiz": "New quiz",
   "review.recallAria": "How well did you recall it?",
@@ -310,6 +315,7 @@ export const en = {
   "quiz.doneReview": "Reviewed {n} {noun}.",
   "quiz.doneLearn": "Added {n} new {noun} to your vocabulary.",
   "quiz.again": "Quiz again",
+  "quiz.wordsTitle": "Words in this quiz",
   "quiz.scopeReview": "Reviewing words from this text",
   "quiz.scopeLearn": "Quizzing new words from this text",
   "quiz.scopeLearnLevel": "Quizzing new words at this level",
@@ -336,7 +342,7 @@ export const en = {
   "learn.language": "Language",
   // Heading over the Wikinews browse embedded under the level bands (the former
   // Media tab, and before that a button that opened it).
-  "learn.articles": "📰 Articles",
+  "learn.articles": "Articles",
 
   // calibration ("Find my level" placement quiz)
   "calib.loading": "Loading words…",
@@ -418,8 +424,9 @@ export const en = {
   "profile.deleteCancel": "Cancel",
 
   // appearance (theme picker in the account menu)
-  // The top-bar appearance button CYCLES, so its label has to say what a click does.
-  "theme.cycleAria": "Appearance: {mode} — switch to {next}",
+  // The profile-menu theme row CYCLES, so its label has to say what a click does.
+  "theme.item": "Theme: {mode}",
+  "theme.cycleAria": "Theme: {mode} — switch to {next}",
   "theme.system": "System",
   "theme.light": "Light",
   "theme.dark": "Dark",
@@ -644,6 +651,11 @@ export const ja: Record<MessageKey, string> = {
   "dates.calendarAria": "{label}: 期間を選択",
   "dates.prevMonth": "前の月",
   "dates.nextMonth": "次の月",
+  "dates.custom": "カスタム",
+  "dates.close": "カレンダーを閉じる",
+  "dates.pickDays": "日付を選択",
+  "dates.editCustom": "{label}: カスタム期間を編集",
+  "dates.dayWithCount": "{date} — {n}{noun}",
 
   "common.retry": "再試行",
   "review.grade1": "忘れた",
@@ -656,7 +668,7 @@ export const ja: Record<MessageKey, string> = {
   "review.errorTitle": "復習を読み込めませんでした。",
   "review.emptyList": "このリストに復習する単語がまだありません。",
   "review.emptyAll": "まだ復習するものがありません — まず語彙に単語を追加してください。",
-  "review.done": "完了 — {n}{noun}を復習しました。🎉",
+  "review.done": "完了 — {n}{noun}を復習しました。",
   "review.retrySame": "同じクイズをやり直す",
   "review.newQuiz": "新しいクイズ",
   "review.recallAria": "どれくらい思い出せましたか？",
@@ -702,6 +714,7 @@ export const ja: Record<MessageKey, string> = {
   "quiz.doneReview": "{n}{noun}を復習しました。",
   "quiz.doneLearn": "{n}個の新しい{noun}を語彙に追加しました。",
   "quiz.again": "もう一度クイズ",
+  "quiz.wordsTitle": "このクイズの単語",
   "quiz.scopeReview": "このテキストの単語を復習中",
   "quiz.scopeLearn": "このテキストの新しい単語をクイズ中",
   "quiz.scopeLearnLevel": "このレベルの新しい単語をクイズ中",
@@ -725,7 +738,7 @@ export const ja: Record<MessageKey, string> = {
   "learn.findLevel": "レベルを診断",
   "learn.recalibrate": "レベル診断をやり直す",
   "learn.language": "言語",
-  "learn.articles": "📰 記事",
+  "learn.articles": "記事",
 
   // calibration ("Find my level" placement quiz)
   "calib.loading": "単語を読み込み中…",
@@ -801,7 +814,8 @@ export const ja: Record<MessageKey, string> = {
   "profile.deleteYes": "アカウントを削除する",
   "profile.deleteCancel": "キャンセル",
 
-  "theme.cycleAria": "外観: {mode} — {next}に切り替え",
+  "theme.item": "テーマ: {mode}",
+  "theme.cycleAria": "テーマ: {mode} — {next}に切り替え",
   "theme.system": "システム",
   "theme.light": "ライト",
   "theme.dark": "ダーク",

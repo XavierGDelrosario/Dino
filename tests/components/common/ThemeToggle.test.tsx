@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The appearance control after it left the profile menu: ONE top-bar button that
-// cycles System → Light → Dark → System.
+// The theme control: ONE plain-text row in the profile menu ("Theme: System") that
+// cycles System → Light → Dark → System on click.
 //
 // What matters is that the cycle is complete and reachable — with no visible list of
 // options, a cycle that skipped a mode or dead-ended would leave that mode with no way
@@ -43,10 +43,11 @@ const draw = () =>
 const toggle = () => screen.getByRole("button");
 
 describe("ThemeToggle", () => {
-  it("is a single button naming the current mode and the next one", () => {
+  it("is a single text button naming the current mode (no emoji), labelled with the next", () => {
     draw();
     expect(screen.getAllByRole("button")).toHaveLength(1);
-    expect(toggle().getAttribute("aria-label")).toBe("Appearance: System — switch to Light");
+    expect(toggle().textContent).toBe("Theme: System");
+    expect(toggle().getAttribute("aria-label")).toBe("Theme: System — switch to Light");
   });
 
   it("cycles System → Light → Dark → System, painting and persisting each", () => {
@@ -55,17 +56,18 @@ describe("ThemeToggle", () => {
     fireEvent.click(toggle());
     expect(localStorage.getItem("dino.theme")).toBe("light");
     expect(document.documentElement.dataset.theme).toBe("light");
-    expect(toggle().getAttribute("aria-label")).toBe("Appearance: Light — switch to Dark");
+    expect(toggle().textContent).toBe("Theme: Light");
 
     fireEvent.click(toggle());
     expect(localStorage.getItem("dino.theme")).toBe("dark");
     expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(toggle().textContent).toBe("Theme: Dark");
 
     fireEvent.click(toggle());
     expect(localStorage.getItem("dino.theme")).toBe("system");
     // OS is dark (stubbed above), so "system" must resolve back to dark…
     expect(document.documentElement.dataset.theme).toBe("dark");
     // …and the cycle is back where it started, so every mode stays reachable.
-    expect(toggle().getAttribute("aria-label")).toBe("Appearance: System — switch to Light");
+    expect(toggle().textContent).toBe("Theme: System");
   });
 });

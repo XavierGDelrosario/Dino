@@ -9,7 +9,6 @@ import { warmJapaneseAnalyzer } from "./services/language";
 import { watchForReconnect } from "./services/offline/sync";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
-import { ThemeToggle } from "./components/common/ThemeToggle";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { TermsGateView } from "./components/common/TermsGateView";
 import { ErrorText } from "./components/common/ErrorText";
@@ -81,12 +80,11 @@ export function App() {
     // panels. Widen the column for that one route; every other view is unchanged.
     <main className={`app${path === "/admin" ? " app--wide" : ""}`}>
       <header className="app__header">
-        {/* The top-bar controls, as ONE row: appearance · language · account. They used
+        {/* The top-bar controls, as ONE row: language · account. They used
             to position themselves individually (right: 0, right: 2.6rem), which meant
             every new one had to know the width of the ones beside it — and the account
             icon is conditional, so the arithmetic was wrong before the session loaded. */}
         <div className="app__menus">
-          <ThemeToggle />
           <LanguageMenu
             open={openMenu === "lang"}
             onToggle={() => setOpenMenu((m) => (m === "lang" ? null : "lang"))}

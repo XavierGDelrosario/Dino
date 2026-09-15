@@ -455,72 +455,105 @@
   width: 100%;
 }
 
-/* ── The date axes: a trigger and its calendar ──────────────────────────────
-   Added / last reviewed are day SPANS now, not canned periods, so each axis is a
-   button reading its own span with a calendar underneath. Only one calendar is open
-   at a time (FilterMenu owns that), because the panel is IN the page flow — an open
+/* ── The date axes: a dropdown each, and one calendar below both ────────────
+   Added / last reviewed are day SPANS. Each axis is a dropdown of named spans; only
+   "custom" opens the calendar, rendered once BELOW both dropdowns at the section's
+   full width (FilterMenu owns which), because the panel is IN the page flow — an open
    one pushes the rows it filters down the page, and two would bury them. */
 .filtermenu__dates {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.5rem 1rem;
 }
 
 .daterange {
   display: flex;
-  flex-direction: column;
-  /* The trigger sizes to its own text: it and the calendar are stacked, and stretching
-     the button to the calendar's width made a closed "Added: all time" read as an input
-     field the width of the panel. */
-  align-items: flex-start;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
   min-width: 0;
 }
 
-.daterange__trigger {
+.daterange__field {
   display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  padding: 0.35rem 0.6rem;
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font: inherit;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.8rem;
-  cursor: pointer;
-  text-align: left;
-}
-
-.daterange__trigger:hover {
-  background: var(--hover);
-}
-
-/* A narrowed axis is marked on the CLOSED trigger — the panel's badge counts it, and
-   without this you'd have to open each calendar to find which one is doing it. */
-.daterange__trigger--on {
-  border-color: var(--accent);
 }
 
 .daterange__name {
   color: var(--muted);
 }
 
-.daterange__value {
+/* A narrowed axis is marked on the dropdown itself — the panel's badge counts it, and
+   without this you'd have to read each one to find which is doing it. */
+.daterange__select--on {
+  border-color: var(--accent);
+}
+
+/* The custom span, reading back as dates; tapping it re-opens the calendar. */
+.daterange__custom {
+  padding: 0.3rem 0.55rem;
+  background: none;
+  color: var(--accent);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.daterange__custom:hover {
+  background: var(--hover);
 }
 
 .cal {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: max-content;
-  max-width: 100%;
+  width: 100%;
+  max-width: 30rem;
+  margin-top: 0.6rem;
   padding: 0.6rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
+  box-sizing: border-box;
+}
+
+/* Which axis this calendar is choosing for, and its ✕. */
+.cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cal__label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.cal__close {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--muted);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cal__close:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 
 .cal__nav {
@@ -559,12 +592,12 @@
   cursor: default;
 }
 
-/* Seven fixed columns — a calendar whose columns shift with the number of digits is
-   not a calendar. */
+/* Seven EQUAL columns filling the calendar — a calendar whose columns shift with the
+   number of digits is not a calendar, and the cells are wide enough for a count. */
 .cal__grid {
   display: grid;
-  grid-template-columns: repeat(7, 2rem);
-  gap: 2px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
 }
 
 .cal__weekday {
@@ -577,22 +610,40 @@
 }
 
 .cal__pad {
-  height: 2rem;
+  height: 3.1rem;
 }
 
+/* A day: its date on top, the number of words that fall on it underneath. */
 .cal__day {
-  height: 2rem;
+  height: 3.1rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.1rem;
+  padding: 0;
+  min-width: 0;
   background: none;
   color: var(--text);
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   font: inherit;
-  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
+}
+
+.cal__num {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+/* Always occupies its line (empty when 0) so every date sits at the same height. */
+.cal__count {
+  min-height: 0.8rem;
+  font-size: 0.68rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .cal__day:hover:not(:disabled) {
@@ -622,6 +673,11 @@
   font-weight: 600;
 }
 
+/* On the accent fill the count takes the fill's ink, or it vanishes into it. */
+.cal__day--edge .cal__count {
+  color: var(--on-accent);
+}
+
 .cal__day--in:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 32%, transparent);
 }
@@ -629,29 +685,6 @@
 /* Today, whether or not it is selected — the anchor the eye looks for first. */
 .cal__day--today {
   border-color: var(--accent);
-}
-
-.cal__presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border);
-}
-
-.cal__preset {
-  padding: 0.2rem 0.5rem;
-  background: none;
-  color: var(--accent);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font: inherit;
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.cal__preset:hover {
-  background: var(--hover);
 }
 
 /* dual-thumb range slider: two <input type=range> overlaid on one track */

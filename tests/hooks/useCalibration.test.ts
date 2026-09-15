@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Swipe placement quiz hook. The level is derived from vocabulary (real
-// levelFromVocab), so we mock only the I/O: profile, the vocab baseline, the word
-// fetch, the save, and the two persistence writes.
+// Swipe placement quiz hook. The level is derived from placement answers (real
+// levelFromRatings), so we mock only the I/O: profile, the answer history, the word
+// fetch, the save, the answer write, and the two persistence writes.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { makeWord } from "@test/fixtures";
@@ -11,7 +11,8 @@ vi.mock("@/services/learn", () => ({ fetchLearnWords: vi.fn() }));
 vi.mock("@/services/words/userWords", () => ({ saveDictionaryWord: vi.fn() }));
 vi.mock("@/services/calibration", async (orig) => ({
   ...(await orig<typeof import("@/services/calibration")>()),
-  getVocabRatings: vi.fn(),
+  getPlacementRatings: vi.fn(),
+  recordPlacementAnswer: vi.fn(),
   setUserLevel: vi.fn(),
   setUserProficiencyBand: vi.fn(),
 }));
@@ -20,12 +21,18 @@ import { useCalibration } from "@/hooks/useCalibration";
 import { getUserProfile } from "@/services/session";
 import { fetchLearnWords } from "@/services/learn";
 import { saveDictionaryWord } from "@/services/words/userWords";
-import { getVocabRatings, setUserLevel, setUserProficiencyBand } from "@/services/calibration";
+import {
+  getPlacementRatings,
+  recordPlacementAnswer,
+  setUserLevel,
+  setUserProficiencyBand,
+} from "@/services/calibration";
 
 const mockProfile = vi.mocked(getUserProfile);
 const mockFetch = vi.mocked(fetchLearnWords);
 const mockSave = vi.mocked(saveDictionaryWord);
-const mockRatings = vi.mocked(getVocabRatings);
+const mockRatings = vi.mocked(getPlacementRatings);
+const mockRecord = vi.mocked(recordPlacementAnswer);
 const mockSetLevel = vi.mocked(setUserLevel);
 const mockSetBand = vi.mocked(setUserProficiencyBand);
 
@@ -37,6 +44,7 @@ beforeEach(() => {
   mockProfile.mockResolvedValue({ learningLanguage: "JA", nativeLanguage: "EN" } as never);
   mockRatings.mockResolvedValue({ ratings: [], maxBand: 5 });
   mockSave.mockResolvedValue({ userWordId: "uw", dictionaryWordId: "w" } as never);
+  mockRecord.mockResolvedValue(undefined);
   mockSetLevel.mockResolvedValue(undefined);
   mockSetBand.mockResolvedValue(undefined);
   // Each fetch hands back one distinct card so the deck fills without dupes.
@@ -59,6 +67,22 @@ describe("useCalibration (swipe placement)", () => {
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ userId: "u", initialStability: 40 }));
     await waitFor(() => expect(result.current.current?.wordId).not.toBe(first));
     expect(result.current.known).toBe(1);
+  });
+
+  it("records every swipe as a placement answer (the level's only evidence)", async () => {
+    const { result } = renderHook(() => useCalibration("u"));
+    await waitFor(() => expect(result.current.status).toBe("swiping"));
+    const id = result.current.current!.wordId;
+    act(() => result.current.rate(false));
+    expect(mockRecord).toHaveBeenCalledWith({ userId: "u", wordId: id, known: false });
+  });
+
+  it("deals from one band below to TWO above the provisional band", async () => {
+    // No history → provisional band 0 → starts at the middle band (3): bands 3, 4, 2, 5.
+    renderHook(() => useCalibration("u"));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(4));
+    const bands = mockFetch.mock.calls.map(([o]) => (o as { band: number }).band).sort();
+    expect(bands).toEqual([2, 3, 4, 5]);
   });
 
   it("rate(false) saves the word to the vocabulary as a cold start (no seed)", async () => {

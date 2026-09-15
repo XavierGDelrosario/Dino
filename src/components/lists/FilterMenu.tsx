@@ -14,23 +14,26 @@
 // (JLPT for JA, CEFR for EN) with every band already checked — unchecking the
 // language hides them again. The bands can't be a flat list because the scale
 // itself is per-language.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FilterIcon } from "../common/icons";
 import { COMMONNESS_LABEL_KEY, POS_LABEL_KEY } from "../common/wordLabels";
 import { proficiencyFrameworkFor } from "../../services/proficiency";
 import { targetOptions, type LangCode, type PosCategory } from "../../services/language";
 import type { LevelValue } from "../../services/difficulty";
 import { useI18n } from "../../i18n";
-import { DateRangeSelect } from "./DateRangeSelect";
+import { DateRangeCalendar, DateRangeSelect } from "./DateRangeSelect";
 import {
   activeFilterCount,
   confBounds,
+  countByDay,
   toggle,
   toggleLang,
   CONF_MIN,
   CONF_MAX,
   NO_BAND,
   NO_FILTERS,
+  type DateAxis,
+  type FilterTarget,
   type WordFilters,
 } from "../../services/words/filters";
 
@@ -206,6 +209,7 @@ export function FilterPanel({
   langsPresent,
   posPresent,
   showHistory = true,
+  historyWords = [],
 }: {
   filters: WordFilters;
   onChange: (next: WordFilters) => void;
@@ -217,12 +221,23 @@ export function FilterPanel({
   /** Show the added/reviewed date axes. Off for surfaces without vocab history
    *  (the article summary — its words aren't all saved, so dates don't apply). */
   showHistory?: boolean;
+  /** The words the date calendars count per day (the list being filtered, after the
+   *  search). Each axis counts them against every OTHER filter — see countByDay. */
+  historyWords?: readonly FilterTarget[];
 }) {
   const { t } = useI18n();
   const active = activeFilterCount(filters);
   const { lo, hi } = confBounds(filters);
   // Which date axis has its calendar open (at most one — see the section below).
-  const [openDates, setOpenDates] = useState<"added" | "reviewed" | null>(null);
+  const [openDates, setOpenDates] = useState<DateAxis | null>(null);
+  // Only the OPEN calendar's counts: a pass over the vocabulary, and a closed calendar
+  // prints nothing.
+  const dayCounts = useMemo(
+    () => (openDates ? countByDay(historyWords, filters, openDates) : undefined),
+    [openDates, historyWords, filters],
+  );
+  const openCalendar = (axis: DateAxis) => (open: boolean) =>
+    setOpenDates((d) => (open ? axis : d === axis ? null : d));
 
   // Escape still closes it (a keyboard user shouldn't have to tab back to the
   // funnel) — but a click OUTSIDE does not: the panel is part of the page now, and
@@ -345,10 +360,10 @@ export function FilterPanel({
       )}
 
       {/* The study-history axes (RANGES, wide open by default — see services/words/filters).
-          Full width: each one opens a calendar, which a half-width column can't hold at
-          the panel's phone breakpoint. Only ONE is open at a time — they are alternatives
-          far more often than a pair, and two 7-column grids stacked in an in-flow panel
-          push the rows they filter off the screen. */}
+          Two dropdowns side by side; "custom" on either opens ONE calendar below both, at
+          the section's full width so each day has room for its word count. Only one is
+          open at a time — two 7-column grids stacked in an in-flow panel push the rows
+          they filter off the screen. */}
       {showHistory && (
         <section className="filtermenu__section filtermenu__section--wide">
           <h4 className="filtermenu__label">{t("lists.filterWhen")}</h4>
@@ -358,18 +373,29 @@ export function FilterPanel({
               value={filters.added}
               onChange={(added) => onChange({ ...filters, added })}
               ariaLabel={t("lists.addedAria")}
-              open={openDates === "added"}
-              onToggle={() => setOpenDates((d) => (d === "added" ? null : "added"))}
+              calendarOpen={openDates === "added"}
+              onOpenCalendar={openCalendar("added")}
             />
             <DateRangeSelect
               label={t("lists.reviewed")}
               value={filters.reviewed}
               onChange={(reviewed) => onChange({ ...filters, reviewed })}
               ariaLabel={t("lists.reviewedAria")}
-              open={openDates === "reviewed"}
-              onToggle={() => setOpenDates((d) => (d === "reviewed" ? null : "reviewed"))}
+              calendarOpen={openDates === "reviewed"}
+              onOpenCalendar={openCalendar("reviewed")}
             />
           </div>
+          {openDates && (
+            <DateRangeCalendar
+              // Keyed per axis: switching axes starts on that axis's own month + anchor.
+              key={openDates}
+              label={t(openDates === "added" ? "lists.added" : "lists.reviewed")}
+              value={filters[openDates]}
+              onChange={(range) => onChange({ ...filters, [openDates]: range })}
+              onClose={() => setOpenDates(null)}
+              counts={dayCounts}
+            />
+          )}
         </section>
       )}
 

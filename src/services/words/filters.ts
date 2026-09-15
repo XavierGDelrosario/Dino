@@ -233,6 +233,32 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
   };
 }
 
+/** One of the two study-history axes. */
+export type DateAxis = "added" | "reviewed";
+
+/**
+ * How many words fall on each LOCAL day of one date axis — what the calendar prints
+ * under each date. Counted against every OTHER filter but not this axis itself, so a
+ * day's number is exactly what picking that day would put on screen (with the axis
+ * applied, every day outside the current span would read 0). A never-reviewed word has
+ * no reviewed day and counts nowhere on that axis. PURE.
+ */
+export function countByDay(
+  words: readonly FilterTarget[],
+  f: WordFilters,
+  axis: DateAxis,
+): Map<string, number> {
+  const matches = makeMatcher({ ...f, [axis]: ANY_DATES });
+  const counts = new Map<string, number>();
+  for (const w of words) {
+    const at = axis === "added" ? w.originallyTranslatedDate : w.lastReviewedDate;
+    if (at == null || !matches(w)) continue;
+    const key = dayKey(new Date(at));
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
 /** Does this ONE word survive? Use `makeMatcher` directly for a whole list. PURE. */
 export function matchesFilters(word: FilterTarget, f: WordFilters): boolean {
   return makeMatcher(f)(word);

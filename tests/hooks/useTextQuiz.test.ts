@@ -140,6 +140,23 @@ describe("useTextQuiz", () => {
     expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-s2", grade: 4 });
   });
 
+  it("gradedWords lists the GRADED sense of each card in order, and restart clears it", async () => {
+    const { result } = renderHook(() => useTextQuiz("user-1", [[wordA], [s1, s2]]));
+    await act(async () => {
+      await result.current.grade(3);
+    });
+    act(() => result.current.nextMeaning()); // grade つらい, not the primary
+    await act(async () => {
+      await result.current.grade(4);
+    });
+
+    expect(result.current.status).toBe("done");
+    expect(result.current.gradedWords.map((w) => w.wordId)).toEqual(["wa", "s2"]);
+
+    act(() => result.current.restart());
+    expect(result.current.gradedWords).toEqual([]);
+  });
+
   it("addWord (＋) adds the selected sense WITHOUT a review and marks it saved", async () => {
     const onGraded = vi.fn();
     const { result } = renderHook(() => useTextQuiz("user-1", [[s1, s2]], { onGraded }));

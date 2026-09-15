@@ -537,6 +537,67 @@ describe.skipIf(!ENABLED)("rpc: server_now", () => {
   });
 });
 
+// ── placement_evidence (migration 20260769; needs service-role-seeded `words`) ──
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_evidence", () => {
+  it("returns only the caller's answers, and a later-learned word counts as known", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const stamp = Date.now();
+    const seed = async (suffix: string, band: number) => {
+      const r = await svc
+        .from("words")
+        .insert({
+          input: `__placement_${suffix}_${stamp}__`,
+          translation: suffix,
+          source_lang: "JA",
+          target_lang: "EN",
+          is_verified: true,
+          proficiency_band: band,
+        })
+        .select("word_id")
+        .single();
+      expect(r.error).toBeNull();
+      return (r.data as { word_id: string }).word_id;
+    };
+    const knownWord = await seed("known", 3);
+    const learnedWord = await seed("learned", 4);
+
+    const u = await makeUser();
+    const other = await makeUser();
+    for (const [wordId, known] of [[knownWord, true], [learnedWord, false]] as const) {
+      const w = await u.client
+        .from("placement_answers")
+        .upsert({ user_id: u.userId, word_id: wordId, known }, { onConflict: "user_id,word_id" });
+      expect(w.error).toBeNull();
+    }
+    // Swiped don't-know, then learned: its saved word reaches a long-term confidence of 3.
+    const saved = await u.client.rpc("save_dictionary_word", {
+      p_user_id: u.userId,
+      p_dictionary_word_id: learnedWord,
+    });
+    expect(saved.error).toBeNull();
+    const uwId = (saved.data as { user_word_id: string }).user_word_id;
+    const peak = await svc.from("user_words").update({ peak_confidence: 3 }).eq("user_word_id", uwId);
+    expect(peak.error).toBeNull();
+
+    const mine = await u.client.rpc("placement_evidence", { p_source_lang: "JA" });
+    expect(mine.error).toBeNull();
+    const rows = (mine.data as { band: number; known: boolean }[]).sort((a, b) => a.band - b.band);
+    expect(rows).toEqual([
+      { band: 3, frequency: null, known: true },
+      { band: 4, frequency: null, known: true },
+    ]);
+
+    // RLS: another user sees none of it, and can't write an answer as someone else.
+    const theirs = await other.client.rpc("placement_evidence", { p_source_lang: "JA" });
+    expect(theirs.data).toEqual([]);
+    const forged = await other.client
+      .from("placement_answers")
+      .insert({ user_id: u.userId, word_id: knownWord, known: false });
+    expect(forged.error).not.toBeNull();
+  });
+});
+
 // ── save_dictionary_word (needs a service-role-seeded verified `words` row) ──
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: save_dictionary_word", () => {
   it("saves a verified sense into the vocabulary (idempotent) deriving input/langs, tagging a list", async () => {

@@ -42,6 +42,55 @@
   padding-bottom: 0.45rem;
 }
 
+/* Done-screen recap: the words the session showed, below the actions. Left-aligned
+   rows inside the centered .review__msg column. */
+.quizwords {
+  width: 100%;
+  max-width: 32rem;
+  text-align: left;
+}
+.quizwords__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+.quizwords__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.quizwords__row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.6rem 0.9rem;
+}
+.quizwords__row + .quizwords__row {
+  border-top: 1px solid var(--border);
+}
+.quizwords__term {
+  flex: none;
+  color: var(--text);
+  font-weight: 600;
+}
+.quizwords__reading {
+  margin-left: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+.quizwords__meaning {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 /* A low-emphasis button (text-only). */
 .btn--ghost {
   background: transparent;

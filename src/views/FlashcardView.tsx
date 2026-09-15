@@ -10,6 +10,7 @@ import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
+import { QuizWordList } from "../components/flashcards/QuizWordList";
 import { useI18n, plural } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
@@ -89,6 +90,7 @@ export function FlashcardView({
             {t("review.newQuiz")}
           </button>
         </div>
+        <QuizWordList words={r.cards.map((c) => ({ ...c, key: c.userWordId }))} />
       </div>
     );
   }

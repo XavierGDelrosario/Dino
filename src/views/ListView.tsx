@@ -136,15 +136,16 @@ export function ListView({
   // The words the current filters match, in the chosen sort order.
   // makeMatcher, not matchesFilters: the cutoffs/bounds/band sets are resolved ONCE
   // per pass rather than per word (a confidence drag re-filters on every pointer event).
+  // The search runs first and on its own: the date calendars count per day over THIS
+  // set (against the other filters), so a day's number matches what picking it shows.
+  const searched = useMemo(() => {
+    const matchesQuery = makeSearchMatcher(query);
+    return L.words.filter(matchesQuery);
+  }, [L.words, query]);
   const visible = useMemo(() => {
     const matchesFilter = makeMatcher(filters);
-    const matchesQuery = makeSearchMatcher(query);
-    return sortWords(
-      L.words.filter((w) => matchesFilter(w) && matchesQuery(w)),
-      sortAxis,
-      sortDir
-    );
-  }, [L.words, filters, query, sortAxis, sortDir]);
+    return sortWords(searched.filter(matchesFilter), sortAxis, sortDir);
+  }, [searched, filters, sortAxis, sortDir]);
 
   // The summary charts the words CURRENTLY ON SCREEN — the same set Review quizzes,
   // so filtering to "N3 verbs I keep forgetting" and hitting Summary describes that
@@ -395,6 +396,7 @@ export function ListView({
           onClose={() => setPanel(null)}
           langsPresent={langsPresent}
           posPresent={posPresent}
+          historyWords={searched}
         />
       )}
 

@@ -12,7 +12,6 @@
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
 import { getDifficulty, type LevelValue } from "./difficulty";
-import { getAllUserWords } from "./words/userWords";
 import { proficiencyFrameworkFor } from "./proficiency";
 import type { LangCode } from "./language";
 import type { Word } from "./words/repository";
@@ -212,31 +211,26 @@ export async function setUserProficiencyBand(userId: string, band: number | null
   if (error) throw toServiceError(error);
 }
 
-// ── Vocabulary-based level (the accurate, STABLE placement) ─────────────────
-// Derives the level from the user's WHOLE rated vocabulary — per band, how many words
-// they have and how many they know — rather than one small round. The large denominator
-// is the point: missing 10 of 100 known N2 words barely moves the fraction, so it can't
-// demote you, and evidence ACCUMULATES across sessions. A level is only DETERMINED once
-// there is enough coverage; before that the caller shows a provisional "keep rating".
+// ── Placement level (the "Find my level" swipe quiz) ──────────────────────────
+// Derives the band from the user's PLACEMENT ANSWERS — every know / don't-know swipe
+// they have ever given (migration 20260769) — accumulated across sessions, so the
+// denominator grows and a handful of misses can't swing the result.
+//
+// It used to read the WHOLE vocabulary instead, which put real N2/N3 learners at N5:
+// most saved words were saved BECAUSE the user didn't know them (studying twenty N4
+// words added twenty shaky N4 words to the N4 tally), and "known" was the live display
+// confidence, which fades on purpose. The quiz's own answers are the only unbiased
+// sample, and a word counts as known if it was swiped know OR has since reached a
+// long-term confidence of 3 (the migration's placement_evidence). A level is only
+// DETERMINED once there is enough coverage; before that the caller shows "keep rating".
 
 /**
- * Words needed to TRUST a band. Harder bands still need more evidence, but this is a
- * PLACEMENT, not a certification.
- *
- * WAS [8, 12, 19, 70, 130], which put the top two bands out of reach in practice. The
- * quiz draws 5 words per band per fetch, so 70 rated N2 words is ~14 fetches and 130
- * N1 words ~26 — hundreds of swipes before either band could even be considered, and
- * until then it is SKIPPED, so a genuine N1 speaker kept being told they were N3. The
- * cliff between N3 (19) and N2 (70) had no basis; it was caution, not measurement.
- *
- * VOLUME is what made it slow; the known-FRACTION is what makes it accurate — so this
- * relaxes only the volume and leaves passForBand untouched. N2 still means clearing
- * 0.79 over 14 words (≥12 of 14), which no lucky streak reaches by accident.
- *
- * The residual risk is over-placement from a small sample, and it is bounded on both
- * sides: the estimate keeps re-running over the user's WHOLE vocabulary as it grows,
- * so a thin early read self-corrects, and the SRS ease it feeds is capped at 2.5×
- * (migration 20260731) — a wrong band stretches intervals, it cannot retire a word.
+ * Answers needed to TRUST a band. Harder bands still need more evidence, but this is a
+ * PLACEMENT, not a certification. The quiz deals 5 words per band per fetch, so these
+ * are reachable in one sitting; the known-FRACTION (passForBand) is what keeps a lucky
+ * streak from buying a band. A thin early read self-corrects as answers accumulate, and
+ * the SRS ease a band feeds is capped at 2.5× (migration 20260731) — a wrong band
+ * stretches intervals, it cannot retire a word.
  */
 const TRUST_JLPT = [5, 7, 10, 14, 18]; // N5 · N4 · N3 · N2 · N1
 function minWordsForBand(band: number, maxBand: number): number {
@@ -248,8 +242,9 @@ function minWordsForBand(band: number, maxBand: number): number {
   return Math.round(lo * Math.pow(hi / lo, t));
 }
 
-/** The known-fraction a band must clear to be CREDITED — HIGHER for easier bands, so
- *  reaching a hard level requires near-complete mastery of the easy ones. */
+/** The known-fraction at which a band is worth CREDITING — higher for easier bands, so a
+ *  hard placement needs near-complete mastery of the easy ones. In the best-fit below
+ *  this is each band's break-even point, not a hard gate. */
 const PASS_EASIEST = 0.9;
 const PASS_HARDEST = 0.75;
 function passForBand(band: number, maxBand: number): number {
@@ -259,97 +254,110 @@ function passForBand(band: number, maxBand: number): number {
 }
 // For JLPT (5 bands): N5:0.90 · N4:0.86 · N3:0.83 · N2:0.79 · N1:0.75.
 
-/** Rated words OVERALL before a level is DETERMINED. Total (not per-band) because
- *  vocab is lopsided — most words are common — so a per-band gate stalls forever.
- *  15 → 10: this only gates when the quiz stops saying "keep rating" and commits a
- *  first answer, and the answer keeps sharpening afterwards either way. Getting a
- *  provisional level 5 swipes sooner is worth more than a marginally firmer first read
- *  nobody stayed long enough to see. */
+/** Answers OVERALL before a level is DETERMINED. Total (not per-band) because the quiz
+ *  spends its swipes around the user's current band, so a per-band gate stalls. */
 const MIN_TOTAL_WORDS = 10;
 
-export interface VocabBandStat {
+export interface PlacementBandStat {
   band: number;
   count: number;
-  known: number; // confidence ≥ RECALLED_GRADE
-  avgConfidence: number; // 0 when count is 0
+  known: number;
+  /** known / count, 0 when count is 0. */
+  knownFraction: number;
 }
 
-export interface VocabLevel {
+export interface PlacementLevel {
   /** Per-band tallies, easiest → hardest. */
-  perBand: VocabBandStat[];
-  /** Placed band: the highest TRUSTED band whose known-fraction clears the bar
-   *  (0 = below all trusted bands). Provisional until `sufficient`. */
+  perBand: PlacementBandStat[];
+  /** Placed band: the best-fit TRUSTED band (0 = below all of them). Provisional until
+   *  `sufficient`. */
   band: number;
-  /** Difficulty-axis level (users.level), via estimateLevel over the same vocab. */
+  /** Difficulty-axis level (users.level), via estimateLevel over the same answers. */
   level: LevelValue | null;
   /** Enough coverage to commit a level (vs. show "keep rating"). */
   sufficient: boolean;
-  /** Rough number of extra rated words to reach sufficiency (0 when sufficient). */
+  /** Rough number of extra answers to reach sufficiency (0 when sufficient). */
   needMore: number;
 }
 
-/** One rated word reduced to what the level calc needs. */
-export interface VocabRating {
+/** One placement answer reduced to what the level calc needs. */
+export interface PlacementRating {
   band: number | null; // proficiency band (framework ordinal), null if unbanded
   difficulty: LevelValue | null; // frequency difficulty (getDifficulty), null if unknown
-  confidence: number; // 0..5 displayed confidence
+  known: boolean;
 }
 
 /**
- * Determine a level from the user's whole rated vocabulary. PURE. Walks bands
- * easiest→hardest: SKIPS one with too few words, CREDITS a trusted band clearing its
- * bar, STOPS at the first trusted failure. Stable by construction — the fraction is
- * over ALL their words at that band, so a handful of misses can't demote them.
+ * Place the user from their answers. PURE.
+ *
+ * BEST FIT, not "stop at the first miss". The old walk climbed easiest → hardest and
+ * stopped at the first trusted band under its bar, so one shaky band hid every band
+ * above it (N5 38/40, N4 25/30, N3 10/10, N2 14/14 → N5). Instead, every candidate
+ * placement L (0, or a trusted band) is scored against ALL trusted bands:
+ *
+ *   cost(L) = Σ_{b ≤ L} unknown_b · pass_b  +  Σ_{b > L} known_b · (1 − pass_b)
+ *
+ * i.e. an unknown word in a band we credit costs its bar, a known word in a band we
+ * don't credit costs the remainder. The weights are the per-band bars, so for any ONE
+ * band this reduces exactly to "credit it iff known/count ≥ pass" — the old rule, tie
+ * included — and across bands the evidence is weighed rather than truncated. Lowest cost
+ * wins. Untrusted bands (too few answers) contribute nothing, as before.
  */
-export function levelFromVocab(ratings: VocabRating[], maxBand: number): VocabLevel {
-  const acc = new Map<number, { count: number; known: number; confSum: number }>();
+export function levelFromRatings(ratings: PlacementRating[], maxBand: number): PlacementLevel {
+  const acc = new Map<number, { count: number; known: number }>();
   for (const r of ratings) {
     if (r.band == null) continue;
-    const a = acc.get(r.band) ?? { count: 0, known: 0, confSum: 0 };
+    const a = acc.get(r.band) ?? { count: 0, known: 0 };
     a.count += 1;
-    if (r.confidence >= RECALLED_GRADE) a.known += 1;
-    a.confSum += r.confidence;
+    if (r.known) a.known += 1;
     acc.set(r.band, a);
   }
 
-  const perBand: VocabBandStat[] = [];
+  const perBand: PlacementBandStat[] = [];
   for (let b = 1; b <= maxBand; b++) {
     const a = acc.get(b);
-    perBand.push({
-      band: b,
-      count: a?.count ?? 0,
-      known: a?.known ?? 0,
-      avgConfidence: a && a.count ? a.confSum / a.count : 0,
-    });
+    const count = a?.count ?? 0;
+    const known = a?.known ?? 0;
+    perBand.push({ band: b, count, known, knownFraction: count ? known / count : 0 });
   }
 
-  // TRUSTED bands only: harder bands need MORE words, easier bands a HIGHER known%.
+  const trusted = perBand.filter((s) => s.count >= minWordsForBand(s.band, maxBand));
+  const cost = (placed: number) =>
+    trusted.reduce((sum, s) => {
+      const pass = passForBand(s.band, maxBand);
+      return sum + (s.band <= placed ? (s.count - s.known) * pass : s.known * (1 - pass));
+    }, 0);
+
   let band = 0;
-  for (const s of perBand) {
-    if (s.count < minWordsForBand(s.band, maxBand)) continue; // too little evidence → skip
-    if (s.known / s.count < passForBand(s.band, maxBand)) break; // not mastered enough → stop
-    band = s.band; // trusted + mastered → credit, keep going
+  let best = cost(0);
+  for (const s of trusted) {
+    const c = cost(s.band);
+    // A tie credits the band, matching the ≥ bar. The epsilon absorbs float noise in the
+    // weights (9 × 0.1 is not exactly 1 × 0.9), so an exact tie can't go either way by rounding.
+    if (c <= best + 1e-9) {
+      best = c;
+      band = s.band;
+    }
   }
 
-  // Existing vocabulary counts toward sufficiency, so a returning user is placeable
-  // almost immediately.
+  // Answers from earlier sessions count toward sufficiency, so a returning user is
+  // placeable almost immediately.
   const totalRated = perBand.reduce((n, s) => n + s.count, 0);
   const needMore = Math.max(0, MIN_TOTAL_WORDS - totalRated);
   const sufficient = needMore === 0;
 
+  // The difficulty axis keeps its own conservative walk; a swipe is binary, so it maps
+  // to the grade scale's ends.
   const level = estimateLevel(
     ratings
-      .filter((r): r is VocabRating & { difficulty: LevelValue } => r.difficulty != null)
-      .map((r) => ({
-        difficulty: r.difficulty,
-        grade: Math.max(1, Math.min(5, Math.round(r.confidence))) as ReviewGrade,
-      })),
+      .filter((r): r is PlacementRating & { difficulty: LevelValue } => r.difficulty != null)
+      .map((r) => ({ difficulty: r.difficulty, grade: (r.known ? 5 : 1) as ReviewGrade })),
   );
 
   return { perBand, band, level, sufficient, needMore };
 }
 
-/** getDifficulty over a saved word's fields (it only reads sourceLang + the three
+/** getDifficulty over an answer's cache fields (it only reads sourceLang + the
  *  difficulty inputs; the rest are placeholder). */
 function difficultyOf(w: { sourceLang: LangCode; frequency: number | null; proficiencyBand: number | null }): LevelValue | null {
   return getDifficulty({
@@ -370,28 +378,53 @@ function difficultyOf(w: { sourceLang: LangCode; frequency: number | null; profi
   } as Word).level;
 }
 
+/** A database that hasn't taken migration 20260769 yet: PostgREST can't find the
+ *  function (PGRST202) / table (PGRST205), or Postgres can't (42883 / 42P01). */
+const isMissingPlacementSchema = (error: { code?: string } | null): boolean =>
+  ["PGRST202", "PGRST205", "42883", "42P01"].includes(error?.code ?? "");
+
 /**
- * The user's whole rated vocabulary reduced to level-calc inputs, or null when the
- * learning language has no proficiency framework. The swipe placement fetches this ONCE
- * as a baseline, then appends each swipe locally and re-runs levelFromVocab in memory.
+ * The user's placement answers for `learning`, reduced to level-calc inputs, or null
+ * when the language has no proficiency framework. The swipe quiz fetches this ONCE as a
+ * baseline, then appends each swipe locally and re-runs levelFromRatings in memory.
+ *
+ * DEGRADES on an un-migrated database: no history, so the quiz places from this
+ * session's swipes alone instead of failing to open.
  */
-export async function getVocabRatings(
-  userId: string,
+export async function getPlacementRatings(
   learning: LangCode,
-): Promise<{ ratings: VocabRating[]; maxBand: number } | null> {
+): Promise<{ ratings: PlacementRating[]; maxBand: number } | null> {
   const fw = proficiencyFrameworkFor(learning);
   if (!fw) return null;
   const maxBand = fw.bands[fw.bands.length - 1]?.value ?? 1;
-  const words = await getAllUserWords({ userId });
-  const ratings: VocabRating[] = words
-    .filter((w) => w.sourceLang === learning)
-    .map((w) => ({ band: w.proficiencyBand, difficulty: difficultyOf(w), confidence: w.confidenceRating }));
+  // No user argument: the function scopes to auth.uid(), so it can only ever read
+  // the caller's own answers.
+  const { data, error } = await supabase.rpc("placement_evidence", { p_source_lang: learning });
+  if (error) {
+    if (isMissingPlacementSchema(error)) {
+      console.warn("calibration: placement_evidence unavailable (migration 20260769 not applied)");
+      return { ratings: [], maxBand };
+    }
+    throw toServiceError(error);
+  }
+  const ratings: PlacementRating[] = (data ?? []).map((r) => ({
+    band: r.band,
+    difficulty: difficultyOf({ sourceLang: learning, frequency: r.frequency, proficiencyBand: r.band }),
+    known: r.known,
+  }));
   return { ratings, maxBand };
 }
 
-/** The whole rated vocabulary folded through levelFromVocab, or null when the learning
- *  language has no proficiency framework. */
-export async function getVocabLevel(userId: string, learning: LangCode): Promise<VocabLevel | null> {
-  const base = await getVocabRatings(userId, learning);
-  return base ? levelFromVocab(base.ratings, base.maxBand) : null;
+/** Record one swipe. A later answer on the same word replaces the earlier one.
+ *  Throws on failure; the quiz treats it as fire-and-forget. */
+export async function recordPlacementAnswer(opts: {
+  userId: string;
+  wordId: string;
+  known: boolean;
+}): Promise<void> {
+  const { error } = await supabase.from("placement_answers").upsert(
+    { user_id: opts.userId, word_id: opts.wordId, known: opts.known, answered_at: new Date().toISOString() },
+    { onConflict: "user_id,word_id" },
+  );
+  if (error) throw toServiceError(error);
 }

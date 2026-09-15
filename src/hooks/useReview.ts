@@ -147,6 +147,8 @@ export function useReview(
     error,
     position: index + 1,
     total: queue.length,
+    /** The session's cards — at "done", the words just quizzed (the recap list). */
+    cards: queue,
     reviewedCount,
     /** Of `reviewedCount`, how many are queued offline rather than recorded. */
     pendingCount,
