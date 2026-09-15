@@ -11,7 +11,8 @@ import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
-import { useI18n, plural } from "../i18n";
+import { softenConfidence } from "../services/review";
+import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
 
@@ -51,7 +52,6 @@ export function FlashcardView({
 
   const { t } = useI18n();
   const scopeName = listName || t("lists.allWords");
-  const noun = (n: number) => plural(t, n, "common.word", "common.words");
 
   const scope = <p className="review__scope">{t("review.scope", { name: scopeName })}</p>;
 
@@ -83,7 +83,6 @@ export function FlashcardView({
   if (r.status === "done") {
     return (
       <div className="review__msg">
-        <p>{t("review.done", { n: r.reviewedCount, noun: noun(r.reviewedCount) })}</p>
         <div className="review__actions">
           <button className="btn" onClick={r.retry}>
             {t("review.retrySame")}
@@ -92,7 +91,17 @@ export function FlashcardView({
             {t("review.newQuiz")}
           </button>
         </div>
-        <QuizWordList words={r.cards.map((c) => ({ ...c, key: c.userWordId }))} />
+        <QuizWordList
+          items={r.cards.map((c) => ({
+            key: c.userWordId,
+            word: c,
+            userWordId: c.userWordId,
+            confidence: r.gradedConfidence.get(c.userWordId) ?? c.confidenceRating,
+          }))}
+          onForgot={async (item) =>
+            (await softenConfidence({ userWordId: item.userWordId! })).confidenceRating
+          }
+        />
       </div>
     );
   }

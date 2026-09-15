@@ -47,6 +47,8 @@ export function useReview(
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
+  /** Each card's confidence after its grade (by userWordId) — the done screen's dots. */
+  const [gradedConfidence, setGradedConfidence] = useState<ReadonlyMap<string, number>>(new Map());
   /** Grades taken offline and waiting to reach the server. Non-zero is the signal the
    *  UI needs to say "saved on this device" rather than implying the schedule updated. */
   const [pendingCount, setPendingCount] = useState(0);
@@ -71,6 +73,7 @@ export function useReview(
           setIndex(0);
           setFlipped(false);
           setReviewedCount(0);
+          setGradedConfidence(new Map());
           setStatus(q.length ? "reviewing" : "empty");
         })
         .catch((e) => {
@@ -121,6 +124,7 @@ export function useReview(
         });
         if (res.queued) setPendingCount((n) => n + 1);
         setReviewedCount((n) => n + 1);
+        setGradedConfidence((m) => new Map(m).set(card.userWordId, res.confidenceRating));
         const next = index + 1;
         if (next >= queue.length) {
           setStatus("done");
@@ -149,6 +153,8 @@ export function useReview(
     total: queue.length,
     /** The session's cards — at "done", the words just quizzed (the recap list). */
     cards: queue,
+    /** Confidence after this session's grade, by userWordId (absent = not graded). */
+    gradedConfidence,
     reviewedCount,
     /** Of `reviewedCount`, how many are queued offline rather than recorded. */
     pendingCount,

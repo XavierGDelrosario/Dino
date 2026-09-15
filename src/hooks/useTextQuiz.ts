@@ -23,6 +23,13 @@ export type OnGraded = (
   confidenceRating: number,
 ) => void;
 
+/** One card of a finished session: the sense graded, its saved row, its confidence. */
+export interface GradedWord {
+  word: Word;
+  userWordId: string;
+  confidence: number;
+}
+
 export function useTextQuiz(
   userId: string,
   cards: Word[][],
@@ -51,7 +58,8 @@ export function useTextQuiz(
   const [addedCount, setAddedCount] = useState(0);
   // The sense graded on each card, in order — the done screen's recap list. The GRADED
   // sense, not the primary: cycling to another meaning and grading it is what was studied.
-  const [gradedWords, setGradedWords] = useState<Word[]>([]);
+  // Carries the saved row + its post-grade confidence, so the recap's dots are live.
+  const [graded, setGraded] = useState<GradedWord[]>([]);
 
   // Level calibration is a SILENT byproduct of the quiz — no UI. Each first-encounter
   // grade is a (difficulty, grade) sample; on finish the level is estimated and
@@ -65,7 +73,7 @@ export function useTextQuiz(
     setFlipped(false);
     setReviewedCount(0);
     setAddedCount(0);
-    setGradedWords([]);
+    setGraded([]);
     setError(null);
     setSavedIds(new Set());
     samples.current = [];
@@ -169,7 +177,10 @@ export function useTextQuiz(
           if (difficulty != null) samples.current.push({ difficulty, grade: g });
         }
         setReviewedCount((n) => n + 1);
-        setGradedWords((ws) => [...ws, word]);
+        setGraded((ws) => [
+          ...ws,
+          { word, userWordId: uw.userWordId, confidence: res.confidenceRating },
+        ]);
         const next = index + 1;
         if (next >= cards.length) {
           setStatus("done");
@@ -223,7 +234,7 @@ export function useTextQuiz(
      *  re-adds of words already saved) — the honest "Added N words" count. */
     addedCount,
     /** The sense graded on each card, in session order (the done screen's recap). */
-    gradedWords,
+    graded,
     restart,
   };
 }
