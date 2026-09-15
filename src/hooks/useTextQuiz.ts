@@ -6,7 +6,7 @@
 // selected sense and records the first review — so studying media feeds spaced
 // repetition seeded by how you scored it. The ＋ button adds without grading.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { saveDictionaryWord, getUserWordStates } from "../services/words/userWords";
+import { saveDictionaryWord } from "../services/words/userWords";
 import { recordReview, type ReviewGrade } from "../services/review";
 import { estimateLevel, setUserLevel, type CalibrationSample } from "../services/calibration";
 import { getDifficulty } from "../services/difficulty";
@@ -49,13 +49,6 @@ export function useTextQuiz(
   // wordIds already added to the vocabulary this session (via ＋ or a grade), so
   // the add button can show its ✓ state.
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  // Sense wordIds known to be IN the vocabulary — seeded from what was already saved
-  // when the session opened, grown as new ones are. A save of a word already here is a
-  // no-op re-add and must NOT count as "added". A ref, so async save callbacks read
-  // the latest membership without a stale closure.
-  const inVocabRef = useRef<Set<string>>(new Set());
-  // Distinct words genuinely NEW to the vocabulary this session (the honest count).
-  const [addedCount, setAddedCount] = useState(0);
   // The sense graded on each card, in order — the done screen's recap list. The GRADED
   // sense, not the primary: cycling to another meaning and grading it is what was studied.
   // Carries the saved row + its post-grade confidence, so the recap's dots are live.
@@ -72,56 +65,17 @@ export function useTextQuiz(
     setMeaningIndex(0);
     setFlipped(false);
     setReviewedCount(0);
-    setAddedCount(0);
     setGraded([]);
     setError(null);
     setSavedIds(new Set());
     samples.current = [];
     setStatus(cards.length ? "reviewing" : "empty");
-    // inVocabRef is intentionally NOT cleared: a "Quiz again" over the SAME cards keeps
-    // the first pass's words marked as owned, so re-grading can't re-inflate
-    // addedCount. A NEW card set re-seeds it below.
   }, [cards.length]);
 
   // Re-arm if the caller opens the quiz with a different set.
   useEffect(() => {
     restart();
   }, [restart]);
-
-  // Seed with the words ALREADY saved when this card set opens, so grading one isn't
-  // counted as a new add. One local query; fail-open (an empty set just means every
-  // save counts).
-  useEffect(() => {
-    const ids = cards.flat().map((w) => w.wordId);
-    if (ids.length === 0) {
-      inVocabRef.current = new Set();
-      return;
-    }
-    let active = true;
-    getUserWordStates({ userId, dictionaryWordIds: ids })
-      .then((states) => {
-        // getUserWordStates returns an entry for EVERY id (untracked ones as
-        // tracked:false) — seed only the ones actually SAVED, or every card would
-        // look pre-existing and nothing would count as added.
-        if (active) {
-          inVocabRef.current = new Set(
-            [...states].filter(([, s]) => s.tracked).map(([id]) => id),
-          );
-        }
-      })
-      .catch((e) => console.warn("useTextQuiz: failed to load prior vocab state", e));
-    return () => {
-      active = false;
-    };
-  }, [cards, userId]);
-
-  // Mark a just-saved sense as owned; count it only the FIRST time it goes from
-  // not-owned → owned (so pre-existing words and re-grades never inflate the count).
-  const countIfNew = useCallback((wordId: string) => {
-    if (inVocabRef.current.has(wordId)) return;
-    inVocabRef.current.add(wordId);
-    setAddedCount((n) => n + 1);
-  }, []);
 
   const flip = useCallback(() => setFlipped(true), []);
 
@@ -151,11 +105,10 @@ export function useTextQuiz(
   const addWord = useCallback(
     async (word: Word, listId?: string) => {
       const uw = await saveDictionaryWord({ userId, word, listId });
-      countIfNew(word.wordId);
       markSaved(word.wordId);
       onGraded?.(word.wordId, uw.userWordId, uw.confidenceRating);
     },
-    [userId, markSaved, onGraded, countIfNew],
+    [userId, markSaved, onGraded],
   );
 
   const grade = useCallback(
@@ -169,7 +122,6 @@ export function useTextQuiz(
         // saveDictionaryWord is idempotent, so re-grading a word is safe.
         const uw = await saveDictionaryWord({ userId, word });
         const res = await recordReview({ userWordId: uw.userWordId, grade: g });
-        countIfNew(word.wordId);
         markSaved(word.wordId);
         onGraded?.(word.wordId, uw.userWordId, res.confidenceRating);
         if (calibrate) {
@@ -206,7 +158,7 @@ export function useTextQuiz(
         setSubmitting(false);
       }
     },
-    [sense, submitting, userId, markSaved, onGraded, calibrate, index, cards.length, countIfNew],
+    [sense, submitting, userId, markSaved, onGraded, calibrate, index, cards.length],
   );
 
   return {
@@ -230,9 +182,6 @@ export function useTextQuiz(
     position: index + 1,
     total: cards.length,
     reviewedCount,
-    /** Distinct words genuinely NEW to the vocabulary this session (excludes
-     *  re-adds of words already saved) — the honest "Added N words" count. */
-    addedCount,
     /** The sense graded on each card, in session order (the done screen's recap). */
     graded,
     restart,
