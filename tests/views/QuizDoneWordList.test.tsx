@@ -2,10 +2,10 @@
 // The flashcard quiz's done screen: no summary line and no title, just the words the
 // session showed BELOW the Retry / New quiz buttons, drawn as Lists rows — reading in
 // its own element, meanings one per line (never the raw "a; b" run), live confidence
-// dots that ARE the Forgot control, and the speak button. On BOTH flashcard components
+// dots that ARE the Forgot control, the ＋ add-to-list menu, and the speak button. On BOTH flashcard components
 // (FlashcardView and TextQuizView), since a change to "the flashcard quiz" applies to
 // every surface. The hooks are mocked — this is view wiring, not the quiz loop.
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { LocaleProvider } from "@/i18n";
 import { makeWord } from "@test/fixtures";
@@ -25,7 +25,22 @@ vi.mock("@/services/voice", () => ({
   pronounceableText: (w: { input: string }) => w.input,
 }));
 
+const tag = vi.fn();
+vi.mock("@/services/words/userWords", async (orig) => ({
+  ...(await orig<typeof import("@/services/words/userWords")>()),
+  addUserWordToList: (...a: unknown[]) => tag(...a),
+}));
+const listLists = vi.fn();
+const makeList = vi.fn();
+vi.mock("@/services/lists", async (orig) => ({
+  ...(await orig<typeof import("@/services/lists")>()),
+  listUserLists: (...a: unknown[]) => listLists(...a),
+  createList: (...a: unknown[]) => makeList(...a),
+}));
+
 const onGraded = vi.fn();
+const onCreateList = vi.fn();
+const LISTS = [{ listId: "l-food", listName: "Food" }];
 vi.mock("@/hooks/useTextQuiz", () => ({
   useTextQuiz: () => ({
     status: "done",
@@ -65,10 +80,17 @@ vi.mock("@/hooks/useReview", () => ({
 const { TextQuizView } = await import("@/views/TextQuizView");
 const { FlashcardView } = await import("@/views/FlashcardView");
 
+beforeEach(() => {
+  listLists.mockResolvedValue([]);
+});
 afterEach(() => {
   cleanup();
   soften.mockReset();
   onGraded.mockReset();
+  tag.mockReset();
+  listLists.mockReset();
+  makeList.mockReset();
+  onCreateList.mockReset();
 });
 
 function renderText() {
@@ -77,8 +99,8 @@ function renderText() {
       <TextQuizView
         userId="u1"
         cards={[[neko], [inu]]}
-        lists={[]}
-        onCreateList={vi.fn()}
+        lists={LISTS}
+        onCreateList={onCreateList}
         onClose={vi.fn()}
         onNewQuiz={vi.fn()}
         onGraded={onGraded}
@@ -141,6 +163,44 @@ describe("flashcard quiz done screen — word recap as Lists rows", () => {
     await waitFor(() =>
       expect(first.querySelector("button[aria-label*='orgot']")?.getAttribute("aria-label")).toMatch(/\b3\b/),
     );
+  });
+
+  it("＋ files a word into an existing list (text quiz)", async () => {
+    tag.mockResolvedValue(undefined);
+    const { container } = renderText();
+    const first = rows(container)[0];
+    fireEvent.click(first.querySelector("button[aria-label='Add to a list']")!);
+    fireEvent.click(screen.getByRole("button", { name: "Food" }));
+    await waitFor(() => expect(tag).toHaveBeenCalledWith({ userWordId: "uw-neko", listId: "l-food" }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull()); // the menu closes
+  });
+
+  it("＋ → New list creates it through the caller, then files the word into it", async () => {
+    tag.mockResolvedValue(undefined);
+    onCreateList.mockResolvedValue("l-new");
+    const { container } = renderText();
+    fireEvent.click(rows(container)[1].querySelector("button[aria-label='Add to a list']")!);
+    fireEvent.click(screen.getByRole("button", { name: /New list/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), { target: { value: "Animals" } });
+    fireEvent.click(screen.getByTitle("Create"));
+    await waitFor(() => expect(onCreateList).toHaveBeenCalledWith("Animals"));
+    await waitFor(() => expect(tag).toHaveBeenCalledWith({ userWordId: "uw-inu", listId: "l-new" }));
+  });
+
+  it("Review loads the user's lists for the ＋ menu, and a new list joins it", async () => {
+    listLists.mockResolvedValue(LISTS);
+    makeList.mockResolvedValue({ listId: "l-new", listName: "Animals" });
+    tag.mockResolvedValue(undefined);
+    const { container } = renderReview();
+    await waitFor(() => expect(listLists).toHaveBeenCalledWith("u1"));
+
+    fireEvent.click(rows(container)[0].querySelector("button[aria-label='Add to a list']")!);
+    expect(await screen.findByRole("button", { name: "Food" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /New list/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), { target: { value: "Animals" } });
+    fireEvent.click(screen.getByTitle("Create"));
+    await waitFor(() => expect(makeList).toHaveBeenCalledWith({ userId: "u1", listName: "Animals" }));
+    await waitFor(() => expect(tag).toHaveBeenCalledWith({ userWordId: "uw-neko", listId: "l-new" }));
   });
 
   it("a word below the soften floor keeps plain dots (nothing to lower)", () => {

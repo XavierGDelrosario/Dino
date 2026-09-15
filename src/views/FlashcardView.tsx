@@ -1,7 +1,7 @@
 // Review session screen: reveal → rate confidence → next, over the N
 // least-confident words. The grade is a 1–5 self-rated recall confidence
 // (1 = forgot … 5 = easy); clicking a rating records it and advances.
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useReview } from "../hooks/useReview";
 import { useQuizFlip } from "../hooks/useQuizFlip";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
@@ -12,6 +12,8 @@ import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
 import { softenConfidence } from "../services/review";
+import { createList, listUserLists, type List } from "../services/lists";
+import { addUserWordToList } from "../services/words/userWords";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
@@ -33,6 +35,21 @@ export function FlashcardView({
   limit?: number;
 }) {
   const r = useReview(userId, listId, limit, userWordIds);
+
+  // The done screen's ＋ files a word into a list, so it needs the user's lists. Review
+  // is handed none (it is a tab of its own), so it loads them when a session finishes —
+  // after a session in which a list may have been made elsewhere, and only then.
+  const [lists, setLists] = useState<List[]>([]);
+  useEffect(() => {
+    if (r.status !== "done") return;
+    let active = true;
+    listUserLists(userId)
+      .then((ls) => active && setLists(ls))
+      .catch((e) => console.warn("FlashcardView: failed to load lists", e));
+    return () => {
+      active = false;
+    };
+  }, [r.status, userId]);
   // Deferred to the card boundary — toggling never rewrites the card in front of the
   // user (r.position is the boundary; a restart resets it to 1).
   const flip = useQuizFlip(r.position);
@@ -101,6 +118,13 @@ export function FlashcardView({
           onForgot={async (item) =>
             (await softenConfidence({ userWordId: item.userWordId! })).confidenceRating
           }
+          lists={lists}
+          onTag={(item, id) => addUserWordToList({ userWordId: item.userWordId!, listId: id })}
+          onCreateList={async (name) => {
+            const list = await createList({ userId, listName: name });
+            setLists((ls) => [...ls, list]);
+            return list.listId;
+          }}
         />
       </div>
     );
