@@ -1113,16 +1113,19 @@ async function resolveBatch(
       else savedByTerm.set(term, [row]);
     }
   }
-  const bySensePos = (a: WordRow, b: WordRow) => {
-    const ap = a.jmdict_sense_pos, bp = b.jmdict_sense_pos;
-    if (ap == null) return bp == null ? 0 : 1; // nulls last
-    if (bp == null) return -1;
-    return ap - bp;
-  };
+  const reverseIntoJa = isReverseIntoJa(sourceLang, targetLang);
   return inputs.map((input) => {
     // An input is either a cache hit OR a miss (never both — see `missing`), so the two
     // sources don't overlap; combine, order primary-first, then apply the override.
-    const ws = [...(cachedByTerm.get(input) ?? []), ...(savedByTerm.get(input) ?? [])].sort(bySensePos);
+    //
+    // The SAME order as the single-word read (fetchVerified): frequency, entry, sense —
+    // then the written-form tiers. This used to be a bare sense-position sort, which
+    // interleaved entries (pawn, quality, nature…) and silently undid preferWrittenForm,
+    // so the reader never got the 質 fix and answered 為 by whichever sense 0 came first.
+    const ws = preferWrittenForm(
+      sortBySensePos([...(cachedByTerm.get(input) ?? []), ...(savedByTerm.get(input) ?? [])], reverseIntoJa),
+      input,
+    );
     if (ws.length === 0) return { input, translated: false, translation: null, word: null, words: [] };
     const words = orderSensesForInput(input, ws.map(toWord));
     return { input, translated: true, translation: words[0].translation, word: words[0], words };
