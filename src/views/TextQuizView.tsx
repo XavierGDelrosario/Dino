@@ -15,9 +15,10 @@ import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
+import { softenConfidence } from "../services/review";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
-import { useI18n, plural } from "../i18n";
+import { useI18n } from "../i18n";
 import type { Word } from "../services/words/repository";
 import type { List } from "../services/lists";
 import "../components/flashcards/flashcards.css";
@@ -79,14 +80,15 @@ export function TextQuizView({
   // and the placement quiz). Revealed, the card's own swipe cycles meanings instead
   // — the two never both apply, because this wrapper's handlers are only attached
   // while `!q.flipped` and the card's own only while `q.flipped`.
-  const { grade } = q;
+  // Swipe UP reveals the meaning — the same as tapping the card.
+  const { grade, flip: reveal } = q;
   const swipe = useSwipeCard({
     onLeft: useCallback(() => grade(1), [grade]),
     onRight: useCallback(() => grade(5), [grade]),
+    onUp: reveal,
   });
 
   const { t } = useI18n();
-  const noun = (n: number) => plural(t, n, "common.word", "common.words");
 
   // "Show in context" is a per-card reveal: collapse it on every card change, so a
   // sentence revealed for one word can't sit open and pre-answer the next.
@@ -118,13 +120,6 @@ export function TextQuizView({
   if (q.status === "done") {
     return (
       <div className="review__msg">
-        <p>
-          {mode === "review"
-            ? t("quiz.doneReview", { n: q.reviewedCount, noun: noun(q.reviewedCount) })
-            : // "added" counts only words genuinely NEW to the vocabulary (not ones
-              // already saved before this session), not every card graded.
-              t("quiz.doneLearn", { n: q.addedCount, noun: noun(q.addedCount) })}
-        </p>
         <div className="review__foot">
           <button className="btn quiz__donebtn" onClick={q.restart}>
             {t("quiz.again")}
@@ -136,7 +131,20 @@ export function TextQuizView({
           )}
           {close}
         </div>
-        <QuizWordList words={q.gradedWords.map((w) => ({ ...w, key: w.wordId }))} />
+        <QuizWordList
+          items={q.graded.map((g) => ({
+            key: g.word.wordId,
+            word: g.word,
+            userWordId: g.userWordId,
+            confidence: g.confidence,
+          }))}
+          onForgot={async (item) => {
+            const res = await softenConfidence({ userWordId: item.userWordId! });
+            // Keep the reader behind this quiz in step, as a grade does.
+            onGraded?.(item.key, res.userWordId, res.confidenceRating);
+            return res.confidenceRating;
+          }}
+        />
       </div>
     );
   }

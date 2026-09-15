@@ -140,7 +140,7 @@ describe("useTextQuiz", () => {
     expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-s2", grade: 4 });
   });
 
-  it("gradedWords lists the GRADED sense of each card in order, and restart clears it", async () => {
+  it("graded lists the GRADED sense of each card in order, with its saved row + confidence, and restart clears it", async () => {
     const { result } = renderHook(() => useTextQuiz("user-1", [[wordA], [s1, s2]]));
     await act(async () => {
       await result.current.grade(3);
@@ -151,10 +151,11 @@ describe("useTextQuiz", () => {
     });
 
     expect(result.current.status).toBe("done");
-    expect(result.current.gradedWords.map((w) => w.wordId)).toEqual(["wa", "s2"]);
+    expect(result.current.graded.map((g) => g.word.wordId)).toEqual(["wa", "s2"]);
+    expect(result.current.graded[1]).toMatchObject({ userWordId: "uw-s2", confidence: 4 });
 
     act(() => result.current.restart());
-    expect(result.current.gradedWords).toEqual([]);
+    expect(result.current.graded).toEqual([]);
   });
 
   it("addWord (＋) adds the selected sense WITHOUT a review and marks it saved", async () => {
