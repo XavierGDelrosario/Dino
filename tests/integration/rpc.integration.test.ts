@@ -537,7 +537,7 @@ describe.skipIf(!ENABLED)("rpc: server_now", () => {
   });
 });
 
-// ── placement_evidence (migration 20260769; needs service-role-seeded `words`) ──
+// ── placement_evidence (migration 20260770; needs service-role-seeded `words`) ──
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_evidence", () => {
   it("returns only the caller's answers, and a later-learned word counts as known", async () => {
     const svc = serviceClient();

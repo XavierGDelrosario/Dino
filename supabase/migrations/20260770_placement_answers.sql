@@ -22,6 +22,11 @@
 -- Storage is bounded by the dictionary, not by behaviour: one row per (user, sense),
 -- and the quiz never re-deals a word already in the vocabulary. Deleting the user
 -- cascades; deleting a cache row cascades too (the evidence is about that sense).
+--
+-- NUMBERED 20260770, NOT 20260769: fix/quality-reports had already pushed
+-- 20260769_written_form_needs_common to staging, and the CLI keys a migration by
+-- NUMBER — `db push` would have read this file as applied and skipped it (the
+-- media_favorites incident, 20260749).
 -- =========================================================
 
 CREATE TABLE IF NOT EXISTS placement_answers (

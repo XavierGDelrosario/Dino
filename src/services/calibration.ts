@@ -213,7 +213,7 @@ export async function setUserProficiencyBand(userId: string, band: number | null
 
 // ── Placement level (the "Find my level" swipe quiz) ──────────────────────────
 // Derives the band from the user's PLACEMENT ANSWERS — every know / don't-know swipe
-// they have ever given (migration 20260769) — accumulated across sessions, so the
+// they have ever given (migration 20260770) — accumulated across sessions, so the
 // denominator grows and a handful of misses can't swing the result.
 //
 // It used to read the WHOLE vocabulary instead, which put real N2/N3 learners at N5:
@@ -378,7 +378,7 @@ function difficultyOf(w: { sourceLang: LangCode; frequency: number | null; profi
   } as Word).level;
 }
 
-/** A database that hasn't taken migration 20260769 yet: PostgREST can't find the
+/** A database that hasn't taken migration 20260770 yet: PostgREST can't find the
  *  function (PGRST202) / table (PGRST205), or Postgres can't (42883 / 42P01). */
 const isMissingPlacementSchema = (error: { code?: string } | null): boolean =>
   ["PGRST202", "PGRST205", "42883", "42P01"].includes(error?.code ?? "");
@@ -402,7 +402,7 @@ export async function getPlacementRatings(
   const { data, error } = await supabase.rpc("placement_evidence", { p_source_lang: learning });
   if (error) {
     if (isMissingPlacementSchema(error)) {
-      console.warn("calibration: placement_evidence unavailable (migration 20260769 not applied)");
+      console.warn("calibration: placement_evidence unavailable (migration 20260770 not applied)");
       return { ratings: [], maxBand };
     }
     throw toServiceError(error);
