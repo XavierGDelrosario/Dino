@@ -1029,9 +1029,20 @@
   font-size: 0.95rem;
   color: var(--muted);
   /* Take the row minus the button, and let long meanings wrap instead of pushing
-     the button off the edge. */
-  flex: 1 1 auto;
+     the button off the edge. The basis is 0, NOT auto: the foot wraps (so SenseExample
+     can claim its own line), and wrapping is decided from each item's hypothetical
+     size BEFORE any shrinking — so an auto basis let a long meaning's max-content
+     width bump the speak button down onto a line of its own, left-aligned under the
+     text. At basis 0 the meaning always shares line 1 with the button and takes
+     whatever is left, capped by the row. */
+  flex: 1 1 0;
   min-width: 0;
+}
+
+/* Break inside a word if one meaning is a single long unbroken run (a URL-ish gloss,
+   a long compound) — it would otherwise overflow the capped column. */
+.listrow__meaning-line {
+  overflow-wrap: anywhere;
 }
 
 /* The edit field is the meaning's stand-in, so it claims the same space. */
