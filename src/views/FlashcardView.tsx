@@ -17,6 +17,7 @@ import { addUserWordToList } from "../services/words/userWords";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
+import { Loading } from "../components/common/Loading";
 
 export function FlashcardView({
   userId,
@@ -73,7 +74,7 @@ export function FlashcardView({
   const scope = <p className="review__scope">{t("review.scope", { name: scopeName })}</p>;
 
   if (r.status === "loading") {
-    return <p className="review__msg">{t("review.loading")}</p>;
+    return <p className="review__msg"><Loading text={t("review.loading")} /></p>;
   }
 
   if (r.status === "error") {

@@ -19,6 +19,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { useI18n } from "../../i18n";
 import { ErrorText } from "./ErrorText";
 import "./report.css";
+import { LoadingDots } from "./Loading";
 
 const CLOSE_AFTER_MS = 900;
 
@@ -111,7 +112,7 @@ export function ReportIssueDialog({
                 Enabled with an empty box on purpose (see the header). */}
             <div className="reportdlg__actions">
               <button type="button" className="btn" onClick={() => void send()} disabled={busy}>
-                {busy ? "…" : t("report.send")}
+                {busy ? <LoadingDots /> : t("report.send")}
               </button>
             </div>
           </>

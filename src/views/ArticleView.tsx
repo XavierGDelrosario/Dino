@@ -20,6 +20,7 @@ import { useI18n } from "../i18n";
 import type { Article } from "../services/media/mediawiki";
 import type { Word } from "../services/words/repository";
 import "../components/media/article.css";
+import { Loading } from "../components/common/Loading";
 
 const RECOMMENDED_QUIZ_CAP = 20;
 
@@ -178,7 +179,7 @@ export function ArticleView({
           spin forever — a silent hang is the worst way to report a failure, so a
           finished-but-empty analysis falls through to the "no words" message. */}
       {!t.para && !t.error && t.status !== "done" ? (
-        <p className="review__msg">{tr("media.analyzing")}</p>
+        <p className="review__msg"><Loading text={tr("media.analyzing")} /></p>
       ) : summary && rows.length > 0 ? (
         <>
           <AnalyzeInfographic data={summary.data} />

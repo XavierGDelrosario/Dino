@@ -91,7 +91,18 @@
     <meta name="twitter:image" content="https://dino-86y.pages.dev/og.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Startup splash, painted before the bundle runs (the stylesheet is render-blocking
+      in the build, so .splash is styled on first paint). React replaces it on mount and
+      App shows the identical <SplashScreen> until the session is ready — keep this
+      markup in step with src/components/common/Loading.tsx.
+    -->
+    <div id="root">
+      <div class="splash" role="status" aria-label="Loading">
+        <img class="splash__icon" src="/dino-icon.png" alt="" />
+        <span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

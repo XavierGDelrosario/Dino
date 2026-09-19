@@ -27,6 +27,7 @@ import { ErrorText } from "../components/common/ErrorText";
 import type { Word } from "../services/words/repository";
 import type { MediaSource } from "../services/media/mediawiki";
 import "../components/translate/translate.css";
+import { Loading, LoadingDots } from "../components/common/Loading";
 
 export function TranslateView({
   userId,
@@ -336,7 +337,7 @@ export function TranslateView({
                     aria-label={tr("ocr.capture")}
                     title={tr("ocr.capture")}
                   >
-                    {ocrBusy ? "…" : <CameraIcon />}
+                    {ocrBusy ? <LoadingDots /> : <CameraIcon />}
                   </button>
                   {/* Photo LIBRARY gets its own button rather than an action sheet on
                       the camera: most text worth scanning is already on the phone and
@@ -349,7 +350,7 @@ export function TranslateView({
                     aria-label={tr("ocr.library")}
                     title={tr("ocr.library")}
                   >
-                    {ocrBusy ? "…" : <ImageIcon />}
+                    {ocrBusy ? <LoadingDots /> : <ImageIcon />}
                   </button>
                 </>
               )}
@@ -365,7 +366,7 @@ export function TranslateView({
         <div className="translate__outwrap">
           <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
             {t.status === "loading" ? (
-              <span className="translate__placeholder">{tr("translate.translating")}</span>
+              <span className="translate__placeholder"><Loading text={tr("translate.translating")} /></span>
             ) : t.output ? (
               t.output
             ) : (
@@ -414,7 +415,7 @@ export function TranslateView({
           }}
           disabled={t.status === "loading" || !t.input.trim()}
         >
-          {t.status === "loading" ? "…" : tr("translate.submit")}
+          {t.status === "loading" ? <LoadingDots /> : tr("translate.submit")}
         </button>
       </div>
 
@@ -444,7 +445,7 @@ export function TranslateView({
       {/* The translation shows above as soon as it's ready; the word-by-word reader
           (kuromoji + lookups) streams in after — spinner while it loads. */}
       {t.mode === "paragraph" && t.readerLoading && !t.para && (
-        <p className="reader__loading">{tr("translate.readerLoading")}</p>
+        <p className="reader__loading"><Loading text={tr("translate.readerLoading")} /></p>
       )}
 
       {/* EXPERIMENT — the live reader. Sits between the input and the study section:

@@ -12,6 +12,7 @@ import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { TermsGateView } from "./components/common/TermsGateView";
 import { ErrorText } from "./components/common/ErrorText";
+import { SplashScreen } from "./components/common/Loading";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
@@ -73,6 +74,11 @@ export function App() {
     }
   }, []);
 
+  // Startup: nothing but the mascot + dots until the session exists — the header's
+  // menus have nothing to act on yet, and this picks up exactly where index.html's
+  // pre-bundle splash left off.
+  if (loading) return <SplashScreen />;
+
   return (
     // The app is a phone-width column everywhere EXCEPT /admin: that's an ops
     // surface of dense multi-column tables (user buckets, timestamps, emails) that
@@ -103,7 +109,6 @@ export function App() {
         <Link to="/" className="app__titlelink"><h1 className="app__title">DINO</h1></Link>
       </header>
 
-      {loading && <p className="review__msg">{t("app.startingSession")}</p>}
       {error && (
         <div className="review__msg">
           <p>{t("app.sessionErrorTitle")}</p>

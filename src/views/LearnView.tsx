@@ -41,6 +41,7 @@ import { useI18n } from "../i18n";
 import type { Word } from "../services/words/repository";
 import "../components/flashcards/flashcards.css";
 import "./learn.css";
+import { Loading } from "../components/common/Loading";
 
 export function LearnView({ userId }: { userId: string }) {
   const { t } = useI18n();
@@ -261,7 +262,7 @@ export function LearnView({ userId }: { userId: string }) {
             <p className="review__msg">{t("learn.noFramework")}</p>
           )}
 
-          {status === "loading" && <p className="review__msg">{t("learn.loading")}</p>}
+          {status === "loading" && <p className="review__msg"><Loading text={t("learn.loading")} /></p>}
           {status === "empty" && (
             <div className="review__msg">
               <p>{t("learn.empty", { level: bandLabel ?? "" })}</p>
@@ -276,7 +277,7 @@ export function LearnView({ userId }: { userId: string }) {
       {/* The Wikinews browse ⇄ ★ Saved lists, in the flow under the bands — the second
           way into new words, not a place you navigate to. It owns no language of its
           own; this tab's picker is the one picker. */}
-      <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
+      <Suspense fallback={<p className="review__msg"><Loading text={t("common.loading")} /></p>}>
         <MediaView
           userId={userId}
           langs={{ learning, native: explainIn }}

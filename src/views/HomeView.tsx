@@ -7,6 +7,7 @@
 import { Suspense, lazy, useState } from "react";
 import { useI18n } from "../i18n";
 import { useStickyState } from "../hooks/useStickyState";
+import { Loading } from "../components/common/Loading";
 
 const TranslateView = lazy(() =>
   import("./TranslateView").then((m) => ({ default: m.TranslateView })),
@@ -54,7 +55,7 @@ export function HomeView({ userId }: { userId: string }) {
 
       {/* key on userId so a sign-in/out/upgrade-to-different-uid fully resets each
           view's hooks instead of showing the previous user's data. */}
-      <Suspense fallback={<p className="review__msg">{t("common.loading")}</p>}>
+      <Suspense fallback={<p className="review__msg"><Loading text={t("common.loading")} /></p>}>
         {tab === "translate" && <TranslateView key={userId} userId={userId} />}
         {tab === "lists" && (
           <ListView

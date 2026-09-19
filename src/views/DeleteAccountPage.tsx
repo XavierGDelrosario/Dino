@@ -9,6 +9,7 @@ import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
+import { LoadingDots } from "../components/common/Loading";
 
 export function DeleteAccountPage() {
   const { t } = useI18n();
@@ -35,7 +36,7 @@ export function DeleteAccountPage() {
       <p className="profile__dangerwarn">{t("profile.deleteConfirm")}</p>
       <ErrorText message={err} />
       <button className="btn btn--danger" disabled={deleting} onClick={onDelete}>
-        {deleting ? "…" : t("profile.deleteYes")}
+        {deleting ? <LoadingDots /> : t("profile.deleteYes")}
       </button>
       <Link to="/profile" className="account__link">{t("profile.deleteCancel")}</Link>
     </section>

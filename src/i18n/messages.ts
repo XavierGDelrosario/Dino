@@ -19,7 +19,6 @@ export const en = {
   "ui.language": "Language",
 
   // app shell
-  "app.startingSession": "Starting session…",
   "app.sessionErrorTitle": "Couldn’t start a session.",
   "tabs.translate": "Translate",
   "tabs.lists": "Lists",
@@ -442,7 +441,6 @@ export const ja: Record<MessageKey, string> = {
   "common.words": "単語",
   "ui.language": "言語",
 
-  "app.startingSession": "セッションを開始しています…",
   "app.sessionErrorTitle": "セッションを開始できませんでした。",
   "tabs.translate": "翻訳",
   "tabs.lists": "リスト",

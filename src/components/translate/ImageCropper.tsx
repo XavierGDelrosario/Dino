@@ -20,6 +20,7 @@ import {
 } from "../../services/ocr";
 import { useI18n } from "../../i18n";
 import "./cropper.css";
+import { LoadingDots } from "../common/Loading";
 
 const HANDLES: CropHandle[] = ["nw", "ne", "sw", "se"];
 
@@ -151,7 +152,7 @@ export function ImageCropper({
           {t("common.cancel")}
         </button>
         <button type="button" className="btn btn--primary" onClick={confirm} disabled={busy}>
-          {busy ? "…" : t("ocr.recognize")}
+          {busy ? <LoadingDots /> : t("ocr.recognize")}
         </button>
       </div>
     </div>

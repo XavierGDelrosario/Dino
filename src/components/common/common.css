@@ -610,3 +610,55 @@ body {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
+
+/* ---- Loading ------------------------------------------------------------
+   The one loading affordance (components/common/Loading.tsx): three dots pulsing
+   in turn. Each dot stays in the layout and only its opacity moves, so a message
+   ("Translating...") or a busy button never changes width mid-animation. */
+.loading-dots {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.loading-dots > span {
+  animation: loading-dot 1.2s ease-in-out infinite;
+  opacity: 0.2;
+}
+
+.loading-dots > span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots > span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes loading-dot {
+  0%, 80%, 100% { opacity: 0.2; }
+  40% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots > span { animation: none; opacity: 1; }
+}
+
+/* Startup splash: the mascot alone, centred on the page background, no header.
+   The icon is a transparent cut-out, so it sits on either theme's --bg as-is.
+   index.html paints this same markup before the bundle runs — keep them in step. */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: var(--bg);
+}
+
+.splash__icon {
+  width: 8rem;
+  height: 8rem;
+}
+
+.splash .loading-dots {
+  font-size: 2.5rem;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}

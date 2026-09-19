@@ -21,6 +21,7 @@ import "../common/SenseText.css"; // shared .sense* row/action styles
 // Only offer the Summary infographic once the text is long enough for the
 // distributions to be meaningful (short outputs read fine as-is).
 const SUMMARY_MIN_WORDS = 12;
+import { Loading } from "../common/Loading";
 
 // How long "Forgot" stays visibly spent after a press. Longer than the server's own 2s
 // dedupe window (20260766) on purpose: the guard the USER experiences should be the one
@@ -429,7 +430,7 @@ function ParagraphReaderImpl({
               disabled={glossLoading}
             >
               {showGloss ? "▾" : "▸"}{" "}
-              {glossLoading ? tr("translate.glossPending") : tr("translate.showEnglish")}
+              {glossLoading ? <Loading text={tr("translate.glossPending")} /> : tr("translate.showEnglish")}
             </button>
           )}
           {canSummarize && showSummary && <AnalyzeInfographic data={summary.data} />}
