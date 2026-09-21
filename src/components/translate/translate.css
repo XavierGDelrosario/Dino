@@ -329,12 +329,12 @@
      pt is absolute — it would ignore a reader who has raised their browser's default
      font size, which is the one accessibility lever this app doesn't have to build. */
   --io-font: 1.217rem; /* 14.6pt (12.6pt + 2) */
-  /* ONE height for the pair, for the same reason as --io-font: the six-button
-     arithmetic below is a single fact, and a second hand-kept number is how it stops
-     being true (a @media override written for the OLD 8rem default is exactly how the
-     tool column ended up on top of read-aloud on every phone). Overriding this token
-     is a deliberate act; overriding `min-height` on .translate__box is not. */
-  --io-box-min: 18rem;
+  /* ONE height for the pair, for the same reason as --io-font: the button arithmetic
+     below is a single fact, and a second hand-kept number is how it stops being true
+     (a @media override written for the OLD 8rem default is exactly how the tool column
+     ended up on top of read-aloud on every phone). Overriding this token is a
+     deliberate act; overriding `min-height` on .translate__box is not. */
+  --io-box-min: 15rem;
   display: flex;
   gap: 1rem;
   align-items: stretch;
@@ -357,18 +357,23 @@
   flex: 1 1 0;
   min-width: 0;
   font-size: var(--io-font);
-  /* TALL ENOUGH FOR SIX BUTTONS, as a constant.
-     The right edge carries the tool column at the top (clear · draw · mic · camera ·
-     library today) and read-aloud at the bottom, so the box must fit both:
-       6 × 2rem (.io__tool) + 5 × 0.35rem (gap) + 0.4rem (top) + 2.4rem (read-aloud
-       + its offset) = 16.55rem, so 18rem leaves ~1.4rem spare at six buttons and
-       ~3.9rem at today's five.
-     Sized for SIX rather than five so the next modality needs no arithmetic — and
-     ROUNDED UP rather than fitted. This replaced a version that derived the height
-     from a live count of the rendered buttons: it was exact, and being exact is what
-     let a rounded pixel put the last tool under the speaker three times. A constant
-     with room to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even
-     on a 667px screen — so it never fights this.) */
+  /* TALL ENOUGH FOR EVERY BUTTON THAT CAN RENDER, as a constant — and no taller, because
+     the rest is dead space on a surface whose whole job is a text field.
+     The right edge carries the tool column at the top and read-aloud at the bottom, so
+     the box must fit both. FIVE tools is the ceiling, not a guess: that is every branch
+     in TranslateView's .io__tools — clear · draw · mic · camera · library — and they
+     can all be present at once (an iOS build has handwriting, speech and OCR, and the
+     clear button appears as soon as there is text).
+       0.4rem (top) + 5 × 2rem (.io__tool) + 4 × 0.35rem (gap) = 11.8rem of column,
+       + 2.4rem (read-aloud + its offset)                        = 14.2rem hard floor.
+     15rem, so the two never touch and 0.8rem of air says so. THIS IS A FLOOR: going a
+     button lower puts the last tool back under the speaker, so shorten it only by
+     removing a tool, and RAISE it before adding a sixth.
+     Still ROUNDED, never fitted. This replaced a version that derived the height from a
+     live count of the rendered buttons: it was exact, and being exact is what let a
+     rounded pixel put the last tool under the speaker three times. A constant with room
+     to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even on a 667px
+     screen — so it never fights this.) */
   min-height: var(--io-box-min);
   /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
      that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
@@ -633,17 +638,17 @@ textarea.translate__box::-webkit-scrollbar {
     height: 1.75rem;
     font-size: 0.85rem;
   }
-  /* ONLY THE OUTPUT SHRINKS. The boxes stack here rather than sitting side by side,
-     so two full-height boxes are 36rem of scrolling on a phone — but the button
-     arithmetic (see --io-box-min) is the INPUT's: it carries the tool column at the
-     top and read-aloud at the bottom, and the output carries read-aloud alone. So the
-     input keeps the six-button height and the output gives back the 6rem.
-     This replaced a `.translate__box { min-height: 12rem }` that predated the
-     six-button constant and was still written against the old 8rem default: it hit
-     BOTH boxes, and at 12rem the five-tool column (ending 11.8rem down) ran straight
-     through read-aloud (starting 9.6rem down) — 2.2rem of overlap on every phone.
-     Do not re-introduce a shared shorter height here; shorten --io-box-min instead,
-     and only if the arithmetic there still clears. */
+  /* ONLY THE OUTPUT SHRINKS. The boxes stack here rather than sitting side by side, so
+     both at full height is a lot of scrolling on a phone — but the button arithmetic
+     (see --io-box-min) is the INPUT's: it carries the tool column at the top AND
+     read-aloud at the bottom, while the output carries read-aloud alone and so has a
+     floor of about 3rem. The input keeps its height; the output gives back 3rem.
+     Do NOT re-introduce a shared shorter height here. The rule this replaced was
+     exactly that — a `.translate__box { min-height: 12rem }` written against an older
+     8rem default, which hit BOTH boxes and put the five-tool column (ending 11.8rem
+     down) straight through read-aloud (starting 9.6rem down): 2.2rem of overlap on
+     every phone. --io-box-min is where a height change belongs, and only down to the
+     floor spelled out there. */
   .translate__out {
     min-height: 12rem;
   }
@@ -887,7 +892,7 @@ textarea.translate__box::-webkit-scrollbar {
   display: flex;
   /* SIT LOW ENOUGH TO SEE WHAT YOU WROTE. Picking a candidate appends to the input
      box behind this overlay, so a centred pad hid the one thing the user needed to
-     check — and the pad is taller than the boxes (~400px vs 18rem), so centring even
+     check — and the pad is taller than the boxes (~400px vs 15rem), so centring even
      pushed its top ABOVE them. Anchored to the top and nudged down by the textarea's
      first line (0.8rem padding + one 1.6 line at --io-font ≈ 2.75rem, rounded to 3),
      so the growing text stays visible while drawing. The pad spills further below the
