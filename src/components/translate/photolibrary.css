@@ -1,0 +1,187 @@
+/* The in-app photo library (PhotoLibrarySheet) — the grid of photos DINO can actually
+   see under iOS limited access, and the home of the Manage button.
+   Full-screen rather than anchored to anything: it is a picker, and it stands in for a
+   system one. */
+.photolib {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--bg, #16181d) 78%, transparent);
+}
+
+.photolib__sheet {
+  position: relative;
+  width: min(30rem, 100%);
+  max-height: min(34rem, 88vh);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+/* Title left, Manage right — the arrangement every app that hosts its own library
+   uses, and the reason it reads as acting on THIS grid rather than on the app. */
+.photolib__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.photolib__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.photolib__manage {
+  appearance: none;
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
+.photolib__manage:hover {
+  border-color: var(--accent);
+}
+
+/* Says out loud what the grid is, so a short grid reads as "you shared three photos"
+   rather than "this app can't find your pictures". */
+.photolib__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.photolib__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* Fills the width at whatever tile count fits, so it works from a phone to the wide
+     desktop sheet without a breakpoint. */
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.4rem;
+  overflow-y: auto;
+  /* The only part that scrolls: the bar, hint and footer stay put. */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.photolib__tile {
+  appearance: none;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.photolib__tile:hover {
+  border-color: var(--accent);
+}
+
+.photolib__tile:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.photolib__tile img {
+  width: 100%;
+  height: 100%;
+  /* Square tiles from photos of any shape — cropping the preview is fine, the chosen
+     photo is fetched whole and cropped deliberately in the next step. */
+  object-fit: cover;
+  display: block;
+}
+
+.photolib__empty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.photolib__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.photolib__cancel {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.35rem 0.2rem;
+  cursor: pointer;
+}
+
+.photolib__cancel:hover {
+  color: var(--text);
+}
+
+/* Invisible catcher over the sheet: a tap anywhere but the menu dismisses it, and
+   because it stops there the PICKER stays open — backing out of Manage returns to the
+   photos rather than closing the lot. */
+.photolib__menuscrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* Manage's own menu, over the grid rather than replacing it. */
+.photolib__menu {
+  position: absolute;
+  top: 3rem;
+  right: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 0.3rem;
+  gap: 0.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.photolib__menuitem {
+  appearance: none;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.photolib__menuitem:hover {
+  background: var(--surface-2);
+}

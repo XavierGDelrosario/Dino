@@ -15,8 +15,9 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { HistoryMenu } from "../components/translate/HistoryMenu";
-import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon, ManageIcon } from "../components/common/icons";
-import { photoAccess as readPhotoAccess, selectMorePhotos, openPhotoSettings, type PhotoAccess } from "../services/photos/access";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon } from "../components/common/icons";
+import { photoAccess as readPhotoAccess, type PhotoAccess } from "../services/photos/access";
+import { PhotoLibrarySheet } from "../components/translate/PhotoLibrarySheet";
 import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText, type OcrSource } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
@@ -139,7 +140,7 @@ export function TranslateView({
   // entirely. Without this the button would still be sitting there after the user had
   // already granted full access, which is the state it is supposed to report.
   const [photoAccess, setPhotoAccess] = useState<PhotoAccess>("full");
-  const [managing, setManaging] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   useEffect(() => {
     if (!ocrAvailable) return;
     let cancelled = false;
@@ -165,6 +166,15 @@ export function TranslateView({
   /** Camera or photo library — identical from here on: crop, then recognize. The
    *  source only decides which sheet opens, so the two buttons share this path. */
   const onCamera = async (source: OcrSource = "camera") => {
+    // LIMITED ACCESS TAKES THE IN-APP GRID INSTEAD. The system picker shows the whole
+    // library and quietly returns whatever is tapped, so it never reveals that the
+    // app's own access is narrower — and there is nowhere in it to widen that. The
+    // grid shows the shared photos for what they are and carries Manage. Full access
+    // keeps Apple's picker: it is the better picker and there is nothing to manage.
+    if (source === "library" && photoAccess === "limited") {
+      setLibraryOpen(true);
+      return;
+    }
     setOcrError(null);
     setOcrBusy(true);
     try {
@@ -391,23 +401,6 @@ export function TranslateView({
                   </button>
                 </>
               )}
-              {/* MANAGE — iOS limited photo access only, so it is absent on web, on a
-                  device with full access, and on one that has never been asked. iOS
-                  never re-prompts once "Limit Access" is chosen, so without this there
-                  is no route to a wider selection from inside the app.
-                  It sits with the photo buttons because that is what it is about, and
-                  the gutter absorbs the extra height rather than the box reserving it
-                  year-round for a button most users never see. */}
-              {photoAccess === "limited" && (
-                <button
-                  className="io__tool"
-                  onClick={() => setManaging(true)}
-                  aria-label={tr("photos.manage")}
-                  title={tr("photos.manage")}
-                >
-                  <ManageIcon />
-                </button>
-              )}
             </div>
             {/* Read-aloud, the gutter's BOTTOM cluster — the opposite end from the input
                 modalities. The input is spoken in the language of the INPUT ITSELF,
@@ -459,59 +452,26 @@ export function TranslateView({
           </div>
         )}
 
-        {/* The Manage sheet. Two ways to widen photo access, which is all iOS offers
-            once "Limit Access" has been chosen — its own picker for adding photos, and
-            Settings for switching to the whole library.
-            Built in-app rather than as a native action sheet: that would be another
-            plugin and another pod for two buttons, and this way it is themed, localized
-            and testable like the rest of the app. It reuses the cropper's full-screen
-            overlay so the backdrop and dismissal behave identically. */}
-        {managing && (
-          <div
-            className="translate__overlay translate__overlay--modal"
-            onClick={() => setManaging(false)}
-            role="presentation"
-          >
-            <div
-              className="photosheet"
-              role="dialog"
-              aria-modal="true"
-              aria-label={tr("photos.sheetTitle")}
-              /* The sheet is inside the dismiss-on-tap backdrop, so its own taps must
-                 not reach it or choosing an option would also close the sheet. */
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="photosheet__title">{tr("photos.sheetTitle")}</h2>
-              <p className="photosheet__body">{tr("photos.sheetBody")}</p>
-              <button
-                className="btn photosheet__action"
-                onClick={() => {
-                  // The picker reports the grant as it closes: the user can switch to
-                  // full access from inside it, and that retires the Manage button.
-                  void selectMorePhotos().then((a) => {
-                    setPhotoAccess(a);
-                    setManaging(false);
-                  });
-                }}
-              >
-                {tr("photos.selectMore")}
-              </button>
-              <button
-                className="btn photosheet__action"
-                onClick={() => {
-                  // Backgrounds the app; the visibilitychange listener re-reads the
-                  // grant when it comes back, so nothing has to be resolved here.
-                  void openPhotoSettings();
-                  setManaging(false);
-                }}
-              >
-                {tr("photos.changeSettings")}
-              </button>
-              <button className="photosheet__cancel" onClick={() => setManaging(false)}>
-                {tr("common.cancel")}
-              </button>
-            </div>
-          </div>
+        {/* THE IN-APP PHOTO LIBRARY (limited access only). It hosts Manage at its own
+            top right, on the grid whose contents Manage changes — a toolbar button
+            next to the text field could only ever have been about something offscreen.
+            A picked photo joins the ordinary crop → recognize path, so from here on it
+            is indistinguishable from a camera shot. */}
+        {libraryOpen && (
+          <PhotoLibrarySheet
+            onClose={() => setLibraryOpen(false)}
+            onPick={(image) => {
+              setLibraryOpen(false);
+              setOcrError(null);
+              setPhoto({ url: `data:image/${image.format};base64,${image.base64}`, base64: image.base64 });
+            }}
+            onAccessChange={(access) => {
+              setPhotoAccess(access);
+              // Granting full access retires this sheet entirely: the next tap on the
+              // library button gets Apple's picker, which is the better one.
+              if (access === "full") setLibraryOpen(false);
+            }}
+          />
         )}
       </div>
 

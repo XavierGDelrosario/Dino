@@ -119,6 +119,11 @@ export const en = {
   "photos.sheetBody": "DINO can be given more of your photo library.",
   "photos.selectMore": "Select More Photos…",
   "photos.changeSettings": "Change Settings",
+  "photos.libraryTitle": "Your photos",
+  "photos.limitedHint": "DINO can only see the photos you\u2019ve shared with it.",
+  "photos.loading": "Loading photos",
+  "photos.none": "No photos shared yet. Use Manage to choose some.",
+  "photos.useThis": "Scan text from this photo",
 
   // generic actions
   "common.add": "Add",
@@ -543,6 +548,11 @@ export const ja: Record<MessageKey, string> = {
   "photos.sheetBody": "DINO にもっと多くの写真へのアクセスを許可できます。",
   "photos.selectMore": "写真を追加で選択…",
   "photos.changeSettings": "設定を変更",
+  "photos.libraryTitle": "写真",
+  "photos.limitedHint": "DINO が見られるのは、共有を許可した写真だけです。",
+  "photos.loading": "写真を読み込み中",
+  "photos.none": "共有された写真がありません。「管理」から選んでください。",
+  "photos.useThis": "この写真から文字を読み取る",
 
   "common.add": "追加",
   "common.cancel": "キャンセル",

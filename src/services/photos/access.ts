@@ -23,11 +23,20 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 /** What the user granted. `prompt` = not asked yet; `denied` covers restricted. */
 export type PhotoAccess = "full" | "limited" | "denied" | "prompt";
 
+/** One photo the app can see: its PHAsset id, and a small JPEG for the grid. */
+export interface LibraryPhoto {
+  id: string;
+  /** Base64 JPEG, thumbnail-sized — not the original. */
+  thumb: string;
+}
+
 interface PhotoAccessPlugin {
   status(): Promise<{ status: PhotoAccess }>;
   /** The system "select more photos" picker; resolves with the status after it closes. */
   presentLimitedPicker(): Promise<{ status: PhotoAccess }>;
   openSettings(): Promise<void>;
+  listPhotos(opts: { limit?: number; thumbSize?: number }): Promise<{ photos: LibraryPhoto[] }>;
+  loadPhoto(opts: { id: string; maxSize?: number }): Promise<{ base64: string; format: string }>;
 }
 
 const PhotoAccessNative = registerPlugin<PhotoAccessPlugin>("PhotoAccess");
@@ -71,5 +80,35 @@ export async function openPhotoSettings(): Promise<void> {
   } catch {
     // Nothing useful to say: the user is either in Settings or still here, and both
     // are visible to them. Re-reading the grant on resume covers either outcome.
+  }
+}
+
+/**
+ * The photos the app can currently see, newest first.
+ *
+ * Under limited access this is EXACTLY the shared selection — which is the point: it is
+ * what an in-app grid should show, and what the Manage button then widens. The system
+ * picker cannot supply this, because it runs out of process and reports only what the
+ * user taps.
+ *
+ * Empty off-native, so the grid never renders in a browser.
+ */
+export async function listLibraryPhotos(limit = 60): Promise<LibraryPhoto[]> {
+  if (!manageable()) return [];
+  try {
+    return (await PhotoAccessNative.listPhotos({ limit })).photos ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** One photo at OCR resolution. Null rather than throwing: a photo that won't load is
+ *  one tile of the grid failing, not the grid failing. */
+export async function loadLibraryPhoto(id: string): Promise<{ base64: string; format: string } | null> {
+  if (!manageable()) return null;
+  try {
+    return await PhotoAccessNative.loadPhoto({ id });
+  } catch {
+    return null;
   }
 }

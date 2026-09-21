@@ -341,16 +341,24 @@
   /* Fills the .translate breakout width (so the boxes and the reader match). */
 }
 
-/* The input box and its button gutter, side by side as a REAL ROW.
-   The gutter is a flex sibling of the textarea rather than an overlay, which is what
-   makes the box grow and shrink with the buttons (see .io__gutter). `position:
-   relative` stays for the output-side .io__speak pattern and any absolute child. */
+/* The input box and its button gutter, STACKED IN ONE GRID CELL.
+   Both children are placed in the same `box` area, so the gutter sits ON the textarea
+   (inside its rounded border, where the buttons belong) while STILL being a laid-out
+   sibling rather than an overlay — and a grid row is as tall as its tallest item, so
+   the gutter's height goes on driving the box's. That is the whole trick: absolute
+   positioning would put the buttons back in the right place but stop them affecting
+   the height, and a flex ROW keeps the height but puts them outside the box.
+   `position: relative` stays for any genuinely absolute child. */
 .translate__inputwrap {
   position: relative;
   flex: 1 1 0;
   min-width: 0;
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-areas: "box";
+}
+
+.translate__inputwrap > * {
+  grid-area: box;
 }
 
 /* The two side-by-side boxes: input (textarea) and output. */
@@ -361,19 +369,22 @@
   /* JUST THE TEXT FLOOR NOW. This used to be hand-computed to clear the tallest
      possible button column, which meant the box was permanently as tall as its rarest
      state — dead space on a surface whose whole job is a text field.
-     The buttons size the box themselves now: .io__gutter is a flex SIBLING of this
-     textarea, so the row is as tall as whichever is taller, and a tool appearing or
+     The buttons size the box themselves now: .io__gutter shares this box's GRID CELL,
+     so the row is as tall as whichever of the two is taller, and a tool appearing or
      leaving moves it. Two earlier attempts at "fit the buttons" derived a height from a
      live count and let a rounded pixel put the last tool under the speaker; this can't,
-     because nothing is computed — siblings in normal flow cannot overlap.
+     because nothing is computed — the browser sizes the row from the gutter itself.
      So all that is left here is "enough room to read a few lines".
      (max-height is min(24rem, 55vh), which is what stops a tall gutter or a long paste
      running off the screen.) */
   min-height: var(--io-box-min);
-  /* No reserved right edge on the INPUT any more — .io__gutter occupies real width
-     beside it, so text cannot run under the buttons in the first place. The OUTPUT box
-     still reserves one, because its read-aloud is still an overlay; .translate__out
-     sets that in its own padding shorthand below. */
+  /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. The gutter shares this box's grid cell, so
+     without a gutter of padding the text runs underneath it and is simply unreadable:
+     0.4rem inset + a 2rem button + 0.4rem of air. The output box reserves the same,
+     for its read-aloud, in its own padding shorthand below — which is also what keeps
+     the two boxes symmetric. Keep in step with .io__gutter's padding and .io__tool's
+     width. */
+  padding-right: 2.8rem;
   /* Cap the height so a long input/translation scrolls inside the box instead of
      growing the page. Applies to both the textarea and the output panel. */
   max-height: min(24rem, 55vh);
@@ -813,7 +824,12 @@ textarea.translate__box::-webkit-scrollbar {
    space-between is what keeps the old LOOK: modalities at the top, read-aloud at the
    bottom, pushed apart by whatever height the box ends up with. */
 .io__gutter {
-  flex: 0 0 auto;
+  /* Its own grid cell is the whole box (see .translate__inputwrap), so it pins itself
+     to the right edge and stretches the full height — which is what lets
+     space-between hold the two clusters at opposite ends however tall the box is. */
+  justify-self: end;
+  align-self: stretch;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -821,7 +837,9 @@ textarea.translate__box::-webkit-scrollbar {
   /* The floor between the two clusters when the box is at its shortest — below this
      they'd be touching rather than reading as two ends of a column. */
   gap: 0.35rem;
-  padding: 0.4rem 0.4rem 0.4rem 0;
+  /* Inset from the box's border on every side, so the column reads as sitting IN the
+     field rather than alongside it. */
+  padding: 0.4rem;
 }
 
 /* Input modality tools — the top cluster of the gutter (clear · draw · mic · camera ·
@@ -1101,57 +1119,3 @@ textarea.translate__box::-webkit-scrollbar {
   border-left: none;
 }
 
-/* The Manage sheet (iOS limited photo access). Sits inside the cropper's full-screen
-   overlay, so the backdrop and tap-to-dismiss come for free; this is only the card.
-   Capped and centred rather than edge-to-edge: it carries two choices and a cancel,
-   not content, so a full-width iOS action sheet would be mostly empty. */
-.photosheet {
-  width: min(22rem, 86vw);
-  margin: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.1rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  /* The overlay anchors its content to the TOP for the handwriting pad; this one has
-     nothing behind it worth seeing, so it re-centres itself. */
-  align-self: center;
-  text-align: center;
-}
-
-.photosheet__title {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-.photosheet__body {
-  margin: 0 0 0.35rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-/* Both routes out of limited access read as equals — neither is the recommended one.
-   "Select More" keeps you in the app; "Change Settings" grants everything. Which is
-   right depends on how much the user trusts the app, which is not ours to rank. */
-.photosheet__action {
-  width: 100%;
-  justify-content: center;
-}
-
-.photosheet__cancel {
-  appearance: none;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-size: 0.9rem;
-  padding: 0.4rem;
-  cursor: pointer;
-}
-
-.photosheet__cancel:hover {
-  color: var(--text);
-}

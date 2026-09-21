@@ -39,6 +39,8 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentLimitedPicker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listPhotos", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "loadPhoto", returnType: CAPPluginReturnPromise),
     ]
 
     /// `.readWrite`, matching what @capacitor/camera's checkPermissions reads, so the
@@ -75,6 +77,94 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin {
             PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: viewController) { _ in
                 DispatchQueue.main.async {
                     call.resolve(["status": self.currentStatus()])
+                }
+            }
+        }
+    }
+
+    /// The photos this app can actually see, newest first, as small JPEG thumbnails.
+    ///
+    /// This is the half PHPickerViewController cannot do. The picker runs out of process
+    /// and will not tell us what is in the library — it only hands back what the user
+    /// taps. Fetching PHAssets ourselves is what makes an IN-APP grid possible, and under
+    /// limited access it returns exactly the shared selection, which is the honest thing
+    /// to show next to a Manage button.
+    ///
+    /// Thumbnails, not originals: a grid of full-resolution images would be tens of MB
+    /// across the bridge for pictures the user is only glancing at. The chosen one is
+    /// fetched at size by loadPhoto.
+    @objc func listPhotos(_ call: CAPPluginCall) {
+        let limit = call.getInt("limit") ?? 60
+        let edge = CGFloat(call.getInt("thumbSize") ?? 240)
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let options = PHFetchOptions()
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            options.fetchLimit = limit
+            let assets = PHAsset.fetchAssets(with: .image, options: options)
+
+            let manager = PHImageManager.default()
+            let request = PHImageRequestOptions()
+            request.isSynchronous = true          // already off the main thread
+            request.deliveryMode = .highQualityFormat
+            request.resizeMode = .fast
+            request.isNetworkAccessAllowed = true // iCloud-only photos still resolve
+
+            var photos: [[String: Any]] = []
+            assets.enumerateObjects { asset, _, _ in
+                manager.requestImage(
+                    for: asset,
+                    targetSize: CGSize(width: edge, height: edge),
+                    contentMode: .aspectFill,
+                    options: request
+                ) { image, _ in
+                    guard let data = image?.jpegData(compressionQuality: 0.7) else { return }
+                    photos.append([
+                        "id": asset.localIdentifier,
+                        "thumb": data.base64EncodedString(),
+                    ])
+                }
+            }
+
+            DispatchQueue.main.async {
+                call.resolve(["photos": photos])
+            }
+        }
+    }
+
+    /// One photo at a size worth running OCR over. Capped rather than original: Vision
+    /// gains nothing from a 12-megapixel source and the base64 has to cross the bridge.
+    @objc func loadPhoto(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else {
+            call.reject("Missing photo id")
+            return
+        }
+        let maxEdge = CGFloat(call.getInt("maxSize") ?? 2048)
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil)
+            guard let asset = assets.firstObject else {
+                DispatchQueue.main.async { call.reject("Photo not found") }
+                return
+            }
+            let request = PHImageRequestOptions()
+            request.isSynchronous = true
+            request.deliveryMode = .highQualityFormat
+            request.resizeMode = .exact
+            request.isNetworkAccessAllowed = true
+
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: maxEdge, height: maxEdge),
+                contentMode: .aspectFit,
+                options: request
+            ) { image, _ in
+                guard let data = image?.jpegData(compressionQuality: 0.85) else {
+                    DispatchQueue.main.async { call.reject("Could not read that photo") }
+                    return
+                }
+                DispatchQueue.main.async {
+                    call.resolve(["base64": data.base64EncodedString(), "format": "jpeg"])
                 }
             }
         }

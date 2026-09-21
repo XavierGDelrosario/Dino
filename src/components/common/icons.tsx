@@ -159,20 +159,6 @@ export function ImageIcon({ size }: { size?: number }) {
   );
 }
 
-/** Manage what the app can see — sliders, the platform's own sign for "adjust this
- *  setting". Deliberately NOT a gear: a gear beside the camera buttons reads as
- *  "settings for the camera", and this is about the photo library's permission. */
-export function ManageIcon({ size }: { size?: number }) {
-  return (
-    <Svg size={size}>
-      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2" />
-      <circle cx="16" cy="6" r="2" />
-      <circle cx="10" cy="12" r="2" />
-      <circle cx="16" cy="18" r="2" />
-    </Svg>
-  );
-}
-
 /** Read aloud (text-to-speech). The waves are separate paths so a "speaking"
  *  state can animate them without touching the cone. */
 export function SpeakerIcon({ size }: { size?: number }) {
