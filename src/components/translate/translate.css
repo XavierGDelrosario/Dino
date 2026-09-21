@@ -329,6 +329,12 @@
      pt is absolute — it would ignore a reader who has raised their browser's default
      font size, which is the one accessibility lever this app doesn't have to build. */
   --io-font: 1.217rem; /* 14.6pt (12.6pt + 2) */
+  /* ONE height for the pair, for the same reason as --io-font: the six-button
+     arithmetic below is a single fact, and a second hand-kept number is how it stops
+     being true (a @media override written for the OLD 8rem default is exactly how the
+     tool column ended up on top of read-aloud on every phone). Overriding this token
+     is a deliberate act; overriding `min-height` on .translate__box is not. */
+  --io-box-min: 18rem;
   display: flex;
   gap: 1rem;
   align-items: stretch;
@@ -363,7 +369,7 @@
      let a rounded pixel put the last tool under the speaker three times. A constant
      with room to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even
      on a 667px screen — so it never fights this.) */
-  min-height: 18rem;
+  min-height: var(--io-box-min);
   /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
      that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
      the bottom — so one gutter clears them all, at the top AND the bottom, and the
@@ -627,9 +633,18 @@ textarea.translate__box::-webkit-scrollbar {
     height: 1.75rem;
     font-size: 0.85rem;
   }
-  /* Taller input/output boxes on mobile (1.5× the 8rem default) — more room to
-     read/edit on a narrow screen. */
-  .translate__box {
+  /* ONLY THE OUTPUT SHRINKS. The boxes stack here rather than sitting side by side,
+     so two full-height boxes are 36rem of scrolling on a phone — but the button
+     arithmetic (see --io-box-min) is the INPUT's: it carries the tool column at the
+     top and read-aloud at the bottom, and the output carries read-aloud alone. So the
+     input keeps the six-button height and the output gives back the 6rem.
+     This replaced a `.translate__box { min-height: 12rem }` that predated the
+     six-button constant and was still written against the old 8rem default: it hit
+     BOTH boxes, and at 12rem the five-tool column (ending 11.8rem down) ran straight
+     through read-aloud (starting 9.6rem down) — 2.2rem of overlap on every phone.
+     Do not re-introduce a shared shorter height here; shorten --io-box-min instead,
+     and only if the arithmetic there still clears. */
+  .translate__out {
     min-height: 12rem;
   }
 }
