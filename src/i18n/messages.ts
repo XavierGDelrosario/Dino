@@ -114,7 +114,11 @@ export const en = {
   "ocr.noText": "No text found in the photo.",
   "ocr.error": "Couldn’t read the photo. Try again.",
   // iOS limited photo access — the Manage button and its sheet.
-  "photos.manage": "Manage photo access",
+  // Just "Manage" — it is a header button on the photo grid, so the sheet's own
+  // title already supplies the noun, and the longer label only restated it. Kept as
+  // the sole accessible name too (no aria-label override): voice-control users
+  // activate a control by its VISIBLE text, so the two must not diverge.
+  "photos.manage": "Manage",
   "photos.sheetTitle": "Limited photo access",
   "photos.sheetBody": "DINO can be given more of your photo library.",
   "photos.selectMore": "Select More Photos…",
@@ -543,7 +547,7 @@ export const ja: Record<MessageKey, string> = {
   "ocr.recognize": "読み取る",
   "ocr.noText": "写真から文字が見つかりませんでした。",
   "ocr.error": "写真を読み取れませんでした。もう一度お試しください。",
-  "photos.manage": "写真へのアクセスを管理",
+  "photos.manage": "管理",
   "photos.sheetTitle": "写真へのアクセスが制限されています",
   "photos.sheetBody": "DINO にもっと多くの写真へのアクセスを許可できます。",
   "photos.selectMore": "写真を追加で選択…",
