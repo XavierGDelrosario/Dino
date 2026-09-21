@@ -329,12 +329,10 @@
      pt is absolute — it would ignore a reader who has raised their browser's default
      font size, which is the one accessibility lever this app doesn't have to build. */
   --io-font: 1.217rem; /* 14.6pt (12.6pt + 2) */
-  /* ONE height for the pair, for the same reason as --io-font: the button arithmetic
-     below is a single fact, and a second hand-kept number is how it stops being true
-     (a @media override written for the OLD 8rem default is exactly how the tool column
-     ended up on top of read-aloud on every phone). Overriding this token is a
-     deliberate act; overriding `min-height` on .translate__box is not. */
-  --io-box-min: 15rem;
+  /* The TEXT floor — how tall the pair is when the buttons don't need more. It is no
+     longer the button arithmetic: .io__gutter lays those out (see there), so this is
+     just "enough room to read a few lines". */
+  --io-box-min: 8rem;
   display: flex;
   gap: 1rem;
   align-items: stretch;
@@ -343,13 +341,16 @@
   /* Fills the .translate breakout width (so the boxes and the reader match). */
 }
 
-/* Wraps the input textarea so the modality tools (.io__tools) can pin to its
-   corner. Behaves as the left flex box; the textarea fills it. */
+/* The input box and its button gutter, side by side as a REAL ROW.
+   The gutter is a flex sibling of the textarea rather than an overlay, which is what
+   makes the box grow and shrink with the buttons (see .io__gutter). `position:
+   relative` stays for the output-side .io__speak pattern and any absolute child. */
 .translate__inputwrap {
   position: relative;
   flex: 1 1 0;
   min-width: 0;
   display: flex;
+  align-items: stretch;
 }
 
 /* The two side-by-side boxes: input (textarea) and output. */
@@ -357,31 +358,22 @@
   flex: 1 1 0;
   min-width: 0;
   font-size: var(--io-font);
-  /* TALL ENOUGH FOR EVERY BUTTON THAT CAN RENDER, as a constant — and no taller, because
-     the rest is dead space on a surface whose whole job is a text field.
-     The right edge carries the tool column at the top and read-aloud at the bottom, so
-     the box must fit both. FIVE tools is the ceiling, not a guess: that is every branch
-     in TranslateView's .io__tools — clear · draw · mic · camera · library — and they
-     can all be present at once (an iOS build has handwriting, speech and OCR, and the
-     clear button appears as soon as there is text).
-       0.4rem (top) + 5 × 2rem (.io__tool) + 4 × 0.35rem (gap) = 11.8rem of column,
-       + 2.4rem (read-aloud + its offset)                        = 14.2rem hard floor.
-     15rem, so the two never touch and 0.8rem of air says so. THIS IS A FLOOR: going a
-     button lower puts the last tool back under the speaker, so shorten it only by
-     removing a tool, and RAISE it before adding a sixth.
-     Still ROUNDED, never fitted. This replaced a version that derived the height from a
-     live count of the rendered buttons: it was exact, and being exact is what let a
-     rounded pixel put the last tool under the speaker three times. A constant with room
-     to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even on a 667px
-     screen — so it never fights this.) */
+  /* JUST THE TEXT FLOOR NOW. This used to be hand-computed to clear the tallest
+     possible button column, which meant the box was permanently as tall as its rarest
+     state — dead space on a surface whose whole job is a text field.
+     The buttons size the box themselves now: .io__gutter is a flex SIBLING of this
+     textarea, so the row is as tall as whichever is taller, and a tool appearing or
+     leaving moves it. Two earlier attempts at "fit the buttons" derived a height from a
+     live count and let a rounded pixel put the last tool under the speaker; this can't,
+     because nothing is computed — siblings in normal flow cannot overlap.
+     So all that is left here is "enough room to read a few lines".
+     (max-height is min(24rem, 55vh), which is what stops a tall gutter or a long paste
+     running off the screen.) */
   min-height: var(--io-box-min);
-  /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
-     that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
-     the bottom — so one gutter clears them all, at the top AND the bottom, and the
-     two boxes stay symmetric. Without it, text ran underneath the buttons and was
-     simply unreadable: 0.4rem offset + a 2rem button + 0.4rem of air. Keep this in
-     step with .io__tools/.io__speak `right` and .io__tool `width`. */
-  padding-right: 2.8rem;
+  /* No reserved right edge on the INPUT any more — .io__gutter occupies real width
+     beside it, so text cannot run under the buttons in the first place. The OUTPUT box
+     still reserves one, because its read-aloud is still an overlay; .translate__out
+     sets that in its own padding shorthand below. */
   /* Cap the height so a long input/translation scrolls inside the box instead of
      growing the page. Applies to both the textarea and the output panel. */
   max-height: min(24rem, 55vh);
@@ -810,15 +802,31 @@ textarea.translate__box::-webkit-scrollbar {
 /* Handwriting input (Tier-4, native ML Kit Digital Ink). A square "paper" pad
    whose recognized candidates fill the translate input. */
 
-/* Input modality tools, pinned to the input box's top-right corner (pencil now;
-   speech + camera will sit alongside). */
-/* Input modality tools, pinned to the box's top-right corner. Read-aloud sits in the
-   opposite corner (.io__speak); .translate__box is tall enough for both — see there. */
+/* THE BUTTON GUTTER — the column down the input box's right edge, and the thing that
+   decides how tall the box is.
+   It is a flex SIBLING of the textarea, not an overlay on it. That single fact is what
+   makes the box grow when a tool appears (Manage arriving under limited photo access,
+   the clear ✕ arriving with the first character) and shrink back when it goes: the row
+   is as tall as its tallest child, and the browser does that arithmetic, not us. It is
+   also why the tools can no longer land on top of read-aloud — siblings in normal flow
+   do not overlap, so the bug this replaced is not merely fixed but unavailable.
+   space-between is what keeps the old LOOK: modalities at the top, read-aloud at the
+   bottom, pushed apart by whatever height the box ends up with. */
+.io__gutter {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  /* The floor between the two clusters when the box is at its shortest — below this
+     they'd be touching rather than reading as two ends of a column. */
+  gap: 0.35rem;
+  padding: 0.4rem 0.4rem 0.4rem 0;
+}
+
+/* Input modality tools — the top cluster of the gutter (clear · draw · mic · camera ·
+   library · manage). Static: the gutter places it. */
 .io__tools {
-  position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
@@ -834,6 +842,13 @@ textarea.translate__box::-webkit-scrollbar {
   right: 0.4rem;
   bottom: 0.4rem;
   z-index: 2;
+}
+
+/* …except in the input's gutter, where it is a flow item that space-between pushes to
+   the bottom. Left absolute it would have gone on pinning itself to the WRAPPER's
+   corner — i.e. back on top of the tools the moment the box was short. */
+.io__gutter .io__speak {
+  position: static;
 }
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors
@@ -1084,4 +1099,59 @@ textarea.translate__box::-webkit-scrollbar {
 .reader__sentence .reader__gloss {
   padding-left: 0;
   border-left: none;
+}
+
+/* The Manage sheet (iOS limited photo access). Sits inside the cropper's full-screen
+   overlay, so the backdrop and tap-to-dismiss come for free; this is only the card.
+   Capped and centred rather than edge-to-edge: it carries two choices and a cancel,
+   not content, so a full-width iOS action sheet would be mostly empty. */
+.photosheet {
+  width: min(22rem, 86vw);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  /* The overlay anchors its content to the TOP for the handwriting pad; this one has
+     nothing behind it worth seeing, so it re-centres itself. */
+  align-self: center;
+  text-align: center;
+}
+
+.photosheet__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.photosheet__body {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Both routes out of limited access read as equals — neither is the recommended one.
+   "Select More" keeps you in the app; "Change Settings" grants everything. Which is
+   right depends on how much the user trusts the app, which is not ours to rank. */
+.photosheet__action {
+  width: 100%;
+  justify-content: center;
+}
+
+.photosheet__cancel {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+
+.photosheet__cancel:hover {
+  color: var(--text);
 }

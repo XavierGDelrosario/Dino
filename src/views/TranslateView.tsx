@@ -15,7 +15,8 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { HistoryMenu } from "../components/translate/HistoryMenu";
-import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon, ManageIcon } from "../components/common/icons";
+import { photoAccess as readPhotoAccess, selectMorePhotos, openPhotoSettings, type PhotoAccess } from "../services/photos/access";
 import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText, type OcrSource } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
@@ -128,6 +129,38 @@ export function TranslateView({
   // The photo waiting to be cropped (data: URL for display + the original bytes, so
   // an uncropped confirm can skip the canvas round-trip entirely).
   const [photo, setPhoto] = useState<{ url: string; base64: string } | null>(null);
+
+  // iOS LIMITED photo access. Only `"limited"` shows anything; every other value —
+  // including web, where the service answers "full" — renders no Manage button and no
+  // sheet, so this is invisible outside the one case it exists for.
+  //
+  // RE-READ ON RESUME, not just on mount. Both ways out of limited access leave the
+  // app: the system picker is another process, and Change Settings backgrounds us
+  // entirely. Without this the button would still be sitting there after the user had
+  // already granted full access, which is the state it is supposed to report.
+  const [photoAccess, setPhotoAccess] = useState<PhotoAccess>("full");
+  const [managing, setManaging] = useState(false);
+  useEffect(() => {
+    if (!ocrAvailable) return;
+    let cancelled = false;
+    const refresh = () => {
+      void readPhotoAccess().then((a) => {
+        if (!cancelled) setPhotoAccess(a);
+      });
+    };
+    refresh();
+    // `visibilitychange` rather than Capacitor's appStateChange: it needs no extra
+    // plugin, fires in the WebView on foreground, and is a no-op on web (where the
+    // service answers "full" anyway).
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ocrAvailable]);
 
   /** Camera or photo library — identical from here on: crop, then recognize. The
    *  source only decides which sheet opens, so the two buttons share this path. */
@@ -281,7 +314,11 @@ export function TranslateView({
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
+          {/* THE BUTTON GUTTER. Everything down the box's right edge lives in here, as
+              real layout rather than an overlay, so the box is exactly as tall as the
+              buttons currently need — short with two, taller when Manage or the clear
+              ✕ appears. See .io__gutter. */}
+          <div className="io__gutter">
             <div className="io__tools">
               {/* Order: clear · draw · mic · picture. Clear first because it acts on
                   what's already there; then the three ways to PUT something in, in
@@ -354,13 +391,30 @@ export function TranslateView({
                   </button>
                 </>
               )}
+              {/* MANAGE — iOS limited photo access only, so it is absent on web, on a
+                  device with full access, and on one that has never been asked. iOS
+                  never re-prompts once "Limit Access" is chosen, so without this there
+                  is no route to a wider selection from inside the app.
+                  It sits with the photo buttons because that is what it is about, and
+                  the gutter absorbs the extra height rather than the box reserving it
+                  year-round for a button most users never see. */}
+              {photoAccess === "limited" && (
+                <button
+                  className="io__tool"
+                  onClick={() => setManaging(true)}
+                  aria-label={tr("photos.manage")}
+                  title={tr("photos.manage")}
+                >
+                  <ManageIcon />
+                </button>
+              )}
             </div>
-          )}
-          {/* Read-aloud, bottom-right of the box — the opposite corner from the input
-              modalities. The input is spoken in the language of the INPUT ITSELF, since
-              "auto-detect" is not a voice; see speakLang. */}
-          <div className="io__speak">
-            <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
+            {/* Read-aloud, the gutter's BOTTOM cluster — the opposite end from the input
+                modalities. The input is spoken in the language of the INPUT ITSELF,
+                since "auto-detect" is not a voice; see speakLang. */}
+            <div className="io__speak">
+              <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
+            </div>
           </div>
         </div>
         <div className="translate__outwrap">
@@ -402,6 +456,61 @@ export function TranslateView({
               onCancel={() => setPhoto(null)}
               onCrop={onCropped}
             />
+          </div>
+        )}
+
+        {/* The Manage sheet. Two ways to widen photo access, which is all iOS offers
+            once "Limit Access" has been chosen — its own picker for adding photos, and
+            Settings for switching to the whole library.
+            Built in-app rather than as a native action sheet: that would be another
+            plugin and another pod for two buttons, and this way it is themed, localized
+            and testable like the rest of the app. It reuses the cropper's full-screen
+            overlay so the backdrop and dismissal behave identically. */}
+        {managing && (
+          <div
+            className="translate__overlay translate__overlay--modal"
+            onClick={() => setManaging(false)}
+            role="presentation"
+          >
+            <div
+              className="photosheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label={tr("photos.sheetTitle")}
+              /* The sheet is inside the dismiss-on-tap backdrop, so its own taps must
+                 not reach it or choosing an option would also close the sheet. */
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="photosheet__title">{tr("photos.sheetTitle")}</h2>
+              <p className="photosheet__body">{tr("photos.sheetBody")}</p>
+              <button
+                className="btn photosheet__action"
+                onClick={() => {
+                  // The picker reports the grant as it closes: the user can switch to
+                  // full access from inside it, and that retires the Manage button.
+                  void selectMorePhotos().then((a) => {
+                    setPhotoAccess(a);
+                    setManaging(false);
+                  });
+                }}
+              >
+                {tr("photos.selectMore")}
+              </button>
+              <button
+                className="btn photosheet__action"
+                onClick={() => {
+                  // Backgrounds the app; the visibilitychange listener re-reads the
+                  // grant when it comes back, so nothing has to be resolved here.
+                  void openPhotoSettings();
+                  setManaging(false);
+                }}
+              >
+                {tr("photos.changeSettings")}
+              </button>
+              <button className="photosheet__cancel" onClick={() => setManaging(false)}>
+                {tr("common.cancel")}
+              </button>
+            </div>
           </div>
         )}
       </div>

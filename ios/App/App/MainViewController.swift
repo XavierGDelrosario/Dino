@@ -17,6 +17,7 @@ class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(DigitalInkPlugin())
         bridge?.registerPluginInstance(TextOcrPlugin())
+        bridge?.registerPluginInstance(PhotoAccessPlugin())
     }
 
     // The scroll indicator down the right edge is drawn by WKWebView's own scroll
