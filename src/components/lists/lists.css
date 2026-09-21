@@ -109,6 +109,18 @@
   gap: 0.3rem;
 }
 
+/* The name field is sized HERE rather than left at an <input>'s default ~20-character
+   intrinsic width. .chips__new is the last item in a row that scrolls sideways, so
+   every pixel it is wider than the ＋ New list chip it replaced is a pixel the row has
+   to scroll to show it — and what it scrolls past is the lists you were choosing
+   between. 9rem still holds a list name comfortably and usually costs no scroll at all.
+   `flex: 0 0 auto` also drops the global `.input { flex: 1 }`, which means nothing in a
+   shrink-to-fit inline-flex row and only made the field's width a guess. */
+.chips__new .input {
+  flex: 0 0 auto;
+  width: 9rem;
+}
+
 /* header bar: title + the Review / Review All / Summary actions, ONE line.
    The buttons hold their natural width and never wrap their label (a wrapped
    "Review All (123)" grows two lines tall and stops matching its neighbours);
