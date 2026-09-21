@@ -65,12 +65,18 @@ export function ArticleView({
   // left the WHOLE article sitting in the Translate tab's input the next time you
   // opened it. `submit` takes the text explicitly and keeps its own `analyzedInput`,
   // so the reader never needed the shared box.
-  // The languages are passed EXPLICITLY, not left to the pinned state: the pin lands in
-  // a setState during the same commit this effect runs in, so `submit` would still close
-  // over the PREVIOUS pair. For an English article under the default profile that meant
-  // source=JA / target=EN, which submit answers with its "nothing to translate" echo —
-  // `para` stays null, and this view renders "Analyzing…" forever with no error. The
-  // override exists for exactly this (see submit's comment about swap()).
+  // The languages are passed EXPLICITLY. useTranslate now DERIVES a pinned pair rather
+  // than storing it (see the ‼ comment there), so `submit` already carries the right
+  // one and this override only restates it — but restating it is what makes this call
+  // readable on its own, and it is the same override swap() uses.
+  //
+  // It is worth knowing what the pin being late used to do here, because both symptoms
+  // looked like something else: with the profile's pair still in force, an English
+  // article read as "not the language you're learning", so submit machine-translated
+  // the WHOLE article into Japanese and listed JAPANESE vocabulary for an English news
+  // story — or, when the pair collapsed to EN→EN, answered with its "nothing to
+  // translate" echo, leaving `para` null and this view on "Analyzing…" forever with no
+  // error.
   useEffect(() => {
     void t.submit({
       text: article.text,
