@@ -1,0 +1,36 @@
+diff --git a/node_modules/@capacitor/camera/ios/Sources/CameraPlugin/CameraPlugin.swift b/node_modules/@capacitor/camera/ios/Sources/CameraPlugin/CameraPlugin.swift
+index 968733e..1622479 100644
+--- a/node_modules/@capacitor/camera/ios/Sources/CameraPlugin/CameraPlugin.swift
++++ b/node_modules/@capacitor/camera/ios/Sources/CameraPlugin/CameraPlugin.swift
+@@ -534,12 +534,28 @@ private extension CameraPlugin {
+             call?.reject("User denied access to photos")
+             return
+         }
+-        // we either already have permission or can prompt
+-        if authStatus == .authorized {
++        // ===== DINO PATCH: .limited is a GRANT, not a denial. =====
++        // PHPhotoLibrary.authorizationStatus() returns .limited when the user taps
++        // "Limit Access" on the system prompt. That is neither .denied (so the
++        // restricted/denied check above lets it through) nor .authorized -- so upstream
++        // fell to the else branch, re-requested, resolved .limited again, and rejected
++        // with "User denied access to photos". Choosing "Limit Access" ONCE therefore
++        // broke the photo-library button permanently, and iOS never re-prompts, so there
++        // was no way back from inside the app.
++        //
++        // Admitting it is correct and not a loosening: the picker presented below is
++        // PHPickerViewController, which runs OUT OF PROCESS and returns the chosen image
++        // through the result's itemProvider (see fetchProcessedImages), never a PHAsset.
++        // It reads nothing the user did not hand it, under either grant. .restricted and
++        // .denied are still refused above, and a fresh .notDetermined still prompts.
++        //
++        // Upstream simply does not handle the .limited case. Re-check on a
++        // @capacitor/camera bump before re-applying.
++        if authStatus == .authorized || authStatus == .limited {
+             presentSystemAppropriateImagePicker()
+         } else {
+             PHPhotoLibrary.requestAuthorization({ [weak self] (status) in
+-                if status == PHAuthorizationStatus.authorized {
++                if status == PHAuthorizationStatus.authorized || status == PHAuthorizationStatus.limited {
+                     DispatchQueue.main.async { [weak self] in
+                         self?.presentSystemAppropriateImagePicker()
+                     }
