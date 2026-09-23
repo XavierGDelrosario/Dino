@@ -2113,3 +2113,85 @@
 1451850:0	親の同意を得て留学した。	I studied abroad with my parents' consent.	相手の考えや申し出を認めること。
 1451850:1	その意見に私も同意です。	I share that view.	同じ意見であること。
 1451850:2	この二つの言葉は同意だ。	These two words mean the same thing.	同じ意味であること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 17 — N1 continued. Two sub-patterns worth a sentence each: the TECHNICAL
+# sense a learner meets on a device (本体, 電源, 参照, 無線) and the FIGURATIVE one
+# that no gloss list prepares them for (惑星 = a dark horse, 正解 = the right call).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 革命 (1206500, かくめい) — revolution ────────────────────────────────────
+1206500:0	その国では革命が起きて王が倒された。	A revolution broke out in that country and the king was overthrown.	政治や社会の仕組みを急に根本から変えること。
+
+# ── 正義 (1376910, せいぎ) — justice ─────────────────────────────────────────
+1376910:0	彼は正義のために戦った。	He fought for justice.	人として守るべき正しい道。
+
+# ── 名誉 (1531870, めいよ) — honour / honorary ───────────────────────────────
+1531870:0	国の代表に選ばれて名誉に思う。	I'm honoured to have been chosen to represent the country.	すぐれていると世の中に認められること。
+1531870:2	彼は大学の名誉教授になった。	He became an emeritus professor at the university.	功績を認めて、その人に与える呼び名であること。
+
+# ── 日々 (1602120, ひび) — daily life / the days of one's youth ───────────────
+1602120:0	日々の生活を大切にしたい。	I want to make the most of everyday life.	毎日のこと。
+1602120:1	学生時代の楽しい日々を思い出す。	I remember the happy days of my student years.	過ぎていった、ある時期の毎日。
+
+# ── 推進 (1371140, すいしん) — propulsion / pushing a policy forward ──────────
+1371140:0	船はエンジンの力で推進する。	The ship is driven forward by its engine.	物を前へ押して進めること。
+1371140:1	政府は環境の政策を推進している。	The government is pushing its environmental policy forward.	物事がうまく進むように力を入れること。
+
+# ── 旦那 (1418410, だんな) — the master / husband ────────────────────────────
+1418410:0	店の旦那に挨拶をした。	I said hello to the owner of the shop.	店や家の主人。
+1418410:1	うちの旦那は料理が上手だ。	My husband is a good cook.	妻が夫を指して言う言葉。
+
+# ── 規定 (1223060, きてい) — a rule / a compulsory routine ─────────────────────
+1223060:0	会社の規定で、休みは年に二十日だ。	Under company rules we get twenty days off a year.	物事の方法や内容を、はっきりと決めたもの。
+1223060:2	体操の選手が規定の演技を終えた。	The gymnast finished her compulsory routine.	体操などで、決められた内容で行う演技。
+
+# ── 再現 (1292640, さいげん) — coming back / recreating ──────────────────────
+1292640:0	昨年の悲劇が再現した。	Last year's tragedy happened all over again.	一度消えたものが、また現れること。
+1292640:1	事故の様子を再現した映像を見た。	I watched a reconstruction of the accident.	前にあったことを、もう一度そのとおりに表すこと。
+
+# ── 解除 (1199030, かいじょ) — cancelling a contract / lifting a restriction ──
+1199030:0	携帯電話の契約を解除した。	I cancelled my mobile phone contract.	約束や契約を取り消すこと。
+1199030:1	大雨の警報が解除された。	The heavy rain warning was lifted.	制限や禁止などをやめて、もとの状態に戻すこと。
+
+# ── 文書 (1583840, ぶんしょ) — a document ────────────────────────────────────
+1583840:0	会議の内容を文書にまとめた。	I put what was said at the meeting into writing.	文字で書いたもの。
+
+# ── 参照 (1302410, さんしょう) — consulting / browsing to a file ───────────────
+1302410:0	詳しくは次のページを参照してください。	For more detail, please see the next page.	ほかの物と照らし合わせて、参考にすること。
+1302410:1	保存する場所を参照して選ぶ。	You browse to the folder you want to save in and pick it.	コンピューターで、ファイルのある場所を開いて探すこと。
+
+# ── 正解 (1376740, せいかい) — the correct answer / the right call ─────────────
+1376740:0	この問題の正解は三だ。	The answer to this question is three.	問題の正しい答え。
+1376740:1	傘を持ってきたのは正解だった。	Bringing an umbrella was the right call.	結果から見て、正しい判断であること。
+
+# ── 新人 (1361960, しんじん) — a newcomer ────────────────────────────────────
+1361960:0	今年の新人はよく働く。	This year's new recruits work hard.	新しく仲間に入った人。
+
+# ── 本体 (1522950, ほんたい) — the main unit / the price before tax ─────────────
+1522950:1	カメラの本体だけを買った。	I bought just the camera body.	機械などの、中心となる部分。
+1522950:4	本体の価格は千円だ。	The price before tax is a thousand yen.	税金を含まない、もとの値段。
+
+# ── 惑星 (1562600, わくせい) — a planet / a dark horse ───────────────────────
+1562600:0	地球は太陽の周りを回る惑星だ。	The Earth is a planet that goes round the sun.	太陽などの周りを回っている、大きな天体。
+1562600:1	彼は今回の選挙の惑星と言われている。	He's being called the dark horse of this election.	実力がよくわからないが、勝つかもしれない人。
+
+# ── 犠牲 (1225450, ぎせい) — a sacrifice / a victim ──────────────────────────
+1225450:0	家族のために自分の夢を犠牲にした。	I sacrificed my own dream for my family.	ある目的のために、大切なものを捨てること。
+1225450:1	事故で多くの人が犠牲になった。	Many people were killed in the accident.	災害や事故で命を失うこと。
+
+# ── 中継 (1424040, ちゅうけい) — relaying / a live broadcast ──────────────────
+1424040:0	荷物は大阪を中継して送られる。	The parcel is routed through Osaka.	途中で受け継いで、先へ送ること。
+1424040:1	試合をテレビで中継する。	The match is broadcast live on TV.	その場の様子を、そのまま放送すること。
+
+# ── 電源 (1443220, でんげん) — a power supply / the power button ────────────────
+1443220:0	この部屋には電源が一つしかない。	There's only one power socket in this room.	電気をとるもとになる所。
+1443220:1	テレビの電源を切った。	I switched the TV off.	機械を動かしたり止めたりするためのスイッチ。
+
+# ── 無線 (1530380, むせん) — radio / wireless ────────────────────────────────
+1530380:0	船から無線で助けを呼んだ。	They radioed for help from the ship.	電波を使って通信すること。
+1530380:1	パソコンを無線でつないだ。	I connected the computer wirelessly.	電線を使わないこと。
+
+# ── 領域 (1554720, りょういき) — territory / a field of study ──────────────────
+1554720:0	飛行機が他国の領域に入った。	The aircraft entered another country's territory.	国の力が及ぶ土地や海や空。
+1554720:1	それは私の専門の領域ではない。	That isn't my field.	学問や仕事などの、受け持つ範囲。
