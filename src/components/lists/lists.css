@@ -142,6 +142,17 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* Shrinkable inside .lists__bar, so the un-wrappable action buttons keep their
+     width and the NAME gives way. The ellipsis itself lives on .lists__name — a flex
+     container's own text becomes an anonymous flex item, which `text-overflow` cannot
+     reach, so declaring it here only ever hard-clipped the name mid-letter. */
+  min-width: 0;
+}
+
+/* The list name. Its own box, purely so the ellipsis has a block to apply to; it also
+   keeps the count badge beside it a real sibling, instead of a later item the clipped
+   text pushed out of the row entirely. Full name on hover, same as .chip. */
+.lists__name {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -1117,6 +1128,21 @@
   border-color: var(--accent);
 }
 
+/* THE QUIZ RECAP ONLY (ConfidenceDots `previous`) — the dots this session moved.
+   Gained takes --conf-5, the ramp's green: the colour a mastered word already wears
+   in the reader and the charts, so "you went up" is the same green everywhere rather
+   than a second success colour invented here. Lost keeps the filled dot and fades it,
+   so the drop reads as ground given back — a dot that simply switched off would be
+   indistinguishable from one the word never had. */
+.dot--gain {
+  background: var(--conf-5);
+  border-color: var(--conf-5);
+}
+
+.dot--lost {
+  opacity: 0.35;
+}
+
 /* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
    REMOVES the browser's button chrome — the readout must look exactly as it did when
    it was a <span>, so nothing may add a border, a background or a hover fill. Only the
@@ -1209,3 +1235,4 @@
   padding: 1rem 1.1rem;
   text-align: left;
 }
+

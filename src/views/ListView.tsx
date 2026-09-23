@@ -99,6 +99,7 @@ export function ListView({
   const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
+
   const [sortAxis, setSortAxis] = useStickyState<SortAxis>(userId, "lists.sortAxis", "added");
   const [sortDir, setSortDir] = useStickyState<SortDir>(userId, "lists.sortDir", "least");
   // Free-text search (headword · meaning · reading — see services/words/search.ts). Kept
@@ -238,7 +239,11 @@ export function ListView({
 
       <div className="lists__bar">
         <h2 className="lists__title">
-          {selectedList ? selectedList.listName : t("lists.allWords")}
+          {/* Its own element so a name too long for the bar ellipsises instead of
+              being cut mid-letter; the full one lives in the tooltip, as on the chip. */}
+          <span className="lists__name" title={selectedList?.listName}>
+            {selectedList ? selectedList.listName : t("lists.allWords")}
+          </span>
           {/* Count reflects the FILTERED set actually shown (equals the list total
               when no filter is active), not the raw list size. */}
           <span className="lists__count">{rows.length}</span>
