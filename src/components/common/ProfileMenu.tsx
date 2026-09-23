@@ -1,8 +1,10 @@
 // Person-icon dropdown (top-right): profile link + sign-in (guest) / sign-out
 // (account). The forms live on their own pages now (AuthPage); this just navigates.
 //
-// The theme row (ThemeToggle) heads the menu for guests and accounts alike — a guest
-// has no profile page, but still needs it.
+// ORDER: email · Profile · Theme · sign-in/sign-out. This is the ACCOUNT menu, so the
+// account's own destination leads and the theme is a setting that merely lives here.
+// For a GUEST, Profile is absent (there is no account behind it), so the theme row rises
+// to the top on its own — a guest has no profile page but still needs the theme.
 import { signOut } from "../../services/session";
 import { useI18n } from "../../i18n";
 import { useRouter, Link } from "../../router";
@@ -31,11 +33,13 @@ export function ProfileMenu({
   return (
     <PopoverMenu icon="👤" ariaLabel={t("profile.menuAria")} open={open} onToggle={onToggle}>
       {!isAnonymous && email && <div className="profilemenu__email ellipsis">{email}</div>}
-      <ThemeToggle />
-      {/* Guests have no real account → no profile; just the sign-in/create path. */}
+      {/* Guests have no real account → no profile; just the sign-in/create path.
+          It sits ABOVE the theme row: this is the ACCOUNT menu, so the account's own
+          destination leads, and the theme is a setting that happens to live here. */}
       {!isAnonymous && (
         <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>
       )}
+      <ThemeToggle />
       {isAnonymous ? (
         <Link to="/signin" className="profilemenu__item" onClick={close}>{t("auth.signInCreate")}</Link>
       ) : (
