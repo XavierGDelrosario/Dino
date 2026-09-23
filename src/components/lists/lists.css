@@ -1236,3 +1236,114 @@
   text-align: left;
 }
 
+/* ── The lists overview (the vertical index; components/lists/ListsOverview) ──
+   The replacement for the chip row as the way INTO a list. Everything here is sized
+   for a thumb on a phone, which is the whole point: the chips were a horizontal
+   scroller whose targets got harder to hit as lists were added. */
+.listsoverview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.listsoverview__bar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.listsoverview__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* A whole row is the target — not a label inside it. `width: 100%` + `text-align:
+   left` are what turn the <button> back into a row; everything else strips the
+   browser's button chrome, as .dots-btn does. */
+.listcard {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  /* Two columns and two rows: the name takes the width it needs, the count sits hard
+     right, and the confidence bar spans both underneath. A grid rather than flex wrap
+     so the bar can't be dragged onto the name's line by a short list name. */
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.listcard:hover {
+  border-color: var(--accent);
+}
+
+/* ALL is the whole vocabulary rather than one list among the others, so it is pinned
+   first and marked — otherwise it reads as a list someone happened to name that. */
+.listcard--all {
+  border-color: var(--accent);
+}
+
+.listcard__name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  /* The row can't scroll sideways, so a long name ellipsises here rather than pushing
+     the count off the card — the same failure .lists__title had. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.listcard__count {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+/* The confidence histogram as one bar across both columns. Its segments carry the
+   --conf-N ramp inline (see ListsOverview) because the count decides the width, so the
+   colour has to travel with it. */
+.listcard__bar {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.listcard__seg {
+  height: 100%;
+}
+
+/* Back to the overview, above the chips. Text + chevron rather than an icon button:
+   it is a navigation step, and the destination's name is the only thing that makes
+   "back" unambiguous on a tab that has two screens. */
+.lists__back {
+  align-self: flex-start;
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0.2rem 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.lists__back:hover {
+  color: var(--text);
+}

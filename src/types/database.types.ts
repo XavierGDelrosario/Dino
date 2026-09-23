@@ -319,16 +319,19 @@ export type Database = {
       }
       lists: {
         Row: {
+          created_at: string
           list_id: string
           list_name: string
           user_id: string
         }
         Insert: {
+          created_at?: string
           list_id?: string
           list_name: string
           user_id: string
         }
         Update: {
+          created_at?: string
           list_id?: string
           list_name?: string
           user_id?: string
@@ -899,6 +902,17 @@ export type Database = {
       server_now: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      list_overview: {
+        Args: Record<string, never>
+        Returns: {
+          list_id: string | null
+          list_name: string | null
+          created_at: string | null
+          last_word_added_at: string | null
+          word_count: number
+          confidence: number[]
+        }[]
       }
       placement_evidence: {
         Args: { p_source_lang: string }
