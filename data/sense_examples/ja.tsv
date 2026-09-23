@@ -2716,3 +2716,87 @@
 
 # ── 柔軟 (1335480, じゅうなん) — flexible ────────────────────────────────────
 1335480:0	彼女は体が柔軟だ。	Her body is very supple.	やわらかで、しなやかなようす。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 24 — N1 continued. The recurring shape here is a word that names a place or
+# an event on one side and a PERSON'S state on the other: 占領 is an army occupying
+# a country or a sibling taking over the sofa, 麻痺 is a numb leg or a city at a
+# standstill, 沈黙 is silence or refusing to act.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 気象 (1222270, きしょう) — the weather ────────────────────────────────────
+1222270:0	山の気象は変わりやすい。	Mountain weather changes quickly.	雨や風や気温など、大気の状態。
+
+# ── 占領 (1389610, せんりょう) — having a place to oneself / military occupation ─
+1389610:0	弟がソファーを占領している。	My brother has taken over the sofa.	ある場所を自分だけで使うこと。
+1389610:1	その島は戦争中に敵に占領された。	The island was occupied by the enemy during the war.	軍隊が他国の土地を支配すること。
+
+# ── 打撃 (1408870, だげき) — a blow / batting ──────────────────────────────
+1408870:0	大雨で農家は大きな打撃を受けた。	The heavy rain dealt the farmers a heavy blow.	強く打つこと。また、大きな損害。
+1408870:1	彼は打撃がうまい選手だ。	He's a good hitter.	野球で、ボールを打つこと。
+
+# ── 待遇 (1410610, たいぐう) — treatment / pay and conditions ──────────────────
+1410610:0	ホテルで丁寧な待遇を受けた。	We were treated with great courtesy at the hotel.	人をもてなすこと。
+1410610:1	この会社は待遇がいい。	This company offers good pay and conditions.	働く人に対する、給料などの扱い。
+
+# ── 沈黙 (1431810, ちんもく) — silence / inaction ─────────────────────────────
+1431810:0	長い沈黙の後、彼は話し始めた。	After a long silence he began to speak.	何も言わずに、黙っていること。
+1431810:1	政府は問題に沈黙を守っている。	The government is doing nothing about the problem.	何の行動も起こさないこと。
+
+# ── 結晶 (1254870, けっしょう) — a crystal / the fruit of one's labour ─────────
+1254870:0	雪の結晶は美しい形をしている。	Snow crystals have beautiful shapes.	物質が決まった形に固まったもの。
+1254870:1	この本は長年の研究の結晶だ。	This book is the fruit of many years of research.	努力などが実って、形になったもの。
+
+# ── 合唱 (1284870, がっしょう) — a chorus ────────────────────────────────────
+1284870:0	みんなで校歌を合唱した。	We all sang the school song together.	大勢の人が声を合わせて歌うこと。
+
+# ── 失格 (1319820, しっかく) — disqualification / not fit for the role ─────────
+1319820:0	その選手はルール違反で失格になった。	The athlete was disqualified for breaking the rules.	資格を失うこと。
+1319820:1	子どもを放っておくなんて親として失格だ。	Leaving your children alone like that makes you a failure as a parent.	その立場にふさわしくないこと。
+
+# ── 趣旨 (1328990, しゅし) — the aim ─────────────────────────────────────────
+1328990:1	会の趣旨を説明した。	I explained what the meeting was for.	物事を行う目的やねらい。
+
+# ── 麻痺 (1604160, まひ) — paralysis / a standstill ───────────────────────────
+1604160:0	事故で足が麻痺した。	My legs were paralysed in the accident.	体の一部が動かなくなること。
+1604160:2	大雪で交通が麻痺した。	The heavy snow brought traffic to a standstill.	物事の働きが止まってしまうこと。
+
+# ── 排水 (1472380, はいすい) — drainage ──────────────────────────────────────
+1472380:0	この道は排水が悪い。	This road drains badly.	いらない水を外へ流し出すこと。
+
+# ── 無用 (1530940, むよう) — unnecessary / no business being there ─────────────
+1530940:1	そんな心配は無用だ。	There's no need to worry about that.	必要がないこと。
+1530940:2	無用の者は入ってはいけない。	Unauthorised persons must not enter.	用事がないこと。
+
+# ── 外来 (1204240, がいらい) — foreign / an outpatient clinic ─────────────────
+1204240:0	この池には外来の魚が増えている。	Non-native fish are increasing in this pond.	外国やほかの所から入ってくること。
+1204240:1	病院の外来で薬をもらった。	I got some medicine at the hospital's outpatient clinic.	入院しないで、病院に通う人の診察。
+
+# ── 首脳 (1329360, しゅのう) — a leader ──────────────────────────────────────
+1329360:0	各国の首脳が集まって話し合った。	The leaders of each country met for talks.	国や団体の、中心となる人。
+
+# ── 日頃 (1464070, ひごろ) — usually ────────────────────────────────────────
+1464070:0	日頃の練習が大切だ。	What matters is the practice you put in every day.	ふだん。いつも。
+
+# ── 感度 (1212550, かんど) — sensitivity, reception ───────────────────────────
+1212550:0	このラジオは感度がいい。	This radio has good reception.	刺激や電波などを感じ取る程度。
+
+# ── 直面 (1431540, ちょくめん) — facing a problem ─────────────────────────────
+1431540:1	会社は大きな問題に直面している。	The company is facing a serious problem.	物事に直接出会うこと。
+
+# ── 独裁 (1455800, どくさい) — dictatorship / running things single-handedly ──
+1455800:0	その国は長い間独裁が続いた。	That country was a dictatorship for a long time.	一人の人が、国の権力をすべて持って政治を行うこと。
+1455800:1	社長の独裁で会社が動いている。	The company is run by the president's word alone.	ほかの人の意見を聞かずに、一人で物事を決めること。
+
+# ── 破棄 (1471300, はき) — destroying documents / breaking a treaty ────────────
+1471300:0	古い書類を破棄した。	I shredded the old documents.	書類などを破って捨てること。
+1471300:1	一方の国が条約を破棄した。	One of the countries broke the treaty.	約束や契約を一方的に取り消すこと。
+
+# ── 沿岸 (1176740, えんがん) — the coast ─────────────────────────────────────
+1176740:0	台風が沿岸の町をおそった。	The typhoon hit the coastal towns.	海や川や湖にそった土地。
+
+# ── 愚痴 (1245170, ぐち) — a grumble ────────────────────────────────────────
+1245170:0	父は仕事の愚痴ばかり言っている。	My father does nothing but grumble about work.	言っても仕方がないことを、言って嘆くこと。
+
+# ── 必然 (1487570, ひつぜん) — inevitable ────────────────────────────────────
+1487570:0	彼が負けたのは必然だった。	His defeat was inevitable.	必ずそうなること。
