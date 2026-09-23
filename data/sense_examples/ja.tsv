@@ -2884,3 +2884,84 @@
 # ── 不調 (1493840, ふちょう) — being out of form / a breakdown in talks ─────────
 1493840:0	最近、体が不調だ。	I haven't been feeling well lately.	調子が悪いこと。
 1493840:1	話し合いは不調に終わった。	The talks broke down.	話し合いなどが、まとまらないこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 26 — N1 continued. A cluster of words that go from LITERAL to "the best of
+# its kind" or "a person like that": 横綱 is sumo's top rank and the best in any
+# field, 孤児 is an orphan and someone with no one, 獲物 is prey and loot.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 圧倒 (1153260, あっとう) — overwhelming an opponent / being overwhelmed ────
+1153260:0	チームは相手を圧倒して勝った。	The team overwhelmed their opponents and won.	はるかにすぐれた力で、相手を負かすこと。
+1153260:1	その景色の美しさに圧倒された。	I was overwhelmed by the beauty of the view.	強く心を動かされること。
+
+# ── 原型 (1261300, げんけい) — a prototype ───────────────────────────────────
+1261300:0	この車は昔の車の原型をとどめている。	This car keeps the basic form of the old model.	物事のもとになった形。
+
+# ── 理屈 (1606240, りくつ) — logic / a pretext ───────────────────────────────
+1606240:0	その説明は理屈に合っている。	That explanation makes sense.	物事の筋道。
+1606240:1	彼は理屈ばかり言って働かない。	He's all excuses and does no work.	無理に筋道をつけた言い訳。
+
+# ── 化石 (1187210, かせき) — a fossil ────────────────────────────────────────
+1187210:0	高い山で貝の化石が見つかった。	A shell fossil was found high up in the mountains.	大昔の生物の体や跡が、石の中に残ったもの。
+
+# ── 圧迫 (1153310, あっぱく) — pressure / oppression ──────────────────────────
+1153310:0	胸に圧迫を感じる。	I feel pressure on my chest.	強く押しつけること。
+1153310:1	物価が上がって生活を圧迫している。	Rising prices are squeezing household budgets.	力で相手をおさえて、自由にさせないこと。
+
+# ── 配列 (1473220, はいれつ) — arrangement ──────────────────────────────────
+1473220:0	本を番号の順に配列した。	I arranged the books in numerical order.	決まった順に並べること。
+
+# ── 相応 (1400840, そうおう) — suitable ─────────────────────────────────────
+1400840:0	年齢に相応した服を着る。	I wear clothes suited to my age.	ふさわしいこと。つりあっていること。
+
+# ── 転落 (1441370, てんらく) — a fall / a downfall ───────────────────────────
+1441370:0	車が崖から転落した。	The car went over the cliff.	高い所から転んで落ちること。
+1441370:1	チームは二位から五位に転落した。	The team slumped from second to fifth.	地位や順位が、急に下がること。
+
+# ── 倍率 (1473340, ばいりつ) — magnification / the competition for places ──────
+1473340:0	この望遠鏡は倍率が高い。	This telescope has high magnification.	レンズで物を大きく見せる割合。
+1473340:1	その大学の入試の倍率は十倍だ。	There are ten applicants for every place at that university.	受ける人数と、受かる人数の割合。
+
+# ── 固有 (1266730, こゆう) — peculiar to ────────────────────────────────────
+1266730:0	これは日本に固有の植物だ。	This plant is native only to Japan.	そのものだけが、もともと持っていること。
+
+# ── 着手 (1423060, ちゃくしゅ) — setting to work on ──────────────────────────
+1423060:0	新しい計画に着手した。	We've made a start on the new project.	仕事などに取りかかること。
+
+# ── 無難 (1530750, ぶなん) — safe / passable ───────────────────────────────
+1530750:0	初めての店では無難な料理を選ぶ。	At a new restaurant I pick a safe dish.	危なくないこと。
+1530750:1	彼は仕事を無難にこなした。	He got through the work without any problems.	特によくはないが、悪い所もないこと。
+
+# ── 猛烈 (1534100, もうれつ) — fierce / terribly ─────────────────────────────
+1534100:0	猛烈な風で木が倒れた。	The fierce wind blew trees down.	勢いが非常に激しいようす。
+1534100:1	試験の前に猛烈に勉強した。	I studied like mad before the exam.	程度が非常に大きいようす。
+
+# ── 連帯 (1559660, れんたい) — solidarity / joint ────────────────────────────
+1559660:0	労働者たちの連帯が強まった。	Solidarity among the workers grew stronger.	気持ちを一つにして、協力すること。
+1559660:1	その借金は二人が連帯して払う。	The two of them are jointly liable for the debt.	二人以上が一緒に責任を持つこと。
+
+# ── 星座 (1376360, せいざ) — a constellation / a star sign ────────────────────
+1376360:0	夜空に星座を探した。	I looked for constellations in the night sky.	星をいくつかつないで、物の形として見たもの。
+1376360:1	あなたの星座は何ですか。	What's your star sign?	生まれた日によって決まる、占いの星の区分。
+
+# ── 盛大 (1379820, せいだい) — grand, lavish ─────────────────────────────────
+1379820:0	二人の結婚式は盛大に行われた。	Their wedding was a lavish affair.	集まりなどが、大きく立派なようす。
+
+# ── 本場 (1522690, ほんば) — the home of something ─────────────────────────────
+1522690:0	本場のイタリアでピザを食べた。	I ate pizza in Italy, where it comes from.	ある物が本当に作られている、また盛んな所。
+
+# ── 横綱 (1180740, よこづな) — a yokozuna / the best in its field ─────────────
+1180740:0	彼は若くして横綱になった。	He became a yokozuna at a young age.	相撲で、力士の最も高い地位。
+1180740:1	この店はラーメンの横綱だ。	This place is the king of ramen shops.	その分野で最もすぐれているもの。
+
+# ── 獲物 (1205760, えもの) — prey / the spoils ──────────────────────────────
+1205760:0	ライオンが獲物をねらっている。	The lion is stalking its prey.	狩りや漁でとる動物。
+1205760:1	泥棒たちは獲物を分けた。	The thieves split the loot.	人から奪った物。
+
+# ── 孤児 (1266810, こじ) — an orphan / a person with no friends ────────────────
+1266810:0	戦争で多くの子どもが孤児になった。	Many children were orphaned by the war.	親をなくした子ども。
+1266810:1	彼は業界の孤児になった。	He ended up with no allies in the industry.	仲間がなく、ひとりでいる人。
+
+# ── 動力 (1451660, どうりょく) — motive power ─────────────────────────────────
+1451660:0	この機械は電気を動力にしている。	This machine runs on electricity.	機械を動かす力。
