@@ -700,13 +700,52 @@ textarea.translate__box::-webkit-scrollbar {
      it drops onto a line of its own UNDER them and reads as the result opening up —
      identical to how .listrow__foot hosts the same component. */
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  /* TOP, not centre: a multi-line meaning must not drag the controls down with it.
+     The confidence dots and the add button are the card's handles — they belong beside
+     the headword, on the first line, wherever the prose ends up. */
+  align-items: flex-start;
+  /* NO space-between. It only ever spread the controls apart on the line they wrapped
+     onto (dots pinned left, Add pinned right, 例 marooned in the middle) — the meaning
+     itself claims the free space instead, below. */
+  gap: 0.4rem 0.75rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.7rem 0.9rem;
+}
+
+/* The sense takes the line and wraps INSIDE itself; the controls beside it are narrow
+   and fixed, so they stay on the first line instead of being pushed off it. The 10rem
+   basis is the floor at which the text would rather send the controls to their own row
+   than be squeezed to two words a line. */
+.result > .sensetext {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* Every control is intrinsically sized. .addwrap in particular was a shrinkable
+   inline-block around a `white-space: nowrap` button, so a long meaning squeezed the
+   wrapper and the button spilled out of it. */
+.result > .dots-wrap,
+.result > .senseex__toggle,
+.result > .addwrap {
+  flex: 0 0 auto;
+}
+
+/* The dots are 7px tall next to ~1.9rem buttons, so top-aligning them literally would
+   float them off the top of the cluster. Give them the buttons' height and centre
+   inside it, so the three controls read as one row. */
+.result > .dots-wrap {
+  min-height: 1.9rem;
+  align-items: center;
+}
+
+/* The example panel is a full-width flex item sitting BEFORE the add button in DOM
+   order, so opening it used to push Add onto a third row underneath. Ordering it last
+   keeps the markup (and the reading order) as SenseExample writes it while the panel
+   still lands at the bottom of the card, under everything it expands. */
+.result > .senseex {
+  order: 1;
 }
 
 .result--primary {

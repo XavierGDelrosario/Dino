@@ -333,6 +333,16 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+  /* THE TOP BAR OUTRANKS THE PAGE. It is chrome — whatever a view has open underneath
+     must not paint over a menu the user just pulled down. Without this the row sat at
+     `z-index: auto` and its panels (z-index 20, inside it) lost to any later sibling
+     that lifted itself: Translate's .translate__toolbar is 30, so the language select
+     showed THROUGH the open profile menu. Setting it here makes the row a stacking
+     context, so the panels ride along and the number only has to be right once.
+     65 = above the tallest page-level popover (ListMenu 60) and below the full-screen
+     modals (.translate__overlay--modal 70, the report dialog 80), which cover the
+     header on purpose and close any menu behind them anyway. */
+  z-index: 65;
   display: flex;
   align-items: center;
   gap: 0.5rem;
