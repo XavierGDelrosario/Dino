@@ -3642,3 +3642,46 @@
 1438340:0	天井が高い部屋だ。	It's a room with a high ceiling.	部屋の上の面。
 1567920:0	彼の返事は曖昧だった。	His answer was vague.	はっきりしないようす。
 1467910:0	彼女は熱心に勉強している。	She's studying hard.	一つのことに心を打ちこむようす。
+
+# ── BATCH 36 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2866356 開, 1606800 割り, 1285330 合理 — each lives inside a compound
+# (開〜, 三割, 合理的) and never stands as its own token in a natural sentence.
+1372800:0	ずいぶん遠くまで来た。	We've come a very long way.	程度が普通よりかなり上であるようす。
+1511450:0	株の値段が大きく変動した。	Share prices fluctuated wildly.	物事が変わり動くこと。
+1547290:0	薬で痛みを抑制する。	The drug suppresses the pain.	勢いを抑えて、止めること。
+1535700:0	彼女の赤い服はよく目立つ。	Her red dress really stands out.	ほかと違っていて、人の目につく。
+1340460:0	できるだけ早く来てください。	Please come as soon as you can.	可能な限り。
+1396020:0	生活全般を見直す。	I'm rethinking my life as a whole.	ある物事の全体。
+1504770:0	小麦の粉でパンを作る。	You make bread from wheat flour.	細かく砕いた物。
+1292390:0	十年ぶりに友人と再会した。	I met up with a friend for the first time in ten years.	別れていた人と、また会うこと。
+1269720:0	前者より後者の方がいい。	I prefer the latter to the former.	二つ挙げたうちの、後の方。
+1358550:0	昼は会社の食堂で食べる。	I eat lunch in the company cafeteria.	食事をするための部屋や店。
+1396840:0	祖父は八十歳になった。	My grandfather has turned eighty.	父や母の父。
+1328030:0	駅の手前で車を降りた。	I got out of the car just before the station.	自分に近い方。
+1570420:0	家族の絆は強い。	The family bond is strong.	人と人との、断つことのできない結びつき。
+1573190:0	台風が大きな被害をもたらした。	The typhoon caused a lot of damage.	ある結果を引き起こす。持ってくる。
+1274820:0	兄は公務員として市役所で働いている。	My brother works at city hall as a civil servant.	国や地方の役所で働く人。
+1551050:1	彼は陸上の選手だ。	He's a track and field athlete.	走ったり跳んだりする競技。
+1296500:0	東京在住の友人に会った。	I met a friend who lives in Tokyo.	その土地に住んでいること。
+1263400:0	玄関で靴を脱いでください。	Please take your shoes off in the entrance hall.	家の正面の入り口。
+1321200:0	病院で看護の実習をした。	I did a nursing placement at a hospital.	実際にやってみて、技術を身につけること。
+1478200:0	髪の毛が抜ける。	My hair is falling out.	付いていた物がとれて離れる。
+1176430:0	雨で運動会が延期になった。	Sports day was postponed because of the rain.	決めた日時を先にのばすこと。
+1605230:0	この傘の持ち主は誰ですか。	Who does this umbrella belong to?	その物を持っている人。
+1244320:0	走りすぎて息が苦しい。	I've run so much I can hardly breathe.	体や心がつらくて、たえられないようす。
+1609390:0	欧米の文化に興味がある。	I'm interested in Western culture.	ヨーロッパとアメリカ。
+1365990:0	時計の針を五分進めた。	I put the clock forward five minutes.	前の方へ動かす。
+1598530:0	駅で昔の友達に出会った。	I ran into an old friend at the station.	思いがけなく会う。
+1473140:0	新聞を毎朝配達している。	I deliver newspapers every morning.	品物や手紙などを届けること。
+1375430:0	性的な差別をなくす。	We work to end sexual discrimination.	男女の性に関係するようす。
+1164010:0	彼は一生懸命働いた。	He worked as hard as he could.	力の限りを尽くすようす。
+1248540:0	祖父は昔軍人だった。	My grandfather was a soldier.	軍隊に入っている人。
+1460530:0	台風が県の南部を通った。	The typhoon passed through the south of the prefecture.	ある地域の、南の方の部分。
+1365810:0	身分を証明する物を見せてください。	Please show me some ID.	社会の中での、その人の地位や立場。
+1327810:0	手順どおりに機械を動かす。	Operate the machine following the procedure.	物事を行う順序。
+1270810:0	手伝ってくれたお礼を言った。	I thanked them for helping me.	感謝の気持ち。また、それを表す言葉や品物。
+1648970:0	その漫画が実写の映画になった。	The manga was made into a live-action film.	アニメではなく、実際の人が演じること。
+1372010:0	暑い日は水分をよくとる。	I drink a lot of fluids on hot days.	物に含まれている水。
+1421510:0	地面が雨でぬれている。	The ground is wet from the rain.	土地の表面。
+1217700:0	最後まで頑張ろう。	Let's keep at it to the end.	くじけずに、努力を続ける。
+1452030:0	今年の売り上げは前年の同期を上回った。	This year's sales beat the same period last year.	同じ時期。
