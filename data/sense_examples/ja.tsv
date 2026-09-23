@@ -2453,3 +2453,93 @@
 # ── 階級 (1203040, かいきゅう) — social class / rank ────────────────────────────
 1203040:0	昔は生まれた階級で仕事が決まった。	In the old days your job was decided by the class you were born into.	社会の中で、身分や財産によって分けられた人々の集まり。
 1203040:1	軍隊では階級が上の人に従う。	In the army you obey those above you in rank.	地位の上下の順序。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 21 — N1 continued. A run of words whose senses differ by WHO or WHAT they
+# apply to: 上陸 is soldiers going ashore or a typhoon making landfall, 信者 is a
+# believer or a superfan, 追放 is exiling a person or getting rid of a problem.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 特許 (1454780, とっきょ) — a patent / special permission ───────────────────
+1454780:0	新しい発明の特許を取った。	I got a patent for my new invention.	発明した人に、その技術を独占して使う権利を認めること。
+1454780:1	政府の特許を受けて鉄道を作った。	They built the railway under a government charter.	国などが、特定の人に特別に許すこと。
+
+# ── 半端 (1479640, はんぱ) — odds and ends / half-hearted ─────────────────────
+1479640:0	半端な布で小さな袋を作った。	I made a little bag out of leftover scraps of cloth.	そろっていなくて、足りない部分があること。
+1479640:2	半端な気持ちでは成功しない。	You won't succeed if you only half mean it.	どっちつかずで、いいかげんなこと。
+
+# ── 主体 (1325840, しゅたい) — the core / the one who acts ────────────────────
+1325840:0	この団体は学生が主体となっている。	This group is made up mainly of students.	全体の中で中心となる部分。
+1325840:1	学ぶ主体は生徒自身だ。	The ones doing the learning are the students themselves.	自分の意思で行動する者。
+
+# ── 還元 (1215130, かんげん) — giving back / chemical reduction ───────────────
+1215130:0	会社は利益を客に還元した。	The company passed its profits back to its customers.	もとの状態に戻すこと。得たものを返すこと。
+1215130:1	鉄の鉱石を還元して鉄を取り出す。	You reduce iron ore to extract the iron.	酸素を取り除く化学の反応。
+
+# ── 軌道 (1223980, きどう) — an orbit / the right track ──────────────────────
+1223980:0	衛星が地球の周りの軌道に乗った。	The satellite went into orbit around the Earth.	天体などが動いていく道筋。
+1223980:2	新しい店の経営がやっと軌道に乗った。	The new shop is finally up and running.	物事が順調に進むための道筋。
+
+# ── 賃金 (1431990, ちんぎん) — wages ─────────────────────────────────────────
+1431990:0	労働者は賃金を上げるように求めた。	The workers demanded a pay rise.	働いた人が、その代わりに受け取るお金。
+
+# ── 追放 (1432670, ついほう) — banishment / getting rid of ─────────────────────
+1432670:0	王は反対した大臣を国から追放した。	The king banished the minister who opposed him.	人を追い出すこと。
+1432670:1	町から暴力を追放しよう。	Let's rid the town of violence.	悪い物事をなくすこと。
+
+# ── 貧困 (1490830, ひんこん) — poverty / a lack ────────────────────────────────
+1490830:0	世界には貧困に苦しむ人が多い。	Many people in the world suffer from poverty.	貧しくて生活に困ること。
+1490830:1	政治の貧困が問題になっている。	The poverty of our politics has become an issue.	必要なものが足りないこと。
+
+# ── 立体 (1551740, りったい) — a solid object / a multi-storey car park ─────────
+1551740:0	紙を折って立体を作った。	I folded paper into a three-dimensional shape.	長さと幅と高さのある物。
+1551740:1	車を駅前の立体に止めた。	I left the car in the multi-storey by the station.	何階にも分かれた建物の駐車場。
+
+# ── 一見 (1162170, いっけん) — at first glance / a first-time visitor ──────────
+1162170:1	一見簡単そうだが、実は難しい。	It looks easy at first glance, but it's actually hard.	ちょっと見たところでは。
+1162170:2	この店は一見の客を断っている。	This restaurant turns away customers it doesn't know.	初めて会うこと。また、その人。
+
+# ── 収容 (1330880, しゅうよう) — taking people in / detention ─────────────────
+1330880:0	この会場は千人を収容できる。	This hall can hold a thousand people.	人や物を、ある場所に入れること。
+1330880:1	犯人は刑務所に収容された。	The criminal was locked up in prison.	人を施設に閉じこめておくこと。
+
+# ── 追跡 (1432560, ついせき) — pursuit / following up ─────────────────────────
+1432560:0	警察が逃げた車を追跡した。	The police chased the car that got away.	逃げるものを追いかけること。
+1432560:1	卒業生の進路を追跡して調べた。	We followed up on where the graduates ended up.	物事の変化の後をたどって調べること。
+
+# ── 上陸 (1354480, じょうりく) — going ashore / a typhoon making landfall ─────
+1354480:0	船の客が島に上陸した。	The ship's passengers went ashore on the island.	船から陸に上がること。
+1354480:1	台風が九州に上陸した。	The typhoon made landfall in Kyushu.	台風が陸に達すること。
+
+# ── 分散 (1503580, ぶんさん) — spreading out ──────────────────────────────────
+1503580:0	危険を分散するために、いくつかの会社に投資する。	You spread the risk by investing in several companies.	ばらばらに分かれて散ること。
+
+# ── 無断 (1530600, むだん) — without permission / without notice ───────────────
+1530600:0	他人の写真を無断で使ってはいけない。	You mustn't use other people's photos without permission.	許しを得ないこと。
+1530600:1	彼は無断で会社を休んだ。	He took the day off work without telling anyone.	前もって知らせないこと。
+
+# ── 堂々 (1599260, どうどう) — imposing / boldly ─────────────────────────────
+1599260:0	彼は堂々とした態度で話した。	He spoke with a dignified air.	立派で、力強いようす。
+1599260:2	チームは強い相手と堂々と戦った。	The team took on the strong side without flinching.	恐れずに、自信を持ってするようす。
+
+# ── 信者 (1359340, しんじゃ) — a believer / a superfan ─────────────────────────
+1359340:0	この寺には多くの信者が集まる。	Many believers come to this temple.	ある宗教を信じている人。
+1359340:1	彼はその歌手の信者だ。	He's a die-hard fan of that singer.	ある人や物を、夢中になって支持する人。
+
+# ── 手元 (1327560, てもと) — at hand / money on hand ──────────────────────────
+1327560:0	辞書をいつも手元に置いている。	I always keep a dictionary at hand.	手の届く、すぐ近くの所。
+1327560:2	今、手元にお金がない。	I don't have any money on me right now.	すぐに使える、持っているお金。
+
+# ── 一連 (1167450, いちれん) — a series ──────────────────────────────────────
+1167450:0	一連の事件には関係がある。	The series of incidents are connected.	ひと続きになっていること。
+
+# ── 処置 (1342470, しょち) — measures / medical treatment ─────────────────────
+1342470:0	問題を解決するための処置をとった。	We took steps to solve the problem.	物事に対して、ある決まりをつけること。
+1342470:1	けがをしてすぐに病院で処置を受けた。	I was hurt and got treated at the hospital straight away.	けがや病気の手当て。
+
+# ── 内緒 (1458510, ないしょ) — a secret ──────────────────────────────────────
+1458510:0	この話はみんなには内緒だよ。	Keep this to yourself, OK?	人に知らせないで、隠しておくこと。
+
+# ── 好意 (1277530, こうい) — kindness / fondness ──────────────────────────────
+1277530:0	友人の好意で車を借りた。	A friend was kind enough to lend me a car.	相手のためを思う親切な気持ち。
+1277530:1	彼は彼女に好意を持っている。	He has a soft spot for her.	相手を好きだと思う気持ち。
