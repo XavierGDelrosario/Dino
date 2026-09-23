@@ -30,7 +30,12 @@ import { useStickyState } from "./useStickyState";
 
 export type ListStatus = "loading" | "ready" | "error";
 
-export function useLists(userId: string) {
+export function useLists(
+  userId: string,
+  /** `active` false = the word table isn't on screen, so don't fetch its rows. */
+  opts: { active?: boolean } = {},
+) {
+  const { active = true } = opts;
   const [lists, setLists] = useState<List[]>([]);
   // null = ALL. Sticky, so returning to Lists keeps the chip you were on — but a list
   // can be deleted elsewhere while you're away, so it's validated against `lists`
@@ -142,9 +147,14 @@ export function useLists(userId: string) {
   useEffect(() => {
     loadLists();
   }, [loadLists]);
+  // GATED on `active`. The Lists tab now lands on the overview, where no words are
+  // shown — and `selectedListId` is sticky, so without this the hook would stream the
+  // last-opened list (up to every page of it) behind a screen that displays none of it.
+  // Flipping active back to true runs the load then, which is where it is wanted.
   useEffect(() => {
+    if (!active) return;
     loadWords();
-  }, [loadWords]);
+  }, [loadWords, active]);
 
   // Run a mutation and surface any error. The caller patches the local cache on
   // success (no full reload); on failure the cache is left untouched. Returns

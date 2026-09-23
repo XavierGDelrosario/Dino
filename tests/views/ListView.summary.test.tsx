@@ -17,6 +17,26 @@ const words = [
   makeUserWord({ userWordId: "uw-3", input: "飲む", translation: "to drink", inputReading: "のむ", confidenceRating: 2 }),
 ];
 
+// The Lists tab now LANDS on the vertical overview (ListsOverview); this spec is about
+// the word table, which lives one tap deeper. Stub the index so it opens ALL on mount —
+// the drill-in itself, and the index's own sorting, are covered in
+// tests/components/lists/ListsOverview.test.tsx.
+vi.mock("@/components/lists/ListsOverview", async () => {
+  const { useEffect } = await import("react");
+  return {
+    ListsOverview: ({ onOpen }: { onOpen: (id: string | null) => void }) => {
+      useEffect(() => onOpen(null), [onOpen]);
+      return null;
+    },
+  };
+});
+// ListView fetches the overview once before the stub flips it away; keep that off the
+// network.
+vi.mock("@/services/lists", async (orig) => ({
+  ...(await orig<typeof import("@/services/lists")>()),
+  getListOverview: async () => [],
+}));
+
 vi.mock("@/hooks/useLists", () => ({
   useLists: () => ({
     lists: [],

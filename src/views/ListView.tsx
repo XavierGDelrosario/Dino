@@ -24,6 +24,9 @@ import { getDifficulty } from "../services/difficulty";
 import { useI18n } from "../i18n";
 import { SearchIcon, XIcon } from "../components/common/icons";
 import { SortControls, type SortDir } from "../components/common/SortControls";
+import { ListsOverview, type ListSortAxis } from "../components/lists/ListsOverview";
+import { getListOverview, type ListOverview } from "../services/lists";
+import { errorMessage } from "../lib/errorMessage";
 import { Pager } from "../components/common/Pager";
 import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
 import { summarizeUserWords } from "../services/analyze/summarize";
@@ -95,10 +98,56 @@ export function ListView({
     limit?: number,
   ) => void;
 }) {
-  const L = useLists(userId);
+  // THE LANDING STATE IS THE OVERVIEW. Plain useState, deliberately NOT sticky: opening
+  // the tab should always answer "which list", and restoring you into whichever list you
+  // last read would reinstate the problem the index exists to fix — arriving somewhere
+  // specific with no cheap way to see the others.
+  const [browsing, setBrowsing] = useState(true);
+  // False once the database has told us it has no list_overview() (migration 20260773
+  // not applied here yet). The client and the DB deploy separately, so this state is
+  // REACHABLE IN PRODUCTION for as long as that gap lasts — the tab then behaves exactly
+  // as it did before this feature: chips, word table, no index and no way back to one.
+  const [overviewSupported, setOverviewSupported] = useState(true);
+  // `active` gates the word stream: while the overview is up, nothing loads rows.
+  const L = useLists(userId, { active: !browsing });
   const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
+  // The overview's own data — one aggregate query, no words. Re-fetched every time the
+  // index comes back on screen, so counts and bars reflect whatever the visit to a list
+  // just changed rather than the numbers from when the tab was opened.
+  const [overview, setOverview] = useState<ListOverview[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [overviewAxis, setOverviewAxis] = useStickyState<ListSortAxis>(
+    userId, "lists.overviewAxis", "added",
+  );
+  const [overviewDir, setOverviewDir] = useStickyState<SortDir>(
+    userId, "lists.overviewDir", "most",
+  );
+  useEffect(() => {
+    if (!browsing) return;
+    let alive = true;
+    setOverviewLoading(true);
+    getListOverview()
+      .then((rows) => {
+        if (!alive) return;
+        if (rows === null) {
+          // No overview on this database — drop straight through to the word table
+          // rather than showing an index that can never populate.
+          setOverviewSupported(false);
+          setBrowsing(false);
+          return;
+        }
+        setOverview(rows);
+        setOverviewError(null);
+      })
+      .catch((e) => alive && setOverviewError(errorMessage(e)))
+      .finally(() => alive && setOverviewLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [browsing, userId]);
 
   const [sortAxis, setSortAxis] = useStickyState<SortAxis>(userId, "lists.sortAxis", "added");
   const [sortDir, setSortDir] = useStickyState<SortDir>(userId, "lists.sortDir", "least");
@@ -225,8 +274,34 @@ export function ListView({
   const pageStart = currentPage * PAGE_SIZE;
   const shown = rows.slice(pageStart, pageStart + PAGE_SIZE);
 
+  if (browsing && overviewSupported) {
+    return (
+      <ListsOverview
+        rows={overview}
+        loading={overviewLoading}
+        error={overviewError}
+        axis={overviewAxis}
+        dir={overviewDir}
+        onAxis={setOverviewAxis}
+        onDir={setOverviewDir}
+        onOpen={(listId) => {
+          L.setSelectedListId(listId);
+          setBrowsing(false);
+        }}
+      />
+    );
+  }
+
   return (
     <section className="lists">
+      {/* Back to the index. The chips stay BELOW it: once you are inside a list they are
+          a fast way to hop to a neighbour, which is the one job they were always good
+          at — it was being the only door that made them cramped. */}
+      {overviewSupported && (
+        <button className="lists__back" onClick={() => setBrowsing(true)}>
+          ‹ {t("lists.backToLists")}
+        </button>
+      )}
       <ListChips
         lists={L.lists}
         selectedListId={L.selectedListId}
