@@ -3557,3 +3557,46 @@
 
 # ── 水気 (1371390, みずけ) — moisture ───────────────────────────────────────
 1371390:0	野菜の水気をよく切る。	Drain the vegetables well.	物に含まれている水分。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 34 — a new selection rule from here on. Only senses whose headword frequency
+# is ≥ 400 (the "≥400 ≈ 16.9k senses" tier in docs/TODO.md), and within that the
+# senses a real learner has actually SAVED come first — the account with the largest
+# vocabulary on prod, 1,582 eligible senses not yet covered — hardest (least frequent)
+# first. Each row curates exactly the sense that was saved.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+1297430:0	この料理の作り方を教えてください。	Please tell me how to make this dish.	物を作る方法。
+1335210:0	社員は会社の規則に従う。	Employees follow the company rules.	決まりや命令の通りにする。
+1154820:0	試験は案外やさしかった。	The exam was surprisingly easy.	思っていたのとは違って。意外に。
+1451900:0	二つの事件は同一の犯人によるものだ。	The two crimes were committed by one and the same person.	まったく同じであること。
+1604480:0	彼が勝つ見込みは少ない。	There's little chance of him winning.	先のことについての、そうなるだろうという予想。
+1591710:0	博物館で恐竜の骨を見た。	I saw dinosaur bones at the museum.	大昔に地球にいた、大きな爬虫類。
+1541610:0	経験の有無は問わない。	Experience is not required.	あるかないか。
+1424900:0	雨で試合が中断した。	The match was interrupted by rain.	続いていたことが、途中で止まること。
+1345670:0	汚れを除去する。	Remove the dirt.	じゃまな物を取り除くこと。
+1255010:0	この映画の結末は意外だった。	The ending of this film was unexpected.	物事の終わり。
+1452720:0	彼の話を聞いて同情した。	I felt sorry for him when I heard his story.	人の苦しみや悲しみを、自分のことのように感じること。
+1192850:0	彼は約束を果たした。	He kept his promise.	しなければならないことを、最後までやりとげる。
+1408360:0	飛行機で太平洋を渡った。	We crossed the Pacific by plane.	アジアとアメリカの間にある、世界で最も大きな海。
+1222170:0	日本の気候は四季がはっきりしている。	Japan's climate has four distinct seasons.	ある土地の、長い間の天気の様子。
+1310300:0	カードで代金を支払った。	I paid by card.	お金を払う。
+1189960:0	スープに塩を少し加える。	Add a little salt to the soup.	今あるものに、さらに足す。
+1359810:0	それは人権の侵害だ。	That's a violation of human rights.	人の権利などを、おかして損なうこと。
+1541930:0	子どもが誘拐された。	A child was kidnapped.	人をだまして、無理に連れ去ること。
+1201860:0	たばこの灰を落とした。	I dropped the ash from my cigarette.	物が燃えた後に残る粉。
+1251030:0	電気の系統が故障した。	The electrical system broke down.	一定の順序で、つながっているもの。
+1401420:0	市役所の窓口で書類を出した。	I handed in the form at the city hall counter.	役所や銀行などで、客に応対する所。
+1511810:0	靴下の片方がなくなった。	One of my socks has gone missing.	二つあるものの、一つ。
+1548170:0	ご来店ありがとうございます。	Thank you for visiting our store.	客が店に来ること。
+1377330:0	彼は正社員として働いている。	He works as a permanent employee.	会社に正式に雇われている社員。
+1399290:0	事故で記憶を喪失した。	I lost my memory in the accident.	大切なものを失うこと。
+1230350:0	給与は毎月二十五日に払われる。	Salaries are paid on the twenty-fifth of each month.	働いた人に払われるお金。給料。
+1263110:0	体重を減らしたい。	I want to lose weight.	数や量を少なくする。
+1329770:0	荷物の受け取りにサインした。	I signed for the delivery.	物を受け取ること。
+1430080:0	彼は三人兄弟の長男だ。	He's the eldest of three brothers.	一番初めに生まれた息子。
+1211120:0	電話で保険の勧誘を受けた。	I got a sales call about insurance.	人に、入るように誘うこと。
+1321630:0	週末に芝居を見に行った。	I went to see a play at the weekend.	役者が舞台で演じる劇。
+1433090:0	毎日自転車で通学している。	I cycle to school every day.	学生が学校に通うこと。
+1610870:0	家を出た途端に雨が降り出した。	It started raining the moment I left the house.	ちょうどその時。
+1426590:0	病院で注射を打った。	I had an injection at the hospital.	針で薬を体の中に入れること。
