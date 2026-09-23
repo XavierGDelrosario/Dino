@@ -2631,3 +2631,88 @@
 
 # ── 比例 (1483700, ひれい) — proportion ──────────────────────────────────────
 1483700:0	給料は働いた時間に比例する。	Pay is in proportion to the hours worked.	二つの量が、同じ割合で増えたり減ったりすること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 23 — N1 continued. Several of these carry a MATHS or SCIENCE sense next to
+# the everyday one (分子 = a molecule and a numerator; 結合 = joining and a chemical
+# bond) and a few a money sense nobody guesses (出血 = selling at a loss; 奉仕 = a
+# bargain price).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 予言 (1584920, よげん) — a prediction ────────────────────────────────────
+1584920:0	彼の予言どおり、その会社は倒産した。	Just as he predicted, the company went bankrupt.	未来のことを前もって言うこと。
+
+# ── 品種 (1490620, ひんしゅ) — a breed, a variety ─────────────────────────────
+1490620:2	この米は新しい品種だ。	This rice is a new variety.	同じ種類の作物や家畜の中を、性質によって分けたもの。
+
+# ── 権威 (1258090, けんい) — authority / an authority on ───────────────────────
+1258090:0	王の権威は落ちてしまった。	The king's authority has collapsed.	人を従わせる力。
+1258090:1	彼は心臓の病気の権威だ。	He's an authority on heart disease.	ある分野で、最もすぐれていると認められた人。
+
+# ── 再建 (1292590, さいけん) — rebuilding ────────────────────────────────────
+1292590:0	地震で倒れた寺を再建した。	They rebuilt the temple that fell in the earthquake.	建物や組織などを、もう一度新しく作ること。
+
+# ── 推理 (1371220, すいり) — deduction / the mystery genre ────────────────────
+1371220:0	探偵は犯人を推理した。	The detective worked out who the culprit was.	わかっていることをもとに、わからないことを考えて決めること。
+1371220:1	推理小説を読むのが好きだ。	I like reading detective novels.	事件のなぞをといていく物語の種類。
+
+# ── 分子 (1503630, ぶんし) — a molecule / a numerator ─────────────────────────
+1503630:0	水の分子は水素と酸素でできている。	A water molecule is made of hydrogen and oxygen.	物質の性質を持つ、最も小さな粒。
+1503630:1	分数の分子と分母を確かめる。	Check the numerator and the denominator of the fraction.	分数で、横の線の上にある数。
+
+# ── 奉仕 (1515950, ほうし) — service / a bargain price ───────────────────────
+1515950:0	週末は地域の奉仕に参加している。	I do community service at the weekends.	人や社会のために、損得を考えずに働くこと。
+1515950:1	今日は奉仕の値段で売っています。	We're selling at a special low price today.	商品を安い値段で売ること。
+
+# ── 有力 (1541710, ゆうりょく) — influential / likely ─────────────────────────
+1541710:0	彼は町の有力な人物だ。	He's an influential figure in the town.	力や勢いがあること。
+1541710:1	その説が最も有力だ。	That theory is the most likely.	そうなる見込みが高いこと。
+
+# ── 経路 (1251700, けいろ) — a route ─────────────────────────────────────────
+1251700:0	病気が広がった経路を調べる。	We trace how the disease spread.	通っていく道筋。
+
+# ── 結合 (1254770, けつごう) — joining / a chemical bond ──────────────────────
+1254770:0	二つの会社が結合して大きくなった。	The two companies joined together and grew.	二つ以上のものが結びついて一つになること。
+1254770:1	原子と原子の結合は強い。	The bond between the atoms is strong.	原子どうしが結びつくこと。
+
+# ── 後退 (1269880, こうたい) — backing up / a downturn ────────────────────────
+1269880:0	車が少し後退した。	The car backed up a little.	後ろへ下がること。
+1269880:1	景気が後退している。	The economy is in a downturn.	勢いが弱まること。
+
+# ── 施行 (1579510, しこう) — a law coming into force ──────────────────────────
+1579510:0	新しい法律は来月から施行される。	The new law comes into force next month.	法律の効力を実際に発生させること。
+
+# ── 手当 (1598240, てあて) — an allowance / medical treatment ─────────────────
+1598240:0	会社から家族の手当が出る。	The company pays a family allowance.	給料のほかに払われるお金。
+1598240:1	けが人に手当をした。	We gave first aid to the injured.	けがや病気を治すための処置。
+
+# ── 一目 (1166950, ひとめ) — a glance ────────────────────────────────────────
+1166950:0	一目見て、彼だとわかった。	I knew it was him at a glance.	ちょっと見ること。
+
+# ── 視野 (1312140, しや) — field of view / one's horizons ─────────────────────
+1312140:0	霧で視野が悪い。	The fog makes it hard to see.	目で見ることのできる範囲。
+1312140:1	留学して視野が広がった。	Studying abroad broadened my horizons.	物事を考えたり判断したりする範囲。
+
+# ── 征服 (1375230, せいふく) — conquest / conquering a mountain ───────────────
+1375230:0	その国は周りの国々を征服した。	That country conquered the countries around it.	武力で相手を負かして従わせること。
+1375230:1	ついにその山の頂上を征服した。	We finally conquered the summit of that mountain.	難しいことを乗り越えて、目的を果たすこと。
+
+# ── 退治 (1411390, たいじ) — getting rid of ──────────────────────────────────
+1411390:0	台所のねずみを退治した。	I got rid of the mice in the kitchen.	害になるものをほろぼすこと。
+
+# ── 放射能 (1516690, ほうしゃのう) — radioactivity ───────────────────────────
+1516690:0	この石は放射能を持っている。	This rock is radioactive.	物質が放射線を出す性質。
+
+# ── 野外 (1537270, やがい) — outdoors ────────────────────────────────────────
+1537270:0	夏は野外で音楽を楽しむ。	In summer we enjoy music outdoors.	家の外。建物の外。
+
+# ── 出血 (1338750, しゅっけつ) — bleeding / selling at a loss ─────────────────
+1338750:0	けがをして出血した。	I hurt myself and bled.	体から血が出ること。
+1338750:1	店は出血覚悟で安売りした。	The shop slashed its prices, ready to take a loss.	損をして商品を売ること。
+
+# ── 無茶 (1530670, むちゃ) — unreasonable / reckless ──────────────────────────
+1530670:0	一日で全部やれなんて無茶だ。	Telling me to do it all in one day is unreasonable.	筋道が通らないこと。
+1530670:1	無茶な運転はやめなさい。	Stop driving so recklessly.	結果を考えずに、乱暴なことをするようす。
+
+# ── 柔軟 (1335480, じゅうなん) — flexible ────────────────────────────────────
+1335480:0	彼女は体が柔軟だ。	Her body is very supple.	やわらかで、しなやかなようす。
