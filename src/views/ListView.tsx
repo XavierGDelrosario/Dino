@@ -26,7 +26,6 @@ import { SearchIcon, XIcon } from "../components/common/icons";
 import { SortControls, type SortDir } from "../components/common/SortControls";
 import { ListsOverview, type ListSortAxis } from "../components/lists/ListsOverview";
 import { getListOverview, type ListOverview } from "../services/lists";
-import { errorMessage } from "../lib/errorMessage";
 import { Pager } from "../components/common/Pager";
 import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
 import { summarizeUserWords } from "../services/analyze/summarize";
@@ -118,7 +117,6 @@ export function ListView({
   // just changed rather than the numbers from when the tab was opened.
   const [overview, setOverview] = useState<ListOverview[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(true);
-  const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewAxis, setOverviewAxis] = useStickyState<ListSortAxis>(
     userId, "lists.overviewAxis", "added",
   );
@@ -140,9 +138,18 @@ export function ListView({
           return;
         }
         setOverview(rows);
-        setOverviewError(null);
       })
-      .catch((e) => alive && setOverviewError(errorMessage(e)))
+      .catch((e) => {
+        if (!alive) return;
+        // ANY failure falls back to the chips, not just the missing-function case
+        // getListOverview reports as null. The overview is the LANDING screen, so an
+        // error here is the whole tab replaced by a message — the very thing the
+        // fallback exists to prevent, reached through a different door. A working
+        // word table beats an accurate error, and the console still carries the cause.
+        console.warn("[lists] overview unavailable; falling back to the chips", e);
+        setOverviewSupported(false);
+        setBrowsing(false);
+      })
       .finally(() => alive && setOverviewLoading(false));
     return () => {
       alive = false;
@@ -279,7 +286,6 @@ export function ListView({
       <ListsOverview
         rows={overview}
         loading={overviewLoading}
-        error={overviewError}
         axis={overviewAxis}
         dir={overviewDir}
         onAxis={setOverviewAxis}

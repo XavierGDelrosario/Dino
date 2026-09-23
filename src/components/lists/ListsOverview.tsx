@@ -17,7 +17,6 @@
 // so it stays behind the drill-in where those rows have been loaded anyway.
 import { useMemo } from "react";
 import { SortControls, type SortDir } from "../common/SortControls";
-import { ErrorText } from "../common/ErrorText";
 import { Loading } from "../common/Loading";
 import { useI18n } from "../../i18n";
 import type { ListOverview } from "../../services/lists";
@@ -81,7 +80,6 @@ function ConfidenceBar({ counts, total }: { counts: number[]; total: number }) {
 export function ListsOverview({
   rows,
   loading,
-  error,
   axis,
   dir,
   onAxis,
@@ -90,7 +88,6 @@ export function ListsOverview({
 }: {
   rows: ListOverview[];
   loading: boolean;
-  error: string | null;
   axis: ListSortAxis;
   dir: SortDir;
   onAxis: (a: ListSortAxis) => void;
@@ -119,7 +116,6 @@ export function ListsOverview({
         />
       </div>
 
-      <ErrorText message={error} />
       {loading && rows.length === 0 && (
         <p className="review__msg">
           <Loading text={t("common.loading")} />
