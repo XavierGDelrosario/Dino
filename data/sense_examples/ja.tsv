@@ -2284,3 +2284,94 @@
 # ── 浮気 (1497450, うわき) — an affair / fickleness ───────────────────────────
 1497450:0	夫の浮気がわかった。	I found out my husband was having an affair.	恋人や夫婦の相手以外の人と、恋愛の関係を持つこと。
 1497450:1	彼は浮気な性格で、すぐに趣味が変わる。	He's fickle by nature and his hobbies keep changing.	気が変わりやすいこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 19 — N1 continued. Mostly abstract nouns with a PHYSICAL first sense and a
+# social second one (圧力: air pressure → political pressure; 反発: bouncing back →
+# a backlash; 体力: stamina → a company's staying power).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 拡散 (1205180, かくさん) — spreading / diffusion ────────────────────────────
+1205180:0	その写真はネットで拡散された。	The photo spread across the internet.	広く散らばって広がること。
+1205180:1	香りが部屋の中に拡散する。	The scent diffuses through the room.	気体や光などが、だんだん広がっていくこと。
+
+# ── 経過 (1251250, けいか) — time passing / how things are going ──────────────
+1251250:0	事故から十年が経過した。	Ten years have passed since the accident.	時間が過ぎていくこと。
+1251250:1	手術後の経過は順調だ。	The recovery since the operation is going well.	物事が進んで、変わっていく様子。
+
+# ── 逆転 (1227170, ぎゃくてん) — turning the tables / reversing ────────────────
+1227170:0	最後の一点で試合が逆転した。	The last point turned the match around.	物事の形勢が反対になること。
+1227170:1	モーターの回転を逆転させる。	You reverse the direction of the motor.	回る向きが反対になること。
+
+# ── 工作 (1278100, こうさく) — handicrafts / behind-the-scenes manoeuvring ────
+1278100:0	子どもたちが紙で工作をしている。	The children are making things out of paper.	道具を使って、簡単な物を作ること。
+1278100:2	裏で工作して反対の票を集めた。	They manoeuvred behind the scenes to gather votes against it.	目的のために、前もって人に働きかけること。
+
+# ── 圧力 (1153340, あつりょく) — pressure / political pressure ──────────────────
+1153340:0	水の圧力で管が破れた。	The water pressure burst the pipe.	物を押す力。
+1153340:1	上司から圧力をかけられた。	My boss leaned on me.	人を思いどおりに動かそうとする強い力。
+
+# ── 人材 (1367760, じんざい) — talented people / personnel ─────────────────────
+1367760:0	彼は会社にとって大切な人材だ。	He's a valuable asset to the company.	才能があって、役に立つ人。
+1367760:1	人材が足りなくて困っている。	We're struggling because we're short-staffed.	仕事をする人。働き手。
+
+# ── 体力 (1409760, たいりょく) — stamina / a company's staying power ────────────
+1409760:0	毎日走って体力をつけた。	I built up my stamina by running every day.	体の力。病気に負けない体の強さ。
+1409760:1	その会社には不況に耐える体力がない。	That company lacks the resources to ride out a recession.	組織や経済が持っている力の強さ。
+
+# ── 走行 (1402550, そうこう) — a vehicle running ──────────────────────────────
+1402550:0	この車は十万キロ走行した。	This car has done a hundred thousand kilometres.	車などが走ること。
+
+# ── 原則 (1262070, げんそく) — a principle / as a rule ─────────────────────────
+1262070:0	多数決の原則に従って決めた。	We decided according to the principle of majority rule.	多くの場合に当てはまる、基本となる決まり。
+1262070:1	原則として、遅刻は認めない。	As a rule, lateness isn't allowed.	特別な場合を除いて。
+
+# ── 今更 (1289150, いまさら) — now, when it is too late ────────────────────────
+1289150:0	今更謝っても遅い。	It's too late to apologise now.	もう時期が過ぎてしまった今になって。
+
+# ── 根拠 (1290120, こんきょ) — grounds / a base of operations ──────────────────
+1290120:0	その意見には根拠がない。	There are no grounds for that view.	考えや行動のもとになる理由。
+1290120:1	彼らは山の中を根拠にして戦った。	They fought from a base in the mountains.	活動の中心となる場所。
+
+# ── 保守 (1513750, ほしゅ) — maintenance / conservatism ─────────────────────────
+1513750:0	機械の保守を毎月行う。	We service the machines every month.	正常な状態を保つように、点検や修理をすること。
+1513750:1	祖父は考え方が保守的だ。	My grandfather is conservative in his thinking.	昔からのやり方を守ろうとすること。
+
+# ── 実践 (1321260, じっせん) — putting into practice ───────────────────────────
+1321260:0	習ったことを実践してみる。	I try putting what I learned into practice.	考えを実際に行うこと。
+
+# ── 反発 (1480890, はんぱつ) — a backlash / bouncing back / a rally ───────────
+1480890:0	新しい規則に社員が反発した。	The staff pushed back against the new rules.	相手の考えや行動を受け入れず、逆らうこと。
+1480890:1	磁石の同じ極どうしは反発する。	Like poles of a magnet repel each other.	押されて、逆の方向に動くこと。
+1480890:2	株価が大きく反発した。	Share prices rallied strongly.	下がっていた相場が、また上がること。
+
+# ── 履歴 (1549810, りれき) — one's background / a history log ─────────────────
+1549810:0	彼の履歴を調べた。	We looked into his background.	その人が今までに経験してきた学業や職業など。
+1549810:1	電話の履歴を消した。	I cleared my call history.	機械やコンピューターの、使った記録。
+
+# ── 合成 (1284940, ごうせい) — synthesis / a composite photo ────────────────────
+1284940:0	化学の力で薬を合成する。	We synthesise the drug chemically.	二つ以上のものを合わせて、一つのものを作ること。
+1284940:1	この写真は合成だ。	This photo is a composite.	何枚かの写真を合わせて作った写真。
+
+# ── 進出 (1366080, しんしゅつ) — moving into a market / advancing a round ───────
+1366080:0	その会社は海外に進出した。	The company expanded overseas.	新しい方面へ出ていくこと。
+1366080:1	チームは準決勝に進出した。	The team went through to the semi-finals.	勝って、次の段階に進むこと。
+
+# ── 予感 (1542910, よかん) — a premonition ────────────────────────────────────
+1542910:0	何か悪いことが起こる予感がする。	I have a feeling something bad is going to happen.	何かが起こりそうだと、前もって感じること。
+
+# ── 提示 (1436400, ていじ) — showing ID / putting forward a plan ───────────────
+1436400:0	窓口で身分証明書を提示した。	I showed my ID at the counter.	書類などを相手に見せること。
+1436400:1	会社は新しい条件を提示した。	The company put forward new terms.	考えや案を相手に示すこと。
+
+# ── 投入 (1447300, とうにゅう) — putting in / committing funds / launching a product ─
+1447300:0	機械にコインを投入する。	You put coins into the machine.	物を中へ入れること。
+1447300:1	新しい計画に多くの資金を投入した。	We sank a lot of money into the new project.	資金や人を注ぎこむこと。
+1447300:2	新しい車を市場に投入した。	They put a new car on the market.	新しい商品を売り出すこと。
+
+# ── 出産 (1339010, しゅっさん) — giving birth ─────────────────────────────────
+1339010:0	姉は先月出産した。	My sister gave birth last month.	子どもを産むこと。
+
+# ── 中毒 (1425160, ちゅうどく) — poisoning / addiction ─────────────────────────
+1425160:0	古い魚を食べて中毒を起こした。	I got food poisoning from some old fish.	体に悪いものが入って、具合が悪くなること。
+1425160:1	彼はゲームの中毒になっている。	He's hooked on video games.	やめられなくなるほど、夢中になること。
