@@ -12,7 +12,7 @@
 
 import { isContentPos, type AnalyzedToken, type LangCode } from "../language";
 import { wordKey } from "../lookup";
-import { getProficiency, proficiencyFrameworkFor } from "../proficiency";
+import { getProficiency, labelForBand, proficiencyFrameworkFor } from "../proficiency";
 import type { Word } from "../words/repository";
 import type { UserWord } from "../words/userWords";
 import type { AnalyzeData, InfographicBucket, InfographicSeries } from "./types";
@@ -62,8 +62,13 @@ function bump(m: Map<string, Tally>, key: string, known: boolean): void {
 
 /** Tally one word into a bucket with NO knownness split (see Tally). */
 function bumpTotal(m: Map<string, Tally>, key: string): void {
+  bumpTotalBy(m, key, 1);
+}
+
+/** Add N at once — the aggregate path arrives with counts, not words. */
+function bumpTotalBy(m: Map<string, Tally>, key: string, n: number): void {
   const e = m.get(key) ?? { total: 0 };
-  e.total++;
+  e.total += n;
   m.set(key, e);
 }
 
@@ -241,4 +246,85 @@ export function summarizeUserWords(words: readonly UserWord[]): ReaderSummary {
   if (level) bars.push(level);
 
   return { total: words.length, data: { total: words.length, bars } };
+}
+
+// =========================================================
+// The same three bars, built from PRE-AGGREGATED counts instead of from words.
+//
+// The lists overview never loads a word — list_overview() (migration 20260774) does
+// the counting in SQL, so the index costs the same at 50 saved words and at 50,000.
+// What it cannot do is NAME the buckets: the bin thresholds are FREQ_BINS below and
+// the band labels are services/proficiency, both client-side, and duplicating either
+// in SQL would make a second source of truth that drifts.
+//
+// So SQL counts and this names, and it reuses frequencyBar/difficultyBar rather than
+// rebuilding them — the index and the reader's recap must be the same chart, not two
+// charts that look alike.
+// =========================================================
+
+/** The FREQ_BINS cut points, ASCENDING, for SQL's width_bucket (which requires it). */
+export const FREQ_BIN_THRESHOLDS_ASC: number[] = FREQ_BINS
+  .filter((b) => Number.isFinite(b.min))
+  .map((b) => b.min)
+  .reverse();
+
+/** SQL's width_bucket index → the FREQ_BINS key. Bucket 0 is below the lowest
+ *  threshold (the rarest bin), so the order is exactly FREQ_BINS reversed. */
+function freqKeyForBucket(bucket: number): string | null {
+  const i = FREQ_BINS.length - 1 - bucket;
+  return FREQ_BINS[i]?.key ?? null;
+}
+
+/** Counts as list_overview() returns them. `-1` is the unranked bucket in both maps. */
+export interface AggregateCounts {
+  total: number;
+  /** Words per displayed confidence, index 0..5. */
+  confidence: readonly number[];
+  /** width_bucket index (or -1) → count. */
+  freq: Readonly<Record<string, number>>;
+  /** proficiency_band ordinal (or -1) → count. */
+  band: Readonly<Record<string, number>>;
+  /** The scope's dominant source language — picks the Difficulty ruler. */
+  mainLang: LangCode | null;
+}
+
+/** Build the infographic from aggregates. Same bars, same order, same colours as
+ *  summarizeUserWords — only the counting happened somewhere else. */
+export function summarizeAggregates(c: AggregateCounts): AnalyzeData {
+  const freqCounts = new Map<string, Tally>();
+  for (const [k, n] of Object.entries(c.freq)) {
+    if (!n) continue;
+    const bucket = Number(k);
+    const key = bucket < 0 ? "—" : freqKeyForBucket(bucket);
+    // A bucket the current FREQ_BINS no longer covers (the thresholds were re-tuned
+    // since these counts were computed) falls in with the unranked rather than being
+    // dropped, so the bar's total still matches the word count beside it.
+    bumpTotalBy(freqCounts, key ?? "—", n);
+  }
+
+  const fw = c.mainLang ? proficiencyFrameworkFor(c.mainLang) : null;
+  const levelCounts = new Map<string, Tally>();
+  for (const [k, n] of Object.entries(c.band)) {
+    if (!n) continue;
+    const ordinal = Number(k);
+    const label = ordinal < 0 || !fw ? null : labelForBand(fw, ordinal);
+    bumpTotalBy(levelCounts, label ?? "—", n);
+  }
+
+  const bars: InfographicSeries[] = [
+    {
+      title: "Confidence",
+      kind: "confidence",
+      buckets: [0, 1, 2, 3, 4, 5].map((i) => ({
+        key: String(i),
+        label: String(i),
+        value: c.confidence[i] ?? 0,
+      })),
+    },
+    frequencyBar(freqCounts),
+  ];
+  const level = difficultyBar(levelCounts, c.mainLang);
+  if (level) bars.push(level);
+
+  return { total: c.total, bars };
 }

@@ -1265,31 +1265,106 @@
   gap: 0.5rem;
 }
 
-/* A whole row is the target — not a label inside it. `width: 100%` + `text-align:
-   left` are what turn the <button> back into a row; everything else strips the
-   browser's button chrome, as .dots-btn does. */
+/* The card is a <li>, NOT one big button: it carries rename, delete and a summary
+   toggle, and a <button> cannot contain buttons (the same constraint .chips__item
+   works around). The row's own target is .listcard__open. */
 .listcard {
-  appearance: none;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
+  list-style: none;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  /* Two columns and two rows: the name takes the width it needs, the count sits hard
-     right, and the confidence bar spans both underneath. A grid rather than flex wrap
-     so the bar can't be dragged onto the name's line by a short list name. */
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 0.4rem 0.75rem;
-  padding: 0.75rem 0.9rem;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
 .listcard:hover {
   border-color: var(--accent);
+}
+
+/* name · pencil · count · ✕ — actions at BOTH ends, so the destructive one is as far
+   from the tap target as the row allows. */
+.listcard__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The name IS the link. Full-height and flex-1 so the comfortable part of the row
+   still opens the list even though the card is no longer one button. */
+.listcard__open {
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.listcard__edit,
+.listcard__del {
+  flex: 0 0 auto;
+}
+
+/* Hard right, past the count, so ✕ never sits where a thumb reaching for the row
+   lands. */
+.listcard__del {
+  margin-left: 0.1rem;
+}
+
+/* The inline rename field replaces the whole head row while it is open. */
+.listcard__namefield {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.listcard__namefield .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The summary disclosure. Muted and left-aligned — it is an offer, not an action, and
+   it must not compete with the name above it. */
+.listcard__summary {
+  align-self: flex-start;
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0.1rem 0;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.listcard__summary:hover,
+.listcard__summary--on {
+  color: var(--accent);
+}
+
+/* The expanded charts, under a rule, reading as the card opening up — the same shape
+   .senseex uses in a word row. */
+.listcard__panel {
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+
+/* Create, pinned under the rows. */
+.listsoverview__add {
+  align-self: flex-start;
+}
+
+.listsoverview__create {
+  display: flex;
 }
 
 /* ALL is the whole vocabulary rather than one list among the others, so it is pinned
@@ -1322,7 +1397,6 @@
    --conf-N ramp inline (see ListsOverview) because the count decides the width, so the
    colour has to travel with it. */
 .listcard__bar {
-  grid-column: 1 / -1;
   display: flex;
   height: 5px;
   border-radius: 999px;

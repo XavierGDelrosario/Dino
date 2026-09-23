@@ -138,7 +138,6 @@ export const en = {
 
   // lists surface
   "lists.allWords": "All words",
-  "lists.overviewEmpty": "No lists yet. Open All words and use ＋ to make one.",
   "lists.overviewBarAria": "Confidence breakdown",
   "lists.backToLists": "Lists",
   "lists.allChip": "ALL",
@@ -166,6 +165,7 @@ export const en = {
   "lists.deleteWordConfirm": "Delete \"{word}\" from your vocabulary? This removes it from all lists and its review history.",
   "lists.removeFromListConfirm": "Remove \"{word}\" from \"{list}\"? It stays in your vocabulary.",
   "lists.deleteListTitle": "Delete this list",
+  "lists.renameList": "Rename this list",
   "lists.sortNewest": "Newest",
   "lists.sortOldest": "Oldest",
   // shared sort control (Lists + article summary) — axis labels for the dropdown
@@ -582,7 +582,6 @@ export const ja: Record<MessageKey, string> = {
   "sort.createdOldest": "古いリスト順",
   "sort.nameAZ": "名前 A–Z",
   "sort.nameZA": "名前 Z–A",
-  "lists.overviewEmpty": "リストはまだありません。",
   "lists.overviewBarAria": "自信度の内訳",
   "lists.backToLists": "リスト一覧",
   "lists.allChip": "すべて",
@@ -606,6 +605,7 @@ export const ja: Record<MessageKey, string> = {
   "lists.deleteWordConfirm": "「{word}」を語彙から削除しますか？すべてのリストと復習履歴からも削除されます。",
   "lists.removeFromListConfirm": "「{word}」を「{list}」から外しますか？語彙には残ります。",
   "lists.deleteListTitle": "このリストを削除",
+  "lists.renameList": "リスト名を変更",
   "lists.sortNewest": "新しい順",
   "lists.sortOldest": "古い順",
   // shared sort control (Lists + article summary) — axis labels for the dropdown

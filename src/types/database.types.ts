@@ -904,7 +904,7 @@ export type Database = {
         Returns: string
       }
       list_overview: {
-        Args: Record<string, never>
+        Args: { p_freq_bins?: number[] }
         Returns: {
           list_id: string | null
           list_name: string | null
@@ -912,6 +912,9 @@ export type Database = {
           last_word_added_at: string | null
           word_count: number
           confidence: number[]
+          freq_counts: Json
+          band_counts: Json
+          main_lang: string | null
         }[]
       }
       placement_evidence: {

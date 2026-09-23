@@ -11,6 +11,8 @@ import { supabase } from "../config/supabaseClient";
 import { nfcTrim } from "../lib/text";
 import { ServiceError, toServiceError } from "./errors";
 import type { Database } from "../types/database.types";
+import type { LangCode } from "./language";
+import { FREQ_BIN_THRESHOLDS_ASC } from "./analyze/summarize";
 
 export interface List {
   listId: string;
@@ -124,10 +126,28 @@ export interface ListOverview {
   wordCount: number;
   /** Words per displayed confidence, index 0..5. Always length 6. */
   confidence: number[];
+  /** width_bucket index over FREQ_BIN_THRESHOLDS_ASC (or -1 unranked) → count. */
+  freq: Record<string, number>;
+  /** proficiency_band ordinal (or -1 unranked) → count. */
+  band: Record<string, number>;
+  /** The list's dominant source language — picks the Difficulty ruler. */
+  mainLang: LangCode | null;
 }
 
 /** 0..5 — the six display-confidence buckets the histogram is keyed on. */
 const CONFIDENCE_BUCKETS = 6;
+
+/** A JSONB histogram → a plain count map, tolerating null and non-numeric values
+ *  (an older function, a hand-written row) rather than letting a NaN reach a chart. */
+function countMap(v: unknown): Record<string, number> {
+  if (v == null || typeof v !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, n] of Object.entries(v as Record<string, unknown>)) {
+    const c = Number(n);
+    if (Number.isFinite(c) && c > 0) out[k] = c;
+  }
+  return out;
+}
 
 /** PostgREST's "no such function" — the database predates migration 20260773. */
 const isMissingFunction = (error: { code?: string } | null): boolean =>
@@ -164,7 +184,12 @@ export function __resetListOverviewProbe(): void {
  */
 export async function getListOverview(): Promise<ListOverview[] | null> {
   if (!overviewAvailable) return null;
-  const { data, error } = await supabase.rpc("list_overview");
+  // The BINS TRAVEL WITH THE CALL. They are defined once, client-side, in
+  // services/analyze/summarize.ts; SQL applies them and never owns them, so re-tuning
+  // the bar is a one-file change and there is no second copy to drift.
+  const { data, error } = await supabase.rpc("list_overview", {
+    p_freq_bins: FREQ_BIN_THRESHOLDS_ASC,
+  });
   if (isMissingFunction(error)) {
     overviewAvailable = false;
     console.warn(
@@ -186,5 +211,10 @@ export async function getListOverview(): Promise<ListOverview[] | null> {
       { length: CONFIDENCE_BUCKETS },
       (_, i) => Number(r.confidence?.[i] ?? 0),
     ),
+    // Histograms arrive as JSONB objects so neither side needs a fixed bucket count;
+    // an absent key simply means nothing fell there.
+    freq: countMap(r.freq_counts),
+    band: countMap(r.band_counts),
+    mainLang: (r.main_lang as LangCode | null) ?? null,
   }));
 }
