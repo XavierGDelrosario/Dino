@@ -3396,3 +3396,82 @@
 # ── 中和 (1425670, ちゅうわ) — neutralising ─────────────────────────────────
 1425670:0	酸をアルカリで中和する。	You neutralise an acid with an alkali.	酸とアルカリが反応して、互いの性質を打ち消すこと。
 1425670:1	この薬は毒を中和する。	This drug counteracts the poison.	悪い働きを弱めること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 32 — N1 continued. Physical → figurative again, in a tidy row: 屈折 is
+# light bending and a twisted personality, 盲点 is the blind spot in your eye and in
+# a plan, 起伏 is rolling hills and a mood that goes up and down.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 田園 (1442740, でんえん) — the countryside ───────────────────────────────
+1442740:0	窓の外に田園の景色が広がる。	Countryside stretches out beyond the window.	田や畑の多い、いなか。
+
+# ── 屈折 (1246620, くっせつ) — bending / warped feelings / refraction ───────────
+1246620:0	道は山に沿って何度も屈折している。	The road bends again and again along the mountain.	折れて曲がること。
+1246620:1	彼は屈折した性格だ。	He has a twisted personality.	考えや気持ちが、素直でないこと。
+1246620:2	光は水に入ると屈折する。	Light bends when it enters water.	光や音が、ほかの物に入るときに進む向きを変えること。
+
+# ── 見地 (1259870, けんち) — a standpoint ────────────────────────────────────
+1259870:0	教育の見地から考える。	I'm looking at it from an educational standpoint.	物事を見たり考えたりする立場。
+
+# ── 未開 (1527190, みかい) — primitive / unexplored ───────────────────────────
+1527190:0	昔の人はその国を未開の国と呼んだ。	People used to call that country uncivilised.	文明が進んでいないこと。
+1527190:1	宇宙はまだ未開の分野だ。	Space is still unexplored territory.	まだ開発されていないこと。
+
+# ── 雪崩 (1386690, なだれ) — an avalanche ───────────────────────────────────
+1386690:0	雪崩で道がふさがった。	An avalanche blocked the road.	山に積もった雪が、一度にくずれて落ちること。
+
+# ── 盲点 (1534280, もうてん) — the eye's blind spot / an overlooked weakness ────
+1534280:0	人の目には盲点がある。	The human eye has a blind spot.	目の奥にある、光を感じない所。
+1534280:1	その計画には大きな盲点があった。	There was a big hole in that plan.	気がつかずに、見落としている点。
+
+# ── 切れ目 (1591930, きれめ) — a gap / a cut ─────────────────────────────────
+1591930:0	雲の切れ目から青空が見えた。	I could see blue sky through a gap in the clouds.	続いているものが切れている所。
+1591930:2	魚に切れ目を入れて焼く。	You score the fish and then grill it.	刃物で切った、浅いきず。
+
+# ── 手際 (1327690, てぎわ) — skill, deftness ─────────────────────────────────
+1327690:0	彼女は手際よく料理を作った。	She cooked deftly.	物事を処理する、腕前ややり方。
+
+# ── 適宜 (1437380, てきぎ) — as appropriate ─────────────────────────────────
+1437380:1	塩を適宜加えてください。	Add salt to taste.	その場に合わせて、ちょうどよいように。
+
+# ── 学士 (1206760, がくし) — a bachelor's degree ─────────────────────────────
+1206760:1	大学を卒業して学士の学位を得た。	I graduated and got a bachelor's degree.	大学を卒業した人に与えられる称号。
+
+# ── 質素 (1320710, しっそ) — simple, plain ───────────────────────────────────
+1320710:0	祖父母は質素に暮らしている。	My grandparents live simply.	ぜいたくをしないようす。
+
+# ── 几帳面 (1564360, きちょうめん) — meticulous ──────────────────────────────
+1564360:0	彼は几帳面で、時間を必ず守る。	He's meticulous and always on time.	細かい所まで、きちんとしているようす。
+
+# ── 過密 (1196460, かみつ) — overcrowding / a packed schedule ──────────────────
+1196460:0	都市の過密が問題になっている。	Overcrowding in cities has become a problem.	人などが、一つの所に集まりすぎていること。
+1196460:1	今週は過密な日程だ。	This week's schedule is packed.	予定などが、つまりすぎていること。
+
+# ── 張り紙 (1427820, はりがみ) — a notice ───────────────────────────────────
+1427820:1	店の前に休業の張り紙があった。	There was a notice on the shop saying it was closed.	人に知らせるために、壁などにはった紙。
+
+# ── 一様 (1167130, いちよう) — uniform ──────────────────────────────────────
+1167130:0	みんな一様に驚いた。	Everyone was equally surprised.	どれも同じであるようす。
+
+# ── 議案 (1226010, ぎあん) — a bill ─────────────────────────────────────────
+1226010:0	国会で議案が可決された。	The bill was passed in the Diet.	会議で話し合うために出す案。
+
+# ── 起伏 (1223930, きふく) — undulation / ups and downs ───────────────────────
+1223930:0	この辺りは土地の起伏が多い。	The land round here is very hilly.	土地が高くなったり低くなったりしていること。
+1223930:1	彼女は感情の起伏が激しい。	Her moods go up and down a lot.	勢いや気持ちが、強くなったり弱くなったりすること。
+
+# ── 玄人 (1263430, くろうと) — a professional ─────────────────────────────────
+1263430:0	彼の絵は玄人も驚くほどうまい。	His paintings are good enough to impress a professional.	ある物事に慣れて、よく知っている人。
+
+# ── 面目 (1533590, めんぼく) — face, honour ──────────────────────────────────
+1533590:0	約束を守れず、面目がない。	I couldn't keep my promise and I'm ashamed.	世間に対する名誉。
+
+# ── 手数 (1327970, てすう) — trouble ────────────────────────────────────────
+1327970:0	この料理は手数がかかる。	This dish takes a lot of work.	ある事をするのに必要な手間。
+
+# ── 兼業 (1578300, けんぎょう) — a side business ──────────────────────────────
+1578300:0	彼は農業と商売を兼業している。	He farms and runs a business at the same time.	本業のほかに、ほかの仕事もすること。
+
+# ── 戯曲 (1225010, ぎきょく) — a play ───────────────────────────────────────
+1225010:0	彼は有名な戯曲を書いた。	He wrote a famous play.	劇として演じるために書かれた作品。
