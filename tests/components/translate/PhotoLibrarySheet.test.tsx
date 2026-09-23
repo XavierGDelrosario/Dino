@@ -9,18 +9,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { LocaleProvider } from "@/i18n";
 
-const { listLibraryPhotos, loadLibraryPhoto, selectMorePhotos, openPhotoSettings } = vi.hoisted(() => ({
-  listLibraryPhotos: vi.fn(),
-  loadLibraryPhoto: vi.fn(),
-  selectMorePhotos: vi.fn(),
-  openPhotoSettings: vi.fn(),
-}));
+const { listLibraryPhotos, loadLibraryPhoto, selectMorePhotos, openPhotoSettings, onLibraryChange } = vi.hoisted(
+  () => ({
+    listLibraryPhotos: vi.fn(),
+    loadLibraryPhoto: vi.fn(),
+    selectMorePhotos: vi.fn(),
+    openPhotoSettings: vi.fn(),
+    onLibraryChange: vi.fn(),
+  }),
+);
 
 vi.mock("@/services/photos/access", () => ({
   listLibraryPhotos,
   loadLibraryPhoto,
   selectMorePhotos,
   openPhotoSettings,
+  onLibraryChange,
 }));
 
 import { PhotoLibrarySheet } from "@/components/translate/PhotoLibrarySheet";
@@ -45,6 +49,9 @@ function renderSheet(overrides: Partial<Parameters<typeof PhotoLibrarySheet>[0]>
   return props;
 }
 
+let libraryChanged: () => void = () => {};
+let unsubscribe = vi.fn();
+
 const tiles = () => screen.queryAllByRole("button", { name: /scan text from this photo/i });
 const manage = () => screen.getByRole("button", { name: /manage/i });
 
@@ -53,6 +60,13 @@ beforeEach(() => {
   listLibraryPhotos.mockResolvedValue(SHARED);
   loadLibraryPhoto.mockResolvedValue({ base64: "FULL", format: "jpeg" });
   selectMorePhotos.mockResolvedValue("limited");
+  // Capture the subscriber so a test can play the part of iOS reporting a change.
+  libraryChanged = () => {};
+  unsubscribe = vi.fn();
+  onLibraryChange.mockImplementation((fn: () => void) => {
+    libraryChanged = fn;
+    return unsubscribe;
+  });
 });
 afterEach(cleanup);
 
@@ -86,6 +100,37 @@ describe("PhotoLibrarySheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /select more photos/i }));
     // The selection IS this grid, so a stale one would be showing the wrong answer.
     await waitFor(() => expect(listLibraryPhotos).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows photos added through Manage once iOS commits them, without reopening", async () => {
+    renderSheet();
+    await waitFor(() => expect(tiles()).toHaveLength(2));
+    // iOS closes the "select more" sheet BEFORE committing the selection, so the re-read
+    // on close sees the old two; the commit arrives afterwards as a library change.
+    fireEvent.click(manage());
+    fireEvent.click(screen.getByRole("button", { name: /select more photos/i }));
+    await waitFor(() => expect(listLibraryPhotos).toHaveBeenCalledTimes(2));
+    listLibraryPhotos.mockResolvedValue([...SHARED, { id: "c", thumb: "CCC" }]);
+    libraryChanged();
+    await waitFor(() => expect(tiles()).toHaveLength(3));
+  });
+
+  it("collapses a burst of change notifications into one re-read", async () => {
+    renderSheet();
+    await waitFor(() => expect(listLibraryPhotos).toHaveBeenCalledTimes(1));
+    libraryChanged();
+    libraryChanged();
+    libraryChanged();
+    await waitFor(() => expect(listLibraryPhotos).toHaveBeenCalledTimes(2));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(listLibraryPhotos).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops listening when the sheet closes", async () => {
+    renderSheet();
+    await waitFor(() => expect(onLibraryChange).toHaveBeenCalled());
+    cleanup();
+    expect(unsubscribe).toHaveBeenCalled();
   });
 
   it("reports a switch to full access up, so the host can retire the sheet", async () => {

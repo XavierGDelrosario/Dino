@@ -22,6 +22,7 @@ import {
   loadLibraryPhoto,
   selectMorePhotos,
   openPhotoSettings,
+  onLibraryChange,
   type LibraryPhoto,
   type PhotoAccess,
 } from "../../services/photos/access";
@@ -47,6 +48,23 @@ export function PhotoLibrarySheet({
     void listLibraryPhotos().then(setPhotos);
   }, []);
   useEffect(load, [load]);
+
+  // Re-read when iOS reports the selection changed. This is what actually picks up
+  // photos added through Manage: the "select more" sheet closes before iOS commits
+  // the new selection, so the re-read on close below still sees the old one. It also
+  // catches edits made in Settings. Debounced, because one edit can arrive as several
+  // change notifications and each re-read renders a thumbnail per photo.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stop = onLibraryChange(() => {
+      clearTimeout(timer);
+      timer = setTimeout(load, 250);
+    });
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
+  }, [load]);
 
   const pick = async (id: string) => {
     if (busy) return;
@@ -128,7 +146,9 @@ export function PhotoLibrarySheet({
                 void selectMorePhotos().then((access) => {
                   setManaging(false);
                   onAccessChange(access);
-                  // Re-read regardless: the selection is what this grid IS.
+                  // Re-read regardless: the selection is what this grid IS. Often still
+                  // the old selection (see onLibraryChange above) — kept for the case
+                  // where iOS has already committed by now.
                   load();
                 });
               }}

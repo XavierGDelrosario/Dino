@@ -18,7 +18,7 @@
 // that hangs off this never renders in a browser. Mirrors services/ocr and
 // services/handwriting — a thin typed wrapper over a local Capacitor plugin.
 // =========================================================
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 
 /** What the user granted. `prompt` = not asked yet; `denied` covers restricted. */
 export type PhotoAccess = "full" | "limited" | "denied" | "prompt";
@@ -37,6 +37,7 @@ interface PhotoAccessPlugin {
   openSettings(): Promise<void>;
   listPhotos(opts: { limit?: number; thumbSize?: number }): Promise<{ photos: LibraryPhoto[] }>;
   loadPhoto(opts: { id: string; maxSize?: number }): Promise<{ base64: string; format: string }>;
+  addListener(event: "libraryChange", fn: () => void): Promise<PluginListenerHandle>;
 }
 
 const PhotoAccessNative = registerPlugin<PhotoAccessPlugin>("PhotoAccess");
@@ -100,6 +101,35 @@ export async function listLibraryPhotos(limit = 60): Promise<LibraryPhoto[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * Call `fn` whenever the photos the app can see change; returns the unsubscribe.
+ *
+ * This, not the resolution of selectMorePhotos(), is when the grid should re-read: iOS
+ * closes the "select more" sheet BEFORE it commits the new selection, so a fetch made
+ * on close still returns the old one. It also covers edits made in Settings › DINO.
+ * The native side only starts watching after the first listLibraryPhotos().
+ *
+ * A no-op off-native.
+ */
+export function onLibraryChange(fn: () => void): () => void {
+  if (!manageable()) return () => {};
+  let handle: PluginListenerHandle | null = null;
+  let stopped = false;
+  PhotoAccessNative.addListener("libraryChange", fn)
+    .then((h) => {
+      // Unsubscribed before the native side answered: drop it straight away.
+      if (stopped) void h.remove();
+      else handle = h;
+    })
+    .catch(() => {
+      // No event support means the grid refreshes only on reopen — the old behaviour.
+    });
+  return () => {
+    stopped = true;
+    void handle?.remove();
+  };
 }
 
 /** One photo at OCR resolution. Null rather than throwing: a photo that won't load is
