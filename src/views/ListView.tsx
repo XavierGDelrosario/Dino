@@ -533,41 +533,50 @@ export function ListView({
             {t("lists.summaryBtn")}
           </button>
 
-          <div className="listrows__search">
-            {/* Decorative — the input already carries the label. */}
-            <span className="listrows__searchicon" aria-hidden="true">
-              <SearchIcon size={15} />
-            </span>
-            <input
-              type="search"
-              className="input input--sm listrows__searchinput"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("lists.searchPlaceholder")}
-              aria-label={t("lists.searchAria")}
-            />
-            {query && (
-              <button
-                type="button"
-                className="listrows__searchclear"
-                onClick={() => setQuery("")}
-                aria-label={t("lists.searchClear")}
-              >
-                <XIcon size={14} />
-              </button>
-            )}
-          </div>
         </div>
       )}
 
-      {/* Charts for exactly the set sort and search produce, directly under the button
-          that opens them and directly above the rows they describe. No coverage pie:
-          every word here is already in the vocabulary, so known/new is 100/0 by
-          construction — see summarizeUserWords. No word count either; the title chip
-          and the row count already carry it. */}
+      {/* Charts for exactly the set sort and search produce. Directly under the button
+          that opens them, and ABOVE the search box: opening the summary should not push
+          the field you are typing in down the page, and the panel reads as belonging to
+          the sort line it hangs off rather than floating between two controls. No
+          coverage pie — every word here is already in the vocabulary, so known/new is
+          100/0 by construction (see summarizeUserWords). No word count either; the
+          title chip and the row count already carry it. */}
       {panel === "summary" && summary && (
         <div className="lists__summary">
           <AnalyzeInfographic data={summary.data} />
+        </div>
+      )}
+
+      {/* Search sits on its own line, below the summary and directly above the rows it
+          narrows. It left the sort row when Summary joined it: three controls would not
+          share a line on a phone, and of the three the search box is the one that wants
+          the full width. */}
+      {L.status === "ready" && L.words.length > 0 && (
+        <div className="listrows__search">
+          {/* Decorative — the input already carries the label. */}
+          <span className="listrows__searchicon" aria-hidden="true">
+            <SearchIcon size={15} />
+          </span>
+          <input
+            type="search"
+            className="input input--sm listrows__searchinput"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("lists.searchPlaceholder")}
+            aria-label={t("lists.searchAria")}
+          />
+          {query && (
+            <button
+              type="button"
+              className="listrows__searchclear"
+              onClick={() => setQuery("")}
+              aria-label={t("lists.searchClear")}
+            >
+              <XIcon size={14} />
+            </button>
+          )}
         </div>
       )}
 
