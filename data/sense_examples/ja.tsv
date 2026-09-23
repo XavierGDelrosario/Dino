@@ -1869,3 +1869,1819 @@
 1170650:0	本を後ろに隠した。	I hid the book behind my back.	人に見つからないようにする。
 1584060:0	紙で本を包んだ。	I wrapped the book in paper.	紙や布で外側からおおう。
 1290310:0	卵と砂糖を混ぜる。	Mix the egg and the sugar.	二つ以上のものを一つに合わせる。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 14 — N1, hardest first. Coverage below N3 was already thick (N1 had 11 of
+# ~2.4k entries), so this band opens with the most FREQUENT polysemous N1 nouns: the
+# ones a learner meets in the news long before the rarer N1 words, and whose
+# second sense (採用 = hiring, 提供 = sponsoring) the gloss list buries.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 映像 (1173800, えいぞう) — picture on a screen / footage / mental image ─────
+1173800:0	テレビの映像が乱れている。	The picture on the TV is breaking up.	画面に映し出される像。
+1173800:1	事故の映像がニュースで流れた。	Footage of the accident was shown on the news.	カメラで撮影した動く画像。
+1173800:3	故郷の映像が頭に浮かぶ。	Pictures of my home town come to mind.	心の中に浮かぶ姿や様子。
+
+# ── 荷 (1195250, に) — cargo / burden ─────────────────────────────────────────
+1195250:0	トラックに荷を積んだ。	We loaded the cargo onto the truck.	運ぶためにまとめた品物。
+1195250:1	その仕事は私には荷が重い。	That job is too much of a burden for me.	負わなければならない責任や負担。
+
+# ── 開発 (1202880, かいはつ) — development / exploitation of resources ─────────
+1202880:0	新しい薬を開発している。	They are developing a new drug.	新しい技術や製品を作り、使えるようにすること。
+1202880:1	国は石油資源の開発に力を入れている。	The country is putting its effort into developing its oil resources.	土地や資源に手を加えて、役に立つようにすること。
+
+# ── 客 (1226630, きゃく) — guest / customer ──────────────────────────────────
+1226630:0	今夜は家に客が来る。	We have guests coming tonight.	招かれて訪ねてくる人。
+1226630:1	この店はいつも客でいっぱいだ。	This shop is always full of customers.	金を払って品物やサービスを受ける人。
+
+# ── 採用 (1294890, さいよう) — adoption / hiring ─────────────────────────────
+1294890:0	彼の案が採用された。	His plan was adopted.	よいと認めて取り上げて使うこと。
+1294890:1	今年は新しい社員を十人採用した。	We took on ten new employees this year.	人を選んで雇うこと。
+
+# ── 作戦 (1297800, さくせん) — tactics / military operation ───────────────────
+1297800:0	次の試合の作戦を立てる。	We draw up our tactics for the next match.	目的を達成するための方法や計画。
+1297800:1	軍は夜明けに作戦を開始した。	The army began the operation at dawn.	軍隊が一定の期間に行う戦いの行動。
+
+# ── 事業 (1313670, じぎょう) — a business / a public project ──────────────────
+1313670:0	父は新しい事業を始めた。	My father started a new business.	利益を得るために行う仕事。
+1313670:1	市は子育てを助ける事業を進めている。	The city is pushing ahead with a programme to help people raise children.	社会のために計画して行う仕事。
+
+# ── 詳細 (1351760, しょうさい) — the details / detailed ───────────────────────
+1351760:0	詳細は明日連絡します。	I'll send you the details tomorrow.	細かい点までのくわしい事情。
+1351760:1	事故について詳細な報告を受けた。	We received a detailed report on the accident.	細かいところまでくわしいようす。
+
+# ── 刃 (1369820, は) — the blade ─────────────────────────────────────────────
+1369820:0	この包丁は刃がよく切れる。	This kitchen knife has a sharp blade.	物を切るための、薄く鋭い部分。
+
+# ── 地元 (1421060, じもと) — home town / local ────────────────────────────────
+1421060:0	夏休みに地元へ帰った。	I went back to my home town for the summer holidays.	自分が生まれ育った土地。
+1421060:1	地元の野菜を使った料理だ。	It's a dish made with local vegetables.	その土地のものであること。
+
+# ── 提供 (1436360, ていきょう) — providing / sponsoring a programme ────────────
+1436360:0	市が無料で水を提供した。	The city provided water free of charge.	相手の役に立つように差し出すこと。
+1436360:1	この番組は地元の会社が提供している。	This programme is sponsored by a local company.	番組の費用を出して広告を流すこと。
+
+# ── 奴 (1445640, やつ — usually kana) — a guy / a thing ──────────────────────────────────────
+1445640:0	あいつは本当にいいやつだ。	He's a really good guy.	人を親しんで、または見下して呼ぶ言葉。
+1445640:1	もっと大きいやつをください。	Give me a bigger one.	物をぞんざいに指して言う言葉。
+
+# ── 動き (1451180, うごき) — movement / a trend ──────────────────────────────
+1451180:0	猫の動きはとても速い。	The cat's movements are very quick.	位置や姿勢が変わること。
+1451180:1	景気の動きを見守る。	We keep an eye on which way the economy is moving.	物事の移り変わりや変化。
+
+# ── 導入 (1453790, どうにゅう) — bringing in / the introductory part ───────────
+1453790:0	会社に新しいシステムを導入した。	The company brought in a new system.	外から取り入れること。
+1453790:1	導入の部分で話の背景を説明する。	The introductory part explains the background to the story.	本題に入る前の、始まりの部分。
+
+# ── 破壊 (1471250, はかい) — destruction ─────────────────────────────────────
+1471250:0	地震で多くの建物が破壊された。	Many buildings were destroyed in the earthquake.	物をこわしてだめにすること。
+
+# ── 反応 (1480210, はんのう) — a response / a bodily reaction / a chemical one ──
+1480210:0	客の反応はよかった。	The customers' reaction was good.	人の言葉や行いに応じて起こる気持ちや態度。
+1480210:1	目が光に反応する。	The eyes react to light.	刺激を受けて生き物の体に起こる動き。
+1480210:2	二つの薬品が反応して色が変わった。	The two chemicals reacted and changed colour.	物質どうしが作用しあって変化を起こすこと。
+
+# ── 不明 (1495060, ふめい) — unclear ─────────────────────────────────────────
+1495060:0	事故の原因は不明だ。	The cause of the accident is unclear.	はっきりしないこと。
+
+# ── 矢 (1537760, や) — arrow ─────────────────────────────────────────────────
+1537760:0	矢が的に当たった。	The arrow hit the target.	弓で射る、先のとがった細い棒。
+
+# ── 専用 (1596240, せんよう) — private use / for one purpose only ──────────────
+1596240:0	これは社長専用の車だ。	This car is for the president's use only.	特定の人だけが使うこと。
+1596240:1	これは魚専用の包丁だ。	This knife is just for fish.	ある目的のためだけに使うこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 15 — N1 continued, the next frequency band of polysemous nouns. Nouns made
+# from a verb's stem (掛け, 慣れ, 調べ, 作り) are held back: IPADIC tends to hand them
+# back as the verb, which is a gate failure rather than a sentence to rewrite.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 軟化 (1460740, なんか) — softening / a softer stance / a weaker market ────
+1460740:0	熱を加えると金属が軟化する。	Metal softens when you heat it.	かたい物がやわらかくなること。
+1460740:1	相手の態度が軟化した。	The other side's attitude softened.	強い態度や考えがおだやかになること。
+1460740:2	株の相場が軟化している。	Share prices are weakening.	相場が下がる方向に動くこと。
+
+# ── 設置 (1386050, せっち) — establishing a body / installing equipment ──────
+1386050:0	市は新しい委員会を設置した。	The city set up a new committee.	組織や機関を新しく設けること。
+1386050:1	駅にエレベーターを設置した。	They installed a lift at the station.	機械や設備を決まった場所に付けること。
+
+# ── 復活 (1500700, ふっかつ) — a comeback / resurrection ─────────────────────
+1500700:0	昔の祭りが二十年ぶりに復活した。	The old festival came back after twenty years.	一度なくなったものが、また行われるようになること。
+1500700:1	死んだ英雄の復活を描いた物語だ。	It's a story about a dead hero rising again.	死んだものが生き返ること。
+
+# ── 保険 (1513440, ほけん) — insurance / a guarantee ──────────────────────────
+1513440:0	車の保険に入った。	I took out car insurance.	事故や病気に備えて、決まったお金を払っておく仕組み。
+1513440:1	この時計には一年の保険が付いている。	This watch comes with a one-year guarantee.	品物の質などを、一定の期間守ると約束すること。
+
+# ── 主人公 (1325680, しゅじんこう) — the protagonist / head of a household ────
+1325680:0	この小説の主人公は若い医者だ。	The hero of this novel is a young doctor.	物語や劇の中心となる人物。
+1325680:1	彼はこの家の主人公として働いてきた。	He has worked as the head of this household.	一家や店の中心となる人。
+
+# ── 再生 (1292960, さいせい) — coming back to life / recycling / playback ─────
+1292960:0	山火事の後、森が再生した。	The forest came back to life after the wildfire.	死んだようになったものが、また生き返ること。
+1292960:2	古い紙を再生して使う。	We recycle old paper and use it again.	使えなくなった物を、もう一度使えるようにすること。
+1292960:3	録画した番組を再生した。	I played back the programme I had recorded.	録音や録画したものを、音や映像として出すこと。
+
+# ── 総合 (1596380, そうごう) — putting together / comprehensive ──────────────
+1596380:0	みんなの意見を総合して決めた。	We decided by putting everyone's views together.	いくつかのものを一つにまとめること。
+1596380:1	彼は総合病院で働いている。	He works at a general hospital.	いろいろなものを合わせて一つにしているようす。
+
+# ── 行い (1589050, おこない) — a deed / one's conduct ─────────────────────────
+1589050:0	よい行いをした人がほめられた。	The person who did a good deed was praised.	実際にすること。
+1589050:1	日ごろの行いが大切だ。	What matters is how you behave every day.	ふだんの生活の中での態度やふるまい。
+
+# ── 扱い (1153430, あつかい) — treatment of a person / handling a tool ────────
+1153430:0	客としての扱いを受けた。	I was treated as a guest.	人をもてなしたり、相手にしたりする仕方。
+1153430:1	この機械は扱いが難しい。	This machine is hard to operate.	道具や機械を使うこと。
+
+# ── 支持 (1310150, しじ) — backing / holding up ──────────────────────────────
+1310150:0	多くの国民がその政策を支持している。	Many citizens support that policy.	考えや行動に賛成して、力を貸すこと。
+1310150:1	柱が屋根を支持している。	The pillars hold up the roof.	物を下から支えて持つこと。
+
+# ── 詐欺 (1291690, さぎ) — fraud / flaking out on a promise ──────────────────
+1291690:0	祖母が電話で詐欺にあった。	My grandmother was the victim of a phone scam.	人をだまして、お金や品物を取ること。
+1291690:1	すぐ行くと言って来ないなんて詐欺だ。	Saying you'd come straight away and then not showing up is a con.	約束しておいて、実際にはしないこと。
+
+# ── 確保 (1205920, かくほ) — securing ────────────────────────────────────────
+1205920:0	早く行って席を確保した。	I went early and got us seats.	しっかりと手に入れておくこと。
+
+# ── 連中 (1559700, れんちゅう) — a bunch of people ────────────────────────────
+1559700:0	あの連中とは付き合わないほうがいい。	You'd better not get mixed up with that lot.	仲間である人々を、軽く見て言う言葉。
+
+# ── 固定 (1266650, こてい) — fixing in place / keeping the same ────────────────
+1266650:0	棚を壁に固定した。	I fixed the shelf to the wall.	動かないように、しっかり留めること。
+1266650:1	毎月の給料は固定されている。	The monthly salary is fixed.	金額や状態などを、変わらないように決めておくこと。
+
+# ── 地獄 (1421090, じごく) — Hell / a living hell ─────────────────────────────
+1421090:1	悪いことをすると地獄に落ちると言われた。	I was told that if I did wrong I would go to Hell.	死んだ後、悪い行いをした人が落ちて苦しむという所。
+1421090:2	朝の満員電車は地獄だ。	The packed trains in the morning are hell.	非常に苦しい状態や場所。
+
+# ── 派遣 (1471130, はけん) — dispatching / an agency temp ─────────────────────
+1471130:0	国は被災地に医者を派遣した。	The government sent doctors to the disaster area.	仕事をさせるために、人をほかの場所へ送ること。
+1471130:1	彼女は派遣として会社で働いている。	She works at the company as an agency temp.	会社から別の会社へ送られて働く人。
+
+# ── 感染 (1212470, かんせん) — infection / catching an idea ───────────────────
+1212470:0	子どもがかぜに感染した。	The child caught a cold.	病気のもとが体に入ること。
+1212470:1	彼の悪い癖に感染したようだ。	I seem to have picked up his bad habit.	人の考えや行動の影響を受けること。
+
+# ── 進化 (1366000, しんか) — biological evolution / advancing ─────────────────
+1366000:0	人間は猿から進化したと言われる。	Humans are said to have evolved from apes.	生物が長い時間をかけて、形や性質を変えていくこと。
+1366000:1	スマホの技術は年々進化している。	Smartphone technology gets more advanced every year.	物事がよりよい状態へ発展すること。
+
+# ── 一切 (1164170, いっさい) — all of it / (not) at all ──────────────────────
+1164170:0	仕事の一切を彼に任せた。	I left the whole job to him.	あるものすべて。
+1164170:1	私はその件には一切関係がない。	I have absolutely nothing to do with that matter.	全く。少しも。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 16 — N1 continued: the vocabulary of news and office life, where the second
+# sense is the one a learner actually meets (処分 = a penalty, 背景 = the reasons
+# behind something, 演出 = staging an event, not just directing a film).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 気軽 (1222110, きがる) — easygoing, without ceremony ──────────────────────
+1222110:0	いつでも気軽に声をかけてください。	Feel free to come and talk to me any time.	深く考えたり、遠慮したりしないようす。
+
+# ── 閲覧 (1175380, えつらん) — reading documents / browsing the web ──────────
+1175380:0	図書館で古い新聞を閲覧した。	I looked through old newspapers at the library.	本や書類などを調べながら読むこと。
+1175380:1	このサイトは誰でも閲覧できる。	Anyone can browse this site.	インターネットのページを見ること。
+
+# ── 交渉 (1272110, こうしょう) — negotiations / dealings ──────────────────────
+1272110:0	給料について会社と交渉した。	I negotiated my salary with the company.	何かを決めるために、相手と話し合うこと。
+1272110:1	あの家とは長い間交渉がない。	We've had no dealings with that family for a long time.	人と人との関係やつきあい。
+
+# ── 細胞 (1295740, さいぼう) — a cell ────────────────────────────────────────
+1295740:0	人の体は多くの細胞でできている。	The human body is made up of many cells.	生物の体を作っている、最も小さな単位。
+
+# ── 背景 (1472720, はいけい) — backdrop / the background to an event / backing ──
+1472720:0	山を背景に写真を撮った。	We took a photo with the mountains behind us.	絵や写真で、中心となるものの後ろの景色。
+1472720:1	事件の背景を調べる。	We look into the background to the incident.	物事が起こった裏にある事情。
+1472720:2	彼は大きな組織を背景にしている。	He has a large organisation behind him.	陰から支える力。
+
+# ── 処分 (1342490, しょぶん) — getting rid of / dealing with / a penalty ──────
+1342490:0	古い家具を処分した。	I got rid of the old furniture.	いらない物を捨てたり売ったりすること。
+1342490:1	問題の処分に困っている。	We don't know how to deal with the problem.	物事にきまりをつけること。
+1342490:2	ルールを破った選手が処分を受けた。	The player who broke the rules was penalised.	規則に反した人を罰すること。
+
+# ── 運用 (1173090, うんよう) — putting to use / managing funds ────────────────
+1173090:0	集めた資金を運用する。	We put the funds we raised to work.	物やお金を、役に立つように動かして使うこと。
+
+# ── 演出 (1176950, えんしゅつ) — directing a play / staging an event ──────────
+1176950:0	この劇の演出は有名な監督が担当した。	A famous director directed this play.	劇や映画で、役者の動きなどを指導してまとめること。
+1176950:1	パーティーの演出を友達に任せた。	I left the staging of the party to a friend.	効果を考えて、物事の進む順序や形を工夫すること。
+
+# ── 業者 (1239440, ぎょうしゃ) — a contractor / people in the same trade ───────
+1239440:0	業者に家の修理を頼んだ。	We had a contractor repair the house.	商売や工事などを仕事としている人や会社。
+1239440:1	同じ町の業者が集まって話し合った。	Traders from the same town met to talk it over.	同じ商売をしている仲間。
+
+# ── 独自 (1455810, どくじ) — distinctive / one's own ──────────────────────────
+1455810:0	この店のラーメンには独自の味がある。	This shop's ramen has a taste all its own.	ほかにはない、そのものだけにあるようす。
+1455810:1	彼は独自に調査を始めた。	He started investigating on his own.	ほかの力を借りずに、自分だけで行うようす。
+
+# ── 現地 (1263860, げんち) — the scene / where one lives now ───────────────────
+1263860:0	記者がすぐに現地へ向かった。	The reporter headed straight for the scene.	物事が実際に起こっている場所。
+1263860:1	現地の人に道を聞いた。	I asked a local the way.	今いる土地。また、その土地に住んでいること。
+
+# ── 当選 (1449180, とうせん) — being elected / winning a prize ─────────────────
+1449180:0	彼は選挙で当選した。	He was elected.	選挙で選ばれること。
+1449180:1	くじに当選して旅行券をもらった。	I won a travel voucher in a draw.	くじなどで選ばれて、賞を得ること。
+
+# ── 負担 (1498130, ふたん) — a burden / bearing a cost ─────────────────────────
+1498130:0	毎日の長い通勤が体の負担になっている。	The long commute every day is taking a toll on my body.	重く感じる仕事や責任。
+1498130:1	交通費は会社が負担する。	The company covers travel expenses.	費用や責任を自分で引き受けること。
+
+# ── 崩壊 (1516280, ほうかい) — collapse / radioactive decay ────────────────────
+1516280:0	地震で古い橋が崩壊した。	The old bridge collapsed in the earthquake.	くずれて、こわれること。
+1516280:1	原子核の崩壊によって放射線が出る。	Radiation is given off when atomic nuclei decay.	原子核が放射線を出して別の原子核に変わること。
+
+# ── 真実 (1363780, しんじつ) — the truth / truly ──────────────────────────────
+1363780:0	彼は事件の真実を話した。	He told the truth about the incident.	うそや飾りのない、本当のこと。
+1363780:1	真実ありがたいと思っている。	I am truly grateful.	本当に。心から。
+
+# ── 素材 (1397220, そざい) — ingredients / subject matter ──────────────────────
+1397220:0	この料理は素材の味を生かしている。	This dish brings out the flavour of its ingredients.	物を作るもとになる材料。
+1397220:2	旅の思い出を小説の素材にした。	She used memories of her travels as material for a novel.	作品のもとになる事柄。
+
+# ── 衝撃 (1351510, しょうげき) — an impact / a shock ─────────────────────────
+1351510:0	車がぶつかった衝撃で窓が割れた。	The impact of the car crash broke the window.	物に急に加わる強い力。
+1351510:1	そのニュースは国中に衝撃を与えた。	The news sent a shock through the whole country.	心を強く動かされること。
+
+# ── 上位 (1352590, じょうい) — a higher rank ─────────────────────────────────
+1352590:0	彼はテストで上位に入った。	He made it into the top ranks in the test.	順位や地位が上であること。
+
+# ── 同意 (1451850, どうい) — consent / the same view / the same meaning ────────
+1451850:0	親の同意を得て留学した。	I studied abroad with my parents' consent.	相手の考えや申し出を認めること。
+1451850:1	その意見に私も同意です。	I share that view.	同じ意見であること。
+1451850:2	この二つの言葉は同意だ。	These two words mean the same thing.	同じ意味であること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 17 — N1 continued. Two sub-patterns worth a sentence each: the TECHNICAL
+# sense a learner meets on a device (本体, 電源, 参照, 無線) and the FIGURATIVE one
+# that no gloss list prepares them for (惑星 = a dark horse, 正解 = the right call).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 革命 (1206500, かくめい) — revolution ────────────────────────────────────
+1206500:0	その国では革命が起きて王が倒された。	A revolution broke out in that country and the king was overthrown.	政治や社会の仕組みを急に根本から変えること。
+
+# ── 正義 (1376910, せいぎ) — justice ─────────────────────────────────────────
+1376910:0	彼は正義のために戦った。	He fought for justice.	人として守るべき正しい道。
+
+# ── 名誉 (1531870, めいよ) — honour / honorary ───────────────────────────────
+1531870:0	国の代表に選ばれて名誉に思う。	I'm honoured to have been chosen to represent the country.	すぐれていると世の中に認められること。
+1531870:2	彼は大学の名誉教授になった。	He became an emeritus professor at the university.	功績を認めて、その人に与える呼び名であること。
+
+# ── 日々 (1602120, ひび) — daily life / the days of one's youth ───────────────
+1602120:0	日々の生活を大切にしたい。	I want to make the most of everyday life.	毎日のこと。
+1602120:1	学生時代の楽しい日々を思い出す。	I remember the happy days of my student years.	過ぎていった、ある時期の毎日。
+
+# ── 推進 (1371140, すいしん) — propulsion / pushing a policy forward ──────────
+1371140:0	船はエンジンの力で推進する。	The ship is driven forward by its engine.	物を前へ押して進めること。
+1371140:1	政府は環境の政策を推進している。	The government is pushing its environmental policy forward.	物事がうまく進むように力を入れること。
+
+# ── 旦那 (1418410, だんな) — the master / husband ────────────────────────────
+1418410:0	店の旦那に挨拶をした。	I said hello to the owner of the shop.	店や家の主人。
+1418410:1	うちの旦那は料理が上手だ。	My husband is a good cook.	妻が夫を指して言う言葉。
+
+# ── 規定 (1223060, きてい) — a rule / a compulsory routine ─────────────────────
+1223060:0	会社の規定で、休みは年に二十日だ。	Under company rules we get twenty days off a year.	物事の方法や内容を、はっきりと決めたもの。
+1223060:2	体操の選手が規定の演技を終えた。	The gymnast finished her compulsory routine.	体操などで、決められた内容で行う演技。
+
+# ── 再現 (1292640, さいげん) — coming back / recreating ──────────────────────
+1292640:0	昨年の悲劇が再現した。	Last year's tragedy happened all over again.	一度消えたものが、また現れること。
+1292640:1	事故の様子を再現した映像を見た。	I watched a reconstruction of the accident.	前にあったことを、もう一度そのとおりに表すこと。
+
+# ── 解除 (1199030, かいじょ) — cancelling a contract / lifting a restriction ──
+1199030:0	携帯電話の契約を解除した。	I cancelled my mobile phone contract.	約束や契約を取り消すこと。
+1199030:1	大雨の警報が解除された。	The heavy rain warning was lifted.	制限や禁止などをやめて、もとの状態に戻すこと。
+
+# ── 文書 (1583840, ぶんしょ) — a document ────────────────────────────────────
+1583840:0	会議の内容を文書にまとめた。	I put what was said at the meeting into writing.	文字で書いたもの。
+
+# ── 参照 (1302410, さんしょう) — consulting / browsing to a file ───────────────
+1302410:0	詳しくは次のページを参照してください。	For more detail, please see the next page.	ほかの物と照らし合わせて、参考にすること。
+1302410:1	保存する場所を参照して選ぶ。	You browse to the folder you want to save in and pick it.	コンピューターで、ファイルのある場所を開いて探すこと。
+
+# ── 正解 (1376740, せいかい) — the correct answer / the right call ─────────────
+1376740:0	この問題の正解は三だ。	The answer to this question is three.	問題の正しい答え。
+1376740:1	傘を持ってきたのは正解だった。	Bringing an umbrella was the right call.	結果から見て、正しい判断であること。
+
+# ── 新人 (1361960, しんじん) — a newcomer ────────────────────────────────────
+1361960:0	今年の新人はよく働く。	This year's new recruits work hard.	新しく仲間に入った人。
+
+# ── 本体 (1522950, ほんたい) — the main unit / the price before tax ─────────────
+1522950:1	カメラの本体だけを買った。	I bought just the camera body.	機械などの、中心となる部分。
+1522950:4	本体の価格は千円だ。	The price before tax is a thousand yen.	税金を含まない、もとの値段。
+
+# ── 惑星 (1562600, わくせい) — a planet / a dark horse ───────────────────────
+1562600:0	地球は太陽の周りを回る惑星だ。	The Earth is a planet that goes round the sun.	太陽などの周りを回っている、大きな天体。
+1562600:1	彼は今回の選挙の惑星と言われている。	He's being called the dark horse of this election.	実力がよくわからないが、勝つかもしれない人。
+
+# ── 犠牲 (1225450, ぎせい) — a sacrifice / a victim ──────────────────────────
+1225450:0	家族のために自分の夢を犠牲にした。	I sacrificed my own dream for my family.	ある目的のために、大切なものを捨てること。
+1225450:1	事故で多くの人が犠牲になった。	Many people were killed in the accident.	災害や事故で命を失うこと。
+
+# ── 中継 (1424040, ちゅうけい) — relaying / a live broadcast ──────────────────
+1424040:0	荷物は大阪を中継して送られる。	The parcel is routed through Osaka.	途中で受け継いで、先へ送ること。
+1424040:1	試合をテレビで中継する。	The match is broadcast live on TV.	その場の様子を、そのまま放送すること。
+
+# ── 電源 (1443220, でんげん) — a power supply / the power button ────────────────
+1443220:0	この部屋には電源が一つしかない。	There's only one power socket in this room.	電気をとるもとになる所。
+1443220:1	テレビの電源を切った。	I switched the TV off.	機械を動かしたり止めたりするためのスイッチ。
+
+# ── 無線 (1530380, むせん) — radio / wireless ────────────────────────────────
+1530380:0	船から無線で助けを呼んだ。	They radioed for help from the ship.	電波を使って通信すること。
+1530380:1	パソコンを無線でつないだ。	I connected the computer wirelessly.	電線を使わないこと。
+
+# ── 領域 (1554720, りょういき) — territory / a field of study ──────────────────
+1554720:0	飛行機が他国の領域に入った。	The aircraft entered another country's territory.	国の力が及ぶ土地や海や空。
+1554720:1	それは私の専門の領域ではない。	That isn't my field.	学問や仕事などの、受け持つ範囲。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 18 — N1 continued. Several of these have a sense everyday Japanese leans on
+# far more than the first gloss suggests: 告白 is asking someone out long before it
+# is a confession, 了解 is "roger", and 風俗 means the sex industry in most modern
+# use — a learner who only knows "customs" will misread a street sign.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 告白 (1286060, こくはく) — a confession / asking someone out ───────────────
+1286060:0	犯人は自分の罪を告白した。	The culprit confessed to the crime.	隠していたことを、ありのままに打ち明けること。
+1286060:1	彼女に好きだと告白した。	I told her I liked her.	好きな相手に、自分の気持ちを伝えること。
+
+# ── 充実 (1334340, じゅうじつ) — fulfilling / improving ─────────────────────────
+1334340:0	今年は充実した一年だった。	This has been a full and rewarding year.	中身が十分に満ちていること。
+1334340:1	市は図書館の設備を充実させた。	The city improved the library's facilities.	足りない所を補って、よりよくすること。
+
+# ── 従来 (1335400, じゅうらい) — up to now / conventional ──────────────────────
+1335400:0	従来どおりの方法で作業を進める。	We carry on working the way we always have.	今までずっと。これまで。
+1335400:1	新しい薬は従来の薬よりよく効く。	The new drug works better than the existing ones.	これまで普通に使われてきたこと。
+
+# ── 前提 (1393680, ぜんてい) — a prerequisite ────────────────────────────────
+1393680:0	結婚を前提に付き合っている。	We're seeing each other with a view to marriage.	ある物事が成り立つための、もとになる条件。
+
+# ── 風俗 (1499960, ふうぞく) — customs / the sex industry ─────────────────────
+1499960:0	その時代の風俗を描いた絵だ。	It's a painting of the customs of that era.	その時代や土地の、生活の習慣。
+1499960:2	駅の裏に風俗の店が並んでいる。	There's a row of sex-industry shops behind the station.	性的なサービスを売る商売。
+
+# ── 了解 (1553310, りょうかい) — understanding / roger ─────────────────────────
+1553310:0	相手の事情を了解した。	I understood the other side's situation.	物事の意味や事情をわかって、認めること。
+1553310:1	「三時に駅で」「了解」	"At the station at three." "Got it."	わかった、という返事の言葉。
+
+# ── 勢力 (1375150, せいりょく) — power, influence ──────────────────────────────
+1375150:0	台風の勢力が弱まった。	The typhoon lost strength.	ほかを従わせる力。また、物事の勢い。
+
+# ── 大幅 (1414870, おおはば) — drastic, substantial ───────────────────────────
+1414870:0	電車の時間が大幅に遅れた。	The train was badly delayed.	変わり方の程度が大きいようす。
+
+# ── 閉鎖 (1508670, へいさ) — closing / a shutdown ─────────────────────────────
+1508670:0	大雪で道路が閉鎖された。	The road was closed because of heavy snow.	入口などを閉じて、出入りできなくすること。
+1508670:1	工場が閉鎖されて多くの人が仕事を失った。	The factory was shut down and many people lost their jobs.	施設の仕事をやめて、閉じてしまうこと。
+
+# ── 英雄 (1174680, えいゆう) — a hero ────────────────────────────────────────
+1174680:0	彼は国の英雄として尊敬されている。	He is respected as a national hero.	知恵や力がすぐれ、大きな仕事をした人。
+
+# ── 形成 (1250360, けいせい) — forming / plastic repair ───────────────────────
+1250360:0	子どもの性格は家庭で形成される。	A child's character is formed at home.	形のあるものに作り上げること。
+1250360:1	事故で傷ついた鼻を形成する手術を受けた。	She had surgery to rebuild the nose that was hurt in the accident.	傷ついた体の形を手術で整えること。
+
+# ── 設立 (1386090, せつりつ) — founding / incorporating ───────────────────────
+1386090:0	祖父がこの学校を設立した。	My grandfather founded this school.	学校や団体などを新しく作ること。
+1386090:1	友人と会社を設立した。	I set up a company with a friend.	会社を法律に従って作ること。
+
+# ── 脱出 (1416520, だっしゅつ) — escape ─────────────────────────────────────
+1416520:0	燃える建物から脱出した。	We escaped from the burning building.	危ない所から抜け出すこと。
+
+# ── 補助 (1514590, ほじょ) — help / a subsidy ─────────────────────────────────
+1514590:0	先生の補助として授業に出た。	I sat in on the lesson as the teacher's assistant.	足りないところを助けること。
+1514590:1	市から家賃の補助を受けている。	I get a rent subsidy from the city.	足りない費用を出して助けること。
+
+# ── 要請 (1546780, ようせい) — a call for something ────────────────────────────
+1546780:0	市は住民に協力を要請した。	The city called on residents to cooperate.	必要なこととして、強く求めること。
+
+# ── 収集 (1594720, しゅうしゅう) — a collection / rubbish collection ──────────
+1594720:1	兄の趣味は切手の収集だ。	My brother's hobby is collecting stamps.	趣味や研究のために、同じ種類の物を集めること。
+1594720:2	ごみの収集は月曜日だ。	The rubbish is collected on Mondays.	ごみを集めて持っていくこと。
+
+# ── 若干 (1324330, じゃっかん) — a few / somewhat ─────────────────────────────
+1324330:0	席にはまだ若干の余裕がある。	There are still a few seats left.	少し。いくらか。
+1324330:1	値段が若干高い気がする。	The price seems a bit high to me.	いくらかの程度。少しばかり。
+
+# ── 突破 (1457100, とっぱ) — breaking through / overcoming / passing a mark ──────
+1457100:0	敵の守りを突破した。	We broke through the enemy's defences.	さえぎるものを破って進むこと。
+1457100:1	難しい試験を突破した。	I got through a difficult exam.	難しい所を乗り越えること。
+1457100:2	参加者が一万人を突破した。	The number of participants passed ten thousand.	ある数や量を超えること。
+
+# ── 不良 (1495290, ふりょう) — defective / a delinquent ───────────────────────
+1495290:0	この製品は品質が不良だ。	This product is of poor quality.	質や状態がよくないこと。
+1495290:1	駅の前に不良が集まっている。	There's a gang of delinquents hanging around in front of the station.	行いのよくない若者。
+
+# ── 決勝 (1254320, けっしょう) — the final ────────────────────────────────────
+1254320:1	日本は決勝まで進んだ。	Japan made it through to the final.	最後に優勝を決める試合。
+
+# ── 騒動 (1403080, そうどう) — a riot / an uproar ─────────────────────────────
+1403080:0	町で大きな騒動が起きた。	A major riot broke out in the town.	大勢の人が騒いで、秩序が乱れること。
+1403080:1	その発言がネットで騒動になった。	The remark caused an uproar online.	世間が大きく騒ぐこと。
+
+# ── 浮気 (1497450, うわき) — an affair / fickleness ───────────────────────────
+1497450:0	夫の浮気がわかった。	I found out my husband was having an affair.	恋人や夫婦の相手以外の人と、恋愛の関係を持つこと。
+1497450:1	彼は浮気な性格で、すぐに趣味が変わる。	He's fickle by nature and his hobbies keep changing.	気が変わりやすいこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 19 — N1 continued. Mostly abstract nouns with a PHYSICAL first sense and a
+# social second one (圧力: air pressure → political pressure; 反発: bouncing back →
+# a backlash; 体力: stamina → a company's staying power).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 拡散 (1205180, かくさん) — spreading / diffusion ────────────────────────────
+1205180:0	その写真はネットで拡散された。	The photo spread across the internet.	広く散らばって広がること。
+1205180:1	香りが部屋の中に拡散する。	The scent diffuses through the room.	気体や光などが、だんだん広がっていくこと。
+
+# ── 経過 (1251250, けいか) — time passing / how things are going ──────────────
+1251250:0	事故から十年が経過した。	Ten years have passed since the accident.	時間が過ぎていくこと。
+1251250:1	手術後の経過は順調だ。	The recovery since the operation is going well.	物事が進んで、変わっていく様子。
+
+# ── 逆転 (1227170, ぎゃくてん) — turning the tables / reversing ────────────────
+1227170:0	最後の一点で試合が逆転した。	The last point turned the match around.	物事の形勢が反対になること。
+1227170:1	モーターの回転を逆転させる。	You reverse the direction of the motor.	回る向きが反対になること。
+
+# ── 工作 (1278100, こうさく) — handicrafts / behind-the-scenes manoeuvring ────
+1278100:0	子どもたちが紙で工作をしている。	The children are making things out of paper.	道具を使って、簡単な物を作ること。
+1278100:2	裏で工作して反対の票を集めた。	They manoeuvred behind the scenes to gather votes against it.	目的のために、前もって人に働きかけること。
+
+# ── 圧力 (1153340, あつりょく) — pressure / political pressure ──────────────────
+1153340:0	水の圧力で管が破れた。	The water pressure burst the pipe.	物を押す力。
+1153340:1	上司から圧力をかけられた。	My boss leaned on me.	人を思いどおりに動かそうとする強い力。
+
+# ── 人材 (1367760, じんざい) — talented people / personnel ─────────────────────
+1367760:0	彼は会社にとって大切な人材だ。	He's a valuable asset to the company.	才能があって、役に立つ人。
+1367760:1	人材が足りなくて困っている。	We're struggling because we're short-staffed.	仕事をする人。働き手。
+
+# ── 体力 (1409760, たいりょく) — stamina / a company's staying power ────────────
+1409760:0	毎日走って体力をつけた。	I built up my stamina by running every day.	体の力。病気に負けない体の強さ。
+1409760:1	その会社には不況に耐える体力がない。	That company lacks the resources to ride out a recession.	組織や経済が持っている力の強さ。
+
+# ── 走行 (1402550, そうこう) — a vehicle running ──────────────────────────────
+1402550:0	この車は十万キロ走行した。	This car has done a hundred thousand kilometres.	車などが走ること。
+
+# ── 原則 (1262070, げんそく) — a principle / as a rule ─────────────────────────
+1262070:0	多数決の原則に従って決めた。	We decided according to the principle of majority rule.	多くの場合に当てはまる、基本となる決まり。
+1262070:1	原則として、遅刻は認めない。	As a rule, lateness isn't allowed.	特別な場合を除いて。
+
+# ── 今更 (1289150, いまさら) — now, when it is too late ────────────────────────
+1289150:0	今更謝っても遅い。	It's too late to apologise now.	もう時期が過ぎてしまった今になって。
+
+# ── 根拠 (1290120, こんきょ) — grounds / a base of operations ──────────────────
+1290120:0	その意見には根拠がない。	There are no grounds for that view.	考えや行動のもとになる理由。
+1290120:1	彼らは山の中を根拠にして戦った。	They fought from a base in the mountains.	活動の中心となる場所。
+
+# ── 保守 (1513750, ほしゅ) — maintenance / conservatism ─────────────────────────
+1513750:0	機械の保守を毎月行う。	We service the machines every month.	正常な状態を保つように、点検や修理をすること。
+1513750:1	祖父は考え方が保守的だ。	My grandfather is conservative in his thinking.	昔からのやり方を守ろうとすること。
+
+# ── 実践 (1321260, じっせん) — putting into practice ───────────────────────────
+1321260:0	習ったことを実践してみる。	I try putting what I learned into practice.	考えを実際に行うこと。
+
+# ── 反発 (1480890, はんぱつ) — a backlash / bouncing back / a rally ───────────
+1480890:0	新しい規則に社員が反発した。	The staff pushed back against the new rules.	相手の考えや行動を受け入れず、逆らうこと。
+1480890:1	磁石の同じ極どうしは反発する。	Like poles of a magnet repel each other.	押されて、逆の方向に動くこと。
+1480890:2	株価が大きく反発した。	Share prices rallied strongly.	下がっていた相場が、また上がること。
+
+# ── 履歴 (1549810, りれき) — one's background / a history log ─────────────────
+1549810:0	彼の履歴を調べた。	We looked into his background.	その人が今までに経験してきた学業や職業など。
+1549810:1	電話の履歴を消した。	I cleared my call history.	機械やコンピューターの、使った記録。
+
+# ── 合成 (1284940, ごうせい) — synthesis / a composite photo ────────────────────
+1284940:0	化学の力で薬を合成する。	We synthesise the drug chemically.	二つ以上のものを合わせて、一つのものを作ること。
+1284940:1	この写真は合成だ。	This photo is a composite.	何枚かの写真を合わせて作った写真。
+
+# ── 進出 (1366080, しんしゅつ) — moving into a market / advancing a round ───────
+1366080:0	その会社は海外に進出した。	The company expanded overseas.	新しい方面へ出ていくこと。
+1366080:1	チームは準決勝に進出した。	The team went through to the semi-finals.	勝って、次の段階に進むこと。
+
+# ── 予感 (1542910, よかん) — a premonition ────────────────────────────────────
+1542910:0	何か悪いことが起こる予感がする。	I have a feeling something bad is going to happen.	何かが起こりそうだと、前もって感じること。
+
+# ── 提示 (1436400, ていじ) — showing ID / putting forward a plan ───────────────
+1436400:0	窓口で身分証明書を提示した。	I showed my ID at the counter.	書類などを相手に見せること。
+1436400:1	会社は新しい条件を提示した。	The company put forward new terms.	考えや案を相手に示すこと。
+
+# ── 投入 (1447300, とうにゅう) — putting in / committing funds / launching a product ─
+1447300:0	機械にコインを投入する。	You put coins into the machine.	物を中へ入れること。
+1447300:1	新しい計画に多くの資金を投入した。	We sank a lot of money into the new project.	資金や人を注ぎこむこと。
+1447300:2	新しい車を市場に投入した。	They put a new car on the market.	新しい商品を売り出すこと。
+
+# ── 出産 (1339010, しゅっさん) — giving birth ─────────────────────────────────
+1339010:0	姉は先月出産した。	My sister gave birth last month.	子どもを産むこと。
+
+# ── 中毒 (1425160, ちゅうどく) — poisoning / addiction ─────────────────────────
+1425160:0	古い魚を食べて中毒を起こした。	I got food poisoning from some old fish.	体に悪いものが入って、具合が悪くなること。
+1425160:1	彼はゲームの中毒になっている。	He's hooked on video games.	やめられなくなるほど、夢中になること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 20 — N1 continued. Economics and science vocabulary, where the senses split
+# along the same line again and again: the thing itself vs. the thing as a state
+# (在庫 = the stock / having it in stock; 独占 = a market monopoly / hogging a toy).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 言い訳 (1587030, いいわけ) — an excuse / an explanation ─────────────────────
+1587030:0	遅刻の言い訳をするな。	Don't make excuses for being late.	自分の失敗などを、いろいろ理由をつけて正しいと言うこと。
+1587030:1	誤解されないように、事情を言い訳した。	I explained the circumstances so as not to be misunderstood.	事情を説明すること。
+
+# ── 財政 (1296830, ざいせい) — public finance / one's finances ─────────────────
+1296830:0	国の財政が苦しくなっている。	The national finances are getting tight.	国や自治体が、お金を集めて使う働き。
+1296830:1	我が家の財政は赤字だ。	Our household is in the red.	個人や家庭のお金のやりくり。
+
+# ── 単独 (1417780, たんどく) — alone ────────────────────────────────────────
+1417780:0	彼は単独で山に登った。	He climbed the mountain alone.	ただ一人。ほかと一緒でないこと。
+
+# ── 廃棄 (1472030, はいき) — throwing away ───────────────────────────────────
+1472030:0	古い書類を廃棄した。	We disposed of the old documents.	いらなくなった物を捨てること。
+
+# ── 黄金 (1181860, おうごん) — gold / golden ──────────────────────────────────
+1181860:0	黄金でできた王の像だ。	It's a statue of the king made of gold.	金。こがね。
+1181860:1	あの頃はチームの黄金時代だった。	Those were the team's golden years.	非常に価値があって、すばらしいこと。
+
+# ── 在庫 (1296470, ざいこ) — stock, inventory ──────────────────────────────────
+1296470:0	倉庫の在庫を数えた。	We counted the stock in the warehouse.	商品などが倉庫にしまってあること。また、その品物。
+
+# ── 独占 (1455870, どくせん) — a monopoly / hogging ───────────────────────────
+1455870:0	一つの会社が市場を独占している。	One company has a monopoly on the market.	ある分野の商売を、一つの会社だけで行うこと。
+1455870:1	弟がテレビを独占している。	My little brother is hogging the TV.	一人だけで自分のものにすること。
+
+# ── 修行 (2650010, しゅぎょう) — training / ascetic practice ───────────────────
+2650010:0	彼はパリで料理の修行をした。	He trained as a cook in Paris.	技術などを身につけるために努力すること。
+2650010:1	僧が寺で修行している。	The monks are doing religious training at the temple.	仏の教えに従って、心や体をきたえること。
+
+# ── 側面 (1404040, そくめん) — the side / an aspect ───────────────────────────
+1404040:0	箱の側面に名前を書いた。	I wrote my name on the side of the box.	物の横の面。
+1404040:1	この問題にはいろいろな側面がある。	This problem has many sides to it.	物事のある一つの面。
+
+# ── 根本 (2848289, こんぽん) — the root / the foundation ──────────────────────
+2848289:0	問題の根本を探る。	We look for the root of the problem.	物事が起こるもと。
+2848289:1	教育の根本は人を育てることだ。	The essence of education is bringing people up.	物事の大もととなる、大切な所。
+
+# ── 移民 (1158440, いみん) — emigration / an immigrant ────────────────────────
+1158440:0	祖父は若い頃ブラジルへ移民した。	My grandfather emigrated to Brazil when he was young.	仕事などのために、ほかの国へ移って住むこと。
+1158440:1	この町には移民が多く住んでいる。	A lot of immigrants live in this town.	ほかの国から移って住むようになった人。
+
+# ── 回路 (1199830, かいろ) — a circuit ───────────────────────────────────────
+1199830:0	電気の回路が切れている。	The electrical circuit is broken.	電流が流れる道筋。
+
+# ── 流通 (1552440, りゅうつう) — distribution / air flow ──────────────────────
+1552440:0	商品の流通にかかる費用を減らす。	We cut the cost of getting goods to market.	商品が作った人から買う人へ渡ること。
+1552440:1	窓を開けて空気の流通をよくする。	Open the windows to let the air circulate.	空気や水などが流れて通ること。
+
+# ── 反射 (1480420, はんしゃ) — reflection / a reflex ─────────────────────────
+1480420:0	水面に光が反射している。	Light is reflecting off the water.	光や音などが、物に当たって返ってくること。
+1480420:1	熱い物に触って、反射で手を引いた。	I touched something hot and pulled my hand back by reflex.	刺激を受けて、体が考える前に動くこと。
+
+# ── 放出 (1516710, ほうしゅつ) — emission / releasing stockpiled goods ───────
+1516710:0	工場から熱が放出されている。	Heat is being given off by the factory.	勢いよく外へ出すこと。
+1516710:1	政府が米の在庫を放出した。	The government released its stockpiles of rice.	たくわえていた物を外に出すこと。
+
+# ── 野生 (1537470, やせい) — wild ────────────────────────────────────────────
+1537470:0	この島には野生の馬がいる。	There are wild horses on this island.	動物や植物が、自然の中で育つこと。
+
+# ── 秘書 (1484060, ひしょ) — a secretary ─────────────────────────────────────
+1484060:0	社長の秘書として働いている。	I work as the company president's secretary.	重要な地位の人のそばで、仕事を助ける人。
+
+# ── 異性 (1157860, いせい) — the opposite sex ─────────────────────────────────
+1157860:0	中学生になると異性を意識し始める。	In middle school kids start to notice the opposite sex.	男から見た女、女から見た男。
+
+# ── 動機 (1451310, どうき) — a motive ────────────────────────────────────────
+1451310:0	犯行の動機はまだわからない。	The motive for the crime is still unknown.	ある行動を起こす、直接の理由。
+
+# ── 階級 (1203040, かいきゅう) — social class / rank ────────────────────────────
+1203040:0	昔は生まれた階級で仕事が決まった。	In the old days your job was decided by the class you were born into.	社会の中で、身分や財産によって分けられた人々の集まり。
+1203040:1	軍隊では階級が上の人に従う。	In the army you obey those above you in rank.	地位の上下の順序。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 21 — N1 continued. A run of words whose senses differ by WHO or WHAT they
+# apply to: 上陸 is soldiers going ashore or a typhoon making landfall, 信者 is a
+# believer or a superfan, 追放 is exiling a person or getting rid of a problem.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 特許 (1454780, とっきょ) — a patent / special permission ───────────────────
+1454780:0	新しい発明の特許を取った。	I got a patent for my new invention.	発明した人に、その技術を独占して使う権利を認めること。
+1454780:1	政府の特許を受けて鉄道を作った。	They built the railway under a government charter.	国などが、特定の人に特別に許すこと。
+
+# ── 半端 (1479640, はんぱ) — odds and ends / half-hearted ─────────────────────
+1479640:0	半端な布で小さな袋を作った。	I made a little bag out of leftover scraps of cloth.	そろっていなくて、足りない部分があること。
+1479640:2	半端な気持ちでは成功しない。	You won't succeed if you only half mean it.	どっちつかずで、いいかげんなこと。
+
+# ── 主体 (1325840, しゅたい) — the core / the one who acts ────────────────────
+1325840:0	この団体は学生が主体となっている。	This group is made up mainly of students.	全体の中で中心となる部分。
+1325840:1	学ぶ主体は生徒自身だ。	The ones doing the learning are the students themselves.	自分の意思で行動する者。
+
+# ── 還元 (1215130, かんげん) — giving back / chemical reduction ───────────────
+1215130:0	会社は利益を客に還元した。	The company passed its profits back to its customers.	もとの状態に戻すこと。得たものを返すこと。
+1215130:1	鉄の鉱石を還元して鉄を取り出す。	You reduce iron ore to extract the iron.	酸素を取り除く化学の反応。
+
+# ── 軌道 (1223980, きどう) — an orbit / the right track ──────────────────────
+1223980:0	衛星が地球の周りの軌道に乗った。	The satellite went into orbit around the Earth.	天体などが動いていく道筋。
+1223980:2	新しい店の経営がやっと軌道に乗った。	The new shop is finally up and running.	物事が順調に進むための道筋。
+
+# ── 賃金 (1431990, ちんぎん) — wages ─────────────────────────────────────────
+1431990:0	労働者は賃金を上げるように求めた。	The workers demanded a pay rise.	働いた人が、その代わりに受け取るお金。
+
+# ── 追放 (1432670, ついほう) — banishment / getting rid of ─────────────────────
+1432670:0	王は反対した大臣を国から追放した。	The king banished the minister who opposed him.	人を追い出すこと。
+1432670:1	町から暴力を追放しよう。	Let's rid the town of violence.	悪い物事をなくすこと。
+
+# ── 貧困 (1490830, ひんこん) — poverty / a lack ────────────────────────────────
+1490830:0	世界には貧困に苦しむ人が多い。	Many people in the world suffer from poverty.	貧しくて生活に困ること。
+1490830:1	政治の貧困が問題になっている。	The poverty of our politics has become an issue.	必要なものが足りないこと。
+
+# ── 立体 (1551740, りったい) — a solid object / a multi-storey car park ─────────
+1551740:0	紙を折って立体を作った。	I folded paper into a three-dimensional shape.	長さと幅と高さのある物。
+1551740:1	車を駅前の立体に止めた。	I left the car in the multi-storey by the station.	何階にも分かれた建物の駐車場。
+
+# ── 一見 (1162170, いっけん) — at first glance / a first-time visitor ──────────
+1162170:1	一見簡単そうだが、実は難しい。	It looks easy at first glance, but it's actually hard.	ちょっと見たところでは。
+1162170:2	この店は一見の客を断っている。	This restaurant turns away customers it doesn't know.	初めて会うこと。また、その人。
+
+# ── 収容 (1330880, しゅうよう) — taking people in / detention ─────────────────
+1330880:0	この会場は千人を収容できる。	This hall can hold a thousand people.	人や物を、ある場所に入れること。
+1330880:1	犯人は刑務所に収容された。	The criminal was locked up in prison.	人を施設に閉じこめておくこと。
+
+# ── 追跡 (1432560, ついせき) — pursuit / following up ─────────────────────────
+1432560:0	警察が逃げた車を追跡した。	The police chased the car that got away.	逃げるものを追いかけること。
+1432560:1	卒業生の進路を追跡して調べた。	We followed up on where the graduates ended up.	物事の変化の後をたどって調べること。
+
+# ── 上陸 (1354480, じょうりく) — going ashore / a typhoon making landfall ─────
+1354480:0	船の客が島に上陸した。	The ship's passengers went ashore on the island.	船から陸に上がること。
+1354480:1	台風が九州に上陸した。	The typhoon made landfall in Kyushu.	台風が陸に達すること。
+
+# ── 分散 (1503580, ぶんさん) — spreading out ──────────────────────────────────
+1503580:0	危険を分散するために、いくつかの会社に投資する。	You spread the risk by investing in several companies.	ばらばらに分かれて散ること。
+
+# ── 無断 (1530600, むだん) — without permission / without notice ───────────────
+1530600:0	他人の写真を無断で使ってはいけない。	You mustn't use other people's photos without permission.	許しを得ないこと。
+1530600:1	彼は無断で会社を休んだ。	He took the day off work without telling anyone.	前もって知らせないこと。
+
+# ── 堂々 (1599260, どうどう) — imposing / boldly ─────────────────────────────
+1599260:0	彼は堂々とした態度で話した。	He spoke with a dignified air.	立派で、力強いようす。
+1599260:2	チームは強い相手と堂々と戦った。	The team took on the strong side without flinching.	恐れずに、自信を持ってするようす。
+
+# ── 信者 (1359340, しんじゃ) — a believer / a superfan ─────────────────────────
+1359340:0	この寺には多くの信者が集まる。	Many believers come to this temple.	ある宗教を信じている人。
+1359340:1	彼はその歌手の信者だ。	He's a die-hard fan of that singer.	ある人や物を、夢中になって支持する人。
+
+# ── 手元 (1327560, てもと) — at hand / money on hand ──────────────────────────
+1327560:0	辞書をいつも手元に置いている。	I always keep a dictionary at hand.	手の届く、すぐ近くの所。
+1327560:2	今、手元にお金がない。	I don't have any money on me right now.	すぐに使える、持っているお金。
+
+# ── 一連 (1167450, いちれん) — a series ──────────────────────────────────────
+1167450:0	一連の事件には関係がある。	The series of incidents are connected.	ひと続きになっていること。
+
+# ── 処置 (1342470, しょち) — measures / medical treatment ─────────────────────
+1342470:0	問題を解決するための処置をとった。	We took steps to solve the problem.	物事に対して、ある決まりをつけること。
+1342470:1	けがをしてすぐに病院で処置を受けた。	I was hurt and got treated at the hospital straight away.	けがや病気の手当て。
+
+# ── 内緒 (1458510, ないしょ) — a secret ──────────────────────────────────────
+1458510:0	この話はみんなには内緒だよ。	Keep this to yourself, OK?	人に知らせないで、隠しておくこと。
+
+# ── 好意 (1277530, こうい) — kindness / fondness ──────────────────────────────
+1277530:0	友人の好意で車を借りた。	A friend was kind enough to lend me a car.	相手のためを思う親切な気持ち。
+1277530:1	彼は彼女に好意を持っている。	He has a soft spot for her.	相手を好きだと思う気持ち。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 22 — N1 continued. Words with a LITERAL sense and a sense a learner hears
+# mostly as an idiom: 赤字 is red ink before it is a deficit, 天下 is the whole world
+# and also someone "doing as they please", 始末 is tidying up and also a sorry end.
+# 相対 is held back — its senses live in 相対的, which the gate cannot split cleanly.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 救済 (1229150, きゅうさい) — relief, rescue ────────────────────────────────
+1229150:0	政府は被災者の救済に力を入れた。	The government put its effort into relief for the victims.	困っている人を助けること。
+
+# ── 背後 (1472730, はいご) — behind someone / behind the scenes ────────────────
+1472730:0	背後から名前を呼ばれた。	Someone called my name from behind.	人や物の後ろ。
+1472730:1	事件の背後に大きな組織がある。	There's a large organisation behind the incident.	表からは見えない、物事の裏。
+
+# ── 不在 (1492460, ふざい) — being out ───────────────────────────────────────
+1492460:0	父は出張で不在です。	My father is away on business.	その場所にいないこと。
+
+# ── 天下 (1438470, てんか) — the whole world / having one's own way ────────────
+1438470:0	彼の名は天下に知られている。	His name is known throughout the world.	空の下の、すべての世界。
+1438470:4	親が留守で、子どもたちの天下だ。	With their parents away, the kids have the run of the place.	思いのままにふるまえる状態。
+
+# ── 発掘 (1477290, はっくつ) — excavating / discovering talent ────────────────
+1477290:0	古い町の跡を発掘した。	They excavated the remains of an ancient town.	地中にうまっている物を掘って取り出すこと。
+1477290:1	新しい才能を発掘する番組だ。	It's a programme that discovers new talent.	知られていないものを探して見つけること。
+
+# ── 戦力 (1390660, せんりょく) — military strength / a valuable asset ─────────
+1390660:0	両国の戦力には大きな差がある。	There's a big gap in military strength between the two countries.	戦争をする力。
+1390660:1	新人がすぐにチームの戦力になった。	The new recruit soon became an asset to the team.	仕事や試合で役に立つ力や人。
+
+# ── 全滅 (1396240, ぜんめつ) — being wiped out / total failure ────────────────
+1396240:0	寒さで畑の野菜が全滅した。	The cold wiped out all the vegetables in the field.	すべてがほろびること。
+1396240:1	受けた試験は全滅だった。	I failed every exam I took.	すべて失敗すること。
+
+# ── 相場 (1401070, そうば) — the market price / the usual view ─────────────────
+1401070:0	野菜の相場が上がっている。	Vegetable prices are going up.	品物が取り引きされる、その時の値段。
+1401070:2	夏は暑いものと相場が決まっている。	Everyone knows summer is meant to be hot.	世間で普通だと考えられていること。
+
+# ── 簡易 (1214270, かんい) — simple, simplified ───────────────────────────────
+1214270:0	簡易な方法で調べた。	We checked it by a simplified method.	手軽で、簡単なこと。
+
+# ── いい加減 (1277440, いいかげん) — careless / pretty ─────────────────────────
+# (Sense 2, 「いい加減にしなさい」 = "that's enough", is left out: before に IPADIC
+# always splits it いい|加減, and that is the only frame the sense lives in.)
+1277440:0	彼はいい加減な仕事をする。	He does sloppy work.	責任を持たずに、物事をするようす。
+1277440:3	いい加減疲れてきた。	I'm getting pretty tired.	かなり。ずいぶん。
+
+# ── 使命 (1306160, しめい) — a mission ───────────────────────────────────────
+1306160:0	医者の使命は人の命を救うことだ。	A doctor's mission is to save lives.	与えられた大切な務め。
+
+# ── 守備 (1327180, しゅび) — defence / fielding ──────────────────────────────
+1327180:0	城の守備をかためた。	They strengthened the castle's defences.	せめてくる相手から守ること。
+1327180:1	彼は野球の守備がうまい。	He's a good fielder.	野球などで、相手の攻撃を防ぐこと。
+
+# ── 捜索 (1399690, そうさく) — a search / a legal search ───────────────────────
+1399690:0	山で行方がわからない人の捜索が続いている。	The search for the people missing on the mountain is still going on.	いなくなった人や物をさがすこと。
+1399690:1	警察が会社を捜索した。	The police searched the company's offices.	法律に従って、家や人の持ち物などを調べること。
+
+# ── 疲労 (1483780, ひろう) — fatigue / metal fatigue ─────────────────────────
+1483780:0	長い旅で疲労がたまった。	The long journey left me worn out.	体や心がつかれること。
+1483780:1	金属の疲労で橋が壊れた。	The bridge failed because of metal fatigue.	何度も力が加わって、金属などが弱くなること。
+
+# ── 本文 (1584270, ほんぶん) — the body text ──────────────────────────────────
+1584270:0	手紙の本文を読む。	I read the body of the letter.	本や手紙の、中心となる文章。
+
+# ── 開拓 (1202830, かいたく) — clearing land / opening up a market ─────────────
+1202830:0	祖父たちが荒れた土地を開拓した。	Our grandparents cleared the wild land for farming.	山や野に手を入れて、田や畑にすること。
+1202830:1	会社は新しい市場を開拓した。	The company opened up a new market.	新しい分野などに初めて道をつけること。
+
+# ── 始末 (1307620, しまつ) — dealing with / a sorry outcome / thrift ─────────────
+1307620:0	自分のごみは自分で始末してください。	Please clear away your own rubbish.	物事をきちんと片付けること。
+1307620:2	最後は喧嘩をする始末だった。	It ended up, of all things, in a fight.	物事の悪い結果。
+1307620:3	母は何でも始末して使う。	My mother makes everything last.	無駄をしないように、大事に使うこと。
+
+# ── 手配 (1328260, てはい) — arranging / a police manhunt ─────────────────────
+1328260:0	ホテルの手配は私がします。	I'll arrange the hotel.	必要な物や人を準備すること。
+1328260:1	犯人は全国に手配された。	A nationwide search was put out for the culprit.	犯人を捕まえるために、警察が指示を出すこと。
+
+# ── 赤字 (1383440, あかじ) — a deficit / corrections in red ────────────────────
+1383440:0	今月は赤字だ。	We're in the red this month.	使ったお金が、入ったお金より多いこと。
+1383440:2	先生の赤字で作文が真っ赤になった。	The teacher's corrections turned my essay red.	文章を直すために、赤い色で書いた文字。
+
+# ── 燃焼 (1469640, ねんしょう) — combustion / giving everything ──────────────
+1469640:0	燃料が燃焼して熱が出る。	The fuel burns and gives off heat.	物が燃えること。
+1469640:1	最後の試合で力を燃焼させた。	I gave it everything I had in the final match.	持っている力を全部出すこと。
+
+# ── 比例 (1483700, ひれい) — proportion ──────────────────────────────────────
+1483700:0	給料は働いた時間に比例する。	Pay is in proportion to the hours worked.	二つの量が、同じ割合で増えたり減ったりすること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 23 — N1 continued. Several of these carry a MATHS or SCIENCE sense next to
+# the everyday one (分子 = a molecule and a numerator; 結合 = joining and a chemical
+# bond) and a few a money sense nobody guesses (出血 = selling at a loss; 奉仕 = a
+# bargain price).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 予言 (1584920, よげん) — a prediction ────────────────────────────────────
+1584920:0	彼の予言どおり、その会社は倒産した。	Just as he predicted, the company went bankrupt.	未来のことを前もって言うこと。
+
+# ── 品種 (1490620, ひんしゅ) — a breed, a variety ─────────────────────────────
+1490620:2	この米は新しい品種だ。	This rice is a new variety.	同じ種類の作物や家畜の中を、性質によって分けたもの。
+
+# ── 権威 (1258090, けんい) — authority / an authority on ───────────────────────
+1258090:0	王の権威は落ちてしまった。	The king's authority has collapsed.	人を従わせる力。
+1258090:1	彼は心臓の病気の権威だ。	He's an authority on heart disease.	ある分野で、最もすぐれていると認められた人。
+
+# ── 再建 (1292590, さいけん) — rebuilding ────────────────────────────────────
+1292590:0	地震で倒れた寺を再建した。	They rebuilt the temple that fell in the earthquake.	建物や組織などを、もう一度新しく作ること。
+
+# ── 推理 (1371220, すいり) — deduction / the mystery genre ────────────────────
+1371220:0	探偵は犯人を推理した。	The detective worked out who the culprit was.	わかっていることをもとに、わからないことを考えて決めること。
+1371220:1	推理小説を読むのが好きだ。	I like reading detective novels.	事件のなぞをといていく物語の種類。
+
+# ── 分子 (1503630, ぶんし) — a molecule / a numerator ─────────────────────────
+1503630:0	水の分子は水素と酸素でできている。	A water molecule is made of hydrogen and oxygen.	物質の性質を持つ、最も小さな粒。
+1503630:1	分数の分子と分母を確かめる。	Check the numerator and the denominator of the fraction.	分数で、横の線の上にある数。
+
+# ── 奉仕 (1515950, ほうし) — service / a bargain price ───────────────────────
+1515950:0	週末は地域の奉仕に参加している。	I do community service at the weekends.	人や社会のために、損得を考えずに働くこと。
+1515950:1	今日は奉仕の値段で売っています。	We're selling at a special low price today.	商品を安い値段で売ること。
+
+# ── 有力 (1541710, ゆうりょく) — influential / likely ─────────────────────────
+1541710:0	彼は町の有力な人物だ。	He's an influential figure in the town.	力や勢いがあること。
+1541710:1	その説が最も有力だ。	That theory is the most likely.	そうなる見込みが高いこと。
+
+# ── 経路 (1251700, けいろ) — a route ─────────────────────────────────────────
+1251700:0	病気が広がった経路を調べる。	We trace how the disease spread.	通っていく道筋。
+
+# ── 結合 (1254770, けつごう) — joining / a chemical bond ──────────────────────
+1254770:0	二つの会社が結合して大きくなった。	The two companies joined together and grew.	二つ以上のものが結びついて一つになること。
+1254770:1	原子と原子の結合は強い。	The bond between the atoms is strong.	原子どうしが結びつくこと。
+
+# ── 後退 (1269880, こうたい) — backing up / a downturn ────────────────────────
+1269880:0	車が少し後退した。	The car backed up a little.	後ろへ下がること。
+1269880:1	景気が後退している。	The economy is in a downturn.	勢いが弱まること。
+
+# ── 施行 (1579510, しこう) — a law coming into force ──────────────────────────
+1579510:0	新しい法律は来月から施行される。	The new law comes into force next month.	法律の効力を実際に発生させること。
+
+# ── 手当 (1598240, てあて) — an allowance / medical treatment ─────────────────
+1598240:0	会社から家族の手当が出る。	The company pays a family allowance.	給料のほかに払われるお金。
+1598240:1	けが人に手当をした。	We gave first aid to the injured.	けがや病気を治すための処置。
+
+# ── 一目 (1166950, ひとめ) — a glance ────────────────────────────────────────
+1166950:0	一目見て、彼だとわかった。	I knew it was him at a glance.	ちょっと見ること。
+
+# ── 視野 (1312140, しや) — field of view / one's horizons ─────────────────────
+1312140:0	霧で視野が悪い。	The fog makes it hard to see.	目で見ることのできる範囲。
+1312140:1	留学して視野が広がった。	Studying abroad broadened my horizons.	物事を考えたり判断したりする範囲。
+
+# ── 征服 (1375230, せいふく) — conquest / conquering a mountain ───────────────
+1375230:0	その国は周りの国々を征服した。	That country conquered the countries around it.	武力で相手を負かして従わせること。
+1375230:1	ついにその山の頂上を征服した。	We finally conquered the summit of that mountain.	難しいことを乗り越えて、目的を果たすこと。
+
+# ── 退治 (1411390, たいじ) — getting rid of ──────────────────────────────────
+1411390:0	台所のねずみを退治した。	I got rid of the mice in the kitchen.	害になるものをほろぼすこと。
+
+# ── 放射能 (1516690, ほうしゃのう) — radioactivity ───────────────────────────
+1516690:0	この石は放射能を持っている。	This rock is radioactive.	物質が放射線を出す性質。
+
+# ── 野外 (1537270, やがい) — outdoors ────────────────────────────────────────
+1537270:0	夏は野外で音楽を楽しむ。	In summer we enjoy music outdoors.	家の外。建物の外。
+
+# ── 出血 (1338750, しゅっけつ) — bleeding / selling at a loss ─────────────────
+1338750:0	けがをして出血した。	I hurt myself and bled.	体から血が出ること。
+1338750:1	店は出血覚悟で安売りした。	The shop slashed its prices, ready to take a loss.	損をして商品を売ること。
+
+# ── 無茶 (1530670, むちゃ) — unreasonable / reckless ──────────────────────────
+1530670:0	一日で全部やれなんて無茶だ。	Telling me to do it all in one day is unreasonable.	筋道が通らないこと。
+1530670:1	無茶な運転はやめなさい。	Stop driving so recklessly.	結果を考えずに、乱暴なことをするようす。
+
+# ── 柔軟 (1335480, じゅうなん) — flexible ────────────────────────────────────
+1335480:0	彼女は体が柔軟だ。	Her body is very supple.	やわらかで、しなやかなようす。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 24 — N1 continued. The recurring shape here is a word that names a place or
+# an event on one side and a PERSON'S state on the other: 占領 is an army occupying
+# a country or a sibling taking over the sofa, 麻痺 is a numb leg or a city at a
+# standstill, 沈黙 is silence or refusing to act.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 気象 (1222270, きしょう) — the weather ────────────────────────────────────
+1222270:0	山の気象は変わりやすい。	Mountain weather changes quickly.	雨や風や気温など、大気の状態。
+
+# ── 占領 (1389610, せんりょう) — having a place to oneself / military occupation ─
+1389610:0	弟がソファーを占領している。	My brother has taken over the sofa.	ある場所を自分だけで使うこと。
+1389610:1	その島は戦争中に敵に占領された。	The island was occupied by the enemy during the war.	軍隊が他国の土地を支配すること。
+
+# ── 打撃 (1408870, だげき) — a blow / batting ──────────────────────────────
+1408870:0	大雨で農家は大きな打撃を受けた。	The heavy rain dealt the farmers a heavy blow.	強く打つこと。また、大きな損害。
+1408870:1	彼は打撃がうまい選手だ。	He's a good hitter.	野球で、ボールを打つこと。
+
+# ── 待遇 (1410610, たいぐう) — treatment / pay and conditions ──────────────────
+1410610:0	ホテルで丁寧な待遇を受けた。	We were treated with great courtesy at the hotel.	人をもてなすこと。
+1410610:1	この会社は待遇がいい。	This company offers good pay and conditions.	働く人に対する、給料などの扱い。
+
+# ── 沈黙 (1431810, ちんもく) — silence / inaction ─────────────────────────────
+1431810:0	長い沈黙の後、彼は話し始めた。	After a long silence he began to speak.	何も言わずに、黙っていること。
+1431810:1	政府は問題に沈黙を守っている。	The government is doing nothing about the problem.	何の行動も起こさないこと。
+
+# ── 結晶 (1254870, けっしょう) — a crystal / the fruit of one's labour ─────────
+1254870:0	雪の結晶は美しい形をしている。	Snow crystals have beautiful shapes.	物質が決まった形に固まったもの。
+1254870:1	この本は長年の研究の結晶だ。	This book is the fruit of many years of research.	努力などが実って、形になったもの。
+
+# ── 合唱 (1284870, がっしょう) — a chorus ────────────────────────────────────
+1284870:0	みんなで校歌を合唱した。	We all sang the school song together.	大勢の人が声を合わせて歌うこと。
+
+# ── 失格 (1319820, しっかく) — disqualification / not fit for the role ─────────
+1319820:0	その選手はルール違反で失格になった。	The athlete was disqualified for breaking the rules.	資格を失うこと。
+1319820:1	子どもを放っておくなんて親として失格だ。	Leaving your children alone like that makes you a failure as a parent.	その立場にふさわしくないこと。
+
+# ── 趣旨 (1328990, しゅし) — the aim ─────────────────────────────────────────
+1328990:1	会の趣旨を説明した。	I explained what the meeting was for.	物事を行う目的やねらい。
+
+# ── 麻痺 (1604160, まひ) — paralysis / a standstill ───────────────────────────
+1604160:0	事故で足が麻痺した。	My legs were paralysed in the accident.	体の一部が動かなくなること。
+1604160:2	大雪で交通が麻痺した。	The heavy snow brought traffic to a standstill.	物事の働きが止まってしまうこと。
+
+# ── 排水 (1472380, はいすい) — drainage ──────────────────────────────────────
+1472380:0	この道は排水が悪い。	This road drains badly.	いらない水を外へ流し出すこと。
+
+# ── 無用 (1530940, むよう) — unnecessary / no business being there ─────────────
+1530940:1	そんな心配は無用だ。	There's no need to worry about that.	必要がないこと。
+1530940:2	無用の者は入ってはいけない。	Unauthorised persons must not enter.	用事がないこと。
+
+# ── 外来 (1204240, がいらい) — foreign / an outpatient clinic ─────────────────
+1204240:0	この池には外来の魚が増えている。	Non-native fish are increasing in this pond.	外国やほかの所から入ってくること。
+1204240:1	病院の外来で薬をもらった。	I got some medicine at the hospital's outpatient clinic.	入院しないで、病院に通う人の診察。
+
+# ── 首脳 (1329360, しゅのう) — a leader ──────────────────────────────────────
+1329360:0	各国の首脳が集まって話し合った。	The leaders of each country met for talks.	国や団体の、中心となる人。
+
+# ── 日頃 (1464070, ひごろ) — usually ────────────────────────────────────────
+1464070:0	日頃の練習が大切だ。	What matters is the practice you put in every day.	ふだん。いつも。
+
+# ── 感度 (1212550, かんど) — sensitivity, reception ───────────────────────────
+1212550:0	このラジオは感度がいい。	This radio has good reception.	刺激や電波などを感じ取る程度。
+
+# ── 直面 (1431540, ちょくめん) — facing a problem ─────────────────────────────
+1431540:1	会社は大きな問題に直面している。	The company is facing a serious problem.	物事に直接出会うこと。
+
+# ── 独裁 (1455800, どくさい) — dictatorship / running things single-handedly ──
+1455800:0	その国は長い間独裁が続いた。	That country was a dictatorship for a long time.	一人の人が、国の権力をすべて持って政治を行うこと。
+1455800:1	社長の独裁で会社が動いている。	The company is run by the president's word alone.	ほかの人の意見を聞かずに、一人で物事を決めること。
+
+# ── 破棄 (1471300, はき) — destroying documents / breaking a treaty ────────────
+1471300:0	古い書類を破棄した。	I shredded the old documents.	書類などを破って捨てること。
+1471300:1	一方の国が条約を破棄した。	One of the countries broke the treaty.	約束や契約を一方的に取り消すこと。
+
+# ── 沿岸 (1176740, えんがん) — the coast ─────────────────────────────────────
+1176740:0	台風が沿岸の町をおそった。	The typhoon hit the coastal towns.	海や川や湖にそった土地。
+
+# ── 愚痴 (1245170, ぐち) — a grumble ────────────────────────────────────────
+1245170:0	父は仕事の愚痴ばかり言っている。	My father does nothing but grumble about work.	言っても仕方がないことを、言って嘆くこと。
+
+# ── 必然 (1487570, ひつぜん) — inevitable ────────────────────────────────────
+1487570:0	彼が負けたのは必然だった。	His defeat was inevitable.	必ずそうなること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 25 — N1 continued. Social vocabulary with a quiet second sense: 義理 is
+# obligation but also an in-law, 解剖 is an autopsy and also a close analysis,
+# 反響 is an echo and also how the public reacts.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 追及 (1432480, ついきゅう) — pressing someone on a matter ───────────────────
+1432480:0	記者たちは大臣の責任を追及した。	The reporters pressed the minister on his responsibility.	責任や原因などを、どこまでも厳しく問うこと。
+
+# ── 封鎖 (1499650, ふうさ) — sealing off / freezing funds ─────────────────────
+1499650:0	事故の後、道路が封鎖された。	The road was sealed off after the accident.	出入りできないように、閉じてしまうこと。
+1499650:1	政府はその国の資金を封鎖した。	The government froze that country's funds.	預けたお金を自由に出せないようにすること。
+
+# ── 消去 (1350190, しょうきょ) — deleting ────────────────────────────────────
+1350190:0	間違えてデータを消去してしまった。	I deleted the data by mistake.	消してなくすこと。
+
+# ── 対面 (1410270, たいめん) — meeting in person / facing each other ───────────
+1410270:0	ネットで知り合った友達と初めて対面した。	I met a friend I'd got to know online in person for the first time.	実際に会うこと。
+1410270:1	二人は机をはさんで対面して座った。	The two of them sat facing each other across the desk.	顔を向け合うこと。
+
+# ── 無能 (1530780, むのう) — incompetence ───────────────────────────────────
+1530780:0	上司に無能だと言われた。	My boss called me useless.	物事をする力や才能がないこと。
+
+# ── 万能 (1584530, ばんのう) — all-purpose / all-round ─────────────────────────
+1584530:0	この包丁は万能で、何でも切れる。	This knife is all-purpose and cuts anything.	どんなことにも使えること。
+1584530:1	彼はスポーツ万能だ。	He's good at every sport.	何でもよくできること。
+
+# ── 運賃 (1172820, うんちん) — a fare / shipping costs ─────────────────────────
+1172820:0	バスの運賃が上がった。	Bus fares have gone up.	乗り物に乗るときに払うお金。
+1172820:1	荷物の運賃は重さで決まる。	Shipping costs depend on the weight.	荷物を運ぶために払うお金。
+
+# ── 義理 (1225920, ぎり) — obligation / an in-law ────────────────────────────
+1225920:0	義理で結婚式に出席した。	I went to the wedding out of obligation.	人とのつきあいの上で、しなければならないこと。
+1225920:1	義理の母と一緒に住んでいる。	I live with my mother-in-law.	血のつながりのない親子や兄弟などの関係。
+
+# ── 腐敗 (1497870, ふはい) — rotting / corruption ────────────────────────────
+1497870:0	夏は食べ物の腐敗が早い。	Food goes off quickly in summer.	物がくさること。
+1497870:1	政治の腐敗が問題になっている。	Political corruption has become an issue.	精神や社会が悪くなること。
+
+# ── 終始 (1332820, しゅうし) — throughout ─────────────────────────────────────
+1332820:2	彼は会議の間、終始黙っていた。	He stayed silent throughout the meeting.	始めから終わりまで。ずっと。
+
+# ── 定年 (1435740, ていねん) — retirement age ────────────────────────────────
+1435740:0	父は来年定年を迎える。	My father reaches retirement age next year.	会社などで、仕事をやめることに決められている年齢。
+
+# ── 途上 (1444870, とじょう) — on the way / in the middle of ───────────────────
+1444870:0	学校へ行く途上で友達に会った。	I met a friend on my way to school.	目的地へ向かう途中。
+1444870:1	その国はまだ発展の途上にある。	That country is still developing.	物事がまだ完成していない段階。
+
+# ── 原点 (1262160, げんてん) — the starting point / the origin on a graph ──────
+1262160:0	迷ったときは原点に戻って考える。	When I'm stuck I go back to where I started.	物事の出発点。
+1262160:1	グラフの原点から線を引く。	Draw a line from the origin of the graph.	グラフで、縦と横の線が交わる点。
+
+# ── 家出 (1192030, いえで) — running away from home ──────────────────────────
+1192030:0	少年は親と喧嘩して家出した。	The boy ran away from home after a fight with his parents.	家族に黙って家を出て、帰らないこと。
+
+# ── 区間 (1244120, くかん) — a section of track ──────────────────────────────
+1244120:0	この区間は電車が遅れている。	Trains are delayed on this section of the line.	ある地点からある地点までの間。
+
+# ── 反響 (1480310, はんきょう) — an echo / a public response ───────────────────
+1480310:0	ホールに声の反響が残った。	Our voices echoed around the hall.	音が物に当たって返ってくること。
+1480310:1	その番組は大きな反響を呼んだ。	The programme drew a huge response.	ある出来事に対して、世間が示す反応。
+
+# ── 募金 (1514810, ぼきん) — fundraising ─────────────────────────────────────
+1514810:0	駅の前で募金をしている。	People are collecting money in front of the station.	寄付のお金を広く集めること。
+
+# ── 用紙 (1546290, ようし) — a form / paper ──────────────────────────────────
+1546290:0	申し込みの用紙に名前を書いた。	I wrote my name on the application form.	決まった形式で書きこむための紙。
+1546290:1	コピーの用紙が足りない。	We're running out of copy paper.	ある目的に使う紙。
+
+# ── 解剖 (1199270, かいぼう) — dissection / close analysis ────────────────────
+1199270:0	理科の授業でカエルを解剖した。	We dissected a frog in science class.	生物の体を切って、中を調べること。
+1199270:1	この本は日本の社会を解剖している。	This book takes Japanese society apart.	物事を細かく分けて、調べること。
+
+# ── 主観 (1325180, しゅかん) — personal opinion ───────────────────────────────
+1325180:1	それは君の主観にすぎない。	That's only your personal opinion.	自分一人だけの考え。
+
+# ── 諸君 (1344230, しょくん) — all of you ─────────────────────────────────────
+1344230:0	諸君の健闘を祈る。	I wish you all the best of luck.	多くの人に呼びかけるときの言葉。
+
+# ── 不調 (1493840, ふちょう) — being out of form / a breakdown in talks ─────────
+1493840:0	最近、体が不調だ。	I haven't been feeling well lately.	調子が悪いこと。
+1493840:1	話し合いは不調に終わった。	The talks broke down.	話し合いなどが、まとまらないこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 26 — N1 continued. A cluster of words that go from LITERAL to "the best of
+# its kind" or "a person like that": 横綱 is sumo's top rank and the best in any
+# field, 孤児 is an orphan and someone with no one, 獲物 is prey and loot.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 圧倒 (1153260, あっとう) — overwhelming an opponent / being overwhelmed ────
+1153260:0	チームは相手を圧倒して勝った。	The team overwhelmed their opponents and won.	はるかにすぐれた力で、相手を負かすこと。
+1153260:1	その景色の美しさに圧倒された。	I was overwhelmed by the beauty of the view.	強く心を動かされること。
+
+# ── 原型 (1261300, げんけい) — a prototype ───────────────────────────────────
+1261300:0	この車は昔の車の原型をとどめている。	This car keeps the basic form of the old model.	物事のもとになった形。
+
+# ── 理屈 (1606240, りくつ) — logic / a pretext ───────────────────────────────
+1606240:0	その説明は理屈に合っている。	That explanation makes sense.	物事の筋道。
+1606240:1	彼は理屈ばかり言って働かない。	He's all excuses and does no work.	無理に筋道をつけた言い訳。
+
+# ── 化石 (1187210, かせき) — a fossil ────────────────────────────────────────
+1187210:0	高い山で貝の化石が見つかった。	A shell fossil was found high up in the mountains.	大昔の生物の体や跡が、石の中に残ったもの。
+
+# ── 圧迫 (1153310, あっぱく) — pressure / oppression ──────────────────────────
+1153310:0	胸に圧迫を感じる。	I feel pressure on my chest.	強く押しつけること。
+1153310:1	物価が上がって生活を圧迫している。	Rising prices are squeezing household budgets.	力で相手をおさえて、自由にさせないこと。
+
+# ── 配列 (1473220, はいれつ) — arrangement ──────────────────────────────────
+1473220:0	本を番号の順に配列した。	I arranged the books in numerical order.	決まった順に並べること。
+
+# ── 相応 (1400840, そうおう) — suitable ─────────────────────────────────────
+1400840:0	年齢に相応した服を着る。	I wear clothes suited to my age.	ふさわしいこと。つりあっていること。
+
+# ── 転落 (1441370, てんらく) — a fall / a downfall ───────────────────────────
+1441370:0	車が崖から転落した。	The car went over the cliff.	高い所から転んで落ちること。
+1441370:1	チームは二位から五位に転落した。	The team slumped from second to fifth.	地位や順位が、急に下がること。
+
+# ── 倍率 (1473340, ばいりつ) — magnification / the competition for places ──────
+1473340:0	この望遠鏡は倍率が高い。	This telescope has high magnification.	レンズで物を大きく見せる割合。
+1473340:1	その大学の入試の倍率は十倍だ。	There are ten applicants for every place at that university.	受ける人数と、受かる人数の割合。
+
+# ── 固有 (1266730, こゆう) — peculiar to ────────────────────────────────────
+1266730:0	これは日本に固有の植物だ。	This plant is native only to Japan.	そのものだけが、もともと持っていること。
+
+# ── 着手 (1423060, ちゃくしゅ) — setting to work on ──────────────────────────
+1423060:0	新しい計画に着手した。	We've made a start on the new project.	仕事などに取りかかること。
+
+# ── 無難 (1530750, ぶなん) — safe / passable ───────────────────────────────
+1530750:0	初めての店では無難な料理を選ぶ。	At a new restaurant I pick a safe dish.	危なくないこと。
+1530750:1	彼は仕事を無難にこなした。	He got through the work without any problems.	特によくはないが、悪い所もないこと。
+
+# ── 猛烈 (1534100, もうれつ) — fierce / terribly ─────────────────────────────
+1534100:0	猛烈な風で木が倒れた。	The fierce wind blew trees down.	勢いが非常に激しいようす。
+1534100:1	試験の前に猛烈に勉強した。	I studied like mad before the exam.	程度が非常に大きいようす。
+
+# ── 連帯 (1559660, れんたい) — solidarity / joint ────────────────────────────
+1559660:0	労働者たちの連帯が強まった。	Solidarity among the workers grew stronger.	気持ちを一つにして、協力すること。
+1559660:1	その借金は二人が連帯して払う。	The two of them are jointly liable for the debt.	二人以上が一緒に責任を持つこと。
+
+# ── 星座 (1376360, せいざ) — a constellation / a star sign ────────────────────
+1376360:0	夜空に星座を探した。	I looked for constellations in the night sky.	星をいくつかつないで、物の形として見たもの。
+1376360:1	あなたの星座は何ですか。	What's your star sign?	生まれた日によって決まる、占いの星の区分。
+
+# ── 盛大 (1379820, せいだい) — grand, lavish ─────────────────────────────────
+1379820:0	二人の結婚式は盛大に行われた。	Their wedding was a lavish affair.	集まりなどが、大きく立派なようす。
+
+# ── 本場 (1522690, ほんば) — the home of something ─────────────────────────────
+1522690:0	本場のイタリアでピザを食べた。	I ate pizza in Italy, where it comes from.	ある物が本当に作られている、また盛んな所。
+
+# ── 横綱 (1180740, よこづな) — a yokozuna / the best in its field ─────────────
+1180740:0	彼は若くして横綱になった。	He became a yokozuna at a young age.	相撲で、力士の最も高い地位。
+1180740:1	この店はラーメンの横綱だ。	This place is the king of ramen shops.	その分野で最もすぐれているもの。
+
+# ── 獲物 (1205760, えもの) — prey / the spoils ──────────────────────────────
+1205760:0	ライオンが獲物をねらっている。	The lion is stalking its prey.	狩りや漁でとる動物。
+1205760:1	泥棒たちは獲物を分けた。	The thieves split the loot.	人から奪った物。
+
+# ── 孤児 (1266810, こじ) — an orphan / a person with no friends ────────────────
+1266810:0	戦争で多くの子どもが孤児になった。	Many children were orphaned by the war.	親をなくした子ども。
+1266810:1	彼は業界の孤児になった。	He ended up with no allies in the industry.	仲間がなく、ひとりでいる人。
+
+# ── 動力 (1451660, どうりょく) — motive power ─────────────────────────────────
+1451660:0	この機械は電気を動力にしている。	This machine runs on electricity.	機械を動かす力。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 27 — N1 continued. Words whose second sense is a FEELING of the first: 沸騰
+# is water boiling and a debate boiling over, 感触 is a texture and a hunch about
+# how things went, 破裂 is a pipe bursting and talks breaking down.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 街道 (1204650, かいどう) — a highway / the road to success ─────────────────
+1204650:0	昔の街道に沿って宿が並んでいる。	Inns line the old highway.	昔から、町と町を結んでいる大きな道。
+1204650:1	彼は出世の街道を進んでいる。	He's on the road to the top.	ある目的へ向かう道筋。
+
+# ── 断然 (1419690, だんぜん) — resolutely / by far ────────────────────────────
+1419690:0	私はその案には断然反対だ。	I am flatly opposed to that plan.	きっぱりと。はっきりと。
+1419690:2	こっちの方が断然おいしい。	This one tastes far better.	ほかと比べて、非常に差があるようす。
+
+# ── 誤差 (1271320, ごさ) — a measuring error / a slight difference ────────────
+1271320:0	機械で測っても誤差が出る。	Even measuring with a machine gives some error.	測った値と、本当の値との差。
+1271320:1	少しの遅れは誤差の範囲だ。	Being a little late is close enough.	気にしなくてもいい、小さな違い。
+
+# ── 購買 (1282470, こうばい) — purchasing / the school shop ───────────────────
+1282470:0	若い人の購買の意欲が高まっている。	Young people are keener to spend.	品物を買うこと。
+1282470:1	昼に購買でパンを買った。	I bought some bread at the school shop at lunch.	学校などの中で、生徒に物を売る店。
+
+# ── 内心 (1458550, ないしん) — one's real feelings / deep down ─────────────────
+1458550:0	彼の内心はわからない。	I can't tell what he's really thinking.	心の中。本当の気持ち。
+1458550:1	笑っていたが、内心は怒っていた。	I was smiling, but inside I was angry.	心の中では。
+
+# ── 奮闘 (1504750, ふんとう) — a hard struggle ────────────────────────────────
+1504750:0	みんなの奮闘で店を立て直した。	Everyone's hard work turned the shop around.	力いっぱい努力すること。
+
+# ── 役職 (1538040, やくしょく) — a post / a management post ────────────────────
+1538040:0	彼は委員会で重要な役職についている。	He holds an important post on the committee.	組織の中で受け持つ役目。
+1538040:1	四十歳で初めて役職についた。	I got my first management post at forty.	会社などで、部長や課長などの、人の上に立つ地位。
+
+# ── 感触 (1212440, かんしょく) — the feel of something / an impression ────────
+1212440:0	この布は感触がいい。	This fabric feels nice.	手や肌にさわったときの感じ。
+1212440:1	面接の感触は悪くなかった。	I came away from the interview with a good feeling.	物事の様子から受ける感じ。
+
+# ── 細工 (1295610, さいく) — craftwork / a trick; reading pinned (IPADIC: ざいく) ──
+1295610:0	この箱は細工が細かい。	This box is finely crafted.	手を使って、細かい物を作ること。	さいく
+1295610:1	書類に細工をして数字をごまかした。	They doctored the documents to fudge the figures.	人をだますための仕掛け。	さいく
+
+# ── 中枢 (1424660, ちゅうすう) — the hub / the central nervous system ─────────
+1424660:0	東京は日本の経済の中枢だ。	Tokyo is the hub of Japan's economy.	物事の中心となる、最も大切な所。
+1424660:1	脳は神経の中枢だ。	The brain is the centre of the nervous system.	神経の働きをまとめる所。
+
+# ── 心得 (1360910, こころえ) — know-how / rules to follow ─────────────────────
+1360910:0	彼には茶道の心得がある。	He knows his way around the tea ceremony.	技術などを、よく身につけていること。
+1360910:1	山に登るときの心得を読んだ。	I read the guidelines for mountain climbing.	守るべき決まり。
+
+# ── 道場 (1454220, どうじょう) — a dojo ─────────────────────────────────────
+1454220:0	毎週、空手の道場に通っている。	I go to a karate dojo every week.	武道を習ったり、練習したりする所。
+
+# ── 破裂 (1471470, はれつ) — bursting / talks breaking down ───────────────────
+1471470:0	寒さで水道の管が破裂した。	The water pipe burst in the cold.	中からの力で、勢いよく破れること。
+1471470:1	話し合いは破裂した。	The talks broke down.	話し合いなどが、まとまらずに終わること。
+
+# ── 沸騰 (1501720, ふっとう) — boiling / heated debate / soaring prices ──────────
+1501720:0	湯が沸騰したら火を止める。	Turn off the heat when the water boils.	液体が熱せられて、中から泡が出ること。
+1501720:1	その問題で議論が沸騰した。	The debate over the issue boiled over.	物事が非常に盛り上がること。
+1501720:2	土地の値段が沸騰している。	Land prices are soaring.	値段が急に上がること。
+
+# ── 情緒 (1580510, じょうちょ) — emotion / atmosphere ─────────────────────────
+1580510:0	彼女は情緒が不安定だ。	She is emotionally unstable.	喜んだり怒ったりする心の動き。
+1580510:1	この町には古い情緒が残っている。	This town still has an old-world atmosphere.	その場所が持っている、しみじみとした味わい。
+
+# ── 公募 (1274680, こうぼ) — open recruitment ───────────────────────────────
+1274680:0	市は新しい職員を公募している。	The city is openly recruiting new staff.	広く一般から人や作品を集めること。
+
+# ── 使い道 (1305900, つかいみち) — a use for something ─────────────────────────
+1305900:0	このお金の使い道を考えている。	I'm thinking about what to spend this money on.	物やお金の使い方。
+
+# ── 心中 (1360840, しんじゅう) — a double suicide / going down with ────────────
+1360840:0	二人は心中した。	The two of them took their own lives together.	愛する二人が一緒に死ぬこと。
+1360840:2	この会社と心中する覚悟だ。	I'm ready to go down with this company.	運命を最後まで共にすること。
+
+# ── 同調 (1453120, どうちょう) — going along with / tuning ─────────────────────
+1453120:0	周りの意見に同調した。	I went along with everyone else's opinion.	ほかの人と同じ意見や態度をとること。
+1453120:1	ラジオを放送に同調させる。	You tune the radio to the station.	電波の周波数を合わせること。
+
+# ── 暗示 (1154550, あんじ) — a hint ─────────────────────────────────────────
+1154550:0	その言葉は彼の決意を暗示していた。	Those words hinted at his decision.	はっきり言わずに、それらしく示すこと。
+
+# ── 自在 (1317750, じざい) — at will ────────────────────────────────────────
+1317750:0	彼は三つの言葉を自在に話す。	He speaks three languages with ease.	思いのままにできること。
+
+# ── 大概 (1413230, たいがい) — usually / almost all ───────────────────────────
+1413230:0	日曜日は大概家にいる。	I'm usually at home on Sundays.	ほとんどの場合。たいてい。
+1413230:1	大概の人はその話を知っている。	Almost everyone knows that story.	ほとんど全部。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 28 — N1 continued. Several words here have a playful or colloquial second
+# sense next to the formal one: 沈没 is a ship going down and a drinker going down,
+# 土俵 is the sumo ring and the arena of any argument, 元年 is an era's first year
+# and the year something began.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 重宝 (1579990, ちょうほう) — handy / finding useful ─────────────────────────
+1579990:0	この鍋は軽くて重宝だ。	This pot is light and really handy.	便利で、役に立つこと。
+1579990:1	この辞書は毎日重宝している。	I find this dictionary useful every day.	便利なものとして、よく使うこと。
+
+# ── 郷土 (1238510, きょうど) — one's home region ──────────────────────────────
+1238510:0	祭りで郷土の料理を味わった。	We had food from the local area at the festival.	生まれ育った土地。ふるさと。
+
+# ── 立法 (1551840, りっぽう) — lawmaking ────────────────────────────────────
+1551840:0	国会は立法の機関だ。	The Diet is the lawmaking body.	法律を作ること。
+
+# ── 待望 (1410650, たいぼう) — eagerly awaiting / long-awaited ─────────────────
+1410650:0	国民が待望していた選手が出場した。	The player the whole country had been waiting for took the field.	早く来るようにと、待ち望むこと。
+1410650:1	待望の新作がついに発売された。	The long-awaited new release has finally come out.	長い間待ち望まれていたこと。
+
+# ── 期日 (1220610, きじつ) — the appointed date / a deadline ───────────────────
+1220610:0	会議の期日が決まった。	The date for the meeting has been set.	前もって決められた日。
+1220610:1	期日までに書類を出してください。	Please hand in the documents by the due date.	物事をしなければならない、最後の日。
+
+# ── 戸籍 (1267030, こせき) — the family register ─────────────────────────────
+1267030:0	結婚して戸籍を移した。	I moved my family register when I got married.	家族の名前や生まれた日などを書いた、国の記録。
+
+# ── 出題 (1339620, しゅつだい) — setting a question ──────────────────────────
+1339620:0	この問題は去年も出題された。	This question was set last year too.	試験などの問題を出すこと。
+
+# ── 土台 (1445450, どだい) — the foundation / from the start ──────────────────
+1445450:0	家の土台がしっかりしている。	The house has solid foundations.	建物の一番下で、全体を支えるもの。
+1445450:1	そんな計画は土台無理だ。	A plan like that was never going to work.	はじめから。もともと。
+
+# ── 密接 (1528290, みっせつ) — close ──────────────────────────────────────
+1528290:0	食事と健康は密接な関係がある。	Diet and health are closely linked.	非常に深く、関係していること。
+
+# ── 対比 (1410260, たいひ) — contrast / comparison ────────────────────────────
+1410260:0	白と黒の対比が美しい。	The contrast between the black and the white is beautiful.	違いがはっきりするように、二つを並べること。
+1410260:1	去年の売り上げと対比して考える。	We look at it in comparison with last year's sales.	二つのものを比べること。
+
+# ── 土俵 (1445550, どひょう) — the sumo ring / the arena of a debate ──────────
+1445550:0	力士が土俵に上がった。	The wrestlers stepped up into the ring.	相撲をとる、丸い場所。
+1445550:1	同じ土俵で議論しよう。	Let's argue on equal terms.	話し合いや争いが行われる場。
+
+# ── 元年 (1261020, がんねん) — the first year of an era / the year it all began ─
+1261020:0	平成元年に生まれた。	I was born in the first year of Heisei.	年号が変わった、最初の年。
+1261020:1	今年はこの町の観光元年だ。	This is the year tourism really started in this town.	ある物事が始まった、最初の年。
+
+# ── 沈没 (1431800, ちんぼつ) — sinking / getting dead drunk ───────────────────
+1431800:0	嵐で船が沈没した。	The ship sank in the storm.	船が水の中に沈むこと。
+1431800:1	飲みすぎて、父は途中で沈没した。	My father drank too much and passed out halfway through.	酒に酔って、つぶれてしまうこと。
+
+# ── 慣習 (1212700, かんしゅう) — a custom ─────────────────────────────────────
+1212700:0	その村には古い慣習が残っている。	Old customs survive in that village.	長い間に決まりのようになった、世間のやり方。
+
+# ── 始発 (1307610, しはつ) — the first train / starting from here ─────────────
+1307610:0	始発の電車に乗って出かけた。	I set out on the first train of the day.	その日の最初の電車やバス。
+1307610:1	このバスは駅前が始発だ。	This bus starts from outside the station.	電車やバスが、その駅から出ること。
+
+# ── 質疑 (1320680, しつぎ) — questions ──────────────────────────────────────
+1320680:0	発表の後、質疑の時間がある。	There's time for questions after the presentation.	わからない点について、質問すること。
+
+# ── 氾濫 (1481420, はんらん) — flooding / a flood of something ─────────────────
+1481420:0	大雨で川が氾濫した。	The river flooded after the heavy rain.	川の水があふれ出ること。
+1481420:1	町には広告が氾濫している。	The town is awash with advertising.	よくない物が、あふれるほど多くあること。
+
+# ── 自我 (1317460, じが) — the ego ─────────────────────────────────────────
+1317460:0	子どもは三歳ごろに自我が生まれる。	Children develop a sense of self at about three.	自分というものの意識。
+
+# ── 年頃 (1468660, としごろ) — apparent age / marriageable age ─────────────────
+1468660:0	私と同じ年頃の人が多かった。	There were a lot of people about my age.	だいたいの年齢。
+1468660:1	娘ももう年頃だ。	My daughter is already of an age to marry.	結婚するのにふさわしい年齢。
+
+# ── 配給 (1473030, はいきゅう) — distribution / rationing ─────────────────────
+1473030:0	この会社は映画の配給をしている。	This company distributes films.	商品などを、各地に配ること。
+1473030:1	戦争中は米が配給された。	Rice was rationed during the war.	決まった量を、決まった人に割り当てて配ること。
+
+# ── 本国 (1522530, ほんごく) — one's home country ─────────────────────────────
+1522530:0	彼は本国に帰った。	He went back to his home country.	その人が生まれた国。
+
+# ── 野心 (1537430, やしん) — ambition / sinister designs ──────────────────────
+1537430:0	彼は政治家になる野心を持っている。	He has ambitions of becoming a politician.	大きなことをしたいという望み。
+1537430:1	隣の国は領土への野心を隠さない。	The neighbouring country makes no secret of its designs on the territory.	他人のものをねらう、よくない考え。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 29 — N1 continued. A few everyday traps in this band: お愛想 is the BILL at
+# a restaurant, not a compliment; 覆面 is a mask and also an UNMARKED police car;
+# 天地 is heaven and earth and also "this way up" on a box.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 小柄 (1348770, こがら) — small in build ─────────────────────────────────
+1348770:0	彼女は小柄だが力が強い。	She's petite but strong.	体が普通より小さいこと。
+
+# ── 愛想 (1575660, あいそ) — friendliness / the bill ─────────────────────────
+1575660:0	あの店員は愛想がいい。	That shop assistant is very friendly.	人に対して感じよく接する態度。
+1575660:4	すみません、お愛想をお願いします。	Excuse me, could we have the bill, please?	飲食店で払う代金。
+
+# ── 下地 (1185920, したじ) — groundwork / a grounding in ─────────────────────
+1185920:0	壁の下地をしっかり作る。	You lay the groundwork for the wall properly.	物事の基礎となるもの。
+1185920:1	彼には英語の下地がある。	He has a grounding in English.	前から身についている知識や素質。
+
+# ── 束縛 (1404510, そくばく) — restraint / tying up ──────────────────────────
+1404510:0	恋人に束縛されるのは嫌だ。	I don't like a partner who keeps tabs on me.	行動の自由を制限すること。
+1404510:1	犯人は縄で束縛された。	The culprit was tied up with rope.	縄などでしばって、動けないようにすること。
+
+# ── 目録 (1535710, もくろく) — a catalogue / a table of contents ──────────────
+1535710:0	図書館の目録で本を探した。	I looked the book up in the library catalogue.	品物や本の名前を、順に並べて書いたもの。
+1535710:2	本の初めに目録がついている。	There's a table of contents at the front of the book.	書物の内容の見出しを、順に並べたもの。
+
+# ── 一息 (1164390, ひといき) — a breather / in one go ────────────────────────
+1164390:2	ここで一息入れよう。	Let's take a breather here.	少し休むこと。
+1164390:3	残りの仕事を一息に片付けた。	I got the rest of the work done in one go.	休まずに、一度にすること。
+
+# ── 何卒 (1189140, なにとぞ) — kindly ───────────────────────────────────────
+1189140:0	何卒よろしくお願いいたします。	I would be most grateful for your kind consideration.	相手に強く願う気持ちを表す言葉。どうか。
+
+# ── 黒字 (1287710, くろじ) — in the black ────────────────────────────────────
+1287710:0	今年は会社が黒字になった。	The company is in the black this year.	入ったお金が、使ったお金より多いこと。
+
+# ── 斡旋 (1153410, あっせん) — arranging, placing someone ──────────────────────
+1153410:0	先生の斡旋で就職が決まった。	I got the job through my teacher's good offices.	間に入って、うまくいくように世話をすること。
+
+# ── 先代 (1388080, せんだい) — the previous head / a predecessor ───────────────
+1388080:0	この店は先代から続いている。	This shop has been going since the last owner's day.	家や店の、前の主人。
+1388080:1	先代の社長は厳しい人だった。	The previous president was a strict man.	その地位に、前についていた人。
+
+# ── 産物 (1303870, さんぶつ) — produce / the result of ─────────────────────────
+1303870:0	りんごはこの地方の産物だ。	Apples are a product of this region.	その土地でとれたり、作られたりする物。
+1303870:1	この発明は長い努力の産物だ。	This invention is the fruit of long effort.	ある物事の結果として、生まれたもの。
+
+# ── 等級 (1449410, とうきゅう) — a grade ─────────────────────────────────────
+1449410:0	肉は等級によって値段が違う。	The price of meat depends on its grade.	品質などの、上下の段階。
+
+# ── 元素 (1592840, げんそ) — a chemical element ──────────────────────────────
+1592840:0	水素は最も軽い元素だ。	Hydrogen is the lightest element.	物質を作っている、もととなる成分。
+
+# ── 結束 (1254930, けっそく) — unity / bundling ──────────────────────────────
+1254930:0	チームの結束が強い。	The team is tightly united.	多くの人が心を一つにして、まとまること。
+1254930:1	古い新聞をひもで結束した。	I tied up the old newspapers with string.	ひもなどで、しばってまとめること。
+
+# ── 生死 (1379060, せいし) — life or death ────────────────────────────────────
+1379060:0	これは生死にかかわる問題だ。	This is a matter of life and death.	生きることと死ぬこと。
+
+# ── 他方 (1407370, たほう) — on the other hand ─────────────────────────────────
+1407370:1	彼は仕事に厳しい。他方、家では優しい。	He's strict at work; on the other hand, he's gentle at home.	別の面から見ると。
+
+# ── 露骨 (1560120, ろこつ) — blatant ─────────────────────────────────────────
+1560120:0	彼は露骨に嫌な顔をした。	He looked openly annoyed.	気持ちなどを、隠さずにそのまま表すようす。
+
+# ── 覆面 (1501520, ふくめん) — a mask / unmarked ──────────────────────────────
+1501520:0	覆面をした男が店に入ってきた。	A masked man came into the shop.	顔を布などで覆って隠すこと。
+1501520:1	覆面の警察の車に止められた。	I was pulled over by an unmarked police car.	正体を隠していること。
+
+# ── 切実 (1385050, せつじつ) — heartfelt / pressing ──────────────────────────
+1385050:0	彼の切実な願いを聞いた。	I heard his heartfelt wish.	心から強く感じているようす。
+1385050:1	住む場所がないのは切実な問題だ。	Having nowhere to live is a pressing problem.	急いで解決する必要があるようす。
+
+# ── 外貨 (1203410, がいか) — foreign currency ───────────────────────────────
+1203410:0	空港で外貨に両替した。	I changed money into foreign currency at the airport.	外国のお金。
+
+# ── 天地 (1582090, てんち) — heaven and earth / this way up ─────────────────────
+1582090:0	天地が揺れるほどの大きな地震だった。	It was an earthquake so big that heaven and earth shook.	天と地。世界。
+1582090:2	箱の天地を間違えないでください。	Please keep the box the right way up.	物の上の面と下の面。
+
+# ── 代弁 (1412300, だいべん) — speaking for / paying on someone's behalf ───────
+1412300:0	彼は住民の気持ちを代弁した。	He spoke for the residents.	本人に代わって意見を言うこと。
+1412300:1	会社が損害を代弁した。	The company paid for the damage on his behalf.	本人に代わって、お金を払うこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 30 — N1 continued. Mostly words about APPEARANCES and ATTITUDES, where the
+# literal sense and the social one sit side by side: 体裁 is a layout and keeping up
+# appearances, 窮屈 is a tight jacket and a stiff atmosphere, 裸足 is barefoot and
+# "putting the pros to shame". 一気 is held back — it lives in 一気に, which IPADIC
+# keeps as one adverb token.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 一筋 (1575970, ひとすじ) — a single strand / single-minded ─────────────────
+1575970:0	雲の間から一筋の光が差した。	A single ray of light shone through the clouds.	細く長く続く、一本のもの。
+1575970:1	父は四十年、仕事一筋に生きてきた。	My father has lived for nothing but his work for forty years.	一つのことだけに、心を向けるようす。
+
+# ── 融通 (1584900, ゆうずう) — lending money / flexibility ─────────────────────
+1584900:0	友人に資金を融通してもらった。	A friend lent me the money.	お金や物を、必要な人に貸すこと。
+1584900:1	彼は融通がきかない。	He's inflexible.	その場に合わせて、うまく対応すること。
+
+# ── 一心 (1163580, いっしん) — with one's whole heart ────────────────────────
+1163580:1	助かりたい一心で走った。	I ran with only one thought: to get away safe.	一つのことに、心を集中させること。
+
+# ── 錯誤 (1298420, さくご) — a mistake ───────────────────────────────────────
+1298420:0	計算に錯誤があった。	There was an error in the calculations.	事実と考えとが、くい違うこと。まちがい。
+
+# ── 手本 (1328390, てほん) — a model / a copybook ───────────────────────────
+1328390:0	兄はいつも私の手本だった。	My older brother was always my role model.	見習うべき、よい例。
+1328390:1	手本を見ながら字を書く。	I write the characters copying from a model.	書道などで、まねをして書くための見本。
+
+# ── 年長 (1469030, ねんちょう) — older / the top year of kindergarten ──────────
+1469030:0	彼は私より五歳年長だ。	He's five years older than me.	年齢が上であること。
+1469030:1	娘は幼稚園の年長になった。	My daughter moved up to the top year of kindergarten.	幼稚園で、一番上の学年。
+
+# ── 並列 (1508530, へいれつ) — side by side / in parallel ────────────────────
+1508530:0	二つの案を並列して示した。	I set the two plans out side by side.	二つ以上のものを、並べること。
+1508530:1	電池を並列につなぐ。	You connect the batteries in parallel.	電気の回路で、横に並ぶようにつなぐこと。
+
+# ── 無念 (1530770, むねん) — bitter regret ───────────────────────────────────
+1530770:0	決勝で負けて無念だった。	Losing in the final was bitterly disappointing.	悔しく思うこと。
+
+# ── 滑稽 (1208660, こっけい) — comical / ridiculous ───────────────────────────
+1208660:0	彼の滑稽な話にみんなが笑った。	Everyone laughed at his funny story.	おもしろくて、笑いたくなるようす。
+1208660:1	そんなことで怒るなんて滑稽だ。	Getting angry about that is ridiculous.	まじめに考えるのがおかしいほど、くだらないようす。
+
+# ── 窮屈 (1230080, きゅうくつ) — tight / uncomfortable / tight for money ─────────
+1230080:0	この服は窮屈で動きにくい。	These clothes are tight and hard to move in.	空間に余裕がなく、せまいようす。
+1230080:2	上司と一緒の食事は窮屈だ。	Eating with my boss is uncomfortable.	気をつかって、のびのびできないようす。
+1230080:3	今月は家計が窮屈だ。	Money is tight this month.	お金に余裕がないようす。
+
+# ── 消息 (1350250, しょうそく) — news of someone / their whereabouts ───────────
+1350250:0	彼から長い間消息がない。	I haven't heard from him in a long time.	手紙などによる知らせ。
+1350250:1	その登山者は山で消息を絶った。	The climber disappeared on the mountain.	人の様子や、どこにいるか。
+
+# ── 有様 (1541060, ありさま) — the state of things ────────────────────────────
+1541060:0	部屋はひどい有様だった。	The room was in a terrible state.	物事の様子や状態。
+
+# ── 様相 (1545840, ようそう) — an aspect ────────────────────────────────────
+1545840:0	戦いは新しい様相を見せ始めた。	The fighting began to take on a new aspect.	物事の、外に現れた様子。
+
+# ── 日の丸 (1463780, ひのまる) — the Japanese flag ──────────────────────────
+1463780:1	祝日に日の丸を掲げる。	We fly the Japanese flag on national holidays.	日本の国旗。
+
+# ── 納入 (1470090, のうにゅう) — paying fees / delivering goods ───────────────
+1470090:0	学費を期日までに納入してください。	Please pay the school fees by the due date.	税金や料金などを納めること。
+1470090:1	工場に部品を納入した。	We delivered the parts to the factory.	注文を受けた品物を納めること。
+
+# ── 裸足 (1547660, はだし) — barefoot / putting the pros to shame ─────────────
+1547660:0	裸足で砂浜を歩いた。	I walked barefoot on the beach.	足に何もはいていないこと。
+1547660:1	彼の料理はプロも裸足で逃げるほどだ。	His cooking would put a professional chef to shame.	専門の人でもかなわないほど、すぐれていること。
+
+# ── 共鳴 (1235190, きょうめい) — resonance / sympathising with ─────────────────
+1235190:0	二つの音が共鳴している。	The two sounds are resonating.	ある物の振動が、ほかの物に伝わって音が出ること。
+1235190:1	彼の意見に多くの人が共鳴した。	Many people were sympathetic to his view.	人の考えに心から賛成すること。
+
+# ── 体裁 (1409480, ていさい) — how it looks / keeping up appearances ───────────
+1409480:0	この本は体裁がいい。	This book is nicely laid out.	外から見た、形や様子。
+1409480:2	彼は体裁ばかり気にしている。	All he cares about is keeping up appearances.	人からどう見られるかということ。
+
+# ── 名残 (1531530, なごり) — traces / the sadness of parting ──────────────────
+1531530:0	この町には昔の名残がある。	This town still shows traces of the past.	過去の物事が、あとに残した様子。
+1531530:1	友と名残を惜しんで別れた。	We parted, sad to say goodbye.	別れるときの、つらい気持ち。
+
+# ── 効き目 (1591070, ききめ) — an effect ─────────────────────────────────────
+1591070:0	この薬はすぐに効き目が出る。	This medicine works quickly.	薬などの働きや、ききぐあい。
+
+# ── 丸々 (1604260, まるまる) — plump / entirely ─────────────────────────────
+1604260:0	丸々と太った赤ちゃんだ。	It's a chubby little baby.	よく太っているようす。
+1604260:1	丸々一日かかった。	It took an entire day.	全部。そっくりそのまま。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 31 — N1 continued. Old-fashioned words that survive with a TWIST: 殿様 is a
+# feudal lord and a man who has never had to lift a finger, 砂利 is gravel and a
+# brat, 建前 is the official line (the famous opposite of 本音) and also the
+# roof-raising ceremony a carpenter still holds.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 吟味 (1243390, ぎんみ) — careful selection ───────────────────────────────
+1243390:0	材料を吟味して料理を作る。	I choose my ingredients carefully before I cook.	念入りに調べて選ぶこと。
+
+# ── 軽快 (1252600, けいかい) — nimble / cheerful / improving ──────────────────
+1252600:0	彼女は軽快な足取りで歩いた。	She walked with a spring in her step.	動きが軽く、すばやいようす。
+1252600:1	軽快な音楽が流れている。	Upbeat music is playing.	明るく、気持ちがはずむようす。
+1252600:2	祖父の病状は軽快に向かっている。	My grandfather's condition is improving.	病気がよくなること。
+
+# ── 達者 (1416240, たっしゃ) — in good health / skilled ──────────────────────
+1416240:0	祖母は九十歳だが達者だ。	My grandmother is ninety but still going strong.	体が丈夫なようす。
+1416240:1	彼は口が達者だ。	He has a way with words.	物事が上手なようす。
+
+# ── 埋蔵 (1524560, まいぞう) — having deposits underground ─────────────────
+1524560:1	この山には金が埋蔵されている。	There are gold deposits in this mountain.	地下に鉱物などがうまっていること。
+
+# ── 建前 (1597110, たてまえ) — the official line / the roof-raising ceremony ────
+1597110:0	それは建前で、本音は違う。	That's just what he says; what he really thinks is different.	表向きの考えや方針。
+1597110:1	新しい家の建前に近所の人が集まった。	The neighbours gathered for the framing ceremony of the new house.	家の柱や屋根の形ができたときに行う祝い。
+
+# ── 公用 (1274940, こうよう) — official business / public use ─────────────────
+1274940:0	市長は公用で東京へ出かけた。	The mayor went to Tokyo on official business.	国や会社などの、仕事の上の用事。
+1274940:1	この車は公用に限って使える。	This car is for official use only.	国や役所が使うこと。
+
+# ── 砂利 (1291660, じゃり) — gravel / a brat ─────────────────────────────────
+1291660:0	庭に砂利を敷いた。	We laid gravel in the garden.	小さな石がたくさん集まったもの。
+1291660:1	砂利は黙っていろ。	Pipe down, kid.	子どもを見下して言う言葉。
+
+# ── 手錠 (1327900, てじょう) — handcuffs ─────────────────────────────────────
+1327900:0	犯人は手錠をかけられた。	The culprit was handcuffed.	犯人の手首にかける、鉄の輪。
+
+# ── 土手 (1445370, どて) — an embankment ────────────────────────────────────
+1445370:0	川の土手を散歩した。	We walked along the riverbank.	川などに沿って、土を高く積んだ所。
+
+# ── 本館 (1522350, ほんかん) — the main building / this building ───────────────
+1522350:0	会議は本館の三階で行います。	The meeting is on the third floor of the main building.	中心となる建物。
+1522350:1	本館は午後五時に閉まります。	This building closes at five in the afternoon.	この建物。自分たちの建物を指して言う言葉。
+
+# ── 比重 (1483640, ひじゅう) — specific gravity / relative weight ──────────────
+1483640:0	油は水より比重が小さい。	Oil is less dense than water.	同じ体積の水と比べた、物の重さの割合。
+1483640:1	生活の中で仕事の比重が大きい。	Work takes up a big part of my life.	ほかと比べたときの、大切さの割合。
+
+# ── 結核 (1254710, けっかく) — tuberculosis ─────────────────────────────────
+1254710:0	昔は結核で多くの人が亡くなった。	In the past many people died of tuberculosis.	肺などに起こる、伝染する病気。
+
+# ── 殿様 (1442650, とのさま) — a feudal lord / a pampered man ──────────────────
+1442650:1	この城には昔、殿様が住んでいた。	A feudal lord used to live in this castle.	江戸時代の大名。
+1442650:2	彼は家では殿様で、何もしない。	He's lord of the manor at home and doesn't lift a finger.	世の中の苦労を知らずに、いばっている男。
+
+# ── 元来 (1261080, がんらい) — by nature ────────────────────────────────────
+1261080:0	彼は元来まじめな人だ。	He's a serious person by nature.	もともと。はじめから。
+
+# ── 単調 (1417760, たんちょう) — monotonous ──────────────────────────────────
+1417760:0	毎日が単調でつまらない。	Every day is monotonous and boring.	変化がなく、同じ調子が続くようす。
+
+# ── 大方 (1415020, おおかた) — most of / probably ───────────────────────────
+1415020:0	仕事は大方終わった。	The work is mostly done.	大部分。ほとんど。
+1415020:3	大方、彼は寝坊したのだろう。	He probably overslept.	たぶん。おそらく。
+
+# ── 微塵 (1486050, みじん) — a tiny piece / not in the least ───────────────────
+1486050:0	ガラスが微塵に砕けた。	The glass shattered into tiny pieces.	非常に細かいもの。
+1486050:1	彼には反省の色が微塵もない。	He shows no sign whatsoever of remorse.	少しも。まったく。
+
+# ── 極楽 (1240250, ごくらく) — paradise ─────────────────────────────────────
+1240250:1	温泉につかると極楽だ。	Soaking in a hot spring is sheer bliss.	とても楽しく、安らかな状態。
+
+# ── 不景気 (1492120, ふけいき) — hard times / gloomy ──────────────────────────
+1492120:0	不景気で仕事が減った。	Work has dried up with the recession.	経済の活動が弱まっている状態。
+1492120:2	そんな不景気な顔をするな。	Don't look so glum.	元気がなく、暗いようす。
+
+# ── 隠居 (1170690, いんきょ) — retiring ─────────────────────────────────────
+1170690:0	祖父は店を息子に任せて隠居した。	My grandfather left the shop to his son and retired.	仕事をやめて、静かに暮らすこと。
+
+# ── 旅客 (1553140, りょかく) — a passenger ───────────────────────────────────
+1553140:0	空港は旅客でいっぱいだ。	The airport is full of passengers.	乗り物で旅行する人。
+
+# ── 中和 (1425670, ちゅうわ) — neutralising ─────────────────────────────────
+1425670:0	酸をアルカリで中和する。	You neutralise an acid with an alkali.	酸とアルカリが反応して、互いの性質を打ち消すこと。
+1425670:1	この薬は毒を中和する。	This drug counteracts the poison.	悪い働きを弱めること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 32 — N1 continued. Physical → figurative again, in a tidy row: 屈折 is
+# light bending and a twisted personality, 盲点 is the blind spot in your eye and in
+# a plan, 起伏 is rolling hills and a mood that goes up and down.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 田園 (1442740, でんえん) — the countryside ───────────────────────────────
+1442740:0	窓の外に田園の景色が広がる。	Countryside stretches out beyond the window.	田や畑の多い、いなか。
+
+# ── 屈折 (1246620, くっせつ) — bending / warped feelings / refraction ───────────
+1246620:0	道は山に沿って何度も屈折している。	The road bends again and again along the mountain.	折れて曲がること。
+1246620:1	彼は屈折した性格だ。	He has a twisted personality.	考えや気持ちが、素直でないこと。
+1246620:2	光は水に入ると屈折する。	Light bends when it enters water.	光や音が、ほかの物に入るときに進む向きを変えること。
+
+# ── 見地 (1259870, けんち) — a standpoint ────────────────────────────────────
+1259870:0	教育の見地から考える。	I'm looking at it from an educational standpoint.	物事を見たり考えたりする立場。
+
+# ── 未開 (1527190, みかい) — primitive / unexplored ───────────────────────────
+1527190:0	昔の人はその国を未開の国と呼んだ。	People used to call that country uncivilised.	文明が進んでいないこと。
+1527190:1	宇宙はまだ未開の分野だ。	Space is still unexplored territory.	まだ開発されていないこと。
+
+# ── 雪崩 (1386690, なだれ) — an avalanche ───────────────────────────────────
+1386690:0	雪崩で道がふさがった。	An avalanche blocked the road.	山に積もった雪が、一度にくずれて落ちること。
+
+# ── 盲点 (1534280, もうてん) — the eye's blind spot / an overlooked weakness ────
+1534280:0	人の目には盲点がある。	The human eye has a blind spot.	目の奥にある、光を感じない所。
+1534280:1	その計画には大きな盲点があった。	There was a big hole in that plan.	気がつかずに、見落としている点。
+
+# ── 切れ目 (1591930, きれめ) — a gap / a cut ─────────────────────────────────
+1591930:0	雲の切れ目から青空が見えた。	I could see blue sky through a gap in the clouds.	続いているものが切れている所。
+1591930:2	魚に切れ目を入れて焼く。	You score the fish and then grill it.	刃物で切った、浅いきず。
+
+# ── 手際 (1327690, てぎわ) — skill, deftness ─────────────────────────────────
+1327690:0	彼女は手際よく料理を作った。	She cooked deftly.	物事を処理する、腕前ややり方。
+
+# ── 適宜 (1437380, てきぎ) — as appropriate ─────────────────────────────────
+1437380:1	塩を適宜加えてください。	Add salt to taste.	その場に合わせて、ちょうどよいように。
+
+# ── 学士 (1206760, がくし) — a bachelor's degree ─────────────────────────────
+1206760:1	大学を卒業して学士の学位を得た。	I graduated and got a bachelor's degree.	大学を卒業した人に与えられる称号。
+
+# ── 質素 (1320710, しっそ) — simple, plain ───────────────────────────────────
+1320710:0	祖父母は質素に暮らしている。	My grandparents live simply.	ぜいたくをしないようす。
+
+# ── 几帳面 (1564360, きちょうめん) — meticulous ──────────────────────────────
+1564360:0	彼は几帳面で、時間を必ず守る。	He's meticulous and always on time.	細かい所まで、きちんとしているようす。
+
+# ── 過密 (1196460, かみつ) — overcrowding / a packed schedule ──────────────────
+1196460:0	都市の過密が問題になっている。	Overcrowding in cities has become a problem.	人などが、一つの所に集まりすぎていること。
+1196460:1	今週は過密な日程だ。	This week's schedule is packed.	予定などが、つまりすぎていること。
+
+# ── 張り紙 (1427820, はりがみ) — a notice ───────────────────────────────────
+1427820:1	店の前に休業の張り紙があった。	There was a notice on the shop saying it was closed.	人に知らせるために、壁などにはった紙。
+
+# ── 一様 (1167130, いちよう) — uniform ──────────────────────────────────────
+1167130:0	みんな一様に驚いた。	Everyone was equally surprised.	どれも同じであるようす。
+
+# ── 議案 (1226010, ぎあん) — a bill ─────────────────────────────────────────
+1226010:0	国会で議案が可決された。	The bill was passed in the Diet.	会議で話し合うために出す案。
+
+# ── 起伏 (1223930, きふく) — undulation / ups and downs ───────────────────────
+1223930:0	この辺りは土地の起伏が多い。	The land round here is very hilly.	土地が高くなったり低くなったりしていること。
+1223930:1	彼女は感情の起伏が激しい。	Her moods go up and down a lot.	勢いや気持ちが、強くなったり弱くなったりすること。
+
+# ── 玄人 (1263430, くろうと) — a professional ─────────────────────────────────
+1263430:0	彼の絵は玄人も驚くほどうまい。	His paintings are good enough to impress a professional.	ある物事に慣れて、よく知っている人。
+
+# ── 面目 (1533590, めんぼく) — face, honour ──────────────────────────────────
+1533590:0	約束を守れず、面目がない。	I couldn't keep my promise and I'm ashamed.	世間に対する名誉。
+
+# ── 手数 (1327970, てすう) — trouble ────────────────────────────────────────
+1327970:0	この料理は手数がかかる。	This dish takes a lot of work.	ある事をするのに必要な手間。
+
+# ── 兼業 (1578300, けんぎょう) — a side business ──────────────────────────────
+1578300:0	彼は農業と商売を兼業している。	He farms and runs a business at the same time.	本業のほかに、ほかの仕事もすること。
+
+# ── 戯曲 (1225010, ぎきょく) — a play ───────────────────────────────────────
+1225010:0	彼は有名な戯曲を書いた。	He wrote a famous play.	劇として演じるために書かれた作品。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 33 — N1 continued. Everyday words with a surprising specialist sense: 縁側
+# is a veranda and the prized fin-edge of a flatfish, 回送 is forwarding mail and
+# the "Not in Service" sign on a train, 受身 is a passive attitude, the passive
+# voice and the judo break-fall.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 縁側 (1177630, えんがわ) — a veranda / fin-edge meat ───────────────────────
+1177630:0	祖父は縁側でお茶を飲んでいる。	My grandfather is drinking tea on the veranda.	日本の家で、部屋の外側にある細長い板の床。
+1177630:1	この魚は縁側がおいしい。	The fin-edge of this fish is delicious.	平たい魚の、体の縁にある肉。
+
+# ── 脚色 (1226830, きゃくしょく) — adapting for the stage / embellishing ────────
+1226830:0	その小説は映画に脚色された。	That novel was adapted for the screen.	小説などを、劇や映画にするために書き直すこと。
+1226830:1	彼の話には脚色が多い。	His stories are full of embellishment.	事実に手を加えて、おもしろくすること。
+
+# ── 回送 (1199610, かいそう) — forwarding / a train not in service ───────────────
+1199610:0	手紙を新しい住所に回送した。	I forwarded the letter to the new address.	届いた物を、ほかの所へ送ること。
+1199610:1	この電車は回送なので乗れません。	This train is not in service, so you can't board it.	客を乗せずに、電車やバスを走らせること。
+
+# ── 冷淡 (1557150, れいたん) — indifferent / cold-hearted ─────────────────────
+1557150:0	彼は政治に冷淡だ。	He's indifferent to politics.	物事に関心を示さないようす。
+1557150:1	困っている人に冷淡な態度をとった。	They were cold towards someone in trouble.	思いやりがなく、冷たいようす。
+
+# ── 前途 (1393750, ぜんと) — one's prospects ─────────────────────────────────
+1393750:0	若い二人の前途を祝った。	We drank to the young couple's future.	これから先。将来。
+
+# ── 願書 (1218050, がんしょ) — an application form ───────────────────────────
+1218050:0	大学に願書を出した。	I sent in my university application.	入学などを願うときに出す書類。
+
+# ── 先天的 (1388200, せんてんてき) — congenital ─────────────────────────────
+1388200:0	彼は先天的な病気を持っている。	He has a congenital illness.	生まれつき持っているようす。
+
+# ── 落ち葉 (1585070, おちば) — fallen leaves ─────────────────────────────────
+1585070:0	庭の落ち葉を集めた。	I raked up the fallen leaves in the garden.	枯れて木から落ちた葉。
+
+# ── よそ見 (1544190, よそみ) — looking away ──────────────────────────────────
+1544190:0	運転中によそ見をしてはいけない。	You mustn't look away while driving.	見るべき所ではなく、ほかの所を見ること。
+
+# ── 身の上 (1365600, みのうえ) — one's circumstances ──────────────────────────
+1365600:0	彼女は自分の身の上を話した。	She told me her life story.	その人の置かれている立場や、これまでの事情。
+
+# ── 仲人 (1425960, なこうど) — a matchmaker / a go-between ────────────────────
+1425960:0	先生が二人の結婚の仲人をした。	Our teacher was the go-between at the couple's wedding.	結婚の世話をする人。
+1425960:1	商売の仲人として間に入った。	I stepped in as a go-between in the deal.	二つの側の間に入って、話をまとめる人。
+
+# ── 人影 (1580660, ひとかげ) — a figure ─────────────────────────────────────
+1580660:0	夜の公園には人影がなかった。	There wasn't a soul in the park at night.	人の姿。
+
+# ── 駆け足 (1244800, かけあし) — running / rushing through ─────────────────────
+1244800:0	駆け足で駅に向かった。	I ran to the station.	走ること。
+1244800:2	駆け足で京都を見物した。	We rushed round Kyoto.	物事を急いですること。
+
+# ── 受身 (1329860, うけみ) — the defensive / passivity / the passive voice ─────
+1329860:0	試合はずっと受身だった。	We were on the defensive for the whole match.	相手から攻撃を受ける立場。
+1329860:1	彼は何事にも受身だ。	He's passive about everything.	自分からは動かない態度。
+1329860:2	この文を受身に書き換える。	Rewrite this sentence in the passive voice.	文法で、動作を受ける側から言う形。
+
+# ── 鉄棒 (1438030, てつぼう) — the horizontal bar ────────────────────────────
+1438030:1	子どもが公園で鉄棒をしている。	A child is playing on the bar in the park.	体操に使う、鉄の横の棒。
+
+# ── 類推 (1556120, るいすい) — analogy ──────────────────────────────────────
+1556120:0	前の例から結果を類推した。	I guessed the result by analogy with earlier cases.	似ている点をもとに、ほかのことを考えること。
+
+# ── 公団 (1274280, こうだん) — a public corporation ───────────────────────────
+1274280:0	道路は公団が作った。	The road was built by a public corporation.	国が資金を出して作った、公共の事業を行う団体。
+
+# ── 温和 (1589620, おんわ) — mild / gentle ───────────────────────────────────
+1589620:0	この地方は気候が温和だ。	This region has a mild climate.	気候が穏やかで、過ごしやすいようす。
+1589620:1	彼は温和な性格だ。	He has a gentle nature.	性格がやさしく、穏やかなようす。
+
+# ── 陰気 (1170280, いんき) — gloomy ────────────────────────────────────────
+1170280:0	その部屋は暗くて陰気だ。	That room is dark and gloomy.	気持ちや雰囲気が、暗く沈んでいるようす。
+
+# ── 漢語 (1213150, かんご) — a word of Chinese origin ─────────────────────────
+1213150:0	新聞には漢語が多い。	Newspapers use a lot of Sino-Japanese words.	中国から入ってきた、漢字を音で読む言葉。
+
+# ── 実費 (1321410, じっぴ) — actual expenses ─────────────────────────────────
+1321410:0	交通費は実費で払います。	We reimburse actual travel costs.	実際にかかった費用。
+
+# ── 水気 (1371390, みずけ) — moisture ───────────────────────────────────────
+1371390:0	野菜の水気をよく切る。	Drain the vegetables well.	物に含まれている水分。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 34 — a new selection rule from here on. Only senses whose headword frequency
+# is ≥ 400 (the "≥400 ≈ 16.9k senses" tier in docs/TODO.md), and within that the
+# senses a real learner has actually SAVED come first — the account with the largest
+# vocabulary on prod, 1,582 eligible senses not yet covered — hardest (least frequent)
+# first. Each row curates exactly the sense that was saved.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+1297430:0	この料理の作り方を教えてください。	Please tell me how to make this dish.	物を作る方法。
+1335210:0	社員は会社の規則に従う。	Employees follow the company rules.	決まりや命令の通りにする。
+1154820:0	試験は案外やさしかった。	The exam was surprisingly easy.	思っていたのとは違って。意外に。
+1451900:0	二つの事件は同一の犯人によるものだ。	The two crimes were committed by one and the same person.	まったく同じであること。
+1604480:0	彼が勝つ見込みは少ない。	There's little chance of him winning.	先のことについての、そうなるだろうという予想。
+1591710:0	博物館で恐竜の骨を見た。	I saw dinosaur bones at the museum.	大昔に地球にいた、大きな爬虫類。
+1541610:0	経験の有無は問わない。	Experience is not required.	あるかないか。
+1424900:0	雨で試合が中断した。	The match was interrupted by rain.	続いていたことが、途中で止まること。
+1345670:0	汚れを除去する。	Remove the dirt.	じゃまな物を取り除くこと。
+1255010:0	この映画の結末は意外だった。	The ending of this film was unexpected.	物事の終わり。
+1452720:0	彼の話を聞いて同情した。	I felt sorry for him when I heard his story.	人の苦しみや悲しみを、自分のことのように感じること。
+1192850:0	彼は約束を果たした。	He kept his promise.	しなければならないことを、最後までやりとげる。
+1408360:0	飛行機で太平洋を渡った。	We crossed the Pacific by plane.	アジアとアメリカの間にある、世界で最も大きな海。
+1222170:0	日本の気候は四季がはっきりしている。	Japan's climate has four distinct seasons.	ある土地の、長い間の天気の様子。
+1310300:0	カードで代金を支払った。	I paid by card.	お金を払う。
+1189960:0	スープに塩を少し加える。	Add a little salt to the soup.	今あるものに、さらに足す。
+1359810:0	それは人権の侵害だ。	That's a violation of human rights.	人の権利などを、おかして損なうこと。
+1541930:0	子どもが誘拐された。	A child was kidnapped.	人をだまして、無理に連れ去ること。
+1201860:0	たばこの灰を落とした。	I dropped the ash from my cigarette.	物が燃えた後に残る粉。
+1251030:0	電気の系統が故障した。	The electrical system broke down.	一定の順序で、つながっているもの。
+1401420:0	市役所の窓口で書類を出した。	I handed in the form at the city hall counter.	役所や銀行などで、客に応対する所。
+1511810:0	靴下の片方がなくなった。	One of my socks has gone missing.	二つあるものの、一つ。
+1548170:0	ご来店ありがとうございます。	Thank you for visiting our store.	客が店に来ること。
+1377330:0	彼は正社員として働いている。	He works as a permanent employee.	会社に正式に雇われている社員。
+1399290:0	事故で記憶を喪失した。	I lost my memory in the accident.	大切なものを失うこと。
+1230350:0	給与は毎月二十五日に払われる。	Salaries are paid on the twenty-fifth of each month.	働いた人に払われるお金。給料。
+1263110:0	体重を減らしたい。	I want to lose weight.	数や量を少なくする。
+1329770:0	荷物の受け取りにサインした。	I signed for the delivery.	物を受け取ること。
+1430080:0	彼は三人兄弟の長男だ。	He's the eldest of three brothers.	一番初めに生まれた息子。
+1211120:0	電話で保険の勧誘を受けた。	I got a sales call about insurance.	人に、入るように誘うこと。
+1321630:0	週末に芝居を見に行った。	I went to see a play at the weekend.	役者が舞台で演じる劇。
+1433090:0	毎日自転車で通学している。	I cycle to school every day.	学生が学校に通うこと。
+1610870:0	家を出た途端に雨が降り出した。	It started raining the moment I left the house.	ちょうどその時。
+1426590:0	病院で注射を打った。	I had an injection at the hospital.	針で薬を体の中に入れること。
+
+# ── BATCH 35 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2251080 寮/つかさ (an archaic "office" sense — almost certainly a mis-resolved
+# save of 寮 "dormitory") and 1469800 乃 (a classical possessive particle).
+1190580:0	日本は国連に加盟している。	Japan is a member of the United Nations.	団体や組織に、仲間として加わること。
+1349480:0	その件は承知しています。	I'm aware of that matter.	事情などを知っていること。
+1244560:0	長い会議は苦痛だ。	Long meetings are torture.	体や心が感じる、苦しみや痛み。
+1194060:0	火星には水があったらしい。	It seems there was once water on Mars.	太陽の周りを回る、赤く見える惑星。
+1386350:0	電気を節約する。	We save electricity.	無駄を省いて、お金や物を少なく使うこと。
+1606280:0	その条件で了承しました。	I agreed to those terms.	事情を理解して、認めること。
+1391310:0	彼には潜在的な才能がある。	He has latent talent.	表に現れずに、内に隠れていること。
+1454750:0	特急に乗って大阪へ行った。	I took the limited express to Osaka.	主な駅だけに止まる、速い電車。
+1197030:0	虎が牙をむいた。	The tiger bared its fangs.	動物の、長く鋭い歯。
+1361420:0	電車の振動で目が覚めた。	The vibration of the train woke me up.	細かくゆれ動くこと。
+1427590:0	この庁は環境の問題を担当している。	This agency is in charge of environmental issues.	国の仕事を受け持つ役所。
+1545110:0	幼い子どもが公園で遊んでいる。	Little children are playing in the park.	年が少なく、小さいようす。
+1342380:0	仕事は順調に進んでいる。	The work is going smoothly.	物事が問題なく進むようす。
+1529370:0	深い眠りから覚めた。	I woke from a deep sleep.	眠ること。
+1353080:0	一人三つまでが上限だ。	The limit is three per person.	これ以上はないという限り。
+1524440:0	麻薬の密売で逮捕された。	He was arrested for dealing drugs.	使うとやめられなくなる、危険な薬。
+1483680:0	男女の比率は半々だ。	The ratio of men to women is half and half.	二つ以上の数や量を比べた割合。
+1215290:0	まもなく電車が参ります。	The train will be arriving shortly.	それほど時間がたたないうちに。
+1215000:0	違う観点から考えてみよう。	Let's think about it from a different angle.	物事を見たり考えたりする立場。
+1250870:0	頂上から見る景色は美しい。	The view from the summit is beautiful.	山や川などの、目に見える眺め。
+1207080:0	どの学部に入りたいですか。	Which faculty do you want to get into?	大学で、専門の分野によって分けた組織。
+1538440:0	みんなで音楽に合わせて踊った。	We all danced to the music.	音楽に合わせて、体を動かす。
+1284480:0	みんなで声を合わせて歌った。	We all sang in unison.	調子などを、ほかと同じにする。
+1263490:0	この記号は何を表していますか。	What does this symbol stand for?	ある意味を示す。
+1473620:0	古い車を買取に出した。	I sold my old car to a dealer.	品物を買い取ること。
+1518080:0	夏休みに京都を訪れた。	I visited Kyoto in the summer holidays.	人や場所をたずねる。
+1502550:0	物事を前向きに考える。	I try to look on the bright side of things.	世の中のいろいろなこと。
+1285390:0	二つの川がここで合流する。	The two rivers join here.	二つ以上の流れが一つになること。
+1551530:0	旗を立てる。	We put up a flag.	物をまっすぐに縦にして置く。
+1223840:0	彼は詐欺で起訴された。	He was indicted for fraud.	検察官が裁判所に、犯人の裁判を求めること。
+1326290:0	彼女は劇の主役を演じた。	She played the lead in the play.	劇や映画で、中心となる役。
+1327980:0	銀行で手数料を払った。	I paid a fee at the bank.	手続きなどをしてもらうときに払うお金。
+1577710:0	彼には強い成功への願望がある。	He has a strong desire to succeed.	そうなってほしいと願い望むこと。
+1374300:0	犬の世話をしている。	I'm looking after the dog.	人や動物などの面倒を見ること。
+1240380:0	彼の意見は極端だ。	His views are extreme.	考えや行いが、普通から大きく外れていること。
+1438340:0	天井が高い部屋だ。	It's a room with a high ceiling.	部屋の上の面。
+1567920:0	彼の返事は曖昧だった。	His answer was vague.	はっきりしないようす。
+1467910:0	彼女は熱心に勉強している。	She's studying hard.	一つのことに心を打ちこむようす。
+
+# ── BATCH 36 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2866356 開, 1606800 割り, 1285330 合理 — each lives inside a compound
+# (開〜, 三割, 合理的) and never stands as its own token in a natural sentence.
+1372800:0	ずいぶん遠くまで来た。	We've come a very long way.	程度が普通よりかなり上であるようす。
+1511450:0	株の値段が大きく変動した。	Share prices fluctuated wildly.	物事が変わり動くこと。
+1547290:0	薬で痛みを抑制する。	The drug suppresses the pain.	勢いを抑えて、止めること。
+1535700:0	彼女の赤い服はよく目立つ。	Her red dress really stands out.	ほかと違っていて、人の目につく。
+1340460:0	できるだけ早く来てください。	Please come as soon as you can.	可能な限り。
+1396020:0	生活全般を見直す。	I'm rethinking my life as a whole.	ある物事の全体。
+1504770:0	小麦の粉でパンを作る。	You make bread from wheat flour.	細かく砕いた物。
+1292390:0	十年ぶりに友人と再会した。	I met up with a friend for the first time in ten years.	別れていた人と、また会うこと。
+1269720:0	前者より後者の方がいい。	I prefer the latter to the former.	二つ挙げたうちの、後の方。
+1358550:0	昼は会社の食堂で食べる。	I eat lunch in the company cafeteria.	食事をするための部屋や店。
+1396840:0	祖父は八十歳になった。	My grandfather has turned eighty.	父や母の父。
+1328030:0	駅の手前で車を降りた。	I got out of the car just before the station.	自分に近い方。
+1570420:0	家族の絆は強い。	The family bond is strong.	人と人との、断つことのできない結びつき。
+1573190:0	台風が大きな被害をもたらした。	The typhoon caused a lot of damage.	ある結果を引き起こす。持ってくる。
+1274820:0	兄は公務員として市役所で働いている。	My brother works at city hall as a civil servant.	国や地方の役所で働く人。
+1551050:1	彼は陸上の選手だ。	He's a track and field athlete.	走ったり跳んだりする競技。
+1296500:0	東京在住の友人に会った。	I met a friend who lives in Tokyo.	その土地に住んでいること。
+1263400:0	玄関で靴を脱いでください。	Please take your shoes off in the entrance hall.	家の正面の入り口。
+1321200:0	病院で看護の実習をした。	I did a nursing placement at a hospital.	実際にやってみて、技術を身につけること。
+1478200:0	髪の毛が抜ける。	My hair is falling out.	付いていた物がとれて離れる。
+1176430:0	雨で運動会が延期になった。	Sports day was postponed because of the rain.	決めた日時を先にのばすこと。
+1605230:0	この傘の持ち主は誰ですか。	Who does this umbrella belong to?	その物を持っている人。
+1244320:0	走りすぎて息が苦しい。	I've run so much I can hardly breathe.	体や心がつらくて、たえられないようす。
+1609390:0	欧米の文化に興味がある。	I'm interested in Western culture.	ヨーロッパとアメリカ。
+1365990:0	時計の針を五分進めた。	I put the clock forward five minutes.	前の方へ動かす。
+1598530:0	駅で昔の友達に出会った。	I ran into an old friend at the station.	思いがけなく会う。
+1473140:0	新聞を毎朝配達している。	I deliver newspapers every morning.	品物や手紙などを届けること。
+1375430:0	性的な差別をなくす。	We work to end sexual discrimination.	男女の性に関係するようす。
+1164010:0	彼は一生懸命働いた。	He worked as hard as he could.	力の限りを尽くすようす。
+1248540:0	祖父は昔軍人だった。	My grandfather was a soldier.	軍隊に入っている人。
+1460530:0	台風が県の南部を通った。	The typhoon passed through the south of the prefecture.	ある地域の、南の方の部分。
+1365810:0	身分を証明する物を見せてください。	Please show me some ID.	社会の中での、その人の地位や立場。
+1327810:0	手順どおりに機械を動かす。	Operate the machine following the procedure.	物事を行う順序。
+1270810:0	手伝ってくれたお礼を言った。	I thanked them for helping me.	感謝の気持ち。また、それを表す言葉や品物。
+1648970:0	その漫画が実写の映画になった。	The manga was made into a live-action film.	アニメではなく、実際の人が演じること。
+1372010:0	暑い日は水分をよくとる。	I drink a lot of fluids on hot days.	物に含まれている水。
+1421510:0	地面が雨でぬれている。	The ground is wet from the rain.	土地の表面。
+1217700:0	最後まで頑張ろう。	Let's keep at it to the end.	くじけずに、努力を続ける。
+1452030:0	今年の売り上げは前年の同期を上回った。	This year's sales beat the same period last year.	同じ時期。
