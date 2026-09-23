@@ -2195,3 +2195,92 @@
 # ── 領域 (1554720, りょういき) — territory / a field of study ──────────────────
 1554720:0	飛行機が他国の領域に入った。	The aircraft entered another country's territory.	国の力が及ぶ土地や海や空。
 1554720:1	それは私の専門の領域ではない。	That isn't my field.	学問や仕事などの、受け持つ範囲。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 18 — N1 continued. Several of these have a sense everyday Japanese leans on
+# far more than the first gloss suggests: 告白 is asking someone out long before it
+# is a confession, 了解 is "roger", and 風俗 means the sex industry in most modern
+# use — a learner who only knows "customs" will misread a street sign.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 告白 (1286060, こくはく) — a confession / asking someone out ───────────────
+1286060:0	犯人は自分の罪を告白した。	The culprit confessed to the crime.	隠していたことを、ありのままに打ち明けること。
+1286060:1	彼女に好きだと告白した。	I told her I liked her.	好きな相手に、自分の気持ちを伝えること。
+
+# ── 充実 (1334340, じゅうじつ) — fulfilling / improving ─────────────────────────
+1334340:0	今年は充実した一年だった。	This has been a full and rewarding year.	中身が十分に満ちていること。
+1334340:1	市は図書館の設備を充実させた。	The city improved the library's facilities.	足りない所を補って、よりよくすること。
+
+# ── 従来 (1335400, じゅうらい) — up to now / conventional ──────────────────────
+1335400:0	従来どおりの方法で作業を進める。	We carry on working the way we always have.	今までずっと。これまで。
+1335400:1	新しい薬は従来の薬よりよく効く。	The new drug works better than the existing ones.	これまで普通に使われてきたこと。
+
+# ── 前提 (1393680, ぜんてい) — a prerequisite ────────────────────────────────
+1393680:0	結婚を前提に付き合っている。	We're seeing each other with a view to marriage.	ある物事が成り立つための、もとになる条件。
+
+# ── 風俗 (1499960, ふうぞく) — customs / the sex industry ─────────────────────
+1499960:0	その時代の風俗を描いた絵だ。	It's a painting of the customs of that era.	その時代や土地の、生活の習慣。
+1499960:2	駅の裏に風俗の店が並んでいる。	There's a row of sex-industry shops behind the station.	性的なサービスを売る商売。
+
+# ── 了解 (1553310, りょうかい) — understanding / roger ─────────────────────────
+1553310:0	相手の事情を了解した。	I understood the other side's situation.	物事の意味や事情をわかって、認めること。
+1553310:1	「三時に駅で」「了解」	"At the station at three." "Got it."	わかった、という返事の言葉。
+
+# ── 勢力 (1375150, せいりょく) — power, influence ──────────────────────────────
+1375150:0	台風の勢力が弱まった。	The typhoon lost strength.	ほかを従わせる力。また、物事の勢い。
+
+# ── 大幅 (1414870, おおはば) — drastic, substantial ───────────────────────────
+1414870:0	電車の時間が大幅に遅れた。	The train was badly delayed.	変わり方の程度が大きいようす。
+
+# ── 閉鎖 (1508670, へいさ) — closing / a shutdown ─────────────────────────────
+1508670:0	大雪で道路が閉鎖された。	The road was closed because of heavy snow.	入口などを閉じて、出入りできなくすること。
+1508670:1	工場が閉鎖されて多くの人が仕事を失った。	The factory was shut down and many people lost their jobs.	施設の仕事をやめて、閉じてしまうこと。
+
+# ── 英雄 (1174680, えいゆう) — a hero ────────────────────────────────────────
+1174680:0	彼は国の英雄として尊敬されている。	He is respected as a national hero.	知恵や力がすぐれ、大きな仕事をした人。
+
+# ── 形成 (1250360, けいせい) — forming / plastic repair ───────────────────────
+1250360:0	子どもの性格は家庭で形成される。	A child's character is formed at home.	形のあるものに作り上げること。
+1250360:1	事故で傷ついた鼻を形成する手術を受けた。	She had surgery to rebuild the nose that was hurt in the accident.	傷ついた体の形を手術で整えること。
+
+# ── 設立 (1386090, せつりつ) — founding / incorporating ───────────────────────
+1386090:0	祖父がこの学校を設立した。	My grandfather founded this school.	学校や団体などを新しく作ること。
+1386090:1	友人と会社を設立した。	I set up a company with a friend.	会社を法律に従って作ること。
+
+# ── 脱出 (1416520, だっしゅつ) — escape ─────────────────────────────────────
+1416520:0	燃える建物から脱出した。	We escaped from the burning building.	危ない所から抜け出すこと。
+
+# ── 補助 (1514590, ほじょ) — help / a subsidy ─────────────────────────────────
+1514590:0	先生の補助として授業に出た。	I sat in on the lesson as the teacher's assistant.	足りないところを助けること。
+1514590:1	市から家賃の補助を受けている。	I get a rent subsidy from the city.	足りない費用を出して助けること。
+
+# ── 要請 (1546780, ようせい) — a call for something ────────────────────────────
+1546780:0	市は住民に協力を要請した。	The city called on residents to cooperate.	必要なこととして、強く求めること。
+
+# ── 収集 (1594720, しゅうしゅう) — a collection / rubbish collection ──────────
+1594720:1	兄の趣味は切手の収集だ。	My brother's hobby is collecting stamps.	趣味や研究のために、同じ種類の物を集めること。
+1594720:2	ごみの収集は月曜日だ。	The rubbish is collected on Mondays.	ごみを集めて持っていくこと。
+
+# ── 若干 (1324330, じゃっかん) — a few / somewhat ─────────────────────────────
+1324330:0	席にはまだ若干の余裕がある。	There are still a few seats left.	少し。いくらか。
+1324330:1	値段が若干高い気がする。	The price seems a bit high to me.	いくらかの程度。少しばかり。
+
+# ── 突破 (1457100, とっぱ) — breaking through / overcoming / passing a mark ──────
+1457100:0	敵の守りを突破した。	We broke through the enemy's defences.	さえぎるものを破って進むこと。
+1457100:1	難しい試験を突破した。	I got through a difficult exam.	難しい所を乗り越えること。
+1457100:2	参加者が一万人を突破した。	The number of participants passed ten thousand.	ある数や量を超えること。
+
+# ── 不良 (1495290, ふりょう) — defective / a delinquent ───────────────────────
+1495290:0	この製品は品質が不良だ。	This product is of poor quality.	質や状態がよくないこと。
+1495290:1	駅の前に不良が集まっている。	There's a gang of delinquents hanging around in front of the station.	行いのよくない若者。
+
+# ── 決勝 (1254320, けっしょう) — the final ────────────────────────────────────
+1254320:1	日本は決勝まで進んだ。	Japan made it through to the final.	最後に優勝を決める試合。
+
+# ── 騒動 (1403080, そうどう) — a riot / an uproar ─────────────────────────────
+1403080:0	町で大きな騒動が起きた。	A major riot broke out in the town.	大勢の人が騒いで、秩序が乱れること。
+1403080:1	その発言がネットで騒動になった。	The remark caused an uproar online.	世間が大きく騒ぐこと。
+
+# ── 浮気 (1497450, うわき) — an affair / fickleness ───────────────────────────
+1497450:0	夫の浮気がわかった。	I found out my husband was having an affair.	恋人や夫婦の相手以外の人と、恋愛の関係を持つこと。
+1497450:1	彼は浮気な性格で、すぐに趣味が変わる。	He's fickle by nature and his hobbies keep changing.	気が変わりやすいこと。
