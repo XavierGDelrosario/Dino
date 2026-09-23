@@ -2375,3 +2375,81 @@
 # ── 中毒 (1425160, ちゅうどく) — poisoning / addiction ─────────────────────────
 1425160:0	古い魚を食べて中毒を起こした。	I got food poisoning from some old fish.	体に悪いものが入って、具合が悪くなること。
 1425160:1	彼はゲームの中毒になっている。	He's hooked on video games.	やめられなくなるほど、夢中になること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 20 — N1 continued. Economics and science vocabulary, where the senses split
+# along the same line again and again: the thing itself vs. the thing as a state
+# (在庫 = the stock / having it in stock; 独占 = a market monopoly / hogging a toy).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 言い訳 (1587030, いいわけ) — an excuse / an explanation ─────────────────────
+1587030:0	遅刻の言い訳をするな。	Don't make excuses for being late.	自分の失敗などを、いろいろ理由をつけて正しいと言うこと。
+1587030:1	誤解されないように、事情を言い訳した。	I explained the circumstances so as not to be misunderstood.	事情を説明すること。
+
+# ── 財政 (1296830, ざいせい) — public finance / one's finances ─────────────────
+1296830:0	国の財政が苦しくなっている。	The national finances are getting tight.	国や自治体が、お金を集めて使う働き。
+1296830:1	我が家の財政は赤字だ。	Our household is in the red.	個人や家庭のお金のやりくり。
+
+# ── 単独 (1417780, たんどく) — alone ────────────────────────────────────────
+1417780:0	彼は単独で山に登った。	He climbed the mountain alone.	ただ一人。ほかと一緒でないこと。
+
+# ── 廃棄 (1472030, はいき) — throwing away ───────────────────────────────────
+1472030:0	古い書類を廃棄した。	We disposed of the old documents.	いらなくなった物を捨てること。
+
+# ── 黄金 (1181860, おうごん) — gold / golden ──────────────────────────────────
+1181860:0	黄金でできた王の像だ。	It's a statue of the king made of gold.	金。こがね。
+1181860:1	あの頃はチームの黄金時代だった。	Those were the team's golden years.	非常に価値があって、すばらしいこと。
+
+# ── 在庫 (1296470, ざいこ) — stock, inventory ──────────────────────────────────
+1296470:0	倉庫の在庫を数えた。	We counted the stock in the warehouse.	商品などが倉庫にしまってあること。また、その品物。
+
+# ── 独占 (1455870, どくせん) — a monopoly / hogging ───────────────────────────
+1455870:0	一つの会社が市場を独占している。	One company has a monopoly on the market.	ある分野の商売を、一つの会社だけで行うこと。
+1455870:1	弟がテレビを独占している。	My little brother is hogging the TV.	一人だけで自分のものにすること。
+
+# ── 修行 (2650010, しゅぎょう) — training / ascetic practice ───────────────────
+2650010:0	彼はパリで料理の修行をした。	He trained as a cook in Paris.	技術などを身につけるために努力すること。
+2650010:1	僧が寺で修行している。	The monks are doing religious training at the temple.	仏の教えに従って、心や体をきたえること。
+
+# ── 側面 (1404040, そくめん) — the side / an aspect ───────────────────────────
+1404040:0	箱の側面に名前を書いた。	I wrote my name on the side of the box.	物の横の面。
+1404040:1	この問題にはいろいろな側面がある。	This problem has many sides to it.	物事のある一つの面。
+
+# ── 根本 (2848289, こんぽん) — the root / the foundation ──────────────────────
+2848289:0	問題の根本を探る。	We look for the root of the problem.	物事が起こるもと。
+2848289:1	教育の根本は人を育てることだ。	The essence of education is bringing people up.	物事の大もととなる、大切な所。
+
+# ── 移民 (1158440, いみん) — emigration / an immigrant ────────────────────────
+1158440:0	祖父は若い頃ブラジルへ移民した。	My grandfather emigrated to Brazil when he was young.	仕事などのために、ほかの国へ移って住むこと。
+1158440:1	この町には移民が多く住んでいる。	A lot of immigrants live in this town.	ほかの国から移って住むようになった人。
+
+# ── 回路 (1199830, かいろ) — a circuit ───────────────────────────────────────
+1199830:0	電気の回路が切れている。	The electrical circuit is broken.	電流が流れる道筋。
+
+# ── 流通 (1552440, りゅうつう) — distribution / air flow ──────────────────────
+1552440:0	商品の流通にかかる費用を減らす。	We cut the cost of getting goods to market.	商品が作った人から買う人へ渡ること。
+1552440:1	窓を開けて空気の流通をよくする。	Open the windows to let the air circulate.	空気や水などが流れて通ること。
+
+# ── 反射 (1480420, はんしゃ) — reflection / a reflex ─────────────────────────
+1480420:0	水面に光が反射している。	Light is reflecting off the water.	光や音などが、物に当たって返ってくること。
+1480420:1	熱い物に触って、反射で手を引いた。	I touched something hot and pulled my hand back by reflex.	刺激を受けて、体が考える前に動くこと。
+
+# ── 放出 (1516710, ほうしゅつ) — emission / releasing stockpiled goods ───────
+1516710:0	工場から熱が放出されている。	Heat is being given off by the factory.	勢いよく外へ出すこと。
+1516710:1	政府が米の在庫を放出した。	The government released its stockpiles of rice.	たくわえていた物を外に出すこと。
+
+# ── 野生 (1537470, やせい) — wild ────────────────────────────────────────────
+1537470:0	この島には野生の馬がいる。	There are wild horses on this island.	動物や植物が、自然の中で育つこと。
+
+# ── 秘書 (1484060, ひしょ) — a secretary ─────────────────────────────────────
+1484060:0	社長の秘書として働いている。	I work as the company president's secretary.	重要な地位の人のそばで、仕事を助ける人。
+
+# ── 異性 (1157860, いせい) — the opposite sex ─────────────────────────────────
+1157860:0	中学生になると異性を意識し始める。	In middle school kids start to notice the opposite sex.	男から見た女、女から見た男。
+
+# ── 動機 (1451310, どうき) — a motive ────────────────────────────────────────
+1451310:0	犯行の動機はまだわからない。	The motive for the crime is still unknown.	ある行動を起こす、直接の理由。
+
+# ── 階級 (1203040, かいきゅう) — social class / rank ────────────────────────────
+1203040:0	昔は生まれた階級で仕事が決まった。	In the old days your job was decided by the class you were born into.	社会の中で、身分や財産によって分けられた人々の集まり。
+1203040:1	軍隊では階級が上の人に従う。	In the army you obey those above you in rank.	地位の上下の順序。
