@@ -1139,15 +1139,13 @@
   border-color: var(--conf-5);
 }
 
+/* A GHOST of ground given back — red, and visibly weaker than a solid dot, because
+   the word's current standing is the dots to its LEFT. The weakness is baked into
+   --conf-lost rather than applied here as an opacity: a translucent dot changes weight
+   with whatever is behind it, and the two themes put opposite things there. */
 .dot--lost {
-  /* --conf-0, the ramp's "forgot" red, mirroring gain's --conf-5 at the other end:
-     the two directions are read at a glance from the same scale the reader colours
-     words with, rather than from one colour plus an absence of it. Faded because the
-     dot is a GHOST of ground given back — solid red would read as a current state,
-     which is the one thing it is not (the word's standing is the dots to its left). */
-  background: var(--conf-0);
-  border-color: var(--conf-0);
-  opacity: 0.45;
+  background: var(--conf-lost);
+  border-color: var(--conf-lost);
 }
 
 /* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
