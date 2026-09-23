@@ -138,7 +138,6 @@ export const en = {
 
   // lists surface
   "lists.allWords": "All words",
-  "lists.overviewBarAria": "Confidence breakdown",
   "lists.backToLists": "Lists",
   "lists.allChip": "ALL",
   "lists.newList": "＋ New list",
@@ -582,7 +581,6 @@ export const ja: Record<MessageKey, string> = {
   "sort.createdOldest": "古いリスト順",
   "sort.nameAZ": "名前 A–Z",
   "sort.nameZA": "名前 Z–A",
-  "lists.overviewBarAria": "自信度の内訳",
   "lists.backToLists": "リスト一覧",
   "lists.allChip": "すべて",
   "lists.newList": "＋ 新しいリスト",

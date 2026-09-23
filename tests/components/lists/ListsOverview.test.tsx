@@ -121,26 +121,6 @@ describe("ListsOverview — rendering", () => {
     expect(screen.getByText("0")).toBeTruthy(); // the never-used list still appears
   });
 
-  it("draws no confidence bar for an empty list — an all-background bar would read as 'all at zero'", () => {
-    const { container } = view("name", "least");
-    const cards = [...container.querySelectorAll(".listcard")];
-    const empty = cards.find((c) => c.querySelector(".listcard__name")?.textContent === "Never used");
-    expect(empty?.querySelector(".listcard__bar")).toBeNull();
-    const filled = cards.find((c) => c.querySelector(".listcard__name")?.textContent === "Newest");
-    expect(filled?.querySelector(".listcard__bar")).not.toBeNull();
-  });
-
-  it("segments the bar by confidence, widths proportional to the counts", () => {
-    const { container } = view("name", "least", [
-      row({ listId: "x", listName: "Mixed", wordCount: 4, confidence: [1, 0, 0, 0, 0, 3] }),
-    ]);
-    const segs = [...container.querySelectorAll(".listcard__seg")] as HTMLElement[];
-    // Only the two non-zero buckets render — a zero-width segment is not a thing.
-    expect(segs).toHaveLength(2);
-    expect(segs[0].style.width).toBe("25%");
-    expect(segs[1].style.width).toBe("75%");
-  });
-
   it("always offers Create, so a user with no lists has the way in", () => {
     // It is the only affordance on the screen when ALL is the sole row — which is
     // why there is no separate "no lists yet" message to keep in step with it.
