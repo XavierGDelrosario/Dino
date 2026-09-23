@@ -2543,3 +2543,91 @@
 # ── 好意 (1277530, こうい) — kindness / fondness ──────────────────────────────
 1277530:0	友人の好意で車を借りた。	A friend was kind enough to lend me a car.	相手のためを思う親切な気持ち。
 1277530:1	彼は彼女に好意を持っている。	He has a soft spot for her.	相手を好きだと思う気持ち。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 22 — N1 continued. Words with a LITERAL sense and a sense a learner hears
+# mostly as an idiom: 赤字 is red ink before it is a deficit, 天下 is the whole world
+# and also someone "doing as they please", 始末 is tidying up and also a sorry end.
+# 相対 is held back — its senses live in 相対的, which the gate cannot split cleanly.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 救済 (1229150, きゅうさい) — relief, rescue ────────────────────────────────
+1229150:0	政府は被災者の救済に力を入れた。	The government put its effort into relief for the victims.	困っている人を助けること。
+
+# ── 背後 (1472730, はいご) — behind someone / behind the scenes ────────────────
+1472730:0	背後から名前を呼ばれた。	Someone called my name from behind.	人や物の後ろ。
+1472730:1	事件の背後に大きな組織がある。	There's a large organisation behind the incident.	表からは見えない、物事の裏。
+
+# ── 不在 (1492460, ふざい) — being out ───────────────────────────────────────
+1492460:0	父は出張で不在です。	My father is away on business.	その場所にいないこと。
+
+# ── 天下 (1438470, てんか) — the whole world / having one's own way ────────────
+1438470:0	彼の名は天下に知られている。	His name is known throughout the world.	空の下の、すべての世界。
+1438470:4	親が留守で、子どもたちの天下だ。	With their parents away, the kids have the run of the place.	思いのままにふるまえる状態。
+
+# ── 発掘 (1477290, はっくつ) — excavating / discovering talent ────────────────
+1477290:0	古い町の跡を発掘した。	They excavated the remains of an ancient town.	地中にうまっている物を掘って取り出すこと。
+1477290:1	新しい才能を発掘する番組だ。	It's a programme that discovers new talent.	知られていないものを探して見つけること。
+
+# ── 戦力 (1390660, せんりょく) — military strength / a valuable asset ─────────
+1390660:0	両国の戦力には大きな差がある。	There's a big gap in military strength between the two countries.	戦争をする力。
+1390660:1	新人がすぐにチームの戦力になった。	The new recruit soon became an asset to the team.	仕事や試合で役に立つ力や人。
+
+# ── 全滅 (1396240, ぜんめつ) — being wiped out / total failure ────────────────
+1396240:0	寒さで畑の野菜が全滅した。	The cold wiped out all the vegetables in the field.	すべてがほろびること。
+1396240:1	受けた試験は全滅だった。	I failed every exam I took.	すべて失敗すること。
+
+# ── 相場 (1401070, そうば) — the market price / the usual view ─────────────────
+1401070:0	野菜の相場が上がっている。	Vegetable prices are going up.	品物が取り引きされる、その時の値段。
+1401070:2	夏は暑いものと相場が決まっている。	Everyone knows summer is meant to be hot.	世間で普通だと考えられていること。
+
+# ── 簡易 (1214270, かんい) — simple, simplified ───────────────────────────────
+1214270:0	簡易な方法で調べた。	We checked it by a simplified method.	手軽で、簡単なこと。
+
+# ── いい加減 (1277440, いいかげん) — careless / pretty ─────────────────────────
+# (Sense 2, 「いい加減にしなさい」 = "that's enough", is left out: before に IPADIC
+# always splits it いい|加減, and that is the only frame the sense lives in.)
+1277440:0	彼はいい加減な仕事をする。	He does sloppy work.	責任を持たずに、物事をするようす。
+1277440:3	いい加減疲れてきた。	I'm getting pretty tired.	かなり。ずいぶん。
+
+# ── 使命 (1306160, しめい) — a mission ───────────────────────────────────────
+1306160:0	医者の使命は人の命を救うことだ。	A doctor's mission is to save lives.	与えられた大切な務め。
+
+# ── 守備 (1327180, しゅび) — defence / fielding ──────────────────────────────
+1327180:0	城の守備をかためた。	They strengthened the castle's defences.	せめてくる相手から守ること。
+1327180:1	彼は野球の守備がうまい。	He's a good fielder.	野球などで、相手の攻撃を防ぐこと。
+
+# ── 捜索 (1399690, そうさく) — a search / a legal search ───────────────────────
+1399690:0	山で行方がわからない人の捜索が続いている。	The search for the people missing on the mountain is still going on.	いなくなった人や物をさがすこと。
+1399690:1	警察が会社を捜索した。	The police searched the company's offices.	法律に従って、家や人の持ち物などを調べること。
+
+# ── 疲労 (1483780, ひろう) — fatigue / metal fatigue ─────────────────────────
+1483780:0	長い旅で疲労がたまった。	The long journey left me worn out.	体や心がつかれること。
+1483780:1	金属の疲労で橋が壊れた。	The bridge failed because of metal fatigue.	何度も力が加わって、金属などが弱くなること。
+
+# ── 本文 (1584270, ほんぶん) — the body text ──────────────────────────────────
+1584270:0	手紙の本文を読む。	I read the body of the letter.	本や手紙の、中心となる文章。
+
+# ── 開拓 (1202830, かいたく) — clearing land / opening up a market ─────────────
+1202830:0	祖父たちが荒れた土地を開拓した。	Our grandparents cleared the wild land for farming.	山や野に手を入れて、田や畑にすること。
+1202830:1	会社は新しい市場を開拓した。	The company opened up a new market.	新しい分野などに初めて道をつけること。
+
+# ── 始末 (1307620, しまつ) — dealing with / a sorry outcome / thrift ─────────────
+1307620:0	自分のごみは自分で始末してください。	Please clear away your own rubbish.	物事をきちんと片付けること。
+1307620:2	最後は喧嘩をする始末だった。	It ended up, of all things, in a fight.	物事の悪い結果。
+1307620:3	母は何でも始末して使う。	My mother makes everything last.	無駄をしないように、大事に使うこと。
+
+# ── 手配 (1328260, てはい) — arranging / a police manhunt ─────────────────────
+1328260:0	ホテルの手配は私がします。	I'll arrange the hotel.	必要な物や人を準備すること。
+1328260:1	犯人は全国に手配された。	A nationwide search was put out for the culprit.	犯人を捕まえるために、警察が指示を出すこと。
+
+# ── 赤字 (1383440, あかじ) — a deficit / corrections in red ────────────────────
+1383440:0	今月は赤字だ。	We're in the red this month.	使ったお金が、入ったお金より多いこと。
+1383440:2	先生の赤字で作文が真っ赤になった。	The teacher's corrections turned my essay red.	文章を直すために、赤い色で書いた文字。
+
+# ── 燃焼 (1469640, ねんしょう) — combustion / giving everything ──────────────
+1469640:0	燃料が燃焼して熱が出る。	The fuel burns and gives off heat.	物が燃えること。
+1469640:1	最後の試合で力を燃焼させた。	I gave it everything I had in the final match.	持っている力を全部出すこと。
+
+# ── 比例 (1483700, ひれい) — proportion ──────────────────────────────────────
+1483700:0	給料は働いた時間に比例する。	Pay is in proportion to the hours worked.	二つの量が、同じ割合で増えたり減ったりすること。
