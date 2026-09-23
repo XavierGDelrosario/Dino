@@ -108,3 +108,83 @@ export async function deleteList(listId: string): Promise<void> {
   const { error } = await supabase.from("lists").delete().eq("list_id", listId);
   if (error) throw toServiceError(error);
 }
+
+// ── The lists OVERVIEW (the vertical index page) ────────────────────────────
+
+/** One row of the lists index: a list, or ALL when `listId` is null. */
+export interface ListOverview {
+  /** null = the virtual ALL list (the whole vocabulary), which has no `lists` row. */
+  listId: string | null;
+  /** null for ALL — the view supplies the localized label, so it isn't stored. */
+  listName: string | null;
+  /** When the list was created. Null for ALL (it was never created). */
+  createdAt: string | null;
+  /** When a word was last filed into it. Null when it holds none. */
+  lastWordAddedAt: string | null;
+  wordCount: number;
+  /** Words per displayed confidence, index 0..5. Always length 6. */
+  confidence: number[];
+}
+
+/** 0..5 — the six display-confidence buckets the histogram is keyed on. */
+const CONFIDENCE_BUCKETS = 6;
+
+/** PostgREST's "no such function" — the database predates migration 20260773. */
+const isMissingFunction = (error: { code?: string } | null): boolean =>
+  error?.code === "PGRST202";
+
+/** Latched by the first miss, so an un-migrated database costs ONE failed RPC per
+ *  session rather than one per visit to the tab. A reload re-probes, so applying the
+ *  migration heals the client with no redeploy — same shape as userWords.ts's
+ *  optional-column probe. */
+let overviewAvailable = true;
+
+/** TEST SEAM: the latch is module-global, so without a reset one spec's downgrade
+ *  leaks into the next. */
+export function __resetListOverviewProbe(): void {
+  overviewAvailable = true;
+}
+
+/**
+ * Every list plus ALL, with size, timestamps and a confidence histogram.
+ *
+ * OUTPUT: unordered (the page sorts client-side, so changing the axis costs no round
+ * trip); ALL is the row with `listId === null`. **NULL when this database has no
+ * list_overview() yet** — see below.
+ * CONSTRAINTS: ONE query that loads NO WORDS — the counts and the histogram are SQL
+ * aggregates, so the page costs the same at 50 saved words and at 50,000. The
+ * histogram uses the LIVE display confidence, matching every other read surface.
+ *
+ * ‼️ RETURNS NULL RATHER THAN THROWING when the function is absent. The client and the
+ * database deploy separately, so there is always a window where a build that calls this
+ * is live against a database that has not taken migration 20260773 — and the overview is
+ * the Lists tab's LANDING screen, so a throw there is not a degraded feature, it is the
+ * whole tab replaced by an error for every user. Null means "this database can't answer
+ * that", and the view falls back to the chip row it has always had.
+ */
+export async function getListOverview(): Promise<ListOverview[] | null> {
+  if (!overviewAvailable) return null;
+  const { data, error } = await supabase.rpc("list_overview");
+  if (isMissingFunction(error)) {
+    overviewAvailable = false;
+    console.warn(
+      "[lists] this database predates migration 20260773; " +
+        "falling back to the list chips (no overview).",
+    );
+    return null;
+  }
+  if (error) throw toServiceError(error);
+  return (data ?? []).map((r) => ({
+    listId: r.list_id,
+    listName: r.list_name,
+    createdAt: r.created_at,
+    lastWordAddedAt: r.last_word_added_at,
+    wordCount: Number(r.word_count ?? 0),
+    // Padded rather than trusted: a shorter array (an older function, a bucket change)
+    // would otherwise render as an undefined-width bar rather than an empty one.
+    confidence: Array.from(
+      { length: CONFIDENCE_BUCKETS },
+      (_, i) => Number(r.confidence?.[i] ?? 0),
+    ),
+  }));
+}

@@ -138,6 +138,9 @@ export const en = {
 
   // lists surface
   "lists.allWords": "All words",
+  "lists.overviewEmpty": "No lists yet. Open All words and use ＋ to make one.",
+  "lists.overviewBarAria": "Confidence breakdown",
+  "lists.backToLists": "Lists",
   "lists.allChip": "ALL",
   "lists.newList": "＋ New list",
   "lists.newListPlaceholder": "List name",
@@ -174,6 +177,14 @@ export const en = {
   "sort.mostConfident": "Most confident",
   "sort.leastDifficult": "Least difficult",
   "sort.mostDifficult": "Most difficult",
+  // lists overview (the vertical index). "added" = a word was last filed into the
+  // list; "created" = the list itself was made. Two different dates, so two axes.
+  "sort.addedNewest": "Latest word",
+  "sort.addedOldest": "Oldest word",
+  "sort.createdNewest": "Newest list",
+  "sort.createdOldest": "Oldest list",
+  "sort.nameAZ": "Name A–Z",
+  "sort.nameZA": "Name Z–A",
   // search bar (next to sort). The prompt is just "Search" — the box is small and the
   // magnifier already says what it is. It still matches headword, meaning, and (for a kana
   // query) reading; see services/words/search.ts.
@@ -565,6 +576,15 @@ export const ja: Record<MessageKey, string> = {
   "common.save": "保存",
 
   "lists.allWords": "すべての単語",
+  "sort.addedNewest": "最近追加した単語",
+  "sort.addedOldest": "古い単語順",
+  "sort.createdNewest": "新しいリスト順",
+  "sort.createdOldest": "古いリスト順",
+  "sort.nameAZ": "名前 A–Z",
+  "sort.nameZA": "名前 Z–A",
+  "lists.overviewEmpty": "リストはまだありません。",
+  "lists.overviewBarAria": "自信度の内訳",
+  "lists.backToLists": "リスト一覧",
   "lists.allChip": "すべて",
   "lists.newList": "＋ 新しいリスト",
   "lists.newListPlaceholder": "リスト名",
