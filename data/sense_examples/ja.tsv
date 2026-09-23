@@ -1869,3 +1869,84 @@
 1170650:0	本を後ろに隠した。	I hid the book behind my back.	人に見つからないようにする。
 1584060:0	紙で本を包んだ。	I wrapped the book in paper.	紙や布で外側からおおう。
 1290310:0	卵と砂糖を混ぜる。	Mix the egg and the sugar.	二つ以上のものを一つに合わせる。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 14 — N1, hardest first. Coverage below N3 was already thick (N1 had 11 of
+# ~2.4k entries), so this band opens with the most FREQUENT polysemous N1 nouns: the
+# ones a learner meets in the news long before the rarer N1 words, and whose
+# second sense (採用 = hiring, 提供 = sponsoring) the gloss list buries.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 映像 (1173800, えいぞう) — picture on a screen / footage / mental image ─────
+1173800:0	テレビの映像が乱れている。	The picture on the TV is breaking up.	画面に映し出される像。
+1173800:1	事故の映像がニュースで流れた。	Footage of the accident was shown on the news.	カメラで撮影した動く画像。
+1173800:3	故郷の映像が頭に浮かぶ。	Pictures of my home town come to mind.	心の中に浮かぶ姿や様子。
+
+# ── 荷 (1195250, に) — cargo / burden ─────────────────────────────────────────
+1195250:0	トラックに荷を積んだ。	We loaded the cargo onto the truck.	運ぶためにまとめた品物。
+1195250:1	その仕事は私には荷が重い。	That job is too much of a burden for me.	負わなければならない責任や負担。
+
+# ── 開発 (1202880, かいはつ) — development / exploitation of resources ─────────
+1202880:0	新しい薬を開発している。	They are developing a new drug.	新しい技術や製品を作り、使えるようにすること。
+1202880:1	国は石油資源の開発に力を入れている。	The country is putting its effort into developing its oil resources.	土地や資源に手を加えて、役に立つようにすること。
+
+# ── 客 (1226630, きゃく) — guest / customer ──────────────────────────────────
+1226630:0	今夜は家に客が来る。	We have guests coming tonight.	招かれて訪ねてくる人。
+1226630:1	この店はいつも客でいっぱいだ。	This shop is always full of customers.	金を払って品物やサービスを受ける人。
+
+# ── 採用 (1294890, さいよう) — adoption / hiring ─────────────────────────────
+1294890:0	彼の案が採用された。	His plan was adopted.	よいと認めて取り上げて使うこと。
+1294890:1	今年は新しい社員を十人採用した。	We took on ten new employees this year.	人を選んで雇うこと。
+
+# ── 作戦 (1297800, さくせん) — tactics / military operation ───────────────────
+1297800:0	次の試合の作戦を立てる。	We draw up our tactics for the next match.	目的を達成するための方法や計画。
+1297800:1	軍は夜明けに作戦を開始した。	The army began the operation at dawn.	軍隊が一定の期間に行う戦いの行動。
+
+# ── 事業 (1313670, じぎょう) — a business / a public project ──────────────────
+1313670:0	父は新しい事業を始めた。	My father started a new business.	利益を得るために行う仕事。
+1313670:1	市は子育てを助ける事業を進めている。	The city is pushing ahead with a programme to help people raise children.	社会のために計画して行う仕事。
+
+# ── 詳細 (1351760, しょうさい) — the details / detailed ───────────────────────
+1351760:0	詳細は明日連絡します。	I'll send you the details tomorrow.	細かい点までのくわしい事情。
+1351760:1	事故について詳細な報告を受けた。	We received a detailed report on the accident.	細かいところまでくわしいようす。
+
+# ── 刃 (1369820, は) — the blade ─────────────────────────────────────────────
+1369820:0	この包丁は刃がよく切れる。	This kitchen knife has a sharp blade.	物を切るための、薄く鋭い部分。
+
+# ── 地元 (1421060, じもと) — home town / local ────────────────────────────────
+1421060:0	夏休みに地元へ帰った。	I went back to my home town for the summer holidays.	自分が生まれ育った土地。
+1421060:1	地元の野菜を使った料理だ。	It's a dish made with local vegetables.	その土地のものであること。
+
+# ── 提供 (1436360, ていきょう) — providing / sponsoring a programme ────────────
+1436360:0	市が無料で水を提供した。	The city provided water free of charge.	相手の役に立つように差し出すこと。
+1436360:1	この番組は地元の会社が提供している。	This programme is sponsored by a local company.	番組の費用を出して広告を流すこと。
+
+# ── 奴 (1445640, やつ — usually kana) — a guy / a thing ──────────────────────────────────────
+1445640:0	あいつは本当にいいやつだ。	He's a really good guy.	人を親しんで、または見下して呼ぶ言葉。
+1445640:1	もっと大きいやつをください。	Give me a bigger one.	物をぞんざいに指して言う言葉。
+
+# ── 動き (1451180, うごき) — movement / a trend ──────────────────────────────
+1451180:0	猫の動きはとても速い。	The cat's movements are very quick.	位置や姿勢が変わること。
+1451180:1	景気の動きを見守る。	We keep an eye on which way the economy is moving.	物事の移り変わりや変化。
+
+# ── 導入 (1453790, どうにゅう) — bringing in / the introductory part ───────────
+1453790:0	会社に新しいシステムを導入した。	The company brought in a new system.	外から取り入れること。
+1453790:1	導入の部分で話の背景を説明する。	The introductory part explains the background to the story.	本題に入る前の、始まりの部分。
+
+# ── 破壊 (1471250, はかい) — destruction ─────────────────────────────────────
+1471250:0	地震で多くの建物が破壊された。	Many buildings were destroyed in the earthquake.	物をこわしてだめにすること。
+
+# ── 反応 (1480210, はんのう) — a response / a bodily reaction / a chemical one ──
+1480210:0	客の反応はよかった。	The customers' reaction was good.	人の言葉や行いに応じて起こる気持ちや態度。
+1480210:1	目が光に反応する。	The eyes react to light.	刺激を受けて生き物の体に起こる動き。
+1480210:2	二つの薬品が反応して色が変わった。	The two chemicals reacted and changed colour.	物質どうしが作用しあって変化を起こすこと。
+
+# ── 不明 (1495060, ふめい) — unclear ─────────────────────────────────────────
+1495060:0	事故の原因は不明だ。	The cause of the accident is unclear.	はっきりしないこと。
+
+# ── 矢 (1537760, や) — arrow ─────────────────────────────────────────────────
+1537760:0	矢が的に当たった。	The arrow hit the target.	弓で射る、先のとがった細い棒。
+
+# ── 専用 (1596240, せんよう) — private use / for one purpose only ──────────────
+1596240:0	これは社長専用の車だ。	This car is for the president's use only.	特定の人だけが使うこと。
+1596240:1	これは魚専用の包丁だ。	This knife is just for fish.	ある目的のためだけに使うこと。
