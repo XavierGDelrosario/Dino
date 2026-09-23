@@ -101,6 +101,21 @@ describe("ListView — summary", () => {
     expect(panel.compareDocumentPosition(rows) & FOLLOWING).toBeTruthy();
   });
 
+  it("opens ABOVE the search box, so typing isn't pushed down the page", () => {
+    const { container } = view();
+    fireEvent.click(summaryBtn());
+    const panel = container.querySelector(".lists__summary")!;
+    const search = container.querySelector(".listrows__search")!;
+    expect(panel.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+  });
+
+  it("keeps the search box on its own row, outside the sort line", () => {
+    const { container } = view();
+    expect(container.querySelector(".listrows__sort .listrows__search")).toBeNull();
+    expect(container.querySelector(".listrows__search")).not.toBeNull();
+  });
+
   it("puts its button on the sort line, not in the title bar", () => {
     const { container } = view();
     expect(container.querySelector(".listrows__sort .lists__summarybtn")).not.toBeNull();
