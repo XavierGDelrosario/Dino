@@ -1950,3 +1950,85 @@
 # ── 専用 (1596240, せんよう) — private use / for one purpose only ──────────────
 1596240:0	これは社長専用の車だ。	This car is for the president's use only.	特定の人だけが使うこと。
 1596240:1	これは魚専用の包丁だ。	This knife is just for fish.	ある目的のためだけに使うこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 15 — N1 continued, the next frequency band of polysemous nouns. Nouns made
+# from a verb's stem (掛け, 慣れ, 調べ, 作り) are held back: IPADIC tends to hand them
+# back as the verb, which is a gate failure rather than a sentence to rewrite.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 軟化 (1460740, なんか) — softening / a softer stance / a weaker market ────
+1460740:0	熱を加えると金属が軟化する。	Metal softens when you heat it.	かたい物がやわらかくなること。
+1460740:1	相手の態度が軟化した。	The other side's attitude softened.	強い態度や考えがおだやかになること。
+1460740:2	株の相場が軟化している。	Share prices are weakening.	相場が下がる方向に動くこと。
+
+# ── 設置 (1386050, せっち) — establishing a body / installing equipment ──────
+1386050:0	市は新しい委員会を設置した。	The city set up a new committee.	組織や機関を新しく設けること。
+1386050:1	駅にエレベーターを設置した。	They installed a lift at the station.	機械や設備を決まった場所に付けること。
+
+# ── 復活 (1500700, ふっかつ) — a comeback / resurrection ─────────────────────
+1500700:0	昔の祭りが二十年ぶりに復活した。	The old festival came back after twenty years.	一度なくなったものが、また行われるようになること。
+1500700:1	死んだ英雄の復活を描いた物語だ。	It's a story about a dead hero rising again.	死んだものが生き返ること。
+
+# ── 保険 (1513440, ほけん) — insurance / a guarantee ──────────────────────────
+1513440:0	車の保険に入った。	I took out car insurance.	事故や病気に備えて、決まったお金を払っておく仕組み。
+1513440:1	この時計には一年の保険が付いている。	This watch comes with a one-year guarantee.	品物の質などを、一定の期間守ると約束すること。
+
+# ── 主人公 (1325680, しゅじんこう) — the protagonist / head of a household ────
+1325680:0	この小説の主人公は若い医者だ。	The hero of this novel is a young doctor.	物語や劇の中心となる人物。
+1325680:1	彼はこの家の主人公として働いてきた。	He has worked as the head of this household.	一家や店の中心となる人。
+
+# ── 再生 (1292960, さいせい) — coming back to life / recycling / playback ─────
+1292960:0	山火事の後、森が再生した。	The forest came back to life after the wildfire.	死んだようになったものが、また生き返ること。
+1292960:2	古い紙を再生して使う。	We recycle old paper and use it again.	使えなくなった物を、もう一度使えるようにすること。
+1292960:3	録画した番組を再生した。	I played back the programme I had recorded.	録音や録画したものを、音や映像として出すこと。
+
+# ── 総合 (1596380, そうごう) — putting together / comprehensive ──────────────
+1596380:0	みんなの意見を総合して決めた。	We decided by putting everyone's views together.	いくつかのものを一つにまとめること。
+1596380:1	彼は総合病院で働いている。	He works at a general hospital.	いろいろなものを合わせて一つにしているようす。
+
+# ── 行い (1589050, おこない) — a deed / one's conduct ─────────────────────────
+1589050:0	よい行いをした人がほめられた。	The person who did a good deed was praised.	実際にすること。
+1589050:1	日ごろの行いが大切だ。	What matters is how you behave every day.	ふだんの生活の中での態度やふるまい。
+
+# ── 扱い (1153430, あつかい) — treatment of a person / handling a tool ────────
+1153430:0	客としての扱いを受けた。	I was treated as a guest.	人をもてなしたり、相手にしたりする仕方。
+1153430:1	この機械は扱いが難しい。	This machine is hard to operate.	道具や機械を使うこと。
+
+# ── 支持 (1310150, しじ) — backing / holding up ──────────────────────────────
+1310150:0	多くの国民がその政策を支持している。	Many citizens support that policy.	考えや行動に賛成して、力を貸すこと。
+1310150:1	柱が屋根を支持している。	The pillars hold up the roof.	物を下から支えて持つこと。
+
+# ── 詐欺 (1291690, さぎ) — fraud / flaking out on a promise ──────────────────
+1291690:0	祖母が電話で詐欺にあった。	My grandmother was the victim of a phone scam.	人をだまして、お金や品物を取ること。
+1291690:1	すぐ行くと言って来ないなんて詐欺だ。	Saying you'd come straight away and then not showing up is a con.	約束しておいて、実際にはしないこと。
+
+# ── 確保 (1205920, かくほ) — securing ────────────────────────────────────────
+1205920:0	早く行って席を確保した。	I went early and got us seats.	しっかりと手に入れておくこと。
+
+# ── 連中 (1559700, れんちゅう) — a bunch of people ────────────────────────────
+1559700:0	あの連中とは付き合わないほうがいい。	You'd better not get mixed up with that lot.	仲間である人々を、軽く見て言う言葉。
+
+# ── 固定 (1266650, こてい) — fixing in place / keeping the same ────────────────
+1266650:0	棚を壁に固定した。	I fixed the shelf to the wall.	動かないように、しっかり留めること。
+1266650:1	毎月の給料は固定されている。	The monthly salary is fixed.	金額や状態などを、変わらないように決めておくこと。
+
+# ── 地獄 (1421090, じごく) — Hell / a living hell ─────────────────────────────
+1421090:1	悪いことをすると地獄に落ちると言われた。	I was told that if I did wrong I would go to Hell.	死んだ後、悪い行いをした人が落ちて苦しむという所。
+1421090:2	朝の満員電車は地獄だ。	The packed trains in the morning are hell.	非常に苦しい状態や場所。
+
+# ── 派遣 (1471130, はけん) — dispatching / an agency temp ─────────────────────
+1471130:0	国は被災地に医者を派遣した。	The government sent doctors to the disaster area.	仕事をさせるために、人をほかの場所へ送ること。
+1471130:1	彼女は派遣として会社で働いている。	She works at the company as an agency temp.	会社から別の会社へ送られて働く人。
+
+# ── 感染 (1212470, かんせん) — infection / catching an idea ───────────────────
+1212470:0	子どもがかぜに感染した。	The child caught a cold.	病気のもとが体に入ること。
+1212470:1	彼の悪い癖に感染したようだ。	I seem to have picked up his bad habit.	人の考えや行動の影響を受けること。
+
+# ── 進化 (1366000, しんか) — biological evolution / advancing ─────────────────
+1366000:0	人間は猿から進化したと言われる。	Humans are said to have evolved from apes.	生物が長い時間をかけて、形や性質を変えていくこと。
+1366000:1	スマホの技術は年々進化している。	Smartphone technology gets more advanced every year.	物事がよりよい状態へ発展すること。
+
+# ── 一切 (1164170, いっさい) — all of it / (not) at all ──────────────────────
+1164170:0	仕事の一切を彼に任せた。	I left the whole job to him.	あるものすべて。
+1164170:1	私はその件には一切関係がない。	I have absolutely nothing to do with that matter.	全く。少しも。
