@@ -50,6 +50,13 @@
   --conf-3: #c9d65a;
   --conf-4: #7fce6f;
   --conf-5: #3ecb6c; /* mastered */
+  /* The quiz recap's LOST dot (.dot--lost) — confidence this session gave back.
+     A DEDICATED TOKEN, not --conf-0 under an opacity: transparency is not theme-
+     symmetric (it darkens toward a dark background and washes out toward a light
+     one), which put the dot at ~2.2:1 in BOTH themes while every other dot sat at
+     6-8:1. These two are pre-blended to the SAME measured weight, ~4.3:1 on the card
+     surface — plainly subordinate to a solid dot, nowhere near the 1.1:1 empty one. */
+  --conf-lost: #d15b5d;
 
   /* ORDINAL ramp endpoints (frequency / difficulty charts): common+easy → rare+hard.
      Interpolated with color-mix at render time — see services/analyze/palette.ts. */
@@ -104,6 +111,8 @@
   --conf-3: #59760d;
   --conf-4: #1e7a33;
   --conf-5: #0b7248;
+  /* 4.33:1 on white — the same weight #d15b5d carries on the dark surface. */
+  --conf-lost: #d9443d;
 
   --ord-common: #1f9d5c;
   --ord-rare: #2148ac;

@@ -1139,8 +1139,13 @@
   border-color: var(--conf-5);
 }
 
+/* A GHOST of ground given back — red, and visibly weaker than a solid dot, because
+   the word's current standing is the dots to its LEFT. The weakness is baked into
+   --conf-lost rather than applied here as an opacity: a translucent dot changes weight
+   with whatever is behind it, and the two themes put opposite things there. */
 .dot--lost {
-  opacity: 0.35;
+  background: var(--conf-lost);
+  border-color: var(--conf-lost);
 }
 
 /* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
