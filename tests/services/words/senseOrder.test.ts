@@ -19,6 +19,16 @@ describe("orderSenses", () => {
     expect(orderSenses(senses, "顔", "JA", "EN").map((s) => s.wordId)).toEqual(["b0", "b1", "a0", "a1"]);
   });
 
+  // Quality report #30. いい and 謂 (a rare uk noun) share the kana's frequency and 謂
+  // has the lower entry id — jmdict_lookup breaks that tie on is_common, so must this.
+  it("JA→EN: a frequency tie goes to the COMMON entry before the lower entry id", () => {
+    const senses = [
+      w("iu", "いい", { jmdictEntryId: "2672300", frequency: 637, isCommon: false }),
+      w("good", "いい", { jmdictEntryId: "2820690", frequency: 637, isCommon: true }),
+    ];
+    expect(orderSenses(senses, "いい", "JA", "EN").map((s) => s.wordId)).toEqual(["good", "iu"]);
+  });
+
   it("EN→JA keeps the projected rank order", () => {
     const senses = [w("x", "cat", { frequency: 1 }), w("y", "cat", { frequency: 900 })];
     expect(orderSenses(senses, "cat", "EN", "JA").map((s) => s.wordId)).toEqual(["x", "y"]);

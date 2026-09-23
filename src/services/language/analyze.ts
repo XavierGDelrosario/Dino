@@ -34,7 +34,12 @@ export interface AnalyzedToken extends WordToken {
   pos: string | null;
   /** True for a number+counter token merged into one (三本 → さんぼん, lemma 本). The
    *  `reading` is whole-span group ruby and `lemma` points at the counter for lookup. */
-  composite?: boolean;
+  composite?: boolean;  /** True when IPADIC tags the token a PROPER NOUN (名詞-固有名詞, any subcategory).
+   *  People and organizations are already demoted off content POS (see PERSON_NAME_POS);
+   *  this carries the fact for the ones that keep it — places (大東) and IPADIC's
+   *  catch-all — so the reader can drop a name the DICTIONARY doesn't know either
+   *  (lookup.ts, isUnknownName). Absent on every other token. */
+  properNoun?: boolean;
 }
 
 // kuromoji POS tags for INDEPENDENT content words (vs particles 助詞, auxiliaries
@@ -307,6 +312,7 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
       reading,
       lemma,
       pos,
+      ...(t.pos === "名詞" && t.pos_detail_1 === "固有名詞" ? { properNoun: true } : {}),
     });
     kept.push(t);
   }

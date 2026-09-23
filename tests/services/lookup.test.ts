@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeWord, FIXTURE_WORDS } from "@test/fixtures";
 import { createMockSenseProvider, createMockTranslate } from "@test/mockProviders";
+import type { AnalyzedToken } from "@/services/language";
 
 // lookup.ts is READ-only: it surfaces meanings and a display translation but
 // never writes to a user's lists. Mock the data + provider boundaries.
@@ -595,6 +596,69 @@ describe("translateParagraph — katakana the dictionary doesn't have", () => {
     const calls = mockTranslateBatch.mock.calls.map((c) => c[0]);
     expect(calls.find((c) => c.inputs.includes("猫"))?.dictionaryOnly).toBeUndefined();
     expect(calls.find((c) => c.inputs.includes("ゼレンスキー"))?.dictionaryOnly).toBe(true);
+  });
+});
+
+describe("translateParagraph — tokens the dictionary says are not vocabulary", () => {
+  beforeEach(() => {
+    __clearWordsCache();
+    mockTranslate.mockResolvedValue({ translated: true, translation: "", word: null });
+    mockTranslateBatch.mockResolvedValue(new Map<string, Word[]>());
+  });
+
+  const read = async (tokens: AnalyzedToken[], cached: [string, Word[]][]) => {
+    mockAnalyze.mockResolvedValue(tokens);
+    mockFindBatch.mockResolvedValue(new Map(cached));
+    return translateParagraph({ input: "x", sourceLang: "JA", targetLang: "EN" });
+  };
+
+  // Quality report #29. IPADIC tags 乃 an unknown NOUN; JMdict has it only as の.
+  it("drops a word whose every sense is a particle, even when the analyzer said noun", async () => {
+    const res = await read(
+      [{ text: "乃", start: 0, end: 1, reading: null, lemma: null, pos: "名詞" }],
+      [["乃", [
+        makeWord({ input: "乃", translation: "indicates possessive", partOfSpeech: ["prt"] }),
+        makeWord({ input: "乃", translation: "nominalizes verbs", partOfSpeech: ["prt"] }),
+      ]]],
+    );
+    expect(res.meanings.get("乃")).toEqual([]);
+  });
+
+  it("keeps a word with even ONE content sense among its particle senses", async () => {
+    const res = await read(
+      [{ text: "ほど", start: 0, end: 2, reading: null, lemma: null, pos: "名詞" }],
+      [["ほど", [
+        makeWord({ input: "ほど", translation: "extent", partOfSpeech: ["n"] }),
+        makeWord({ input: "ほど", translation: "about", partOfSpeech: ["prt"] }),
+      ]]],
+    );
+    expect(res.meanings.get("ほど")).toHaveLength(2);
+  });
+
+  // Quality reports #25–#28: 大東 / 東島 / 琉球新報 offered with an MT "meaning" that is
+  // just the romanized name.
+  it("drops a proper noun whose only meaning is machine translation", async () => {
+    const res = await read(
+      [{ text: "大東", start: 0, end: 2, reading: "だいとう", lemma: "大東", pos: "名詞", properNoun: true }],
+      [["大東", [makeWord({ input: "大東", translation: "Daito", partOfSpeech: null })]]],
+    );
+    expect(res.meanings.get("大東")).toEqual([]);
+  });
+
+  it("keeps a proper noun the dictionary knows (東京 is vocabulary)", async () => {
+    const res = await read(
+      [{ text: "東京", start: 0, end: 2, reading: "とうきょう", lemma: "東京", pos: "名詞", properNoun: true }],
+      [["東京", [makeWord({ input: "東京", translation: "Tokyo", partOfSpeech: ["n"] })]]],
+    );
+    expect(res.meanings.get("東京")?.[0].translation).toBe("Tokyo");
+  });
+
+  it("keeps an MT-only word that is NOT a proper noun (唐揚げ on the -common- subset)", async () => {
+    const res = await read(
+      [{ text: "唐揚げ", start: 0, end: 3, reading: null, lemma: null, pos: "名詞" }],
+      [["唐揚げ", [makeWord({ input: "唐揚げ", translation: "karaage", partOfSpeech: null })]]],
+    );
+    expect(res.meanings.get("唐揚げ")?.[0].translation).toBe("karaage");
   });
 });
 
