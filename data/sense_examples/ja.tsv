@@ -3475,3 +3475,85 @@
 
 # ── 戯曲 (1225010, ぎきょく) — a play ───────────────────────────────────────
 1225010:0	彼は有名な戯曲を書いた。	He wrote a famous play.	劇として演じるために書かれた作品。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 33 — N1 continued. Everyday words with a surprising specialist sense: 縁側
+# is a veranda and the prized fin-edge of a flatfish, 回送 is forwarding mail and
+# the "Not in Service" sign on a train, 受身 is a passive attitude, the passive
+# voice and the judo break-fall.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 縁側 (1177630, えんがわ) — a veranda / fin-edge meat ───────────────────────
+1177630:0	祖父は縁側でお茶を飲んでいる。	My grandfather is drinking tea on the veranda.	日本の家で、部屋の外側にある細長い板の床。
+1177630:1	この魚は縁側がおいしい。	The fin-edge of this fish is delicious.	平たい魚の、体の縁にある肉。
+
+# ── 脚色 (1226830, きゃくしょく) — adapting for the stage / embellishing ────────
+1226830:0	その小説は映画に脚色された。	That novel was adapted for the screen.	小説などを、劇や映画にするために書き直すこと。
+1226830:1	彼の話には脚色が多い。	His stories are full of embellishment.	事実に手を加えて、おもしろくすること。
+
+# ── 回送 (1199610, かいそう) — forwarding / a train not in service ───────────────
+1199610:0	手紙を新しい住所に回送した。	I forwarded the letter to the new address.	届いた物を、ほかの所へ送ること。
+1199610:1	この電車は回送なので乗れません。	This train is not in service, so you can't board it.	客を乗せずに、電車やバスを走らせること。
+
+# ── 冷淡 (1557150, れいたん) — indifferent / cold-hearted ─────────────────────
+1557150:0	彼は政治に冷淡だ。	He's indifferent to politics.	物事に関心を示さないようす。
+1557150:1	困っている人に冷淡な態度をとった。	They were cold towards someone in trouble.	思いやりがなく、冷たいようす。
+
+# ── 前途 (1393750, ぜんと) — one's prospects ─────────────────────────────────
+1393750:0	若い二人の前途を祝った。	We drank to the young couple's future.	これから先。将来。
+
+# ── 願書 (1218050, がんしょ) — an application form ───────────────────────────
+1218050:0	大学に願書を出した。	I sent in my university application.	入学などを願うときに出す書類。
+
+# ── 先天的 (1388200, せんてんてき) — congenital ─────────────────────────────
+1388200:0	彼は先天的な病気を持っている。	He has a congenital illness.	生まれつき持っているようす。
+
+# ── 落ち葉 (1585070, おちば) — fallen leaves ─────────────────────────────────
+1585070:0	庭の落ち葉を集めた。	I raked up the fallen leaves in the garden.	枯れて木から落ちた葉。
+
+# ── よそ見 (1544190, よそみ) — looking away ──────────────────────────────────
+1544190:0	運転中によそ見をしてはいけない。	You mustn't look away while driving.	見るべき所ではなく、ほかの所を見ること。
+
+# ── 身の上 (1365600, みのうえ) — one's circumstances ──────────────────────────
+1365600:0	彼女は自分の身の上を話した。	She told me her life story.	その人の置かれている立場や、これまでの事情。
+
+# ── 仲人 (1425960, なこうど) — a matchmaker / a go-between ────────────────────
+1425960:0	先生が二人の結婚の仲人をした。	Our teacher was the go-between at the couple's wedding.	結婚の世話をする人。
+1425960:1	商売の仲人として間に入った。	I stepped in as a go-between in the deal.	二つの側の間に入って、話をまとめる人。
+
+# ── 人影 (1580660, ひとかげ) — a figure ─────────────────────────────────────
+1580660:0	夜の公園には人影がなかった。	There wasn't a soul in the park at night.	人の姿。
+
+# ── 駆け足 (1244800, かけあし) — running / rushing through ─────────────────────
+1244800:0	駆け足で駅に向かった。	I ran to the station.	走ること。
+1244800:2	駆け足で京都を見物した。	We rushed round Kyoto.	物事を急いですること。
+
+# ── 受身 (1329860, うけみ) — the defensive / passivity / the passive voice ─────
+1329860:0	試合はずっと受身だった。	We were on the defensive for the whole match.	相手から攻撃を受ける立場。
+1329860:1	彼は何事にも受身だ。	He's passive about everything.	自分からは動かない態度。
+1329860:2	この文を受身に書き換える。	Rewrite this sentence in the passive voice.	文法で、動作を受ける側から言う形。
+
+# ── 鉄棒 (1438030, てつぼう) — the horizontal bar ────────────────────────────
+1438030:1	子どもが公園で鉄棒をしている。	A child is playing on the bar in the park.	体操に使う、鉄の横の棒。
+
+# ── 類推 (1556120, るいすい) — analogy ──────────────────────────────────────
+1556120:0	前の例から結果を類推した。	I guessed the result by analogy with earlier cases.	似ている点をもとに、ほかのことを考えること。
+
+# ── 公団 (1274280, こうだん) — a public corporation ───────────────────────────
+1274280:0	道路は公団が作った。	The road was built by a public corporation.	国が資金を出して作った、公共の事業を行う団体。
+
+# ── 温和 (1589620, おんわ) — mild / gentle ───────────────────────────────────
+1589620:0	この地方は気候が温和だ。	This region has a mild climate.	気候が穏やかで、過ごしやすいようす。
+1589620:1	彼は温和な性格だ。	He has a gentle nature.	性格がやさしく、穏やかなようす。
+
+# ── 陰気 (1170280, いんき) — gloomy ────────────────────────────────────────
+1170280:0	その部屋は暗くて陰気だ。	That room is dark and gloomy.	気持ちや雰囲気が、暗く沈んでいるようす。
+
+# ── 漢語 (1213150, かんご) — a word of Chinese origin ─────────────────────────
+1213150:0	新聞には漢語が多い。	Newspapers use a lot of Sino-Japanese words.	中国から入ってきた、漢字を音で読む言葉。
+
+# ── 実費 (1321410, じっぴ) — actual expenses ─────────────────────────────────
+1321410:0	交通費は実費で払います。	We reimburse actual travel costs.	実際にかかった費用。
+
+# ── 水気 (1371390, みずけ) — moisture ───────────────────────────────────────
+1371390:0	野菜の水気をよく切る。	Drain the vegetables well.	物に含まれている水分。
