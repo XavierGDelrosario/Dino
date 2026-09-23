@@ -1140,7 +1140,14 @@
 }
 
 .dot--lost {
-  opacity: 0.35;
+  /* --conf-0, the ramp's "forgot" red, mirroring gain's --conf-5 at the other end:
+     the two directions are read at a glance from the same scale the reader colours
+     words with, rather than from one colour plus an absence of it. Faded because the
+     dot is a GHOST of ground given back — solid red would read as a current state,
+     which is the one thing it is not (the word's standing is the dots to its left). */
+  background: var(--conf-0);
+  border-color: var(--conf-0);
+  opacity: 0.45;
 }
 
 /* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
