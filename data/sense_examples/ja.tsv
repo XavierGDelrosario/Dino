@@ -2965,3 +2965,92 @@
 
 # ── 動力 (1451660, どうりょく) — motive power ─────────────────────────────────
 1451660:0	この機械は電気を動力にしている。	This machine runs on electricity.	機械を動かす力。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 27 — N1 continued. Words whose second sense is a FEELING of the first: 沸騰
+# is water boiling and a debate boiling over, 感触 is a texture and a hunch about
+# how things went, 破裂 is a pipe bursting and talks breaking down.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 街道 (1204650, かいどう) — a highway / the road to success ─────────────────
+1204650:0	昔の街道に沿って宿が並んでいる。	Inns line the old highway.	昔から、町と町を結んでいる大きな道。
+1204650:1	彼は出世の街道を進んでいる。	He's on the road to the top.	ある目的へ向かう道筋。
+
+# ── 断然 (1419690, だんぜん) — resolutely / by far ────────────────────────────
+1419690:0	私はその案には断然反対だ。	I am flatly opposed to that plan.	きっぱりと。はっきりと。
+1419690:2	こっちの方が断然おいしい。	This one tastes far better.	ほかと比べて、非常に差があるようす。
+
+# ── 誤差 (1271320, ごさ) — a measuring error / a slight difference ────────────
+1271320:0	機械で測っても誤差が出る。	Even measuring with a machine gives some error.	測った値と、本当の値との差。
+1271320:1	少しの遅れは誤差の範囲だ。	Being a little late is close enough.	気にしなくてもいい、小さな違い。
+
+# ── 購買 (1282470, こうばい) — purchasing / the school shop ───────────────────
+1282470:0	若い人の購買の意欲が高まっている。	Young people are keener to spend.	品物を買うこと。
+1282470:1	昼に購買でパンを買った。	I bought some bread at the school shop at lunch.	学校などの中で、生徒に物を売る店。
+
+# ── 内心 (1458550, ないしん) — one's real feelings / deep down ─────────────────
+1458550:0	彼の内心はわからない。	I can't tell what he's really thinking.	心の中。本当の気持ち。
+1458550:1	笑っていたが、内心は怒っていた。	I was smiling, but inside I was angry.	心の中では。
+
+# ── 奮闘 (1504750, ふんとう) — a hard struggle ────────────────────────────────
+1504750:0	みんなの奮闘で店を立て直した。	Everyone's hard work turned the shop around.	力いっぱい努力すること。
+
+# ── 役職 (1538040, やくしょく) — a post / a management post ────────────────────
+1538040:0	彼は委員会で重要な役職についている。	He holds an important post on the committee.	組織の中で受け持つ役目。
+1538040:1	四十歳で初めて役職についた。	I got my first management post at forty.	会社などで、部長や課長などの、人の上に立つ地位。
+
+# ── 感触 (1212440, かんしょく) — the feel of something / an impression ────────
+1212440:0	この布は感触がいい。	This fabric feels nice.	手や肌にさわったときの感じ。
+1212440:1	面接の感触は悪くなかった。	I came away from the interview with a good feeling.	物事の様子から受ける感じ。
+
+# ── 細工 (1295610, さいく) — craftwork / a trick; reading pinned (IPADIC: ざいく) ──
+1295610:0	この箱は細工が細かい。	This box is finely crafted.	手を使って、細かい物を作ること。	さいく
+1295610:1	書類に細工をして数字をごまかした。	They doctored the documents to fudge the figures.	人をだますための仕掛け。	さいく
+
+# ── 中枢 (1424660, ちゅうすう) — the hub / the central nervous system ─────────
+1424660:0	東京は日本の経済の中枢だ。	Tokyo is the hub of Japan's economy.	物事の中心となる、最も大切な所。
+1424660:1	脳は神経の中枢だ。	The brain is the centre of the nervous system.	神経の働きをまとめる所。
+
+# ── 心得 (1360910, こころえ) — know-how / rules to follow ─────────────────────
+1360910:0	彼には茶道の心得がある。	He knows his way around the tea ceremony.	技術などを、よく身につけていること。
+1360910:1	山に登るときの心得を読んだ。	I read the guidelines for mountain climbing.	守るべき決まり。
+
+# ── 道場 (1454220, どうじょう) — a dojo ─────────────────────────────────────
+1454220:0	毎週、空手の道場に通っている。	I go to a karate dojo every week.	武道を習ったり、練習したりする所。
+
+# ── 破裂 (1471470, はれつ) — bursting / talks breaking down ───────────────────
+1471470:0	寒さで水道の管が破裂した。	The water pipe burst in the cold.	中からの力で、勢いよく破れること。
+1471470:1	話し合いは破裂した。	The talks broke down.	話し合いなどが、まとまらずに終わること。
+
+# ── 沸騰 (1501720, ふっとう) — boiling / heated debate / soaring prices ──────────
+1501720:0	湯が沸騰したら火を止める。	Turn off the heat when the water boils.	液体が熱せられて、中から泡が出ること。
+1501720:1	その問題で議論が沸騰した。	The debate over the issue boiled over.	物事が非常に盛り上がること。
+1501720:2	土地の値段が沸騰している。	Land prices are soaring.	値段が急に上がること。
+
+# ── 情緒 (1580510, じょうちょ) — emotion / atmosphere ─────────────────────────
+1580510:0	彼女は情緒が不安定だ。	She is emotionally unstable.	喜んだり怒ったりする心の動き。
+1580510:1	この町には古い情緒が残っている。	This town still has an old-world atmosphere.	その場所が持っている、しみじみとした味わい。
+
+# ── 公募 (1274680, こうぼ) — open recruitment ───────────────────────────────
+1274680:0	市は新しい職員を公募している。	The city is openly recruiting new staff.	広く一般から人や作品を集めること。
+
+# ── 使い道 (1305900, つかいみち) — a use for something ─────────────────────────
+1305900:0	このお金の使い道を考えている。	I'm thinking about what to spend this money on.	物やお金の使い方。
+
+# ── 心中 (1360840, しんじゅう) — a double suicide / going down with ────────────
+1360840:0	二人は心中した。	The two of them took their own lives together.	愛する二人が一緒に死ぬこと。
+1360840:2	この会社と心中する覚悟だ。	I'm ready to go down with this company.	運命を最後まで共にすること。
+
+# ── 同調 (1453120, どうちょう) — going along with / tuning ─────────────────────
+1453120:0	周りの意見に同調した。	I went along with everyone else's opinion.	ほかの人と同じ意見や態度をとること。
+1453120:1	ラジオを放送に同調させる。	You tune the radio to the station.	電波の周波数を合わせること。
+
+# ── 暗示 (1154550, あんじ) — a hint ─────────────────────────────────────────
+1154550:0	その言葉は彼の決意を暗示していた。	Those words hinted at his decision.	はっきり言わずに、それらしく示すこと。
+
+# ── 自在 (1317750, じざい) — at will ────────────────────────────────────────
+1317750:0	彼は三つの言葉を自在に話す。	He speaks three languages with ease.	思いのままにできること。
+
+# ── 大概 (1413230, たいがい) — usually / almost all ───────────────────────────
+1413230:0	日曜日は大概家にいる。	I'm usually at home on Sundays.	ほとんどの場合。たいてい。
+1413230:1	大概の人はその話を知っている。	Almost everyone knows that story.	ほとんど全部。
