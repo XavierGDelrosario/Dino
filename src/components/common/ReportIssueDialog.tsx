@@ -91,7 +91,7 @@ export function ReportIssueDialog({
           ✕
         </button>
         <h3 className="reportdlg__title">{t("report.title")}</h3>
-        <p className="reportdlg__target" title={input}>{input}</p>
+        <p className="reportdlg__target ellipsis" title={input}>{input}</p>
 
         {sent ? (
           <p className="reportdlg__sent">{t("report.sent")}</p>

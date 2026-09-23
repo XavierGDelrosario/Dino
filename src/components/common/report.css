@@ -80,9 +80,6 @@
   margin: 0;
   color: var(--accent);
   font-size: 1.1rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .reportdlg__box {

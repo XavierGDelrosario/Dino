@@ -99,7 +99,7 @@ export function GrantsPanel() {
               {grants.map((g) => (
                 <tr key={g.id}>
                   <td>
-                    <span className="admin__truncate" title={g.note ? `${g.email} — ${g.note}` : g.email}>
+                    <span className="admin__truncate ellipsis" title={g.note ? `${g.email} — ${g.note}` : g.email}>
                       {g.email}
                     </span>
                   </td>

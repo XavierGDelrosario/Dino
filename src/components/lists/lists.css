@@ -84,9 +84,6 @@
      the visible stretch of the scroller; the chip carries the full name in its
      `title`, so nothing is lost. The cap yields to the viewport on a phone, where
      11rem is most of the width. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: min(11rem, 50vw);
 }
 
@@ -149,15 +146,10 @@
   min-width: 0;
 }
 
-/* The list name. Its own box, purely so the ellipsis has a block to apply to; it also
-   keeps the count badge beside it a real sibling, instead of a later item the clipped
-   text pushed out of the row entirely. Full name on hover, same as .chip. */
-.lists__name {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
+/* The list name has no styling of its own — it exists as an element purely so the
+   clamp has a block to apply to, and so the count badge beside it stays a real sibling
+   rather than a later item the overflowing text pushed out of the row. It carries
+   .ellipsis in the markup; see that rule in common.css. */
 
 .lists__count {
   flex: 0 0 auto;
@@ -1401,18 +1393,11 @@
   border-color: var(--accent);
 }
 
-/* ‼️ display: BLOCK. `text-overflow` never applies to a non-replaced INLINE box, so
-   on a bare <span> the ellipsis was declared and inert — exactly the bug .lists__title
-   had for the same reason. Blockified, it clips inside .listcard__open's hidden
-   overflow and the name ends in "…" instead of running under the buttons. */
+/* Clamping is .ellipsis in the markup; .listcard__open supplies the hidden overflow
+   it clips against (the ancestor half the utility cannot provide). */
 .listcard__name {
-  display: block;
   font-size: 1.05rem;
   font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .listcard__count {

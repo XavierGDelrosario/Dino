@@ -94,7 +94,7 @@ export function ProviderHealthPanel() {
                     <td className="admin__nowrap">{expiryCell(p)}</td>
                     <td className="admin__num admin__muted">{formatCount(p.mtCharsUsed, " ch")}</td>
                     <td>
-                      <span className="admin__truncate admin__muted" title={p.quotaNote ?? undefined}>
+                      <span className="admin__truncate ellipsis admin__muted" title={p.quotaNote ?? undefined}>
                         {p.quotaNote ?? "—"}
                       </span>
                     </td>

@@ -341,7 +341,7 @@ export function ListView({
         <h2 className="lists__title">
           {/* Its own element so a name too long for the bar ellipsises instead of
               being cut mid-letter; the full one lives in the tooltip, as on the chip. */}
-          <span className="lists__name" title={selectedList?.listName}>
+          <span className="lists__name ellipsis" title={selectedList?.listName}>
             {selectedList ? selectedList.listName : t("lists.allWords")}
           </span>
           {/* Count reflects the FILTERED set actually shown (equals the list total

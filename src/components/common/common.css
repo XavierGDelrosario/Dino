@@ -262,6 +262,41 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* =========================================================================
+   .ellipsis — one-line clamp ending in "…". The single most re-broken rule in this
+   codebase: it has been written from scratch and got WRONG four separate times
+   (.lists__title, .result, .listcard__name, .profilemenu__email), each time looking
+   like a different bug, because every failure mode is SILENT — the text just wraps,
+   or runs over its neighbours, and nothing warns you.
+
+   THE FIVE DECLARATIONS ARE ONE SET. Drop any and the clamp quietly stops working:
+     display: block      — `text-overflow` NEVER applies to a non-replaced INLINE box,
+                           so on a bare <span> the whole rule is inert. (A flex or grid
+                           item is blockified anyway, so this is free where it's moot.)
+     min-width: 0        — a flex item defaults to min-width:auto and refuses to shrink
+                           below its content, so the clamp never engages in a flex row.
+     overflow: hidden    — without it the text simply PAINTS past its own box, over
+                           whatever sits beside it.
+     white-space: nowrap — without it the text WRAPS to a second line and there is no
+                           overflow left for the ellipsis to mark.
+     text-overflow       — the "…" itself, and the only part anyone remembers.
+
+   ‼️ IT CANNOT FIX AN ANCESTOR. If the element sits inside a flex row, the PARENT
+   needs `min-width: 0` (and often `overflow: hidden`) too, or the parent refuses to
+   shrink and there is nothing to clamp against. That is what .listcard__open needed.
+
+   Pair it with a `title` so the full text stays reachable on hover.
+   tests/components/ellipsis-utility.test.ts pins the set and fails if anyone
+   re-declares `text-overflow` in a component file instead of using this class.
+   ========================================================================= */
+.ellipsis {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .app {
   max-width: 540px;
   margin: 0 auto;
@@ -417,14 +452,15 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+/* Clamping comes from .ellipsis in the markup. This used to declare overflow +
+   text-overflow but NOT white-space, so a long address wrapped and the ellipsis never
+   fired — the same silent failure, a fourth time. */
 .profilemenu__email {
   font-size: 0.72rem;
   color: var(--muted);
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 0.15rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .profilemenu__item {
   display: block;
