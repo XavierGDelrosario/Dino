@@ -3224,3 +3224,89 @@
 # ── 代弁 (1412300, だいべん) — speaking for / paying on someone's behalf ───────
 1412300:0	彼は住民の気持ちを代弁した。	He spoke for the residents.	本人に代わって意見を言うこと。
 1412300:1	会社が損害を代弁した。	The company paid for the damage on his behalf.	本人に代わって、お金を払うこと。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 30 — N1 continued. Mostly words about APPEARANCES and ATTITUDES, where the
+# literal sense and the social one sit side by side: 体裁 is a layout and keeping up
+# appearances, 窮屈 is a tight jacket and a stiff atmosphere, 裸足 is barefoot and
+# "putting the pros to shame". 一気 is held back — it lives in 一気に, which IPADIC
+# keeps as one adverb token.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 一筋 (1575970, ひとすじ) — a single strand / single-minded ─────────────────
+1575970:0	雲の間から一筋の光が差した。	A single ray of light shone through the clouds.	細く長く続く、一本のもの。
+1575970:1	父は四十年、仕事一筋に生きてきた。	My father has lived for nothing but his work for forty years.	一つのことだけに、心を向けるようす。
+
+# ── 融通 (1584900, ゆうずう) — lending money / flexibility ─────────────────────
+1584900:0	友人に資金を融通してもらった。	A friend lent me the money.	お金や物を、必要な人に貸すこと。
+1584900:1	彼は融通がきかない。	He's inflexible.	その場に合わせて、うまく対応すること。
+
+# ── 一心 (1163580, いっしん) — with one's whole heart ────────────────────────
+1163580:1	助かりたい一心で走った。	I ran with only one thought: to get away safe.	一つのことに、心を集中させること。
+
+# ── 錯誤 (1298420, さくご) — a mistake ───────────────────────────────────────
+1298420:0	計算に錯誤があった。	There was an error in the calculations.	事実と考えとが、くい違うこと。まちがい。
+
+# ── 手本 (1328390, てほん) — a model / a copybook ───────────────────────────
+1328390:0	兄はいつも私の手本だった。	My older brother was always my role model.	見習うべき、よい例。
+1328390:1	手本を見ながら字を書く。	I write the characters copying from a model.	書道などで、まねをして書くための見本。
+
+# ── 年長 (1469030, ねんちょう) — older / the top year of kindergarten ──────────
+1469030:0	彼は私より五歳年長だ。	He's five years older than me.	年齢が上であること。
+1469030:1	娘は幼稚園の年長になった。	My daughter moved up to the top year of kindergarten.	幼稚園で、一番上の学年。
+
+# ── 並列 (1508530, へいれつ) — side by side / in parallel ────────────────────
+1508530:0	二つの案を並列して示した。	I set the two plans out side by side.	二つ以上のものを、並べること。
+1508530:1	電池を並列につなぐ。	You connect the batteries in parallel.	電気の回路で、横に並ぶようにつなぐこと。
+
+# ── 無念 (1530770, むねん) — bitter regret ───────────────────────────────────
+1530770:0	決勝で負けて無念だった。	Losing in the final was bitterly disappointing.	悔しく思うこと。
+
+# ── 滑稽 (1208660, こっけい) — comical / ridiculous ───────────────────────────
+1208660:0	彼の滑稽な話にみんなが笑った。	Everyone laughed at his funny story.	おもしろくて、笑いたくなるようす。
+1208660:1	そんなことで怒るなんて滑稽だ。	Getting angry about that is ridiculous.	まじめに考えるのがおかしいほど、くだらないようす。
+
+# ── 窮屈 (1230080, きゅうくつ) — tight / uncomfortable / tight for money ─────────
+1230080:0	この服は窮屈で動きにくい。	These clothes are tight and hard to move in.	空間に余裕がなく、せまいようす。
+1230080:2	上司と一緒の食事は窮屈だ。	Eating with my boss is uncomfortable.	気をつかって、のびのびできないようす。
+1230080:3	今月は家計が窮屈だ。	Money is tight this month.	お金に余裕がないようす。
+
+# ── 消息 (1350250, しょうそく) — news of someone / their whereabouts ───────────
+1350250:0	彼から長い間消息がない。	I haven't heard from him in a long time.	手紙などによる知らせ。
+1350250:1	その登山者は山で消息を絶った。	The climber disappeared on the mountain.	人の様子や、どこにいるか。
+
+# ── 有様 (1541060, ありさま) — the state of things ────────────────────────────
+1541060:0	部屋はひどい有様だった。	The room was in a terrible state.	物事の様子や状態。
+
+# ── 様相 (1545840, ようそう) — an aspect ────────────────────────────────────
+1545840:0	戦いは新しい様相を見せ始めた。	The fighting began to take on a new aspect.	物事の、外に現れた様子。
+
+# ── 日の丸 (1463780, ひのまる) — the Japanese flag ──────────────────────────
+1463780:1	祝日に日の丸を掲げる。	We fly the Japanese flag on national holidays.	日本の国旗。
+
+# ── 納入 (1470090, のうにゅう) — paying fees / delivering goods ───────────────
+1470090:0	学費を期日までに納入してください。	Please pay the school fees by the due date.	税金や料金などを納めること。
+1470090:1	工場に部品を納入した。	We delivered the parts to the factory.	注文を受けた品物を納めること。
+
+# ── 裸足 (1547660, はだし) — barefoot / putting the pros to shame ─────────────
+1547660:0	裸足で砂浜を歩いた。	I walked barefoot on the beach.	足に何もはいていないこと。
+1547660:1	彼の料理はプロも裸足で逃げるほどだ。	His cooking would put a professional chef to shame.	専門の人でもかなわないほど、すぐれていること。
+
+# ── 共鳴 (1235190, きょうめい) — resonance / sympathising with ─────────────────
+1235190:0	二つの音が共鳴している。	The two sounds are resonating.	ある物の振動が、ほかの物に伝わって音が出ること。
+1235190:1	彼の意見に多くの人が共鳴した。	Many people were sympathetic to his view.	人の考えに心から賛成すること。
+
+# ── 体裁 (1409480, ていさい) — how it looks / keeping up appearances ───────────
+1409480:0	この本は体裁がいい。	This book is nicely laid out.	外から見た、形や様子。
+1409480:2	彼は体裁ばかり気にしている。	All he cares about is keeping up appearances.	人からどう見られるかということ。
+
+# ── 名残 (1531530, なごり) — traces / the sadness of parting ──────────────────
+1531530:0	この町には昔の名残がある。	This town still shows traces of the past.	過去の物事が、あとに残した様子。
+1531530:1	友と名残を惜しんで別れた。	We parted, sad to say goodbye.	別れるときの、つらい気持ち。
+
+# ── 効き目 (1591070, ききめ) — an effect ─────────────────────────────────────
+1591070:0	この薬はすぐに効き目が出る。	This medicine works quickly.	薬などの働きや、ききぐあい。
+
+# ── 丸々 (1604260, まるまる) — plump / entirely ─────────────────────────────
+1604260:0	丸々と太った赤ちゃんだ。	It's a chubby little baby.	よく太っているようす。
+1604260:1	丸々一日かかった。	It took an entire day.	全部。そっくりそのまま。
