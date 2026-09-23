@@ -41,7 +41,6 @@ const view = (axis: ListSortAxis, dir: SortDir, data: ListOverview[] = rows) =>
       <ListsOverview
         rows={data}
         loading={false}
-        error={null}
         axis={axis}
         dir={dir}
         onAxis={() => {}}
