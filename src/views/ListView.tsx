@@ -32,6 +32,7 @@ import { ErrorText } from "../components/common/ErrorText";
 import type { UserWord } from "../services/words/userWords";
 import { useStickyState } from "../hooks/useStickyState";
 import "../components/lists/lists.css";
+import { Loading } from "../components/common/Loading";
 
 // Sort AXIS (the four that transfer from the article summary + the vocab-history
 // "added" axis) crossed with a least/most DIRECTION. "added" bundles NEWEST with
@@ -97,6 +98,7 @@ export function ListView({
   const L = useLists(userId);
   const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
+
 
   const [sortAxis, setSortAxis] = useStickyState<SortAxis>(userId, "lists.sortAxis", "added");
   const [sortDir, setSortDir] = useStickyState<SortDir>(userId, "lists.sortDir", "least");
@@ -237,7 +239,11 @@ export function ListView({
 
       <div className="lists__bar">
         <h2 className="lists__title">
-          {selectedList ? selectedList.listName : t("lists.allWords")}
+          {/* Its own element so a name too long for the bar ellipsises instead of
+              being cut mid-letter; the full one lives in the tooltip, as on the chip. */}
+          <span className="lists__name" title={selectedList?.listName}>
+            {selectedList ? selectedList.listName : t("lists.allWords")}
+          </span>
           {/* Count reflects the FILTERED set actually shown (equals the list total
               when no filter is active), not the raw list size. */}
           <span className="lists__count">{rows.length}</span>
@@ -402,7 +408,7 @@ export function ListView({
 
       <ErrorText message={L.error} />
 
-      {L.status === "loading" && <p className="review__msg">{t("common.loading")}</p>}
+      {L.status === "loading" && <p className="review__msg"><Loading text={t("common.loading")} /></p>}
 
       {L.status === "ready" && L.words.length === 0 && (
         <p className="review__msg">
@@ -531,7 +537,7 @@ export function ListView({
             : filtersActive
               ? t("lists.showingFiltered", { shown: rows.length, total: L.words.length })
               : t("lists.showingTotal", { total: L.words.length })}
-          {!L.fullyLoaded && ` · ${t("lists.loadingAll")}`}
+          {!L.fullyLoaded && <> · <Loading text={t("lists.loadingAll")} /></>}
         </p>
       )}
     </section>

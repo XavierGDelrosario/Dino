@@ -21,6 +21,7 @@ import "../common/SenseText.css"; // shared .sense* row/action styles
 // Only offer the Summary infographic once the text is long enough for the
 // distributions to be meaningful (short outputs read fine as-is).
 const SUMMARY_MIN_WORDS = 12;
+import { Loading } from "../common/Loading";
 
 // How long "Forgot" stays visibly spent after a press. Longer than the server's own 2s
 // dedupe window (20260766) on purpose: the guard the USER experiences should be the one
@@ -162,6 +163,44 @@ function ParagraphReaderImpl({
   }, []);
   const cancelHide = useCallback(() => clearTimeout(hideTimer.current), []);
 
+  // ── Tap the same word again to put the card away ────────────────────────────
+  // The card opens on mouseenter, which a touch tap SYNTHESIZES: on iOS the sequence
+  // is touchstart → pointerdown → (touchend) → mouseover → … → click. So a plain
+  // `onClick` that closes whatever is open would close the card the very tap that
+  // opened it — the synthetic mouseenter runs FIRST and the click then sees its own
+  // card sitting there.
+  //
+  // `armed` is therefore latched at POINTERDOWN, the one moment in the gesture that is
+  // still before the synthetic hover: it records whether this word's card was already
+  // open when the finger went down. Only then does the click close it. Works
+  // unchanged with a mouse (hover opens, a click on the same word closes, moving away
+  // and back re-opens) and is per-ELEMENT, not per-word, so two occurrences of the
+  // same word in the paragraph are two independent targets.
+  const openRef = useRef(false);
+  openRef.current = hover !== null;
+  const armed = useRef(false);
+  const armToggle = useCallback((el: HTMLElement) => {
+    armed.current = openRef.current && anchorEl.current === el;
+  }, []);
+  const clickToken = useCallback(
+    (word: string, key: string, reading: string | null, el: HTMLElement) => {
+      if (armed.current) {
+        armed.current = false;
+        clearTimeout(hideTimer.current);
+        anchorEl.current = null;
+        setHover(null);
+        return;
+      }
+      // Not a close, so make sure it's an OPEN. A tap normally opens the card through
+      // the synthetic mouseenter, but once a touch browser considers the element
+      // hovered it may not fire mouseenter again — so the tap after a close would do
+      // nothing and the word would read as dead. `show` is idempotent, so calling it
+      // here costs nothing on the taps where mouseenter did fire.
+      show(word, key, reading, el);
+    },
+    [show],
+  );
+
   // The card is position:fixed (to escape the reader's overflow), so on its own it
   // floats in place while the page scrolls and the word slides out from under it.
   // Re-measuring the anchor on scroll/resize keeps it glued to its word. Keyed on
@@ -274,6 +313,8 @@ function ParagraphReaderImpl({
             className={cls}
             onMouseEnter={interactive ? (e) => show(t.text, wordKey(t), t.reading, e.currentTarget) : undefined}
             onMouseLeave={interactive ? scheduleHide : undefined}
+            onPointerDown={interactive ? (e) => armToggle(e.currentTarget) : undefined}
+            onClick={interactive ? (e) => clickToken(t.text, wordKey(t), t.reading, e.currentTarget) : undefined}
           >
             {t.text}
           </span>
@@ -283,7 +324,7 @@ function ParagraphReaderImpl({
       if (cursor < to) out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
       return out;
     },
-    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, sentences, onTranslateSentence, visibleGloss, tr],
+    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, tr],
   );
 
   // The paragraph flows as one block, EXCEPT that a sentence showing its English is
@@ -429,7 +470,7 @@ function ParagraphReaderImpl({
               disabled={glossLoading}
             >
               {showGloss ? "▾" : "▸"}{" "}
-              {glossLoading ? tr("translate.glossPending") : tr("translate.showEnglish")}
+              {glossLoading ? <Loading text={tr("translate.glossPending")} /> : tr("translate.showEnglish")}
             </button>
           )}
           {canSummarize && showSummary && <AnalyzeInfographic data={summary.data} />}

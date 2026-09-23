@@ -26,6 +26,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { AdminPanel, AdminStatus } from "./AdminPanel";
 import { useAdminResource } from "./useAdminResource";
 import { formatDateTime } from "./format";
+import { Loading, LoadingDots } from "../common/Loading";
 
 const VIEWS: { label: string; status?: QualityStatus }[] = [
   { label: "Open", status: "open" },
@@ -131,7 +132,7 @@ export function QualityPanel() {
             disabled={busy || !ready}
             onClick={submit}
           >
-            {busy ? "Saving…" : "Report issue"}
+            {busy ? <Loading text="Saving…" /> : "Report issue"}
           </button>
           {msg && <span className="admin__muted">{msg}</span>}
         </div>
@@ -224,7 +225,7 @@ export function QualityPanel() {
                       disabled={busyId === r.id}
                       onClick={() => toggleStatus(r)}
                     >
-                      {busyId === r.id ? "…" : r.status === "open" ? "Resolve" : "Reopen"}
+                      {busyId === r.id ? <LoadingDots /> : r.status === "open" ? "Resolve" : "Reopen"}
                     </button>
                   </div>
                 </td>

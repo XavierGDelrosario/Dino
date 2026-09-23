@@ -48,7 +48,7 @@ describe("ImageCropper", () => {
   it("locks both buttons while recognition is in flight", () => {
     const { onCrop, onCancel, button } = setup({ busy: true });
     fireEvent.click(button(/Cancel/i));
-    fireEvent.click(button(/…/));
+    fireEvent.click(button(/\.\.\./)); // the busy button shows the animated dots
     expect(onCrop).not.toHaveBeenCalled();
     expect(onCancel).not.toHaveBeenCalled();
   });

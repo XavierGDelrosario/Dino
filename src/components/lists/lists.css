@@ -109,6 +109,18 @@
   gap: 0.3rem;
 }
 
+/* The name field is sized HERE rather than left at an <input>'s default ~20-character
+   intrinsic width. .chips__new is the last item in a row that scrolls sideways, so
+   every pixel it is wider than the ＋ New list chip it replaced is a pixel the row has
+   to scroll to show it — and what it scrolls past is the lists you were choosing
+   between. 9rem still holds a list name comfortably and usually costs no scroll at all.
+   `flex: 0 0 auto` also drops the global `.input { flex: 1 }`, which means nothing in a
+   shrink-to-fit inline-flex row and only made the field's width a guess. */
+.chips__new .input {
+  flex: 0 0 auto;
+  width: 9rem;
+}
+
 /* header bar: title + the Review / Review All / Summary actions, ONE line.
    The buttons hold their natural width and never wrap their label (a wrapped
    "Review All (123)" grows two lines tall and stops matching its neighbours);
@@ -130,6 +142,17 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* Shrinkable inside .lists__bar, so the un-wrappable action buttons keep their
+     width and the NAME gives way. The ellipsis itself lives on .lists__name — a flex
+     container's own text becomes an anonymous flex item, which `text-overflow` cannot
+     reach, so declaring it here only ever hard-clipped the name mid-letter. */
+  min-width: 0;
+}
+
+/* The list name. Its own box, purely so the ellipsis has a block to apply to; it also
+   keeps the count badge beside it a real sibling, instead of a later item the clipped
+   text pushed out of the row entirely. Full name on hover, same as .chip. */
+.lists__name {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -1029,9 +1052,20 @@
   font-size: 0.95rem;
   color: var(--muted);
   /* Take the row minus the button, and let long meanings wrap instead of pushing
-     the button off the edge. */
-  flex: 1 1 auto;
+     the button off the edge. The basis is 0, NOT auto: the foot wraps (so SenseExample
+     can claim its own line), and wrapping is decided from each item's hypothetical
+     size BEFORE any shrinking — so an auto basis let a long meaning's max-content
+     width bump the speak button down onto a line of its own, left-aligned under the
+     text. At basis 0 the meaning always shares line 1 with the button and takes
+     whatever is left, capped by the row. */
+  flex: 1 1 0;
   min-width: 0;
+}
+
+/* Break inside a word if one meaning is a single long unbroken run (a URL-ish gloss,
+   a long compound) — it would otherwise overflow the capped column. */
+.listrow__meaning-line {
+  overflow-wrap: anywhere;
 }
 
 /* The edit field is the meaning's stand-in, so it claims the same space. */
@@ -1092,6 +1126,21 @@
 .dot--on {
   background: var(--accent);
   border-color: var(--accent);
+}
+
+/* THE QUIZ RECAP ONLY (ConfidenceDots `previous`) — the dots this session moved.
+   Gained takes --conf-5, the ramp's green: the colour a mastered word already wears
+   in the reader and the charts, so "you went up" is the same green everywhere rather
+   than a second success colour invented here. Lost keeps the filled dot and fades it,
+   so the drop reads as ground given back — a dot that simply switched off would be
+   indistinguishable from one the word never had. */
+.dot--gain {
+  background: var(--conf-5);
+  border-color: var(--conf-5);
+}
+
+.dot--lost {
+  opacity: 0.35;
 }
 
 /* The dots as a CONTROL (components/common/ConfidenceDots). Every declaration here
@@ -1186,3 +1235,4 @@
   padding: 1rem 1.1rem;
   text-align: left;
 }
+

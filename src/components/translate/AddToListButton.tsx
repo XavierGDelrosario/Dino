@@ -10,6 +10,7 @@ import type { Word } from "../../services/words/repository";
 import { ListMenu } from "../common/ListMenu";
 import { useI18n } from "../../i18n";
 import "./translate.css";
+import { LoadingDots } from "../common/Loading";
 
 const CHECK_MS = 1000;
 
@@ -87,7 +88,7 @@ export function AddToListButton({
     return <button className={`${className} add--done`} disabled aria-label={t("add.addedAria")}>✓</button>;
   }
   if (phase === "busy") {
-    return <button className={className} disabled>…</button>;
+    return <button className={className} disabled><LoadingDots /></button>;
   }
 
   return (

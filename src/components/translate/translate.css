@@ -329,6 +329,10 @@
      pt is absolute — it would ignore a reader who has raised their browser's default
      font size, which is the one accessibility lever this app doesn't have to build. */
   --io-font: 1.217rem; /* 14.6pt (12.6pt + 2) */
+  /* The TEXT floor — how tall the pair is when the buttons don't need more. It is no
+     longer the button arithmetic: .io__gutter lays those out (see there), so this is
+     just "enough room to read a few lines". */
+  --io-box-min: 8rem;
   display: flex;
   gap: 1rem;
   align-items: stretch;
@@ -337,13 +341,24 @@
   /* Fills the .translate breakout width (so the boxes and the reader match). */
 }
 
-/* Wraps the input textarea so the modality tools (.io__tools) can pin to its
-   corner. Behaves as the left flex box; the textarea fills it. */
+/* The input box and its button gutter, STACKED IN ONE GRID CELL.
+   Both children are placed in the same `box` area, so the gutter sits ON the textarea
+   (inside its rounded border, where the buttons belong) while STILL being a laid-out
+   sibling rather than an overlay — and a grid row is as tall as its tallest item, so
+   the gutter's height goes on driving the box's. That is the whole trick: absolute
+   positioning would put the buttons back in the right place but stop them affecting
+   the height, and a flex ROW keeps the height but puts them outside the box.
+   `position: relative` stays for any genuinely absolute child. */
 .translate__inputwrap {
   position: relative;
   flex: 1 1 0;
   min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-areas: "box";
+}
+
+.translate__inputwrap > * {
+  grid-area: box;
 }
 
 /* The two side-by-side boxes: input (textarea) and output. */
@@ -351,25 +366,24 @@
   flex: 1 1 0;
   min-width: 0;
   font-size: var(--io-font);
-  /* TALL ENOUGH FOR SIX BUTTONS, as a constant.
-     The right edge carries the tool column at the top (clear · draw · mic · camera ·
-     library today) and read-aloud at the bottom, so the box must fit both:
-       6 × 2rem (.io__tool) + 5 × 0.35rem (gap) + 0.4rem (top) + 2.4rem (read-aloud
-       + its offset) = 16.55rem, so 18rem leaves ~1.4rem spare at six buttons and
-       ~3.9rem at today's five.
-     Sized for SIX rather than five so the next modality needs no arithmetic — and
-     ROUNDED UP rather than fitted. This replaced a version that derived the height
-     from a live count of the rendered buttons: it was exact, and being exact is what
-     let a rounded pixel put the last tool under the speaker three times. A constant
-     with room to spare cannot. (max-height is already min(24rem, 55vh) — 22.9rem even
-     on a 667px screen — so it never fights this.) */
-  min-height: 18rem;
-  /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. Everything pinned over a box lives in
-     that one column — .io__tools (clear/draw/mic/camera) at the top, .io__speak at
-     the bottom — so one gutter clears them all, at the top AND the bottom, and the
-     two boxes stay symmetric. Without it, text ran underneath the buttons and was
-     simply unreadable: 0.4rem offset + a 2rem button + 0.4rem of air. Keep this in
-     step with .io__tools/.io__speak `right` and .io__tool `width`. */
+  /* JUST THE TEXT FLOOR NOW. This used to be hand-computed to clear the tallest
+     possible button column, which meant the box was permanently as tall as its rarest
+     state — dead space on a surface whose whole job is a text field.
+     The buttons size the box themselves now: .io__gutter shares this box's GRID CELL,
+     so the row is as tall as whichever of the two is taller, and a tool appearing or
+     leaving moves it. Two earlier attempts at "fit the buttons" derived a height from a
+     live count and let a rounded pixel put the last tool under the speaker; this can't,
+     because nothing is computed — the browser sizes the row from the gutter itself.
+     So all that is left here is "enough room to read a few lines".
+     (max-height is min(24rem, 55vh), which is what stops a tall gutter or a long paste
+     running off the screen.) */
+  min-height: var(--io-box-min);
+  /* RESERVE THE RIGHT EDGE FOR THE BUTTONS. The gutter shares this box's grid cell, so
+     without a gutter of padding the text runs underneath it and is simply unreadable:
+     0.4rem inset + a 2rem button + 0.4rem of air. The output box reserves the same,
+     for its read-aloud, in its own padding shorthand below — which is also what keeps
+     the two boxes symmetric. Keep in step with .io__gutter's padding and .io__tool's
+     width. */
   padding-right: 2.8rem;
   /* Cap the height so a long input/translation scrolls inside the box instead of
      growing the page. Applies to both the textarea and the output panel. */
@@ -627,9 +641,18 @@ textarea.translate__box::-webkit-scrollbar {
     height: 1.75rem;
     font-size: 0.85rem;
   }
-  /* Taller input/output boxes on mobile (1.5× the 8rem default) — more room to
-     read/edit on a narrow screen. */
-  .translate__box {
+  /* ONLY THE OUTPUT SHRINKS. The boxes stack here rather than sitting side by side, so
+     both at full height is a lot of scrolling on a phone — but the button arithmetic
+     (see --io-box-min) is the INPUT's: it carries the tool column at the top AND
+     read-aloud at the bottom, while the output carries read-aloud alone and so has a
+     floor of about 3rem. The input keeps its height; the output gives back 3rem.
+     Do NOT re-introduce a shared shorter height here. The rule this replaced was
+     exactly that — a `.translate__box { min-height: 12rem }` written against an older
+     8rem default, which hit BOTH boxes and put the five-tool column (ending 11.8rem
+     down) straight through read-aloud (starting 9.6rem down): 2.2rem of overlap on
+     every phone. --io-box-min is where a height change belongs, and only down to the
+     floor spelled out there. */
+  .translate__out {
     min-height: 12rem;
   }
 }
@@ -677,13 +700,52 @@ textarea.translate__box::-webkit-scrollbar {
      it drops onto a line of its own UNDER them and reads as the result opening up —
      identical to how .listrow__foot hosts the same component. */
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  /* TOP, not centre: a multi-line meaning must not drag the controls down with it.
+     The confidence dots and the add button are the card's handles — they belong beside
+     the headword, on the first line, wherever the prose ends up. */
+  align-items: flex-start;
+  /* NO space-between. It only ever spread the controls apart on the line they wrapped
+     onto (dots pinned left, Add pinned right, 例 marooned in the middle) — the meaning
+     itself claims the free space instead, below. */
+  gap: 0.4rem 0.75rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.7rem 0.9rem;
+}
+
+/* The sense takes the line and wraps INSIDE itself; the controls beside it are narrow
+   and fixed, so they stay on the first line instead of being pushed off it. The 10rem
+   basis is the floor at which the text would rather send the controls to their own row
+   than be squeezed to two words a line. */
+.result > .sensetext {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* Every control is intrinsically sized. .addwrap in particular was a shrinkable
+   inline-block around a `white-space: nowrap` button, so a long meaning squeezed the
+   wrapper and the button spilled out of it. */
+.result > .dots-wrap,
+.result > .senseex__toggle,
+.result > .addwrap {
+  flex: 0 0 auto;
+}
+
+/* The dots are 7px tall next to ~1.9rem buttons, so top-aligning them literally would
+   float them off the top of the cluster. Give them the buttons' height and centre
+   inside it, so the three controls read as one row. */
+.result > .dots-wrap {
+  min-height: 1.9rem;
+  align-items: center;
+}
+
+/* The example panel is a full-width flex item sitting BEFORE the add button in DOM
+   order, so opening it used to push Add onto a third row underneath. Ordering it last
+   keeps the markup (and the reading order) as SenseExample writes it while the panel
+   still lands at the bottom of the card, under everything it expands. */
+.result > .senseex {
+  order: 1;
 }
 
 .result--primary {
@@ -790,15 +852,38 @@ textarea.translate__box::-webkit-scrollbar {
 /* Handwriting input (Tier-4, native ML Kit Digital Ink). A square "paper" pad
    whose recognized candidates fill the translate input. */
 
-/* Input modality tools, pinned to the input box's top-right corner (pencil now;
-   speech + camera will sit alongside). */
-/* Input modality tools, pinned to the box's top-right corner. Read-aloud sits in the
-   opposite corner (.io__speak); .translate__box is tall enough for both — see there. */
-.io__tools {
-  position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
+/* THE BUTTON GUTTER — the column down the input box's right edge, and the thing that
+   decides how tall the box is.
+   It is a flex SIBLING of the textarea, not an overlay on it. That single fact is what
+   makes the box grow when a tool appears (Manage arriving under limited photo access,
+   the clear ✕ arriving with the first character) and shrink back when it goes: the row
+   is as tall as its tallest child, and the browser does that arithmetic, not us. It is
+   also why the tools can no longer land on top of read-aloud — siblings in normal flow
+   do not overlap, so the bug this replaced is not merely fixed but unavailable.
+   space-between is what keeps the old LOOK: modalities at the top, read-aloud at the
+   bottom, pushed apart by whatever height the box ends up with. */
+.io__gutter {
+  /* Its own grid cell is the whole box (see .translate__inputwrap), so it pins itself
+     to the right edge and stretches the full height — which is what lets
+     space-between hold the two clusters at opposite ends however tall the box is. */
+  justify-self: end;
+  align-self: stretch;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  /* The floor between the two clusters when the box is at its shortest — below this
+     they'd be touching rather than reading as two ends of a column. */
+  gap: 0.35rem;
+  /* Inset from the box's border on every side, so the column reads as sitting IN the
+     field rather than alongside it. */
+  padding: 0.4rem;
+}
+
+/* Input modality tools — the top cluster of the gutter (clear · draw · mic · camera ·
+   library · manage). Static: the gutter places it. */
+.io__tools {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
@@ -814,6 +899,13 @@ textarea.translate__box::-webkit-scrollbar {
   right: 0.4rem;
   bottom: 0.4rem;
   z-index: 2;
+}
+
+/* …except in the input's gutter, where it is a flow item that space-between pushes to
+   the bottom. Left absolute it would have gone on pinning itself to the WRAPPER's
+   corner — i.e. back on top of the tools the moment the box was short. */
+.io__gutter .io__speak {
+  position: static;
 }
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors
@@ -872,7 +964,7 @@ textarea.translate__box::-webkit-scrollbar {
   display: flex;
   /* SIT LOW ENOUGH TO SEE WHAT YOU WROTE. Picking a candidate appends to the input
      box behind this overlay, so a centred pad hid the one thing the user needed to
-     check — and the pad is taller than the boxes (~400px vs 18rem), so centring even
+     check — and the pad is taller than the boxes (~400px vs 15rem), so centring even
      pushed its top ABOVE them. Anchored to the top and nudged down by the textarea's
      first line (0.8rem padding + one 1.6 line at --io-font ≈ 2.75rem, rounded to 3),
      so the growing text stays visible while drawing. The pad spills further below the
@@ -1065,3 +1157,4 @@ textarea.translate__box::-webkit-scrollbar {
   padding-left: 0;
   border-left: none;
 }
+

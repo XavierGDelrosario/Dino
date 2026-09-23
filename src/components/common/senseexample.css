@@ -49,7 +49,9 @@
 }
 
 /* The monolingual definition is the advanced half — subordinate to the sentence, but
-   still readable Japanese, so it keeps a comfortable line height. */
+   still readable Japanese, so it keeps a comfortable line height. A <div>, not a <p>:
+   it now wraps the label AND a reader, and a ParagraphReader nested in a <p> is invalid
+   markup that the browser silently un-nests. */
 .senseex__definition {
   margin: 0.15rem 0 0;
   font-size: 0.9rem;
@@ -74,8 +76,19 @@
   line-height: 2;
 }
 
-/* While the analysis loads the plain sentence is shown, dimmed — the text is readable
-   the whole time, so the colouring arriving is an upgrade rather than a content swap. */
-.senseex__sentence.is-loading {
+/* The definition's reader keeps the definition's own SIZE, not the sentence's. Both
+   render through the same component now, and without this the more subordinate of the
+   two would come back a step LARGER than the sentence it sits under — undoing the
+   hierarchy .senseex__definition sets up two rules above. Line height stays at the
+   reader's 2, which is furigana's, not type hierarchy's. */
+.senseex__reader--definition {
+  font-size: 0.9rem;
+}
+
+/* While the analysis loads the plain prose is shown, dimmed — the text is readable the
+   whole time, so the colouring arriving is an upgrade rather than a content swap. Both
+   pieces load together, so both dim together. */
+.senseex__sentence.is-loading,
+.senseex__definition .is-loading {
   opacity: 0.55;
 }

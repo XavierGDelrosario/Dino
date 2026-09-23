@@ -39,6 +39,7 @@ import { ErrorText } from "../common/ErrorText";
 import { LangPair } from "./LangPair";
 import { InputField } from "../common/InputField";
 import "./lists.css";
+import { LoadingDots } from "../common/Loading";
 
 export function AddWordForm({
   userId,
@@ -273,7 +274,7 @@ export function AddWordForm({
 
       <div className="addword__actions">
         <button className="btn" onClick={translate} disabled={!input.trim() || busy}>
-          {busy ? "…" : t("translate.submit")}
+          {busy ? <LoadingDots /> : t("translate.submit")}
         </button>
         <button
           className="btn btn--primary"

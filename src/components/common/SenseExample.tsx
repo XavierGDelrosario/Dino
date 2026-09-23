@@ -13,12 +13,22 @@
 // and a dead button on every row would read as a broken feature rather than an absent
 // sentence.
 //
-// ‼️ THE SENTENCE RENDERS THROUGH THE READER, not as plain text. That is the whole point
-// of putting a Japanese sentence under a word: every word inside it is furigana'd,
-// coloured by what the reader already knows, and addable on the spot — so looking up one
-// word opens a door to the next. A plain <p> would make the example a dead end.
-// `userId` is what switches it on; without one (a preview, a test) it falls back to
-// plain text rather than failing.
+// ‼️ THE PROSE RENDERS THROUGH THE READER, not as plain text — the example sentence AND
+// the definition. That is the whole point of putting a Japanese sentence under a word:
+// every word inside it is furigana'd, coloured by what the reader already knows, and
+// addable on the spot — so looking up one word opens a door to the next. A plain <p>
+// would make it a dead end.
+//
+// The DEFINITION is the same kind of text and was the odd one out: `definition_source`
+// is monolingual and in the SOURCE language (20260752 renamed it from definition_ja for
+// exactly that reason), so on a JA→EN row it is Japanese prose — usually denser than
+// the example — sitting inert under a sentence where every word was tappable.
+//
+// The GLOSS stays plain, and that asymmetry is the rule rather than an oversight: it is
+// written in the language you already speak, so there is nothing in it to study.
+//
+// `userId` is what switches the reader on; without one (a preview, a test) both fall
+// back to plain text rather than failing.
 import { useState } from "react";
 import { useI18n } from "../../i18n";
 import { ParagraphReader } from "../translate/ParagraphReader";
@@ -49,14 +59,17 @@ export function SenseExample({
   const { t } = useI18n();
 
   // Hooks must run unconditionally, so this is called even when there is nothing to
-  // show; `active` keeps it inert until the panel is actually opened.
+  // show; `active` keeps it inert until the panel is actually opened. The two pieces go
+  // in as fixed SLOTS — a null example still holds index 0 — so the definition can
+  // never be read as the sentence on a row that has only one of them.
   const reader = useSenseExampleReader({
     userId: userId ?? "",
-    text: userId ? example : null,
+    texts: [example, definitionSource],
     sourceLang: sourceLang ?? "JA",
     targetLang: targetLang ?? "EN",
     active: open && Boolean(userId),
   });
+  const [examplePart, definitionPart] = reader.parts;
 
   if (!example && !definitionSource) return null;
 
@@ -93,13 +106,13 @@ export function SenseExample({
       {open && (
         <div className="senseex" onClick={(e) => e.stopPropagation()}>
           {example &&
-            (reader.ready ? (
+            (examplePart.ready ? (
               // The real thing: tappable, knowledge-coloured, furigana'd.
               <div className="senseex__reader">
                 <ParagraphReader
                   text={example}
-                  tokens={reader.tokens}
-                  meaningsByWord={reader.meaningsByWord}
+                  tokens={examplePart.tokens}
+                  meaningsByWord={examplePart.meaningsByWord}
                   saved={reader.saved}
                   confidence={reader.confidence}
                   lists={reader.lists}
@@ -116,10 +129,29 @@ export function SenseExample({
             ))}
           {exampleGloss && <p className="senseex__gloss">{exampleGloss}</p>}
           {definitionSource && (
-            <p className="senseex__definition" lang={prose}>
+            // Same two states as the sentence above, and deliberately the same order of
+            // preference: reader when it's ready, plain prose until then. The LABEL sits
+            // outside either branch — it names the block, so it must not blink in and
+            // out as the analysis lands.
+            <div className="senseex__definition" lang={prose}>
               <span className="senseex__label">{t("sense.definition")}</span>
-              {definitionSource}
-            </p>
+              {definitionPart.ready ? (
+                <div className="senseex__reader senseex__reader--definition">
+                  <ParagraphReader
+                    text={definitionSource}
+                    tokens={definitionPart.tokens}
+                    meaningsByWord={definitionPart.meaningsByWord}
+                    saved={reader.saved}
+                    confidence={reader.confidence}
+                    lists={reader.lists}
+                    onAdd={reader.addWords}
+                    onCreateList={reader.createNamedList}
+                  />
+                </div>
+              ) : (
+                <span className={reader.loading ? "is-loading" : undefined}>{definitionSource}</span>
+              )}
+            </div>
           )}
         </div>
       )}

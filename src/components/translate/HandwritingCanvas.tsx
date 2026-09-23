@@ -18,6 +18,7 @@ import {
 import type { LangCode } from "../../services/language";
 import { useI18n } from "../../i18n";
 import { useTheme } from "../../hooks/useTheme";
+import { LoadingDots } from "../common/Loading";
 
 const PAD_SIZE = 280;
 
@@ -203,7 +204,7 @@ export function HandwritingCanvas({
           {tr("handwriting.clear")}
         </button>
         <button className="btn btn--sm" onClick={recognize} disabled={busy || strokes.length === 0}>
-          {busy ? "…" : tr("handwriting.recognize")}
+          {busy ? <LoadingDots /> : tr("handwriting.recognize")}
         </button>
       </div>
 

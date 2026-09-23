@@ -5,7 +5,7 @@
 // list is chosen, so it's also where it's discarded. The ✕ rides the top-right
 // corner of the SELECTED chip only — one target at a time, so the row can't be
 // mis-clicked into deleting a list you were merely reading past.
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { List } from "../../services/lists";
 import { useI18n } from "../../i18n";
 import { XIcon } from "../common/icons";
@@ -27,9 +27,29 @@ export function ListChips({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const { t } = useI18n();
+  const rowRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // WHY THIS ISN'T `autoFocus`. The chip row scrolls sideways, and `autoFocus` hands
+  // the scrolling of it to the browser — which brings a focused element into view by
+  // CENTRING it in its scroll container. So opening the name field swept the row
+  // sideways and parked the field in the middle of it, with the lists you were
+  // choosing between pushed off both edges, for a field that had simply replaced a
+  // chip sitting still at the end of the row.
+  //
+  // Focus without scrolling, then place the row ourselves. .chips__new is always the
+  // LAST item, so the far right is exactly where the ＋ New list chip just was: the
+  // field appears where the button was, and a row short enough not to scroll doesn't
+  // move at all (scrollLeft clamps to 0). Layout effect, so it lands before paint.
+  useLayoutEffect(() => {
+    if (!creating) return;
+    inputRef.current?.focus({ preventScroll: true });
+    const row = rowRef.current;
+    if (row) row.scrollLeft = row.scrollWidth;
+  }, [creating]);
 
   return (
-    <div className="chips">
+    <div className="chips" ref={rowRef}>
       <button
         className={`chip${selectedListId === null ? " chip--active" : ""}`}
         onClick={() => onSelect(null)}
@@ -64,12 +84,12 @@ export function ListChips({
       {creating ? (
         <span className="chips__new">
           <input
+            ref={inputRef}
             className="input input--sm"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("lists.newListPlaceholder")}
             aria-label={t("lists.newListAria")}
-            autoFocus
           />
           <button
             className="iconbtn"

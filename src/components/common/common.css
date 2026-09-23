@@ -333,6 +333,16 @@ body {
   position: absolute;
   top: 0;
   right: 0;
+  /* THE TOP BAR OUTRANKS THE PAGE. It is chrome — whatever a view has open underneath
+     must not paint over a menu the user just pulled down. Without this the row sat at
+     `z-index: auto` and its panels (z-index 20, inside it) lost to any later sibling
+     that lifted itself: Translate's .translate__toolbar is 30, so the language select
+     showed THROUGH the open profile menu. Setting it here makes the row a stacking
+     context, so the panels ride along and the number only has to be right once.
+     65 = above the tallest page-level popover (ListMenu 60) and below the full-screen
+     modals (.translate__overlay--modal 70, the report dialog 80), which cover the
+     header on purpose and close any menu behind them anyway. */
+  z-index: 65;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -609,4 +619,56 @@ body {
 .tab--active {
   color: var(--text);
   border-bottom-color: var(--accent);
+}
+
+/* ---- Loading ------------------------------------------------------------
+   The one loading affordance (components/common/Loading.tsx): three dots pulsing
+   in turn. Each dot stays in the layout and only its opacity moves, so a message
+   ("Translating...") or a busy button never changes width mid-animation. */
+.loading-dots {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.loading-dots > span {
+  animation: loading-dot 1.2s ease-in-out infinite;
+  opacity: 0.2;
+}
+
+.loading-dots > span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots > span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes loading-dot {
+  0%, 80%, 100% { opacity: 0.2; }
+  40% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots > span { animation: none; opacity: 1; }
+}
+
+/* Startup splash: the mascot alone, centred on the page background, no header.
+   The icon is a transparent cut-out, so it sits on either theme's --bg as-is.
+   index.html paints this same markup before the bundle runs — keep them in step. */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: var(--bg);
+}
+
+.splash__icon {
+  width: 8rem;
+  height: 8rem;
+}
+
+.splash .loading-dots {
+  font-size: 2.5rem;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: 0.1em;
 }

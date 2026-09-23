@@ -16,6 +16,8 @@ import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { HistoryMenu } from "../components/translate/HistoryMenu";
 import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon } from "../components/common/icons";
+import { photoAccess as readPhotoAccess, type PhotoAccess } from "../services/photos/access";
+import { PhotoLibrarySheet } from "../components/translate/PhotoLibrarySheet";
 import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText, type OcrSource } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
@@ -27,6 +29,7 @@ import { ErrorText } from "../components/common/ErrorText";
 import type { Word } from "../services/words/repository";
 import type { MediaSource } from "../services/media/mediawiki";
 import "../components/translate/translate.css";
+import { Loading, LoadingDots } from "../components/common/Loading";
 
 export function TranslateView({
   userId,
@@ -128,9 +131,50 @@ export function TranslateView({
   // an uncropped confirm can skip the canvas round-trip entirely).
   const [photo, setPhoto] = useState<{ url: string; base64: string } | null>(null);
 
+  // iOS LIMITED photo access. Only `"limited"` shows anything; every other value —
+  // including web, where the service answers "full" — renders no Manage button and no
+  // sheet, so this is invisible outside the one case it exists for.
+  //
+  // RE-READ ON RESUME, not just on mount. Both ways out of limited access leave the
+  // app: the system picker is another process, and Change Settings backgrounds us
+  // entirely. Without this the button would still be sitting there after the user had
+  // already granted full access, which is the state it is supposed to report.
+  const [photoAccess, setPhotoAccess] = useState<PhotoAccess>("full");
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  useEffect(() => {
+    if (!ocrAvailable) return;
+    let cancelled = false;
+    const refresh = () => {
+      void readPhotoAccess().then((a) => {
+        if (!cancelled) setPhotoAccess(a);
+      });
+    };
+    refresh();
+    // `visibilitychange` rather than Capacitor's appStateChange: it needs no extra
+    // plugin, fires in the WebView on foreground, and is a no-op on web (where the
+    // service answers "full" anyway).
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ocrAvailable]);
+
   /** Camera or photo library — identical from here on: crop, then recognize. The
    *  source only decides which sheet opens, so the two buttons share this path. */
   const onCamera = async (source: OcrSource = "camera") => {
+    // LIMITED ACCESS TAKES THE IN-APP GRID INSTEAD. The system picker shows the whole
+    // library and quietly returns whatever is tapped, so it never reveals that the
+    // app's own access is narrower — and there is nowhere in it to widen that. The
+    // grid shows the shared photos for what they are and carries Manage. Full access
+    // keeps Apple's picker: it is the better picker and there is nothing to manage.
+    if (source === "library" && photoAccess === "limited") {
+      setLibraryOpen(true);
+      return;
+    }
     setOcrError(null);
     setOcrBusy(true);
     try {
@@ -280,7 +324,11 @@ export function TranslateView({
             rows={4}
             aria-label={tr("translate.inputAria")}
           />
-          {(t.input.trim() !== "" || hwAvailable || ocrAvailable || dictation.available || import.meta.env.DEV) && (
+          {/* THE BUTTON GUTTER. Everything down the box's right edge lives in here, as
+              real layout rather than an overlay, so the box is exactly as tall as the
+              buttons currently need — short with two, taller when Manage or the clear
+              ✕ appears. See .io__gutter. */}
+          <div className="io__gutter">
             <div className="io__tools">
               {/* Order: clear · draw · mic · picture. Clear first because it acts on
                   what's already there; then the three ways to PUT something in, in
@@ -336,7 +384,7 @@ export function TranslateView({
                     aria-label={tr("ocr.capture")}
                     title={tr("ocr.capture")}
                   >
-                    {ocrBusy ? "…" : <CameraIcon />}
+                    {ocrBusy ? <LoadingDots /> : <CameraIcon />}
                   </button>
                   {/* Photo LIBRARY gets its own button rather than an action sheet on
                       the camera: most text worth scanning is already on the phone and
@@ -349,23 +397,23 @@ export function TranslateView({
                     aria-label={tr("ocr.library")}
                     title={tr("ocr.library")}
                   >
-                    {ocrBusy ? "…" : <ImageIcon />}
+                    {ocrBusy ? <LoadingDots /> : <ImageIcon />}
                   </button>
                 </>
               )}
             </div>
-          )}
-          {/* Read-aloud, bottom-right of the box — the opposite corner from the input
-              modalities. The input is spoken in the language of the INPUT ITSELF, since
-              "auto-detect" is not a voice; see speakLang. */}
-          <div className="io__speak">
-            <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
+            {/* Read-aloud, the gutter's BOTTOM cluster — the opposite end from the input
+                modalities. The input is spoken in the language of the INPUT ITSELF,
+                since "auto-detect" is not a voice; see speakLang. */}
+            <div className="io__speak">
+              <SpeakButton className="io__tool" text={t.input} lang={speakLang} />
+            </div>
           </div>
         </div>
         <div className="translate__outwrap">
           <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
             {t.status === "loading" ? (
-              <span className="translate__placeholder">{tr("translate.translating")}</span>
+              <span className="translate__placeholder"><Loading text={tr("translate.translating")} /></span>
             ) : t.output ? (
               t.output
             ) : (
@@ -403,6 +451,28 @@ export function TranslateView({
             />
           </div>
         )}
+
+        {/* THE IN-APP PHOTO LIBRARY (limited access only). It hosts Manage at its own
+            top right, on the grid whose contents Manage changes — a toolbar button
+            next to the text field could only ever have been about something offscreen.
+            A picked photo joins the ordinary crop → recognize path, so from here on it
+            is indistinguishable from a camera shot. */}
+        {libraryOpen && (
+          <PhotoLibrarySheet
+            onClose={() => setLibraryOpen(false)}
+            onPick={(image) => {
+              setLibraryOpen(false);
+              setOcrError(null);
+              setPhoto({ url: `data:image/${image.format};base64,${image.base64}`, base64: image.base64 });
+            }}
+            onAccessChange={(access) => {
+              setPhotoAccess(access);
+              // Granting full access retires this sheet entirely: the next tap on the
+              // library button gets Apple's picker, which is the better one.
+              if (access === "full") setLibraryOpen(false);
+            }}
+          />
+        )}
       </div>
 
       <div className="translate__submit">
@@ -414,7 +484,7 @@ export function TranslateView({
           }}
           disabled={t.status === "loading" || !t.input.trim()}
         >
-          {t.status === "loading" ? "…" : tr("translate.submit")}
+          {t.status === "loading" ? <LoadingDots /> : tr("translate.submit")}
         </button>
       </div>
 
@@ -444,7 +514,7 @@ export function TranslateView({
       {/* The translation shows above as soon as it's ready; the word-by-word reader
           (kuromoji + lookups) streams in after — spinner while it loads. */}
       {t.mode === "paragraph" && t.readerLoading && !t.para && (
-        <p className="reader__loading">{tr("translate.readerLoading")}</p>
+        <p className="reader__loading"><Loading text={tr("translate.readerLoading")} /></p>
       )}
 
       {/* EXPERIMENT — the live reader. Sits between the input and the study section:

@@ -59,8 +59,10 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // SOURCE (input) defaults to the LEARNING language and TARGET (output) to the NATIVE
   // one: you type what you're studying and read its meaning in your own language. The
   // profile effect below pins both once prefs load; both stay changeable in the LangBar.
-  const [source, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
-  const [target, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
+  // …unless this instance is PINNED, in which case these are never read — see the
+  // derived `source`/`target`/`learning` below.
+  const [sourceState, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
+  const [targetState, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
   // Sticky: what you typed survives a tab switch. The RESULTS deliberately don't —
   // they'd be a stale mirror of saved/confidence state.
   const [input, setInput] = useStickyState(userId, "translate.input", "");
@@ -83,7 +85,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // language's words — the input when the user types it, else the OUTPUT, so typing
   // English while learning JA studies the Japanese translation's words. Independent of
   // the translate direction: swapping languages doesn't change what you're learning.
-  const [learning, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
+  const [learningState, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
   // The plain translation in the output box. Set by submit; distinct from study data.
   const [output, setOutput] = useState("");
 
@@ -152,13 +154,34 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   const userPickedLearning = useRef(false);
   const pinnedLearning = pinned?.learning;
   const pinnedNative = pinned?.native;
+
+  // ‼️ A PINNED PAIR IS DERIVED, NOT STORED — it has to win on the FIRST render, not
+  // one render later. It used to be written into the state above by the effect below,
+  // and an effect's `set` lands in the NEXT commit while the callbacks of THIS one
+  // — `submit` among them — keep the old value. Every pinned surface calls `submit`
+  // from its own mount effect, i.e. inside that one stale commit, so the pin never
+  // reached the one call it exists for.
+  //
+  // What that cost, concretely (Learn → picker on English → Media → Study): `learning`
+  // still read JA, so `typedLearning` was false for an English article and submit took
+  // the "translate the input INTO the language you're learning and study THAT" branch.
+  // The article was machine-translated to Japanese — a paid, whole-article MT call —
+  // and the word table then listed JAPANESE vocabulary for an English news story.
+  // ArticleView passing `source`/`target` explicitly papered over those two but not
+  // `learning`, which is the one that picks the branch.
+  //
+  // Deriving makes the pin true everywhere at once and the doc comment on
+  // TranslateLangs ("wins outright") literally so. setSource/setTarget/setLearning
+  // still work for an UNPINNED instance, which is the only kind that has a LangBar.
+  const source: SourceSelection = pinnedLearning ?? sourceState;
+  const target: LangCode = pinnedNative ?? targetState;
+  const learning: LangCode = pinnedLearning ?? learningState;
+
   useEffect(() => {
-    if (pinnedLearning && pinnedNative) {
-      setSource(pinnedLearning);
-      setTarget(pinnedNative);
-      setLearning(pinnedLearning);
-      return;
-    }
+    // Pinned: the pair is already the derived value above, and the profile is never
+    // read into this instance — the text's own language decides, not what the user
+    // happens to study.
+    if (pinnedLearning && pinnedNative) return;
     if (userPickedLearning.current) return;
     setSource(prefs.learning);
     setTarget(prefs.native);

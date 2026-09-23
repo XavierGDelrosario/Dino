@@ -18,6 +18,7 @@ import type { LangCode } from "../services/language";
 import "../components/flashcards/flashcards.css";
 import "./learn.css";
 import "./calibration.css";
+import { Loading } from "../components/common/Loading";
 
 export function CalibrationView({
   userId,
@@ -106,7 +107,7 @@ export function CalibrationView({
   if (status === "loading" || !current) {
     return (
       <section className="review">
-        <p className="review__msg">{t("calib.loading")}</p>
+        <p className="review__msg"><Loading text={t("calib.loading")} /></p>
       </section>
     );
   }

@@ -19,7 +19,6 @@ export const en = {
   "ui.language": "Language",
 
   // app shell
-  "app.startingSession": "Starting session…",
   "app.sessionErrorTitle": "Couldn’t start a session.",
   "tabs.translate": "Translate",
   "tabs.lists": "Lists",
@@ -114,6 +113,21 @@ export const en = {
   "ocr.recognize": "Recognize",
   "ocr.noText": "No text found in the photo.",
   "ocr.error": "Couldn’t read the photo. Try again.",
+  // iOS limited photo access — the Manage button and its sheet.
+  // Just "Manage" — it is a header button on the photo grid, so the sheet's own
+  // title already supplies the noun, and the longer label only restated it. Kept as
+  // the sole accessible name too (no aria-label override): voice-control users
+  // activate a control by its VISIBLE text, so the two must not diverge.
+  "photos.manage": "Manage",
+  "photos.sheetTitle": "Limited photo access",
+  "photos.sheetBody": "DINO can be given more of your photo library.",
+  "photos.selectMore": "Select More Photos…",
+  "photos.changeSettings": "Change Settings",
+  "photos.libraryTitle": "Your photos",
+  "photos.limitedHint": "DINO can only see the photos you\u2019ve shared with it.",
+  "photos.loading": "Loading photos",
+  "photos.none": "No photos shared yet. Use Manage to choose some.",
+  "photos.useThis": "Scan text from this photo",
 
   // generic actions
   "common.add": "Add",
@@ -442,7 +456,6 @@ export const ja: Record<MessageKey, string> = {
   "common.words": "単語",
   "ui.language": "言語",
 
-  "app.startingSession": "セッションを開始しています…",
   "app.sessionErrorTitle": "セッションを開始できませんでした。",
   "tabs.translate": "翻訳",
   "tabs.lists": "リスト",
@@ -534,6 +547,16 @@ export const ja: Record<MessageKey, string> = {
   "ocr.recognize": "読み取る",
   "ocr.noText": "写真から文字が見つかりませんでした。",
   "ocr.error": "写真を読み取れませんでした。もう一度お試しください。",
+  "photos.manage": "管理",
+  "photos.sheetTitle": "写真へのアクセスが制限されています",
+  "photos.sheetBody": "DINO にもっと多くの写真へのアクセスを許可できます。",
+  "photos.selectMore": "写真を追加で選択…",
+  "photos.changeSettings": "設定を変更",
+  "photos.libraryTitle": "写真",
+  "photos.limitedHint": "DINO が見られるのは、共有を許可した写真だけです。",
+  "photos.loading": "写真を読み込み中",
+  "photos.none": "共有された写真がありません。「管理」から選んでください。",
+  "photos.useThis": "この写真から文字を読み取る",
 
   "common.add": "追加",
   "common.cancel": "キャンセル",

@@ -4,6 +4,7 @@
 // repeated error line + "Loading…" placeholder.
 import type { ReactNode } from "react";
 import { ErrorText } from "../common/ErrorText";
+import { Loading } from "../common/Loading";
 
 export function AdminPanel({
   title,
@@ -29,7 +30,7 @@ export function AdminStatus({ error, pending }: { error: string | null; pending:
   return (
     <>
       <ErrorText message={error} className="admin__error" />
-      {pending && !error && <p className="admin__muted">Loading…</p>}
+      {pending && !error && <p className="admin__muted"><Loading text="Loading…" /></p>}
     </>
   );
 }

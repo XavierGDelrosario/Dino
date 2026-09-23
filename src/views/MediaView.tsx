@@ -38,6 +38,7 @@ import { ErrorText } from "../components/common/ErrorText";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, type MessageKey } from "../i18n";
 import "./media.css";
+import { Loading, LoadingDots } from "../components/common/Loading";
 
 const SITE: WikiSite = "wikinews";
 
@@ -195,7 +196,7 @@ export function MediaView({
             onClick={() => void study(a)}
             disabled={loadingUrl !== null}
           >
-            {loadingUrl === a.url ? t("media.loadingArticle") : t("media.study")}
+            {loadingUrl === a.url ? <Loading text={t("media.loadingArticle")} /> : t("media.study")}
           </button>
           <a className="btn btn--ghost" href={a.url} target="_blank" rel="noopener noreferrer">
             {t("media.readOnWikinews")} ↗
@@ -213,7 +214,7 @@ export function MediaView({
         <p className="review__scope">{t("media.intro", { lang: t(LANG_NAME[lang] ?? "lang.JA") })}</p>
         {tab === "browse" && (
           <button className="btn btn--sm" type="button" onClick={() => void load()} disabled={loading}>
-            {loading ? "…" : t("media.refresh")}
+            {loading ? <LoadingDots /> : t("media.refresh")}
           </button>
         )}
       </div>
@@ -242,7 +243,7 @@ export function MediaView({
       <ErrorText message={error ?? favorites.error} />
 
       {!list && listLoading ? (
-        <p className="review__msg">{t("media.loading")}</p>
+        <p className="review__msg"><Loading text={t("media.loading")} /></p>
       ) : list && list.length === 0 ? (
         <p className="review__msg">
           {t(tab === "favorites" ? "media.noFavorites" : "media.noArticles")}

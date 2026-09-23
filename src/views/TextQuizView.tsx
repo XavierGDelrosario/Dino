@@ -16,6 +16,7 @@ import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
 import { softenConfidence } from "../services/review";
+import { addUserWordToList } from "../services/words/userWords";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n } from "../i18n";
@@ -137,6 +138,7 @@ export function TextQuizView({
             word: g.word,
             userWordId: g.userWordId,
             confidence: g.confidence,
+            previousConfidence: g.previousConfidence,
           }))}
           onForgot={async (item) => {
             const res = await softenConfidence({ userWordId: item.userWordId! });
@@ -144,6 +146,9 @@ export function TextQuizView({
             onGraded?.(item.key, res.userWordId, res.confidenceRating);
             return res.confidenceRating;
           }}
+          lists={lists}
+          onTag={(item, id) => addUserWordToList({ userWordId: item.userWordId!, listId: id })}
+          onCreateList={onCreateList}
         />
       </div>
     );

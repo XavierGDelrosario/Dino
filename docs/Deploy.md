@@ -141,9 +141,12 @@ every migration/edge change this session went **staging → verify → prod**.
 - **Env files:** prod = `.env.deploy` (ref `sslz…`), staging = `.env.deploy.staging`
   (ref `jfcb…`). Each holds `SUPABASE_PROJECT_REF` + `SUPABASE_DB_PASSWORD` + the access
   token; deploy scripts pick the file by `DINO_ENV`.
-- **iOS build:** `npm run ios:build` targets PROD; `npm run ios:build:staging`
-  (`DINO_ENV=staging bash scripts/build-ios.sh`) targets staging. A dev *device* can't reach
-  the Mac's `127.0.0.1`, so on-device builds MUST point at a hosted project.
+- **iOS build:** `npm run ios:build` defaults to **STAGING**, so an absent-minded device
+  build can never write to prod; PROD takes an explicit `npm run ios:build:prod`
+  (`DINO_ENV=prod bash scripts/build-ios.sh`, i.e. `.env.deploy`). A dev *device* can't reach
+  the Mac's `127.0.0.1`, so on-device builds MUST point at a hosted project. Check which one
+  actually got baked in rather than trusting the command:
+  `grep -o 'https://[a-z0-9]*\.supabase\.co' ios/App/App/public/assets/index-*.js`.
 - **`ALLOWED_ORIGINS` differs by env:** native reaches the edge via `capacitor://localhost`;
   local web dev via `http://localhost:5173`. Staging is set to both
   (`capacitor://localhost,http://localhost:5173`) so `npm run dev` can point at staging.

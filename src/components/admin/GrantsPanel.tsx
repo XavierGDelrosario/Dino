@@ -8,6 +8,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { AdminPanel, AdminStatus } from "./AdminPanel";
 import { useAdminResource } from "./useAdminResource";
 import { formatDate } from "./format";
+import { Loading } from "../common/Loading";
 
 const FEATURES = ["voice", "camera", "handwriting", "llm", "quota_boost"];
 
@@ -79,7 +80,7 @@ export function GrantsPanel() {
         </label>
         <div className="admin__form-actions">
           <button type="button" className="admin__seg-btn admin__seg-btn--on" disabled={busy || !email.trim()} onClick={submit}>
-            {busy ? "Granting…" : "Grant"}
+            {busy ? <Loading text="Granting…" /> : "Grant"}
           </button>
           {msg && <span className="admin__muted">{msg}</span>}
         </div>
