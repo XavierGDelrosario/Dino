@@ -2800,3 +2800,87 @@
 
 # ── 必然 (1487570, ひつぜん) — inevitable ────────────────────────────────────
 1487570:0	彼が負けたのは必然だった。	His defeat was inevitable.	必ずそうなること。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 25 — N1 continued. Social vocabulary with a quiet second sense: 義理 is
+# obligation but also an in-law, 解剖 is an autopsy and also a close analysis,
+# 反響 is an echo and also how the public reacts.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 追及 (1432480, ついきゅう) — pressing someone on a matter ───────────────────
+1432480:0	記者たちは大臣の責任を追及した。	The reporters pressed the minister on his responsibility.	責任や原因などを、どこまでも厳しく問うこと。
+
+# ── 封鎖 (1499650, ふうさ) — sealing off / freezing funds ─────────────────────
+1499650:0	事故の後、道路が封鎖された。	The road was sealed off after the accident.	出入りできないように、閉じてしまうこと。
+1499650:1	政府はその国の資金を封鎖した。	The government froze that country's funds.	預けたお金を自由に出せないようにすること。
+
+# ── 消去 (1350190, しょうきょ) — deleting ────────────────────────────────────
+1350190:0	間違えてデータを消去してしまった。	I deleted the data by mistake.	消してなくすこと。
+
+# ── 対面 (1410270, たいめん) — meeting in person / facing each other ───────────
+1410270:0	ネットで知り合った友達と初めて対面した。	I met a friend I'd got to know online in person for the first time.	実際に会うこと。
+1410270:1	二人は机をはさんで対面して座った。	The two of them sat facing each other across the desk.	顔を向け合うこと。
+
+# ── 無能 (1530780, むのう) — incompetence ───────────────────────────────────
+1530780:0	上司に無能だと言われた。	My boss called me useless.	物事をする力や才能がないこと。
+
+# ── 万能 (1584530, ばんのう) — all-purpose / all-round ─────────────────────────
+1584530:0	この包丁は万能で、何でも切れる。	This knife is all-purpose and cuts anything.	どんなことにも使えること。
+1584530:1	彼はスポーツ万能だ。	He's good at every sport.	何でもよくできること。
+
+# ── 運賃 (1172820, うんちん) — a fare / shipping costs ─────────────────────────
+1172820:0	バスの運賃が上がった。	Bus fares have gone up.	乗り物に乗るときに払うお金。
+1172820:1	荷物の運賃は重さで決まる。	Shipping costs depend on the weight.	荷物を運ぶために払うお金。
+
+# ── 義理 (1225920, ぎり) — obligation / an in-law ────────────────────────────
+1225920:0	義理で結婚式に出席した。	I went to the wedding out of obligation.	人とのつきあいの上で、しなければならないこと。
+1225920:1	義理の母と一緒に住んでいる。	I live with my mother-in-law.	血のつながりのない親子や兄弟などの関係。
+
+# ── 腐敗 (1497870, ふはい) — rotting / corruption ────────────────────────────
+1497870:0	夏は食べ物の腐敗が早い。	Food goes off quickly in summer.	物がくさること。
+1497870:1	政治の腐敗が問題になっている。	Political corruption has become an issue.	精神や社会が悪くなること。
+
+# ── 終始 (1332820, しゅうし) — throughout ─────────────────────────────────────
+1332820:2	彼は会議の間、終始黙っていた。	He stayed silent throughout the meeting.	始めから終わりまで。ずっと。
+
+# ── 定年 (1435740, ていねん) — retirement age ────────────────────────────────
+1435740:0	父は来年定年を迎える。	My father reaches retirement age next year.	会社などで、仕事をやめることに決められている年齢。
+
+# ── 途上 (1444870, とじょう) — on the way / in the middle of ───────────────────
+1444870:0	学校へ行く途上で友達に会った。	I met a friend on my way to school.	目的地へ向かう途中。
+1444870:1	その国はまだ発展の途上にある。	That country is still developing.	物事がまだ完成していない段階。
+
+# ── 原点 (1262160, げんてん) — the starting point / the origin on a graph ──────
+1262160:0	迷ったときは原点に戻って考える。	When I'm stuck I go back to where I started.	物事の出発点。
+1262160:1	グラフの原点から線を引く。	Draw a line from the origin of the graph.	グラフで、縦と横の線が交わる点。
+
+# ── 家出 (1192030, いえで) — running away from home ──────────────────────────
+1192030:0	少年は親と喧嘩して家出した。	The boy ran away from home after a fight with his parents.	家族に黙って家を出て、帰らないこと。
+
+# ── 区間 (1244120, くかん) — a section of track ──────────────────────────────
+1244120:0	この区間は電車が遅れている。	Trains are delayed on this section of the line.	ある地点からある地点までの間。
+
+# ── 反響 (1480310, はんきょう) — an echo / a public response ───────────────────
+1480310:0	ホールに声の反響が残った。	Our voices echoed around the hall.	音が物に当たって返ってくること。
+1480310:1	その番組は大きな反響を呼んだ。	The programme drew a huge response.	ある出来事に対して、世間が示す反応。
+
+# ── 募金 (1514810, ぼきん) — fundraising ─────────────────────────────────────
+1514810:0	駅の前で募金をしている。	People are collecting money in front of the station.	寄付のお金を広く集めること。
+
+# ── 用紙 (1546290, ようし) — a form / paper ──────────────────────────────────
+1546290:0	申し込みの用紙に名前を書いた。	I wrote my name on the application form.	決まった形式で書きこむための紙。
+1546290:1	コピーの用紙が足りない。	We're running out of copy paper.	ある目的に使う紙。
+
+# ── 解剖 (1199270, かいぼう) — dissection / close analysis ────────────────────
+1199270:0	理科の授業でカエルを解剖した。	We dissected a frog in science class.	生物の体を切って、中を調べること。
+1199270:1	この本は日本の社会を解剖している。	This book takes Japanese society apart.	物事を細かく分けて、調べること。
+
+# ── 主観 (1325180, しゅかん) — personal opinion ───────────────────────────────
+1325180:1	それは君の主観にすぎない。	That's only your personal opinion.	自分一人だけの考え。
+
+# ── 諸君 (1344230, しょくん) — all of you ─────────────────────────────────────
+1344230:0	諸君の健闘を祈る。	I wish you all the best of luck.	多くの人に呼びかけるときの言葉。
+
+# ── 不調 (1493840, ふちょう) — being out of form / a breakdown in talks ─────────
+1493840:0	最近、体が不調だ。	I haven't been feeling well lately.	調子が悪いこと。
+1493840:1	話し合いは不調に終わった。	The talks broke down.	話し合いなどが、まとまらないこと。
