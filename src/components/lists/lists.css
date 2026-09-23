@@ -1270,6 +1270,7 @@
    works around). The row's own target is .listcard__open. */
 .listcard {
   list-style: none;
+  position: relative; /* anchor for the ✕ corner badge */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1292,12 +1293,14 @@
   min-width: 0;
 }
 
-/* The name IS the link. Full-height and flex-1 so the comfortable part of the row
-   still opens the list even though the card is no longer one button. */
+/* The name IS the link. flex-1 + min-width:0 so it YIELDS to the pencil and count
+   instead of shoving them aside, and `overflow: hidden` because without it the text
+   simply painted straight over them — it was shrinking, but nothing was clipping it. */
 .listcard__open {
   appearance: none;
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
   text-align: left;
   background: none;
   border: none;
@@ -1307,15 +1310,40 @@
   cursor: pointer;
 }
 
-.listcard__edit,
-.listcard__del {
+.listcard__edit {
   flex: 0 0 auto;
 }
 
-/* Hard right, past the count, so ✕ never sits where a thumb reaching for the row
-   lands. */
+/* Corner badge, not a row item — the same shape .chips__del uses. Overlapping the
+   card's own border means it costs the head row NO width, which is what gives the
+   name the whole line back, and it puts the destructive control as far from the row's
+   tap target as the card has room for. */
 .listcard__del {
-  margin-left: 0.1rem;
+  appearance: none;
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.listcard__del:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  /* Literal white, matching .btn--danger and .chips__del: this sits on the solid
+     danger red in both themes, and red never gets light enough for dark ink. */
+  color: #fff;
 }
 
 /* The inline rename field replaces the whole head row while it is open. */
@@ -1373,11 +1401,14 @@
   border-color: var(--accent);
 }
 
+/* ‼️ display: BLOCK. `text-overflow` never applies to a non-replaced INLINE box, so
+   on a bare <span> the ellipsis was declared and inert — exactly the bug .lists__title
+   had for the same reason. Blockified, it clips inside .listcard__open's hidden
+   overflow and the name ends in "…" instead of running under the buttons. */
 .listcard__name {
+  display: block;
   font-size: 1.05rem;
   font-weight: 600;
-  /* The row can't scroll sideways, so a long name ellipsises here rather than pushing
-     the count off the card — the same failure .lists__title had. */
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -1393,20 +1424,6 @@
   padding: 0.1rem 0.5rem;
 }
 
-/* The confidence histogram as one bar across both columns. Its segments carry the
-   --conf-N ramp inline (see ListsOverview) because the count decides the width, so the
-   colour has to travel with it. */
-.listcard__bar {
-  display: flex;
-  height: 5px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--surface-2);
-}
-
-.listcard__seg {
-  height: 100%;
-}
 
 /* Back to the overview, above the chips. Text + chevron rather than an icon button:
    it is a navigation step, and the destination's name is the only thing that makes

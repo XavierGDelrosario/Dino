@@ -60,28 +60,6 @@ function sortOverviews(
   return [...all, ...lists];
 }
 
-/** The six confidence buckets as one bar. Renders nothing for an empty list — a bar of
- *  pure background reads as "all at zero" rather than "nothing here yet". */
-function ConfidenceBar({ counts, total }: { counts: number[]; total: number }) {
-  const { t } = useI18n();
-  if (total === 0) return null;
-  return (
-    <span className="listcard__bar" aria-label={t("lists.overviewBarAria")}>
-      {counts.map((n, i) =>
-        n === 0 ? null : (
-          <span
-            key={i}
-            className="listcard__seg"
-            // The SAME red→green ramp the reader colours words with and the charts
-            // use, so a bar segment and the word it counts can never disagree.
-            style={{ width: `${(n / total) * 100}%`, background: `var(--conf-${i})` }}
-          />
-        ),
-      )}
-    </span>
-  );
-}
-
 /** Inline name field with ✓/✕ — the same shape ListChips uses for "New list", so
  *  creating and renaming a list are one gesture rather than two conventions. */
 function NameField({
@@ -157,6 +135,19 @@ function ListCard({
 
   return (
     <li className={`listcard${isAll ? " listcard--all" : ""}`}>
+      {/* OUTSIDE the head row, as a corner badge — the same trick .chips__del uses.
+          In the row it was a third thing competing for width with the name; pinned to
+          the corner it takes no layout at all, so the name gets the whole line back. */}
+      {!isAll && !editing && (
+        <button
+          className="listcard__del"
+          onClick={() => onDelete(row)}
+          title={t("lists.deleteListTitle")}
+          aria-label={t("lists.deleteListTitle")}
+        >
+          <XIcon size={11} />
+        </button>
+      )}
       <div className="listcard__head">
         {editing && row.listId ? (
           <NameField
@@ -184,21 +175,9 @@ function ListCard({
               </button>
             )}
             <span className="listcard__count">{row.wordCount}</span>
-            {!isAll && (
-              <button
-                className="iconbtn iconbtn--danger listcard__del"
-                onClick={() => onDelete(row)}
-                title={t("lists.deleteListTitle")}
-                aria-label={t("lists.deleteListTitle")}
-              >
-                <XIcon size={12} />
-              </button>
-            )}
           </>
         )}
       </div>
-
-      <ConfidenceBar counts={row.confidence} total={row.wordCount} />
 
       {/* A TOGGLE, not always-on: three bars per row across a dozen lists is a wall of
           charts, and this screen's job is "which list". Absent for an empty list, which
