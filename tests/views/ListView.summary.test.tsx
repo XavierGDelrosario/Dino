@@ -76,7 +76,7 @@ const summaryBtn = () => screen.getByRole("button", { name: /Summary/ });
 afterEach(cleanup);
 
 describe("ListView — summary", () => {
-  it("toggles the panel from the button next to Review", () => {
+  it("toggles the panel from the button on the sort line", () => {
     const { container } = view();
     const panel = () => container.querySelector(".lists__summary");
     expect(panel()).toBeNull();
@@ -86,13 +86,25 @@ describe("ListView — summary", () => {
     expect(panel()).toBeNull();
   });
 
-  it("renders ABOVE the add/select/filter row, under the button that opens it", () => {
+  it("renders between the sort row and the words — under its button, over what it describes", () => {
+    // The button moved out of the title bar (with "Review all" present that row ran to
+    // four items and wrapped on a phone) onto the sort line, so the panel follows it.
+    // It must sit BELOW the sort row that opens it and ABOVE the rows it summarises;
+    // anywhere else and the charts describe a set that isn't next to them.
     const { container } = view();
     fireEvent.click(summaryBtn());
     const panel = container.querySelector(".lists__summary")!;
-    const toolbar = container.querySelector(".lists__toolbar")!;
-    // DOCUMENT_POSITION_FOLLOWING (4) = the toolbar comes after the panel.
-    expect(panel.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const sortRow = container.querySelector(".listrows__sort")!;
+    const rows = container.querySelector(".listrows")!;
+    const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(sortRow.compareDocumentPosition(panel) & FOLLOWING).toBeTruthy();
+    expect(panel.compareDocumentPosition(rows) & FOLLOWING).toBeTruthy();
+  });
+
+  it("puts its button on the sort line, not in the title bar", () => {
+    const { container } = view();
+    expect(container.querySelector(".listrows__sort .lists__summarybtn")).not.toBeNull();
+    expect(container.querySelector(".lists__bar .lists__summarybtn")).toBeNull();
   });
 
   it("shows NO coverage pie — a list is 100% known, so the split says nothing", () => {
