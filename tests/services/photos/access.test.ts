@@ -8,8 +8,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.hoisted, because access.ts calls registerPlugin at MODULE scope: the mock factory
 // is hoisted above these declarations and would otherwise close over undefined.
-const { status, presentLimitedPicker, openSettings, isNativePlatform, isPluginAvailable } = vi.hoisted(
+const { status, presentLimitedPicker, openSettings, addListener, isNativePlatform, isPluginAvailable } = vi.hoisted(
   () => ({
+    addListener: vi.fn(),
     status: vi.fn(),
     presentLimitedPicker: vi.fn(),
     openSettings: vi.fn(),
@@ -23,10 +24,16 @@ vi.mock("@capacitor/core", () => ({
     isNativePlatform: () => isNativePlatform(),
     isPluginAvailable: (n: string) => isPluginAvailable(n),
   },
-  registerPlugin: () => ({ status, presentLimitedPicker, openSettings }),
+  registerPlugin: () => ({ status, presentLimitedPicker, openSettings, addListener }),
 }));
 
-import { manageable, photoAccess, selectMorePhotos, openPhotoSettings } from "@/services/photos/access";
+import {
+  manageable,
+  photoAccess,
+  selectMorePhotos,
+  openPhotoSettings,
+  onLibraryChange,
+} from "@/services/photos/access";
 
 /** A native device with the plugin compiled in. */
 const onDevice = () => {
@@ -107,5 +114,38 @@ describe("photo access — widening it", () => {
     // The user is either in Settings or still here; both are visible to them, and the
     // resume re-read covers either outcome.
     await expect(openPhotoSettings()).resolves.toBeUndefined();
+  });
+});
+
+describe("photo access — library change events", () => {
+  it("does nothing off-native", () => {
+    const stop = onLibraryChange(() => {});
+    expect(addListener).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("subscribes to the native event and removes it on unsubscribe", async () => {
+    onDevice();
+    const remove = vi.fn();
+    addListener.mockResolvedValue({ remove });
+    const fn = vi.fn();
+    const stop = onLibraryChange(fn);
+    expect(addListener).toHaveBeenCalledWith("libraryChange", fn);
+    await Promise.resolve();
+    stop();
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a listener that only arrives after the caller already unsubscribed", async () => {
+    onDevice();
+    const remove = vi.fn();
+    let resolve!: (h: { remove: () => void }) => void;
+    addListener.mockReturnValue(new Promise((r) => (resolve = r)));
+    const stop = onLibraryChange(() => {});
+    stop();
+    resolve({ remove });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 });

@@ -5,6 +5,8 @@
 //   status()               -> { status: "full" | "limited" | "denied" | "prompt" }
 //   presentLimitedPicker() -> {} (after the system "select more photos" sheet closes)
 //   openSettings()         -> {} (after handing off to Settings › DINO)
+//   listPhotos() / loadPhoto()  — the in-app grid and the chosen photo
+//   event "libraryChange"  — the visible selection changed (see photoLibraryDidChange)
 //
 // WHY NOT @capacitor/camera. It has pickLimitedLibraryPhotos(), which presents the
 // same system picker — but its completion then calls getLimitedLibraryPhotos(), which
@@ -32,7 +34,7 @@ import PhotosUI
 import UIKit
 
 @objc(PhotoAccessPlugin)
-public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin {
+public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin, PHPhotoLibraryChangeObserver {
     public let identifier = "PhotoAccessPlugin"
     public let jsName = "PhotoAccess"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -42,6 +44,34 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "listPhotos", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "loadPhoto", returnType: CAPPluginReturnPromise),
     ]
+
+    /// Emits "libraryChange" whenever the set of photos this app can see changes.
+    ///
+    /// WHY AN EVENT, when presentLimitedPicker already resolves after the sheet closes:
+    /// the picker's completion runs BEFORE the new selection is committed to the library.
+    /// A fetch made from it still returns the OLD selection, so the grid only caught up
+    /// on the next visit. The change observer fires once the commit lands — and also when
+    /// the selection is edited in Settings › DINO, which nothing else reports.
+    ///
+    /// Registered lazily from listPhotos, never at load: registering a change observer
+    /// before the user has answered the photo prompt can raise that prompt itself.
+    private var observing = false
+
+    private func observeLibrary() {
+        guard !observing else { return }
+        observing = true
+        PHPhotoLibrary.shared().register(self)
+    }
+
+    deinit {
+        if observing { PHPhotoLibrary.shared().unregisterChangeObserver(self) }
+    }
+
+    public func photoLibraryDidChange(_ changeInstance: PHChange) {
+        DispatchQueue.main.async { [weak self] in
+            self?.notifyListeners("libraryChange", data: [:])
+        }
+    }
 
     /// `.readWrite`, matching what @capacitor/camera's checkPermissions reads, so the
     /// two can never disagree about the same grant.
@@ -96,6 +126,9 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func listPhotos(_ call: CAPPluginCall) {
         let limit = call.getInt("limit") ?? 60
         let edge = CGFloat(call.getInt("thumbSize") ?? 240)
+        // Only ever asked for once access has been granted (the grid is the limited-case
+        // UI), so this is the safe moment to start watching.
+        observeLibrary()
 
         DispatchQueue.global(qos: .userInitiated).async {
             let options = PHFetchOptions()
