@@ -821,8 +821,12 @@ async function fetchVerified(
   } else {
     // JA→EN: MATCH jmdict_lookup's ranking so the cached primary equals the lookup's
     // even for a multi-ENTRY word (顔). sense_pos alone scrambled sense-0 ties.
+    // is_common breaks a frequency TIE before entry id, as jmdict_lookup does: いい
+    // shares its kana frequency with 謂 (a rare uk noun that happens to have the lower
+    // entry id), and without this the cached primary for いい was "what was said".
     query = query
       .order("frequency", { ascending: false, nullsFirst: false })
+      .order("is_common", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
       .order("sense_rank", { ascending: true, nullsFirst: false });
   }
@@ -853,6 +857,7 @@ function sortBySensePos(rows: WordRow[], reverseIntoJa = false): WordRow[] {
     if (a.frequency != null && b.frequency != null && a.frequency !== b.frequency) {
       return b.frequency - a.frequency;
     }
+    if ((a.is_common === true) !== (b.is_common === true)) return a.is_common === true ? -1 : 1;
     return byEntry(a, b) || bySensePos(a, b);
   });
 }
@@ -885,6 +890,7 @@ async function fetchVerifiedMany(
       // Same ranking as fetchVerified. Each term lands in ONE chunk, so a word's
       // senses are always ordered within their own query.
       .order("frequency", { ascending: false, nullsFirst: false })
+      .order("is_common", { ascending: false, nullsFirst: false })
       .order("jmdict_entry_id", { ascending: true, nullsFirst: false })
       .order("sense_rank", { ascending: true, nullsFirst: false });
     if (error) throw new Error(error.message);

@@ -98,6 +98,10 @@ describe("analyze — Japanese (kuromoji)", () => {
       const posOf = (s: string) => toks.find((t) => t.text === s)?.pos ?? null;
       expect(isContentPos(posOf("田中"))).toBe(false); // 固有名詞-人名 → not vocabulary
       expect(isContentPos(posOf("東京"))).toBe(true); // 固有名詞-地域 → a real word
+      // …but it is still MARKED a proper noun, so lookup can drop it when the dictionary
+      // doesn't know it either (大東 → MT "Daito"). An ordinary noun carries no mark.
+      expect(toks.find((t) => t.text === "東京")?.properNoun).toBe(true);
+      expect(toks.find((t) => t.text === "写真")?.properNoun).toBeUndefined();
       // Unknown/modern katakana is tagged 名詞-一般, NOT 固有名詞-組織 — so demoting
       // organizations does not cost the learner loanwords.
       expect(isContentPos(posOf("スマホ"))).toBe(true);

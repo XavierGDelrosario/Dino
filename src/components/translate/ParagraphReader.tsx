@@ -307,14 +307,21 @@ function ParagraphReaderImpl({
         if (t.start < from || t.end > to) return; // belongs to another sentence
         if (t.start > cursor) out.push(gap(text.slice(cursor, t.start), cursor, `${key}-gap-${i}`));
         const { cls, interactive } = classFor(t);
+        // A merged number + counter (三キロ, 三本) reads as one span in the text, so its
+        // whole-span ruby lands right — but its meanings are the COUNTER's. Head the
+        // card with the counter too, or it presents "三キロ" as meaning "kilo-; 1000"
+        // (quality report #31). The reading is left to the sense (キロ, ほん): the
+        // euphonic さんぼん belongs to the phrase, not to the word being defined.
+        const head = t.composite && t.lemma ? t.lemma : t.text;
+        const headReading = t.composite ? null : t.reading;
         out.push(
           <span
             key={`${key}-tok-${i}`}
             className={cls}
-            onMouseEnter={interactive ? (e) => show(t.text, wordKey(t), t.reading, e.currentTarget) : undefined}
+            onMouseEnter={interactive ? (e) => show(head, wordKey(t), headReading, e.currentTarget) : undefined}
             onMouseLeave={interactive ? scheduleHide : undefined}
             onPointerDown={interactive ? (e) => armToggle(e.currentTarget) : undefined}
-            onClick={interactive ? (e) => clickToken(t.text, wordKey(t), t.reading, e.currentTarget) : undefined}
+            onClick={interactive ? (e) => clickToken(head, wordKey(t), headReading, e.currentTarget) : undefined}
           >
             {t.text}
           </span>

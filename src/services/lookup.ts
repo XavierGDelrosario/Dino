@@ -189,6 +189,38 @@ function isJunkKatakana(surface: string, senses: Word[]): boolean {
 }
 
 /**
+ * True for a PROPER NOUN the dictionary does not know — every sense is machine
+ * translation (no POS; see isJunkKatakana for why "no POS" identifies MT here).
+ * Quality reports #25–#28: 大東, 東島, 琉球新報 were offered as vocabulary with an MT
+ * "meaning" that is just the romanized name ("Daito"). A place the dictionary DOES know
+ * (東京, アメリカ) has POS'd senses and stays; so does a real word IPADIC mis-tags as a
+ * name, as long as JMdict has it. Gated on the analyzer's proper-noun tag, so a real
+ * word left MT-only by the dev `-common-` subset (唐揚げ) is untouched.
+ */
+function isUnknownName(token: AnalyzedToken, senses: Word[]): boolean {
+  return token.properNoun === true && senses.length > 0 && senses.every((s) => !s.partOfSpeech?.length);
+}
+
+/** JMdict POS tags for function words — a particle, an auxiliary, the copula. */
+const GRAMMAR_POS = new Set(["prt", "aux", "aux-v", "aux-adj", "cop"]);
+
+/**
+ * True when EVERY sense the dictionary gave for a reader token is a function word —
+ * quality report #29, 乃: JMdict has it only as the particle の, but IPADIC tags it an
+ * unknown NOUN, so the POS gate in the reader waves it through and it is offered as
+ * vocabulary. The analyzer's POS is the first gate; this lets the DICTIONARY overrule
+ * it when the analyzer had no idea. A word with even one content sense stays (の as a
+ * noun is not a thing, but a homograph with one real meaning must remain addable), and
+ * a sense with no POS at all (an MT row) never counts as grammar.
+ */
+function isGrammarOnly(senses: Word[]): boolean {
+  return (
+    senses.length > 0 &&
+    senses.every((s) => (s.partOfSpeech?.length ?? 0) > 0 && s.partOfSpeech!.every((p) => GRAMMAR_POS.has(p)))
+  );
+}
+
+/**
  * Ask the dictionary which of kuromoji's adjacent-noun runs are actually ONE word and
  * merge those — the I/O half of the compound fix (the span logic is pure, in
  * language/compounds.ts).
@@ -459,7 +491,8 @@ export async function translateParagraph(params: {
     const key = wordKey(token);
     if (!meanings.has(key)) {
       const senses = meaningsByKey.get(keyOf(token)) ?? [];
-      meanings.set(key, isJunkKatakana(token.text, senses) ? [] : senses);
+      const drop = isJunkKatakana(token.text, senses) || isGrammarOnly(senses) || isUnknownName(token, senses);
+      meanings.set(key, drop ? [] : senses);
     }
   }
 

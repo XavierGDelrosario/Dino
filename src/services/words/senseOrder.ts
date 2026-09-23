@@ -24,7 +24,7 @@ function isReverseIntoJa(sourceLang: string, targetLang: string): boolean {
  * Order one term's senses. `senses` must arrive in the database's sense order (sense_rank)
  * — every step here is a STABLE sort, so that order survives inside each entry.
  *
- *   1. JA→EN: frequency DESC (nulls last), then entry — so a multi-entry word's primary
+ *   1. JA→EN: frequency DESC (nulls last), then common, then entry — so a multi-entry word's primary
  *      is its most common entry, as jmdict_lookup ranks it. EN→JA keeps the rank order.
  *   2. A kanji term ranks in four tiers: written this way AND common, common, written
  *      this way, the rest (migration 20260769). 為 → ため, not 為 read い (a koto string).
@@ -38,6 +38,9 @@ export function orderSenses(senses: Word[], term: string, sourceLang: string, ta
       if (a.frequency != null && b.frequency != null && a.frequency !== b.frequency) {
         return b.frequency - a.frequency;
       }
+      // A frequency TIE goes to the common entry, as jmdict_lookup breaks it: いい and
+      // 謂 (a rare uk noun) share the kana's frequency, and 謂 has the lower entry id.
+      if ((a.isCommon === true) !== (b.isCommon === true)) return a.isCommon === true ? -1 : 1;
       const ea = a.jmdictEntryId ?? "", eb = b.jmdictEntryId ?? "";
       return ea === eb ? 0 : ea < eb ? -1 : 1;
     });
