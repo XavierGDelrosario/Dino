@@ -76,7 +76,7 @@ export function ErrorLogPanel() {
                   {/* Raw input is unbounded — clamp it (title carries the full value)
                       or one long paste stretches the table past the panel. */}
                   <td>
-                    <span className="admin__truncate" title={r.input ?? undefined}>
+                    <span className="admin__truncate ellipsis" title={r.input ?? undefined}>
                       {r.input ?? "—"}
                     </span>
                   </td>

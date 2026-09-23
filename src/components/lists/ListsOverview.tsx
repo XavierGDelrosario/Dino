@@ -160,7 +160,7 @@ function ListCard({
             {/* The NAME is the target, not the whole card: the card also carries three
                 controls, and a <button> cannot contain buttons. */}
             <button className="listcard__open" onClick={() => onOpen(row.listId)}>
-              <span className="listcard__name">{row.listName ?? t("lists.allWords")}</span>
+              <span className="listcard__name ellipsis">{row.listName ?? t("lists.allWords")}</span>
             </button>
             {/* ALL is virtual — there is no `lists` row to rename or delete, which is
                 why it carries neither control rather than carrying disabled ones. */}
@@ -274,7 +274,7 @@ export function ListsOverview({
         </div>
       ) : (
         <button
-          className="chip chip--ghost listsoverview__add"
+          className="chip ellipsis chip--ghost listsoverview__add"
           onClick={() => setCreating(true)}
         >
           {t("lists.newList")}

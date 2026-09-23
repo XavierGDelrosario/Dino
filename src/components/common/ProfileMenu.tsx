@@ -30,7 +30,7 @@ export function ProfileMenu({
 
   return (
     <PopoverMenu icon="👤" ariaLabel={t("profile.menuAria")} open={open} onToggle={onToggle}>
-      {!isAnonymous && email && <div className="profilemenu__email">{email}</div>}
+      {!isAnonymous && email && <div className="profilemenu__email ellipsis">{email}</div>}
       <ThemeToggle />
       {/* Guests have no real account → no profile; just the sign-in/create path. */}
       {!isAnonymous && (

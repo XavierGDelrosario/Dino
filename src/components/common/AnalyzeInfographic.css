@@ -176,9 +176,6 @@
   font-size: 0.78rem;
   color: var(--text, #e7e9ee);
   text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .agx-bar__track {

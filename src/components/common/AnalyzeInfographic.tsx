@@ -49,7 +49,7 @@ function Bars({ series, showKnowledge }: { series: InfographicSeries; showKnowle
         const fill = bucketColor(series.kind, b);
         return (
           <div className="agx-bar" key={b.key} title={showK ? `${b.label}: ${b.known}/${b.value} known` : `${b.label}: ${b.value}`}>
-            <span className="agx-bar__label">{b.label}</span>
+            <span className="agx-bar__label ellipsis">{b.label}</span>
             <span className="agx-bar__track">
               <span className="agx-bar__fill" style={{ width: `${(b.value / max) * 100}%`, background: fill }} />
               {showK && b.known! > 0 && (

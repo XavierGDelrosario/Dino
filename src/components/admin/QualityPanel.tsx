@@ -192,12 +192,12 @@ export function QualityPanel() {
                 <td>
                   {/* A reported input can be a whole sentence — clamp it, keep the
                       description as the column that's allowed to wrap. */}
-                  <span className="admin__bucket admin__truncate" title={r.input}>{r.input}</span>
+                  <span className="admin__bucket admin__truncate ellipsis" title={r.input}>{r.input}</span>
                   {/* The exact SENSE, when the reporter's surface knew it. This is the
                       difference between "辛い is wrong" and "辛い/spicy is wrong", and
                       with no description it is often the only detail there is. */}
                   {r.dictionaryWordId && (
-                    <span className="admin__sense admin__truncate" title={r.dictionaryWordId}>
+                    <span className="admin__sense admin__truncate ellipsis" title={r.dictionaryWordId}>
                       {senses.get(r.dictionaryWordId)?.translation ?? "(sense no longer cached)"}
                     </span>
                   )}

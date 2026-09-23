@@ -188,11 +188,7 @@
    a `td` is advisory in an auto-layout table, which is why the old rule never
    actually clamped anything. */
 .admin__truncate {
-  display: block;
   max-width: 18rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .admin__error {

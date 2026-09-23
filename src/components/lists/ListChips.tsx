@@ -51,7 +51,7 @@ export function ListChips({
   return (
     <div className="chips" ref={rowRef}>
       <button
-        className={`chip${selectedListId === null ? " chip--active" : ""}`}
+        className={`chip ellipsis${selectedListId === null ? " chip--active" : ""}`}
         onClick={() => onSelect(null)}
       >
         {t("lists.allChip")}
@@ -61,7 +61,7 @@ export function ListChips({
         // shares a positioned wrapper and the ✕ hangs off the corner.
         <span className="chips__item" key={l.listId}>
           <button
-            className={`chip${selectedListId === l.listId ? " chip--active" : ""}`}
+            className={`chip ellipsis${selectedListId === l.listId ? " chip--active" : ""}`}
             onClick={() => onSelect(l.listId)}
             // The chip ellipsises a long name, so the full one lives on hover.
             title={l.listName}
