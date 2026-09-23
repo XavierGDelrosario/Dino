@@ -319,23 +319,26 @@ export function ListView({
 
   return (
     <section className="lists">
-      {/* Back to the index. The chips stay BELOW it: once you are inside a list they are
-          a fast way to hop to a neighbour, which is the one job they were always good
-          at — it was being the only door that made them cramped. */}
-      {overviewSupported && (
-        <button className="lists__back" onClick={() => setBrowsing(true)}>
-          ‹ {t("lists.backToLists")}
-        </button>
-      )}
-      <ListChips
-        lists={L.lists}
-        selectedListId={L.selectedListId}
-        onSelect={L.setSelectedListId}
-        onCreate={L.addList}
-        onDelete={(l) => {
-          if (confirm(t("lists.deleteConfirm", { name: l.listName }))) L.deleteListById(l.listId);
-        }}
-      />
+      {/* "Lists" sits BESIDE the chips, on their line but OUTSIDE their scroller: it is
+          the way out of this screen, so it must not slide away as the chips scroll —
+          which is exactly what would happen if it were a chip among them. The chips
+          keep the rest of the line and scroll under it. */}
+      <div className="lists__nav">
+        {overviewSupported && (
+          <button className="lists__back" onClick={() => setBrowsing(true)}>
+            ‹ {t("lists.backToLists")}
+          </button>
+        )}
+        <ListChips
+          lists={L.lists}
+          selectedListId={L.selectedListId}
+          onSelect={L.setSelectedListId}
+          onCreate={L.addList}
+          onDelete={(l) => {
+            if (confirm(t("lists.deleteConfirm", { name: l.listName }))) L.deleteListById(l.listId);
+          }}
+        />
+      </div>
 
       <div className="lists__bar">
         <h2 className="lists__title">
@@ -391,30 +394,9 @@ export function ListView({
                 {t("lists.reviewAll", { n: visible.length })}
               </button>
             )}
-            {/* Same set as Review, described instead of quizzed. */}
-            <button
-              className={`btn btn--sm lists__reviewbtn${panel === "summary" ? " btn--primary" : ""}`}
-              onClick={() => setPanel((p) => (p === "summary" ? null : "summary"))}
-              aria-expanded={panel === "summary"}
-              title={t("lists.summaryTitle")}
-            >
-              {t("lists.summaryBtn")}
-            </button>
           </>
         )}
       </div>
-
-      {/* Charts for the filtered set, directly under the button that opens them (which
-          lives in the title bar) — so the summary sits ABOVE the add/select/filter row
-          rather than below everything those panels can open. No coverage pie: every word
-          here is already in the vocabulary, so known/new is 100/0 by construction — see
-          summarizeUserWords. No word count either: the title chip and the row count
-          already carry it. */}
-      {panel === "summary" && summary && (
-        <div className="lists__summary">
-          <AnalyzeInfographic data={summary.data} />
-        </div>
-      )}
 
       {/* The ACTIONS row: add · select · filter. The buttons STAY PUT — whichever
           panel they open renders below the whole row (in the page flow, pushing the
@@ -538,6 +520,19 @@ export function ListView({
             onDir={setSortDir}
           />
 
+          {/* Summary belongs HERE, not in the title bar. It describes exactly the set
+              sort and search produce, so it reads as one of the controls over the rows
+              — and the title bar could not hold it: with "Review all N" present that
+              row ran to four items and wrapped on a phone. */}
+          <button
+            className={`btn lists__summarybtn${panel === "summary" ? " btn--primary" : ""}`}
+            onClick={() => setPanel((p) => (p === "summary" ? null : "summary"))}
+            aria-expanded={panel === "summary"}
+            title={t("lists.summaryTitle")}
+          >
+            {t("lists.summaryBtn")}
+          </button>
+
           <div className="listrows__search">
             {/* Decorative — the input already carries the label. */}
             <span className="listrows__searchicon" aria-hidden="true">
@@ -562,6 +557,17 @@ export function ListView({
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Charts for exactly the set sort and search produce, directly under the button
+          that opens them and directly above the rows they describe. No coverage pie:
+          every word here is already in the vocabulary, so known/new is 100/0 by
+          construction — see summarizeUserWords. No word count either; the title chip
+          and the row count already carry it. */}
+      {panel === "summary" && summary && (
+        <div className="lists__summary">
+          <AnalyzeInfographic data={summary.data} />
         </div>
       )}
 

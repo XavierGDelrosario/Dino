@@ -208,6 +208,18 @@
   flex-wrap: wrap;
 }
 
+/* Pushed to the far end of the sort line, away from the sort + search pair it is not
+   part of: those two change WHICH rows show, this one describes whatever they left.
+   FULL-SIZE, not .btn--sm: at the small size it sat a few pixels from the sort flip
+   control and was easy to hit by mistake, and a mis-tap here swaps the whole view for
+   a chart. It matches Add word / Select / Filter, which is what it is — an action on
+   the rows, not a modifier of them. */
+.lists__summarybtn {
+  margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .listrows__search {
   position: relative;
   display: flex;
@@ -1413,12 +1425,33 @@
 /* Back to the overview, above the chips. Text + chevron rather than an icon button:
    it is a navigation step, and the destination's name is the only thing that makes
    "back" unambiguous on a tab that has two screens. */
+/* "Lists" + the chip scroller on ONE line. The button is fixed and the chips take the
+   rest and scroll UNDER it, so the way out of this screen can never slide off the
+   left edge — which is what would happen if it rode inside the scroller. */
+.lists__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The chips yield the button's width, then scroll within whatever is left. */
+.lists__nav .chips {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .lists__back {
-  align-self: flex-start;
+  flex: 0 0 auto;
+  /* A hairline between the button and the scroller, so a chip sliding past it reads as
+     passing BEHIND a fixed control rather than merging into the row. */
+  border-right: 1px solid var(--border);
   appearance: none;
   background: none;
-  border: none;
-  padding: 0.2rem 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  padding: 0.2rem 0.55rem 0.2rem 0;
   color: var(--muted);
   font: inherit;
   font-size: 0.9rem;
