@@ -2032,3 +2032,84 @@
 # ── 一切 (1164170, いっさい) — all of it / (not) at all ──────────────────────
 1164170:0	仕事の一切を彼に任せた。	I left the whole job to him.	あるものすべて。
 1164170:1	私はその件には一切関係がない。	I have absolutely nothing to do with that matter.	全く。少しも。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 16 — N1 continued: the vocabulary of news and office life, where the second
+# sense is the one a learner actually meets (処分 = a penalty, 背景 = the reasons
+# behind something, 演出 = staging an event, not just directing a film).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 気軽 (1222110, きがる) — easygoing, without ceremony ──────────────────────
+1222110:0	いつでも気軽に声をかけてください。	Feel free to come and talk to me any time.	深く考えたり、遠慮したりしないようす。
+
+# ── 閲覧 (1175380, えつらん) — reading documents / browsing the web ──────────
+1175380:0	図書館で古い新聞を閲覧した。	I looked through old newspapers at the library.	本や書類などを調べながら読むこと。
+1175380:1	このサイトは誰でも閲覧できる。	Anyone can browse this site.	インターネットのページを見ること。
+
+# ── 交渉 (1272110, こうしょう) — negotiations / dealings ──────────────────────
+1272110:0	給料について会社と交渉した。	I negotiated my salary with the company.	何かを決めるために、相手と話し合うこと。
+1272110:1	あの家とは長い間交渉がない。	We've had no dealings with that family for a long time.	人と人との関係やつきあい。
+
+# ── 細胞 (1295740, さいぼう) — a cell ────────────────────────────────────────
+1295740:0	人の体は多くの細胞でできている。	The human body is made up of many cells.	生物の体を作っている、最も小さな単位。
+
+# ── 背景 (1472720, はいけい) — backdrop / the background to an event / backing ──
+1472720:0	山を背景に写真を撮った。	We took a photo with the mountains behind us.	絵や写真で、中心となるものの後ろの景色。
+1472720:1	事件の背景を調べる。	We look into the background to the incident.	物事が起こった裏にある事情。
+1472720:2	彼は大きな組織を背景にしている。	He has a large organisation behind him.	陰から支える力。
+
+# ── 処分 (1342490, しょぶん) — getting rid of / dealing with / a penalty ──────
+1342490:0	古い家具を処分した。	I got rid of the old furniture.	いらない物を捨てたり売ったりすること。
+1342490:1	問題の処分に困っている。	We don't know how to deal with the problem.	物事にきまりをつけること。
+1342490:2	ルールを破った選手が処分を受けた。	The player who broke the rules was penalised.	規則に反した人を罰すること。
+
+# ── 運用 (1173090, うんよう) — putting to use / managing funds ────────────────
+1173090:0	集めた資金を運用する。	We put the funds we raised to work.	物やお金を、役に立つように動かして使うこと。
+
+# ── 演出 (1176950, えんしゅつ) — directing a play / staging an event ──────────
+1176950:0	この劇の演出は有名な監督が担当した。	A famous director directed this play.	劇や映画で、役者の動きなどを指導してまとめること。
+1176950:1	パーティーの演出を友達に任せた。	I left the staging of the party to a friend.	効果を考えて、物事の進む順序や形を工夫すること。
+
+# ── 業者 (1239440, ぎょうしゃ) — a contractor / people in the same trade ───────
+1239440:0	業者に家の修理を頼んだ。	We had a contractor repair the house.	商売や工事などを仕事としている人や会社。
+1239440:1	同じ町の業者が集まって話し合った。	Traders from the same town met to talk it over.	同じ商売をしている仲間。
+
+# ── 独自 (1455810, どくじ) — distinctive / one's own ──────────────────────────
+1455810:0	この店のラーメンには独自の味がある。	This shop's ramen has a taste all its own.	ほかにはない、そのものだけにあるようす。
+1455810:1	彼は独自に調査を始めた。	He started investigating on his own.	ほかの力を借りずに、自分だけで行うようす。
+
+# ── 現地 (1263860, げんち) — the scene / where one lives now ───────────────────
+1263860:0	記者がすぐに現地へ向かった。	The reporter headed straight for the scene.	物事が実際に起こっている場所。
+1263860:1	現地の人に道を聞いた。	I asked a local the way.	今いる土地。また、その土地に住んでいること。
+
+# ── 当選 (1449180, とうせん) — being elected / winning a prize ─────────────────
+1449180:0	彼は選挙で当選した。	He was elected.	選挙で選ばれること。
+1449180:1	くじに当選して旅行券をもらった。	I won a travel voucher in a draw.	くじなどで選ばれて、賞を得ること。
+
+# ── 負担 (1498130, ふたん) — a burden / bearing a cost ─────────────────────────
+1498130:0	毎日の長い通勤が体の負担になっている。	The long commute every day is taking a toll on my body.	重く感じる仕事や責任。
+1498130:1	交通費は会社が負担する。	The company covers travel expenses.	費用や責任を自分で引き受けること。
+
+# ── 崩壊 (1516280, ほうかい) — collapse / radioactive decay ────────────────────
+1516280:0	地震で古い橋が崩壊した。	The old bridge collapsed in the earthquake.	くずれて、こわれること。
+1516280:1	原子核の崩壊によって放射線が出る。	Radiation is given off when atomic nuclei decay.	原子核が放射線を出して別の原子核に変わること。
+
+# ── 真実 (1363780, しんじつ) — the truth / truly ──────────────────────────────
+1363780:0	彼は事件の真実を話した。	He told the truth about the incident.	うそや飾りのない、本当のこと。
+1363780:1	真実ありがたいと思っている。	I am truly grateful.	本当に。心から。
+
+# ── 素材 (1397220, そざい) — ingredients / subject matter ──────────────────────
+1397220:0	この料理は素材の味を生かしている。	This dish brings out the flavour of its ingredients.	物を作るもとになる材料。
+1397220:2	旅の思い出を小説の素材にした。	She used memories of her travels as material for a novel.	作品のもとになる事柄。
+
+# ── 衝撃 (1351510, しょうげき) — an impact / a shock ─────────────────────────
+1351510:0	車がぶつかった衝撃で窓が割れた。	The impact of the car crash broke the window.	物に急に加わる強い力。
+1351510:1	そのニュースは国中に衝撃を与えた。	The news sent a shock through the whole country.	心を強く動かされること。
+
+# ── 上位 (1352590, じょうい) — a higher rank ─────────────────────────────────
+1352590:0	彼はテストで上位に入った。	He made it into the top ranks in the test.	順位や地位が上であること。
+
+# ── 同意 (1451850, どうい) — consent / the same view / the same meaning ────────
+1451850:0	親の同意を得て留学した。	I studied abroad with my parents' consent.	相手の考えや申し出を認めること。
+1451850:1	その意見に私も同意です。	I share that view.	同じ意見であること。
+1451850:2	この二つの言葉は同意だ。	These two words mean the same thing.	同じ意味であること。
