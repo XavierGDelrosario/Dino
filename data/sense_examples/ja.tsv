@@ -3054,3 +3054,89 @@
 # ── 大概 (1413230, たいがい) — usually / almost all ───────────────────────────
 1413230:0	日曜日は大概家にいる。	I'm usually at home on Sundays.	ほとんどの場合。たいてい。
 1413230:1	大概の人はその話を知っている。	Almost everyone knows that story.	ほとんど全部。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 28 — N1 continued. Several words here have a playful or colloquial second
+# sense next to the formal one: 沈没 is a ship going down and a drinker going down,
+# 土俵 is the sumo ring and the arena of any argument, 元年 is an era's first year
+# and the year something began.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 重宝 (1579990, ちょうほう) — handy / finding useful ─────────────────────────
+1579990:0	この鍋は軽くて重宝だ。	This pot is light and really handy.	便利で、役に立つこと。
+1579990:1	この辞書は毎日重宝している。	I find this dictionary useful every day.	便利なものとして、よく使うこと。
+
+# ── 郷土 (1238510, きょうど) — one's home region ──────────────────────────────
+1238510:0	祭りで郷土の料理を味わった。	We had food from the local area at the festival.	生まれ育った土地。ふるさと。
+
+# ── 立法 (1551840, りっぽう) — lawmaking ────────────────────────────────────
+1551840:0	国会は立法の機関だ。	The Diet is the lawmaking body.	法律を作ること。
+
+# ── 待望 (1410650, たいぼう) — eagerly awaiting / long-awaited ─────────────────
+1410650:0	国民が待望していた選手が出場した。	The player the whole country had been waiting for took the field.	早く来るようにと、待ち望むこと。
+1410650:1	待望の新作がついに発売された。	The long-awaited new release has finally come out.	長い間待ち望まれていたこと。
+
+# ── 期日 (1220610, きじつ) — the appointed date / a deadline ───────────────────
+1220610:0	会議の期日が決まった。	The date for the meeting has been set.	前もって決められた日。
+1220610:1	期日までに書類を出してください。	Please hand in the documents by the due date.	物事をしなければならない、最後の日。
+
+# ── 戸籍 (1267030, こせき) — the family register ─────────────────────────────
+1267030:0	結婚して戸籍を移した。	I moved my family register when I got married.	家族の名前や生まれた日などを書いた、国の記録。
+
+# ── 出題 (1339620, しゅつだい) — setting a question ──────────────────────────
+1339620:0	この問題は去年も出題された。	This question was set last year too.	試験などの問題を出すこと。
+
+# ── 土台 (1445450, どだい) — the foundation / from the start ──────────────────
+1445450:0	家の土台がしっかりしている。	The house has solid foundations.	建物の一番下で、全体を支えるもの。
+1445450:1	そんな計画は土台無理だ。	A plan like that was never going to work.	はじめから。もともと。
+
+# ── 密接 (1528290, みっせつ) — close ──────────────────────────────────────
+1528290:0	食事と健康は密接な関係がある。	Diet and health are closely linked.	非常に深く、関係していること。
+
+# ── 対比 (1410260, たいひ) — contrast / comparison ────────────────────────────
+1410260:0	白と黒の対比が美しい。	The contrast between the black and the white is beautiful.	違いがはっきりするように、二つを並べること。
+1410260:1	去年の売り上げと対比して考える。	We look at it in comparison with last year's sales.	二つのものを比べること。
+
+# ── 土俵 (1445550, どひょう) — the sumo ring / the arena of a debate ──────────
+1445550:0	力士が土俵に上がった。	The wrestlers stepped up into the ring.	相撲をとる、丸い場所。
+1445550:1	同じ土俵で議論しよう。	Let's argue on equal terms.	話し合いや争いが行われる場。
+
+# ── 元年 (1261020, がんねん) — the first year of an era / the year it all began ─
+1261020:0	平成元年に生まれた。	I was born in the first year of Heisei.	年号が変わった、最初の年。
+1261020:1	今年はこの町の観光元年だ。	This is the year tourism really started in this town.	ある物事が始まった、最初の年。
+
+# ── 沈没 (1431800, ちんぼつ) — sinking / getting dead drunk ───────────────────
+1431800:0	嵐で船が沈没した。	The ship sank in the storm.	船が水の中に沈むこと。
+1431800:1	飲みすぎて、父は途中で沈没した。	My father drank too much and passed out halfway through.	酒に酔って、つぶれてしまうこと。
+
+# ── 慣習 (1212700, かんしゅう) — a custom ─────────────────────────────────────
+1212700:0	その村には古い慣習が残っている。	Old customs survive in that village.	長い間に決まりのようになった、世間のやり方。
+
+# ── 始発 (1307610, しはつ) — the first train / starting from here ─────────────
+1307610:0	始発の電車に乗って出かけた。	I set out on the first train of the day.	その日の最初の電車やバス。
+1307610:1	このバスは駅前が始発だ。	This bus starts from outside the station.	電車やバスが、その駅から出ること。
+
+# ── 質疑 (1320680, しつぎ) — questions ──────────────────────────────────────
+1320680:0	発表の後、質疑の時間がある。	There's time for questions after the presentation.	わからない点について、質問すること。
+
+# ── 氾濫 (1481420, はんらん) — flooding / a flood of something ─────────────────
+1481420:0	大雨で川が氾濫した。	The river flooded after the heavy rain.	川の水があふれ出ること。
+1481420:1	町には広告が氾濫している。	The town is awash with advertising.	よくない物が、あふれるほど多くあること。
+
+# ── 自我 (1317460, じが) — the ego ─────────────────────────────────────────
+1317460:0	子どもは三歳ごろに自我が生まれる。	Children develop a sense of self at about three.	自分というものの意識。
+
+# ── 年頃 (1468660, としごろ) — apparent age / marriageable age ─────────────────
+1468660:0	私と同じ年頃の人が多かった。	There were a lot of people about my age.	だいたいの年齢。
+1468660:1	娘ももう年頃だ。	My daughter is already of an age to marry.	結婚するのにふさわしい年齢。
+
+# ── 配給 (1473030, はいきゅう) — distribution / rationing ─────────────────────
+1473030:0	この会社は映画の配給をしている。	This company distributes films.	商品などを、各地に配ること。
+1473030:1	戦争中は米が配給された。	Rice was rationed during the war.	決まった量を、決まった人に割り当てて配ること。
+
+# ── 本国 (1522530, ほんごく) — one's home country ─────────────────────────────
+1522530:0	彼は本国に帰った。	He went back to his home country.	その人が生まれた国。
+
+# ── 野心 (1537430, やしん) — ambition / sinister designs ──────────────────────
+1537430:0	彼は政治家になる野心を持っている。	He has ambitions of becoming a politician.	大きなことをしたいという望み。
+1537430:1	隣の国は領土への野心を隠さない。	The neighbouring country makes no secret of its designs on the territory.	他人のものをねらう、よくない考え。
