@@ -138,6 +138,7 @@ export function TextQuizView({
             word: g.word,
             userWordId: g.userWordId,
             confidence: g.confidence,
+            previousConfidence: g.previousConfidence,
           }))}
           onForgot={async (item) => {
             const res = await softenConfidence({ userWordId: item.userWordId! });

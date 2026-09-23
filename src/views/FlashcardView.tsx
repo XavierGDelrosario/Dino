@@ -115,6 +115,9 @@ export function FlashcardView({
             word: c,
             userWordId: c.userWordId,
             confidence: r.gradedConfidence.get(c.userWordId) ?? c.confidenceRating,
+            // The queue's own value, i.e. before this session. A card that was never
+            // graded falls back to it above too, so the two match and nothing is marked.
+            previousConfidence: c.confidenceRating,
           }))}
           onForgot={async (item) =>
             (await softenConfidence({ userWordId: item.userWordId! })).confidenceRating

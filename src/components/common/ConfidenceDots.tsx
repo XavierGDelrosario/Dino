@@ -33,9 +33,20 @@ function setOpenId(id: string | null) {
 
 export function ConfidenceDots({
   rating,
+  previous,
   onForgot,
 }: {
   rating: number;
+  /**
+   * The confidence this word held BEFORE the session being recapped. Given it, the dots
+   * the grades MOVED are marked — gained ones green, lost ones left faded where they
+   * were — so a finished quiz reads as what changed rather than as a fresh state.
+   *
+   * OPT-IN, and only the quiz recap passes it: Lists and the article word table show a
+   * word's standing, not a diff, and marking dots there would claim a change from a
+   * baseline those surfaces never had.
+   */
+  previous?: number | null;
   /** Lower this word by one displayed-confidence bucket. Omit and the dots stay inert
    *  text — which is also what a word BELOW the soften floor gets, since the server
    *  no-ops there and a control that silently does nothing is worse than none. */
@@ -103,10 +114,20 @@ export function ConfidenceDots({
     }
   };
 
+  // The band between the two values is what the session moved. Below it the dots are
+  // unchanged, above it they are empty; only the band is marked, in the one direction
+  // that applies — a rating can't rise and fall in the same recap.
+  const moved = previous != null && previous !== rating;
+  const held = moved ? Math.min(previous, rating) : rating;
+  const reached = moved ? Math.max(previous, rating) : rating;
+  const movedClass = moved && rating > previous ? " dot--gain" : " dot--lost";
+  const dotClass = (i: number) =>
+    i < held ? "dot dot--on" : i < reached ? `dot dot--on${movedClass}` : "dot";
+
   const dots = (
     <>
       {[0, 1, 2, 3, 4].map((i) => (
-        <span key={i} className={`dot${i < rating ? " dot--on" : ""}`} />
+        <span key={i} className={dotClass(i)} />
       ))}
     </>
   );

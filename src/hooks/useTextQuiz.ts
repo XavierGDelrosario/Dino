@@ -28,6 +28,8 @@ export interface GradedWord {
   word: Word;
   userWordId: string;
   confidence: number;
+  /** What it read BEFORE this grade — the recap marks the dots between the two. */
+  previousConfidence: number;
 }
 
 export function useTextQuiz(
@@ -131,7 +133,17 @@ export function useTextQuiz(
         setReviewedCount((n) => n + 1);
         setGraded((ws) => [
           ...ws,
-          { word, userWordId: uw.userWordId, confidence: res.confidenceRating },
+          {
+            word,
+            userWordId: uw.userWordId,
+            confidence: res.confidenceRating,
+            // saveDictionaryWord runs BEFORE recordReview and its ON CONFLICT touches
+            // only `input`, so this row is the word as it stood going in — the live
+            // display value (toUserWord runs rowConfidence), not the stored snapshot.
+            // A word new to the vocabulary reports its cold-start seed, which is the
+            // honest baseline: the quiz is what moved it off that.
+            previousConfidence: uw.confidenceRating,
+          },
         ]);
         const next = index + 1;
         if (next >= cards.length) {

@@ -25,6 +25,9 @@ export interface QuizWordItem {
   userWordId: string | null;
   /** Displayed confidence after this session's grade. */
   confidence: number;
+  /** Displayed confidence BEFORE the session, so the dots can mark what it moved.
+   *  Omit (or match `confidence`) and the row draws a plain readout. */
+  previousConfidence?: number | null;
 }
 
 interface RowActions {
@@ -72,7 +75,13 @@ function QuizWordRow({
         </span>
         <div className="listrow__meta">
           <WordInfoButton word={word} />
-          <ConfidenceDots rating={confidence} onForgot={forgot} />
+          {/* `previous` is the SESSION's starting value, so a "Forgot" pressed here
+              keeps widening the same comparison instead of resetting the baseline. */}
+          <ConfidenceDots
+            rating={confidence}
+            previous={item.previousConfidence}
+            onForgot={forgot}
+          />
           {saved && (
             <>
               <button
