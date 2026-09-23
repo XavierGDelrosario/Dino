@@ -3310,3 +3310,89 @@
 # ── 丸々 (1604260, まるまる) — plump / entirely ─────────────────────────────
 1604260:0	丸々と太った赤ちゃんだ。	It's a chubby little baby.	よく太っているようす。
 1604260:1	丸々一日かかった。	It took an entire day.	全部。そっくりそのまま。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 31 — N1 continued. Old-fashioned words that survive with a TWIST: 殿様 is a
+# feudal lord and a man who has never had to lift a finger, 砂利 is gravel and a
+# brat, 建前 is the official line (the famous opposite of 本音) and also the
+# roof-raising ceremony a carpenter still holds.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 吟味 (1243390, ぎんみ) — careful selection ───────────────────────────────
+1243390:0	材料を吟味して料理を作る。	I choose my ingredients carefully before I cook.	念入りに調べて選ぶこと。
+
+# ── 軽快 (1252600, けいかい) — nimble / cheerful / improving ──────────────────
+1252600:0	彼女は軽快な足取りで歩いた。	She walked with a spring in her step.	動きが軽く、すばやいようす。
+1252600:1	軽快な音楽が流れている。	Upbeat music is playing.	明るく、気持ちがはずむようす。
+1252600:2	祖父の病状は軽快に向かっている。	My grandfather's condition is improving.	病気がよくなること。
+
+# ── 達者 (1416240, たっしゃ) — in good health / skilled ──────────────────────
+1416240:0	祖母は九十歳だが達者だ。	My grandmother is ninety but still going strong.	体が丈夫なようす。
+1416240:1	彼は口が達者だ。	He has a way with words.	物事が上手なようす。
+
+# ── 埋蔵 (1524560, まいぞう) — having deposits underground ─────────────────
+1524560:1	この山には金が埋蔵されている。	There are gold deposits in this mountain.	地下に鉱物などがうまっていること。
+
+# ── 建前 (1597110, たてまえ) — the official line / the roof-raising ceremony ────
+1597110:0	それは建前で、本音は違う。	That's just what he says; what he really thinks is different.	表向きの考えや方針。
+1597110:1	新しい家の建前に近所の人が集まった。	The neighbours gathered for the framing ceremony of the new house.	家の柱や屋根の形ができたときに行う祝い。
+
+# ── 公用 (1274940, こうよう) — official business / public use ─────────────────
+1274940:0	市長は公用で東京へ出かけた。	The mayor went to Tokyo on official business.	国や会社などの、仕事の上の用事。
+1274940:1	この車は公用に限って使える。	This car is for official use only.	国や役所が使うこと。
+
+# ── 砂利 (1291660, じゃり) — gravel / a brat ─────────────────────────────────
+1291660:0	庭に砂利を敷いた。	We laid gravel in the garden.	小さな石がたくさん集まったもの。
+1291660:1	砂利は黙っていろ。	Pipe down, kid.	子どもを見下して言う言葉。
+
+# ── 手錠 (1327900, てじょう) — handcuffs ─────────────────────────────────────
+1327900:0	犯人は手錠をかけられた。	The culprit was handcuffed.	犯人の手首にかける、鉄の輪。
+
+# ── 土手 (1445370, どて) — an embankment ────────────────────────────────────
+1445370:0	川の土手を散歩した。	We walked along the riverbank.	川などに沿って、土を高く積んだ所。
+
+# ── 本館 (1522350, ほんかん) — the main building / this building ───────────────
+1522350:0	会議は本館の三階で行います。	The meeting is on the third floor of the main building.	中心となる建物。
+1522350:1	本館は午後五時に閉まります。	This building closes at five in the afternoon.	この建物。自分たちの建物を指して言う言葉。
+
+# ── 比重 (1483640, ひじゅう) — specific gravity / relative weight ──────────────
+1483640:0	油は水より比重が小さい。	Oil is less dense than water.	同じ体積の水と比べた、物の重さの割合。
+1483640:1	生活の中で仕事の比重が大きい。	Work takes up a big part of my life.	ほかと比べたときの、大切さの割合。
+
+# ── 結核 (1254710, けっかく) — tuberculosis ─────────────────────────────────
+1254710:0	昔は結核で多くの人が亡くなった。	In the past many people died of tuberculosis.	肺などに起こる、伝染する病気。
+
+# ── 殿様 (1442650, とのさま) — a feudal lord / a pampered man ──────────────────
+1442650:1	この城には昔、殿様が住んでいた。	A feudal lord used to live in this castle.	江戸時代の大名。
+1442650:2	彼は家では殿様で、何もしない。	He's lord of the manor at home and doesn't lift a finger.	世の中の苦労を知らずに、いばっている男。
+
+# ── 元来 (1261080, がんらい) — by nature ────────────────────────────────────
+1261080:0	彼は元来まじめな人だ。	He's a serious person by nature.	もともと。はじめから。
+
+# ── 単調 (1417760, たんちょう) — monotonous ──────────────────────────────────
+1417760:0	毎日が単調でつまらない。	Every day is monotonous and boring.	変化がなく、同じ調子が続くようす。
+
+# ── 大方 (1415020, おおかた) — most of / probably ───────────────────────────
+1415020:0	仕事は大方終わった。	The work is mostly done.	大部分。ほとんど。
+1415020:3	大方、彼は寝坊したのだろう。	He probably overslept.	たぶん。おそらく。
+
+# ── 微塵 (1486050, みじん) — a tiny piece / not in the least ───────────────────
+1486050:0	ガラスが微塵に砕けた。	The glass shattered into tiny pieces.	非常に細かいもの。
+1486050:1	彼には反省の色が微塵もない。	He shows no sign whatsoever of remorse.	少しも。まったく。
+
+# ── 極楽 (1240250, ごくらく) — paradise ─────────────────────────────────────
+1240250:1	温泉につかると極楽だ。	Soaking in a hot spring is sheer bliss.	とても楽しく、安らかな状態。
+
+# ── 不景気 (1492120, ふけいき) — hard times / gloomy ──────────────────────────
+1492120:0	不景気で仕事が減った。	Work has dried up with the recession.	経済の活動が弱まっている状態。
+1492120:2	そんな不景気な顔をするな。	Don't look so glum.	元気がなく、暗いようす。
+
+# ── 隠居 (1170690, いんきょ) — retiring ─────────────────────────────────────
+1170690:0	祖父は店を息子に任せて隠居した。	My grandfather left the shop to his son and retired.	仕事をやめて、静かに暮らすこと。
+
+# ── 旅客 (1553140, りょかく) — a passenger ───────────────────────────────────
+1553140:0	空港は旅客でいっぱいだ。	The airport is full of passengers.	乗り物で旅行する人。
+
+# ── 中和 (1425670, ちゅうわ) — neutralising ─────────────────────────────────
+1425670:0	酸をアルカリで中和する。	You neutralise an acid with an alkali.	酸とアルカリが反応して、互いの性質を打ち消すこと。
+1425670:1	この薬は毒を中和する。	This drug counteracts the poison.	悪い働きを弱めること。
