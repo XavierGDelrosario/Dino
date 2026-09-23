@@ -97,11 +97,12 @@ export function ListView({
     limit?: number,
   ) => void;
 }) {
-  // THE LANDING STATE IS THE OVERVIEW. Plain useState, deliberately NOT sticky: opening
-  // the tab should always answer "which list", and restoring you into whichever list you
-  // last read would reinstate the problem the index exists to fix — arriving somewhere
-  // specific with no cheap way to see the others.
-  const [browsing, setBrowsing] = useState(true);
+  // THE LANDING STATE IS THE WORD TABLE — you open Lists to see words, so the tab opens
+  // on them (ALL, or whichever list `selectedListId` restores) and the index is one tap
+  // away via "‹ Lists". Plain useState, deliberately NOT sticky: which SCREEN you were
+  // last on is not a preference worth restoring, and landing on the index would put a
+  // navigation step in front of the thing you came for.
+  const [browsing, setBrowsing] = useState(false);
   // False once the database has told us it has no list_overview() (migration 20260773
   // not applied here yet). The client and the DB deploy separately, so this state is
   // REACHABLE IN PRODUCTION for as long as that gap lasts — the tab then behaves exactly
@@ -123,6 +124,10 @@ export function ListView({
   const [overviewDir, setOverviewDir] = useStickyState<SortDir>(
     userId, "lists.overviewDir", "most",
   );
+  // Bumped by a rename/delete/create so the effect below re-runs; the effect owns the
+  // request (and its stale-response guard), so mutations never race it.
+  const [overviewNonce, setOverviewNonce] = useState(0);
+  const refreshOverview = () => setOverviewNonce((n) => n + 1);
   useEffect(() => {
     if (!browsing) return;
     let alive = true;
@@ -154,7 +159,7 @@ export function ListView({
     return () => {
       alive = false;
     };
-  }, [browsing, userId]);
+  }, [browsing, userId, overviewNonce]);
 
   const [sortAxis, setSortAxis] = useStickyState<SortAxis>(userId, "lists.sortAxis", "added");
   const [sortDir, setSortDir] = useStickyState<SortDir>(userId, "lists.sortDir", "least");
@@ -293,6 +298,20 @@ export function ListView({
         onOpen={(listId) => {
           L.setSelectedListId(listId);
           setBrowsing(false);
+        }}
+        // All three go through useLists, so its own `lists` cache (the chips one tap
+        // deeper) stays in step; refreshOverview re-runs the aggregate so the counts
+        // and bars beside them do too.
+        onRename={(listId, name) => {
+          void L.renameListById(listId, name).then(refreshOverview);
+        }}
+        onDelete={(r) => {
+          if (!r.listId) return; // ALL is virtual and offers no ✕
+          if (!confirm(t("lists.deleteConfirm", { name: r.listName ?? "" }))) return;
+          void L.deleteListById(r.listId).then(refreshOverview);
+        }}
+        onCreate={(name) => {
+          void L.addList(name).then(refreshOverview);
         }}
       />
     );

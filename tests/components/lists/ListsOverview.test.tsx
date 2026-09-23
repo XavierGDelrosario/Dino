@@ -10,7 +10,7 @@
 // The counts/bar come straight from list_overview(); the SQL is the integration
 // suite's job, so this only asserts the rendering of what it returns.
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import { LocaleProvider } from "@/i18n";
 import { ListsOverview, type ListSortAxis } from "@/components/lists/ListsOverview";
 import type { ListOverview } from "@/services/lists";
@@ -23,6 +23,9 @@ const row = (o: Partial<ListOverview>): ListOverview => ({
   lastWordAddedAt: "2026-01-01T00:00:00Z",
   wordCount: 10,
   confidence: [10, 0, 0, 0, 0, 0],
+  freq: {},
+  band: {},
+  mainLang: null,
   ...o,
 });
 
@@ -46,15 +49,19 @@ const view = (axis: ListSortAxis, dir: SortDir, data: ListOverview[] = rows) =>
         onAxis={() => {}}
         onDir={() => {}}
         onOpen={() => {}}
+        onRename={() => {}}
+        onDelete={() => {}}
+        onCreate={() => {}}
       />
     </LocaleProvider>,
   );
 
-/** The visible names, in rendered order. */
+/** The visible names, in rendered order. The card is an <li>, not a button — it
+ *  carries rename/delete/summary controls, and a button cannot contain buttons. */
 const names = () =>
-  screen.getAllByRole("button")
-    .filter((b) => b.classList.contains("listcard"))
-    .map((b) => within(b).getByText(/.+/, { selector: ".listcard__name" }).textContent);
+  [...document.querySelectorAll(".listcard")].map(
+    (c) => c.querySelector(".listcard__name")?.textContent,
+  );
 
 afterEach(cleanup);
 
@@ -134,11 +141,32 @@ describe("ListsOverview — rendering", () => {
     expect(segs[1].style.width).toBe("75%");
   });
 
-  it("says nothing is there only when ALL is the only row", () => {
-    view("name", "least", [ALL]);
-    expect(screen.queryByText(/No lists yet/)).toBeTruthy();
-    cleanup();
-    view("name", "least");
-    expect(screen.queryByText(/No lists yet/)).toBeNull();
+  it("always offers Create, so a user with no lists has the way in", () => {
+    // It is the only affordance on the screen when ALL is the sole row — which is
+    // why there is no separate "no lists yet" message to keep in step with it.
+    const { container } = view("name", "least", [ALL]);
+    expect(container.querySelector(".listsoverview__add")).not.toBeNull();
+  });
+
+  it("gives every real list a rename and a delete, and ALL neither", () => {
+    const { container } = view("name", "least");
+    const cards = [...container.querySelectorAll(".listcard")];
+    const all = cards[0]; // pinned first
+    expect(all.querySelector(".listcard__name")?.textContent).toBe("All words");
+    expect(all.querySelector(".listcard__edit")).toBeNull();
+    expect(all.querySelector(".listcard__del")).toBeNull();
+    for (const c of cards.slice(1)) {
+      expect(c.querySelector(".listcard__edit")).not.toBeNull();
+      expect(c.querySelector(".listcard__del")).not.toBeNull();
+    }
+  });
+
+  it("offers the summary only where there is something to chart", () => {
+    const { container } = view("name", "least");
+    const cards = [...container.querySelectorAll(".listcard")];
+    const empty = cards.find((c) => c.querySelector(".listcard__name")?.textContent === "Never used");
+    expect(empty?.querySelector(".listcard__summary")).toBeNull();
+    const filled = cards.find((c) => c.querySelector(".listcard__name")?.textContent === "Newest");
+    expect(filled?.querySelector(".listcard__summary")).not.toBeNull();
   });
 });
