@@ -22,6 +22,33 @@ looks like it belongs in two, it goes in the more specific one and the other lin
 - **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota
 - **Feature:** domain paragraph quiz ("paragraph at level X from these seeds").
 
+#### Lessons — authored grammar explanations `[new Learn section]`
+- **Content in the DB, not the bundle** — `lessons` (slug + lang pair + `blocks` JSONB +
+  `published_at`; client SELECT on published only, no client write, like `words`) +
+  `lesson_progress` (own-rows). A new lesson is an ingest, **not an app release** — the point
+  on iOS, where a content change otherwise costs a review cycle. Add `lesson_progress` to the
+  three enumerations: `prune_anonymous_guests` emptiness, `backup-user-data.sh`,
+  `delete_account` cascade.
+- **Authoring:** one Markdown file per lesson (frontmatter + `:::` directives) in git →
+  `validate:lessons` (kuromoji gate · every `wordRef` resolves · every answer index in range)
+  → `ingest:lessons`. Same shape as `sense_examples`.
+- **Blocks — closed union.** `prose` · `pattern` · `example` · `cloze` first; `table` ·
+  `choice` · `vocabquiz` once authoring has been felt. A new lesson is a row; only a new
+  block KIND is code.
+- **Examples render through `ParagraphReader`, never plain.** `useSenseExampleReader` already
+  takes an N-length `texts` array and batches ONE lookup — that is the renderer's engine.
+- ⚠️ **An embedded check is a THIRD quiz type** — cloze/choice over a PATTERN, not a sense.
+  CLAUDE.md Terminology says there are exactly two; update it rather than leaving "the quiz"
+  ambiguous.
+- ⚠️ **Checks must NOT write `review_log`** — append-only, un-backfillable, the FSRS training
+  seed. Grammar-point SRS is its own table.
+- **Content cost:** authored per LANGUAGE PAIR (the explanation is in the native language),
+  so JA-in-EN and JA-in-JA are separate lessons.
+- **Prerequisite — Learn section registry.** `LearnView` hardcodes picker → bands → Articles,
+  and `onArticleOpen` is a one-off "this section claims the tab". Replace with
+  `services/learn/sections.ts` (`{ id, title, available(ctx), Component }` + an `onTakeover`
+  prop), mirroring the `language`/`difficulty`/`senses` registries. Stands alone.
+
 ### 🧩 Extension — browser capture surface `[new surface · extends #9/#18]`
 
 **What the extension can do that the app cannot** — reach text on the open web *in the
