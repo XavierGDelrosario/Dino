@@ -3140,3 +3140,87 @@
 # ── 野心 (1537430, やしん) — ambition / sinister designs ──────────────────────
 1537430:0	彼は政治家になる野心を持っている。	He has ambitions of becoming a politician.	大きなことをしたいという望み。
 1537430:1	隣の国は領土への野心を隠さない。	The neighbouring country makes no secret of its designs on the territory.	他人のものをねらう、よくない考え。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 29 — N1 continued. A few everyday traps in this band: お愛想 is the BILL at
+# a restaurant, not a compliment; 覆面 is a mask and also an UNMARKED police car;
+# 天地 is heaven and earth and also "this way up" on a box.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── 小柄 (1348770, こがら) — small in build ─────────────────────────────────
+1348770:0	彼女は小柄だが力が強い。	She's petite but strong.	体が普通より小さいこと。
+
+# ── 愛想 (1575660, あいそ) — friendliness / the bill ─────────────────────────
+1575660:0	あの店員は愛想がいい。	That shop assistant is very friendly.	人に対して感じよく接する態度。
+1575660:4	すみません、お愛想をお願いします。	Excuse me, could we have the bill, please?	飲食店で払う代金。
+
+# ── 下地 (1185920, したじ) — groundwork / a grounding in ─────────────────────
+1185920:0	壁の下地をしっかり作る。	You lay the groundwork for the wall properly.	物事の基礎となるもの。
+1185920:1	彼には英語の下地がある。	He has a grounding in English.	前から身についている知識や素質。
+
+# ── 束縛 (1404510, そくばく) — restraint / tying up ──────────────────────────
+1404510:0	恋人に束縛されるのは嫌だ。	I don't like a partner who keeps tabs on me.	行動の自由を制限すること。
+1404510:1	犯人は縄で束縛された。	The culprit was tied up with rope.	縄などでしばって、動けないようにすること。
+
+# ── 目録 (1535710, もくろく) — a catalogue / a table of contents ──────────────
+1535710:0	図書館の目録で本を探した。	I looked the book up in the library catalogue.	品物や本の名前を、順に並べて書いたもの。
+1535710:2	本の初めに目録がついている。	There's a table of contents at the front of the book.	書物の内容の見出しを、順に並べたもの。
+
+# ── 一息 (1164390, ひといき) — a breather / in one go ────────────────────────
+1164390:2	ここで一息入れよう。	Let's take a breather here.	少し休むこと。
+1164390:3	残りの仕事を一息に片付けた。	I got the rest of the work done in one go.	休まずに、一度にすること。
+
+# ── 何卒 (1189140, なにとぞ) — kindly ───────────────────────────────────────
+1189140:0	何卒よろしくお願いいたします。	I would be most grateful for your kind consideration.	相手に強く願う気持ちを表す言葉。どうか。
+
+# ── 黒字 (1287710, くろじ) — in the black ────────────────────────────────────
+1287710:0	今年は会社が黒字になった。	The company is in the black this year.	入ったお金が、使ったお金より多いこと。
+
+# ── 斡旋 (1153410, あっせん) — arranging, placing someone ──────────────────────
+1153410:0	先生の斡旋で就職が決まった。	I got the job through my teacher's good offices.	間に入って、うまくいくように世話をすること。
+
+# ── 先代 (1388080, せんだい) — the previous head / a predecessor ───────────────
+1388080:0	この店は先代から続いている。	This shop has been going since the last owner's day.	家や店の、前の主人。
+1388080:1	先代の社長は厳しい人だった。	The previous president was a strict man.	その地位に、前についていた人。
+
+# ── 産物 (1303870, さんぶつ) — produce / the result of ─────────────────────────
+1303870:0	りんごはこの地方の産物だ。	Apples are a product of this region.	その土地でとれたり、作られたりする物。
+1303870:1	この発明は長い努力の産物だ。	This invention is the fruit of long effort.	ある物事の結果として、生まれたもの。
+
+# ── 等級 (1449410, とうきゅう) — a grade ─────────────────────────────────────
+1449410:0	肉は等級によって値段が違う。	The price of meat depends on its grade.	品質などの、上下の段階。
+
+# ── 元素 (1592840, げんそ) — a chemical element ──────────────────────────────
+1592840:0	水素は最も軽い元素だ。	Hydrogen is the lightest element.	物質を作っている、もととなる成分。
+
+# ── 結束 (1254930, けっそく) — unity / bundling ──────────────────────────────
+1254930:0	チームの結束が強い。	The team is tightly united.	多くの人が心を一つにして、まとまること。
+1254930:1	古い新聞をひもで結束した。	I tied up the old newspapers with string.	ひもなどで、しばってまとめること。
+
+# ── 生死 (1379060, せいし) — life or death ────────────────────────────────────
+1379060:0	これは生死にかかわる問題だ。	This is a matter of life and death.	生きることと死ぬこと。
+
+# ── 他方 (1407370, たほう) — on the other hand ─────────────────────────────────
+1407370:1	彼は仕事に厳しい。他方、家では優しい。	He's strict at work; on the other hand, he's gentle at home.	別の面から見ると。
+
+# ── 露骨 (1560120, ろこつ) — blatant ─────────────────────────────────────────
+1560120:0	彼は露骨に嫌な顔をした。	He looked openly annoyed.	気持ちなどを、隠さずにそのまま表すようす。
+
+# ── 覆面 (1501520, ふくめん) — a mask / unmarked ──────────────────────────────
+1501520:0	覆面をした男が店に入ってきた。	A masked man came into the shop.	顔を布などで覆って隠すこと。
+1501520:1	覆面の警察の車に止められた。	I was pulled over by an unmarked police car.	正体を隠していること。
+
+# ── 切実 (1385050, せつじつ) — heartfelt / pressing ──────────────────────────
+1385050:0	彼の切実な願いを聞いた。	I heard his heartfelt wish.	心から強く感じているようす。
+1385050:1	住む場所がないのは切実な問題だ。	Having nowhere to live is a pressing problem.	急いで解決する必要があるようす。
+
+# ── 外貨 (1203410, がいか) — foreign currency ───────────────────────────────
+1203410:0	空港で外貨に両替した。	I changed money into foreign currency at the airport.	外国のお金。
+
+# ── 天地 (1582090, てんち) — heaven and earth / this way up ─────────────────────
+1582090:0	天地が揺れるほどの大きな地震だった。	It was an earthquake so big that heaven and earth shook.	天と地。世界。
+1582090:2	箱の天地を間違えないでください。	Please keep the box the right way up.	物の上の面と下の面。
+
+# ── 代弁 (1412300, だいべん) — speaking for / paying on someone's behalf ───────
+1412300:0	彼は住民の気持ちを代弁した。	He spoke for the residents.	本人に代わって意見を言うこと。
+1412300:1	会社が損害を代弁した。	The company paid for the damage on his behalf.	本人に代わって、お金を払うこと。
