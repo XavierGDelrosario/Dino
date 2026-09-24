@@ -129,6 +129,30 @@ describe("getReviewQueue", () => {
     stub.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     await expect(getReviewQueue({ userId: "u", limit: 5 })).rejects.toBeTruthy();
   });
+
+  it("fills each card's example from the words cache (the card's \"Show example\")", async () => {
+    stub.rpc.mockResolvedValue({
+      data: [qrow({ user_word_id: "a", dictionary_word_id: "w1" }), qrow({ user_word_id: "custom", dictionary_word_id: null })],
+      error: null,
+    });
+    stub.queueFrom("words", {
+      data: [{ word_id: "w1", example: "猫がいる。", example_gloss: "There is a cat.", definition_source: "動物", example_reading: null }],
+      error: null,
+    });
+    const queue = await getReviewQueue({ userId: "u", limit: 5 });
+    expect(stub.callsFor("words", "in")[0]?.args).toEqual(["word_id", ["w1"]]);
+    expect(queue[0]).toMatchObject({ example: "猫がいる。", exampleGloss: "There is a cat.", definitionSource: "動物" });
+    expect(queue[1]).toMatchObject({ example: null, exampleGloss: null });
+  });
+
+  it("keeps the session when the example read fails (best-effort hint)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    stub.rpc.mockResolvedValue({ data: [qrow({ user_word_id: "a" })], error: null });
+    stub.queueFrom("words", { data: null, error: { message: "boom" } });
+    const queue = await getReviewQueue({ userId: "u", limit: 5 });
+    expect(queue.map((w) => w.userWordId)).toEqual(["a"]);
+    expect(queue[0]?.example).toBeNull();
+  });
 });
 
 describe("recordReview", () => {
