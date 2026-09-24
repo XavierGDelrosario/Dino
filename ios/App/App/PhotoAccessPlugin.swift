@@ -57,6 +57,22 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin, PHPhotoLibraryChang
     /// before the user has answered the photo prompt can raise that prompt itself.
     private var observing = false
 
+    /// The grid's last full fetch, kept so a change can be DIFFED against it — and the
+    /// ids that diff reported as inserted, most recently added first.
+    ///
+    /// WHY: the grid is "newest first, capped at `limit`", and newest means date TAKEN.
+    /// Photos added to a limited selection are usually OLD ones (that's why they weren't
+    /// shared the first time), so on a selection of 60+ they sorted past the cap and the
+    /// user saw nothing happen. Pinning what was just added to the top is the order the
+    /// user actually expects after pressing Manage. Session-only: a relaunch goes back to
+    /// plain date order, which is fine — by then nothing is "just added".
+    ///
+    /// Guarded by `stateLock`: photoLibraryDidChange arrives on a Photos background queue
+    /// and listPhotos runs on a global one.
+    private let stateLock = NSLock()
+    private var watchedFetch: PHFetchResult<PHAsset>?
+    private var recentlyAdded: [String] = []
+
     private func observeLibrary() {
         guard !observing else { return }
         observing = true
@@ -68,6 +84,16 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin, PHPhotoLibraryChang
     }
 
     public func photoLibraryDidChange(_ changeInstance: PHChange) {
+        stateLock.lock()
+        if let fetch = watchedFetch, let details = changeInstance.changeDetails(for: fetch) {
+            watchedFetch = details.fetchResultAfterChanges
+            let removed = Set(details.removedObjects.map { $0.localIdentifier })
+            let added = details.insertedObjects.map { $0.localIdentifier }
+            recentlyAdded.removeAll { removed.contains($0) || added.contains($0) }
+            recentlyAdded.insert(contentsOf: added, at: 0)
+        }
+        stateLock.unlock()
+
         DispatchQueue.main.async { [weak self] in
             self?.notifyListeners("libraryChange", data: [:])
         }
@@ -112,7 +138,8 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin, PHPhotoLibraryChang
         }
     }
 
-    /// The photos this app can actually see, newest first, as small JPEG thumbnails.
+    /// The photos this app can actually see — just-added first (see `recentlyAdded`),
+    /// then newest first — as small JPEG thumbnails.
     ///
     /// This is the half PHPickerViewController cannot do. The picker runs out of process
     /// and will not tell us what is in the library — it only hands back what the user
@@ -130,11 +157,38 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin, PHPhotoLibraryChang
         // UI), so this is the safe moment to start watching.
         observeLibrary()
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            // No fetchLimit: a PHFetchResult is lazy, so the full result costs nothing
+            // until enumerated, and it has to be the WHOLE set for the change diff above
+            // to see an insertion that sorts past the cap.
             let options = PHFetchOptions()
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-            options.fetchLimit = limit
-            let assets = PHAsset.fetchAssets(with: .image, options: options)
+            let all = PHAsset.fetchAssets(with: .image, options: options)
+
+            self.stateLock.lock()
+            self.watchedFetch = all
+            let pinnedIds = self.recentlyAdded
+            self.stateLock.unlock()
+
+            // Just-added photos first (in the order they were added), then the rest by
+            // date taken, capped at `limit` overall.
+            var ordered: [PHAsset] = []
+            if !pinnedIds.isEmpty {
+                var byId: [String: PHAsset] = [:]
+                PHAsset.fetchAssets(withLocalIdentifiers: pinnedIds, options: nil)
+                    .enumerateObjects { asset, _, _ in byId[asset.localIdentifier] = asset }
+                ordered = pinnedIds.compactMap { byId[$0] }.filter { $0.mediaType == .image }
+            }
+            let pinned = Set(ordered.map { $0.localIdentifier })
+            if ordered.count > limit { ordered = Array(ordered.prefix(limit)) }
+            if ordered.count < limit {
+                all.enumerateObjects { asset, _, stop in
+                    if pinned.contains(asset.localIdentifier) { return }
+                    ordered.append(asset)
+                    if ordered.count >= limit { stop.pointee = true }
+                }
+            }
 
             let manager = PHImageManager.default()
             let request = PHImageRequestOptions()
@@ -144,7 +198,7 @@ public class PhotoAccessPlugin: CAPPlugin, CAPBridgedPlugin, PHPhotoLibraryChang
             request.isNetworkAccessAllowed = true // iCloud-only photos still resolve
 
             var photos: [[String: Any]] = []
-            assets.enumerateObjects { asset, _, _ in
+            for asset in ordered {
                 manager.requestImage(
                     for: asset,
                     targetSize: CGSize(width: edge, height: edge),
