@@ -24,6 +24,14 @@
    UNDER a rule, reading as the card opening up rather than as a popover. */
 .senseex {
   flex: 1 0 100%;
+  /* LAST in its row, whatever the markup order. The panel is rendered right after the
+     例 toggle, so every host control that follows it in the DOM — the Lists row's
+     speaker, Translate's Add — used to be pushed onto a line BELOW the opened panel,
+     i.e. the button jumped the moment you pressed 例. Ordering it last keeps the markup
+     (and the reading order) as SenseExample writes it while the panel lands at the
+     bottom of the card, under everything it expands. Lives here, not per host: it was
+     first fixed for .result alone and the Lists row kept the bug. */
+  order: 1;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);
