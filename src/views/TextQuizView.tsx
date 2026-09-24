@@ -15,6 +15,7 @@ import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
+import { QuizExample } from "../components/flashcards/QuizExample";
 import { softenConfidence } from "../services/review";
 import { addUserWordToList } from "../services/words/userWords";
 import { AddToListButton } from "../components/translate/AddToListButton";
@@ -264,6 +265,10 @@ export function TextQuizView({
           )}
         </div>
       )}
+
+      {/* "Show example" — the SHOWN sense's own example sentence (cycling the meaning
+          swaps it). Keyed on the position so it re-collapses on every card. */}
+      <QuizExample key={`ex-${q.position}`} word={card} flipped={q.flipped} />
 
       <ErrorText message={q.error} />
 
