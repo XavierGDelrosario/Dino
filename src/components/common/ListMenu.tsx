@@ -81,17 +81,48 @@ export function ListMenu({
     };
   }, [reposition]);
 
-  // Dismiss on a tap/click outside the menu (and outside the anchor, so the anchor's
-  // own toggle still works). pointerdown fires on iOS WKWebView + desktop.
+  // Dismiss on a TAP outside the menu (and outside the anchor, so the anchor's own
+  // toggle still works) — not on any touch. It used to close on pointerdown, so the
+  // swipe you make to scroll the menu's word back into view shut the menu before
+  // you could use it. A tap is a pointerup within a few px of its pointerdown; a
+  // scroll either moves further than that or, on iOS, is taken over by the browser
+  // and ends in pointercancel instead.
   useEffect(() => {
-    const onOutside = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (menuRef.current?.contains(target) || anchorRef.current?.contains(target)) return;
-      onClose();
+    const TAP_SLOP = 10;
+    let start: { x: number; y: number } | null = null;
+    const inside = (target: EventTarget | null) =>
+      target instanceof Node &&
+      (menuRef.current?.contains(target) || anchorRef.current?.contains(target));
+    const onDown = (e: PointerEvent) => {
+      start = inside(e.target) ? null : { x: e.clientX, y: e.clientY };
     };
-    document.addEventListener("pointerdown", onOutside, true);
-    return () => document.removeEventListener("pointerdown", onOutside, true);
+    const onUp = (e: PointerEvent) => {
+      if (!start) return;
+      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+      start = null;
+      if (moved <= TAP_SLOP && !inside(e.target)) onClose();
+    };
+    const onCancel = () => {
+      start = null;
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointerup", onUp, true);
+    document.addEventListener("pointercancel", onCancel, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("pointerup", onUp, true);
+      document.removeEventListener("pointercancel", onCancel, true);
+    };
   }, [anchorRef, onClose]);
+
+  // WHY THIS ISN'T `autoFocus` (same fix as ListChips' name field). On iOS, focusing
+  // the "New list…" field makes the browser scroll the page to bring it into view, so
+  // the list you were filing a word from jumped away the moment the field opened.
+  // Focus without scrolling; the menu is already positioned next to its anchor.
+  const inputRef = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    if (creating) inputRef.current?.focus({ preventScroll: true });
+  }, [creating]);
 
   const create = async () => {
     const n = name.trim();
@@ -117,7 +148,7 @@ export function ListMenu({
             onChange={(e) => setName(e.target.value)}
             placeholder={t("lists.newListPlaceholder")}
             aria-label={t("lists.newListAria")}
-            autoFocus
+            ref={inputRef}
             onKeyDown={(e) => e.key === "Enter" && create()}
           />
           <button className="iconbtn" title={t("common.create")} onClick={create}>✓</button>
