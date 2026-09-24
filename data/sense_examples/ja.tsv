@@ -5290,3 +5290,53 @@
 1312980:0	学校でうさぎを飼育している。	The school keeps rabbits.	動物を飼って育てること。
 1318950:0	彼は会社を辞めた。	He quit the company.	勤めや役職から退く。
 1337270:0	宿題を忘れた。	I forgot my homework.	家でするように出された課題。
+
+# ── BATCH 74 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1337270:1	その件は次回までの宿題にしよう。	Let's leave that as an open question until next time.	解決されずに、後に残された問題。
+1344410:2	両親が学費を助けてくれた。	My parents helped with my tuition.	お金などを出して、援助する。
+1344410:3	この薬は消化を助ける。	This medicine aids digestion.	物事がうまく進むように、働きかける。
+1358870:0	子どもの背が伸びた。	The child has grown taller.	長くなる。
+1358870:1	アイロンでしわが伸びた。	The creases came out with the iron.	縮んだりしわになったりしていたものが、平らになる。
+1358870:2	このクリームはよく伸びる。	This cream spreads well.	塗ったものが、薄く広がる。
+1358870:4	麺が伸びてしまった。	The noodles have gone soggy.	弾力がなくなる。
+1358870:5	今年は売り上げが伸びた。	Sales grew this year.	勢いや力が増す。
+1358870:6	彼は一発で伸びてしまった。	He was knocked out cold by one punch.	疲れたり打たれたりして、ぐったりする。
+1358870:7	会議が一時間伸びた。	The meeting ran an hour over.	時間が長くなる。
+1358870:9	この動画は再生数が伸びている。	This video's views are climbing.	投稿などへの反応が多くなる。
+1364830:0	宇宙の神秘に心を引かれる。	I'm drawn to the mysteries of the universe.	人の知恵では計り知れない、不思議なこと。
+1366010:0	大学に進学する。	I'm going on to university.	上の段階の学校に進むこと。
+1380110:0	この機械は精度が高い。	This machine is highly accurate.	正確さの度合い。
+1391890:0	野菜には繊維が多い。	Vegetables are high in fibre.	生物の体を作る、糸のように細いもの。
+1400190:0	病気を早期に発見する。	We detect the illness early.	早い時期。
+1409330:0	体感温度は零度以下だ。	It feels like it's below zero.	体で感じること。
+1412880:0	大いに楽しんだ。	We had a great time.	非常に。たいそう。
+1438470:1	天下に名を知られる。	He's known throughout the land.	国の全体。
+1438470:3	彼はついに天下を取った。	He finally seized control of the country.	国を治める権力。
+1449890:0	とうとう雨が降り出した。	At last it started raining.	長い時間の末に。ついに。
+1481570:0	犯人は犯行を認めた。	The culprit admitted to the crime.	罪を犯すこと。
+1487770:0	筆で字を書く。	I write characters with a brush.	毛を束ねて柄に付けた、字や絵をかく道具。
+1487770:2	彼は筆が速い。	He's a fast writer.	文章を書くこと。
+1508720:0	この店は八時に閉店する。	This shop closes at eight.	その日の営業を終えること。
+1508720:1	駅前の本屋が閉店した。	The bookshop in front of the station has closed down.	商売をやめること。
+1514260:0	兵士は捕虜になった。	The soldier was taken prisoner.	戦争で敵に捕らえられた人。
+1528920:0	民衆が広場に集まった。	The people gathered in the square.	世の中の多くの人々。
+1535600:0	あの塔を目当てに歩く。	I walk using that tower as a landmark.	目で見て、目指す目印。
+1535600:1	彼女はお金目当てで結婚した。	She married for money.	目指すところ。目的。
+1545370:0	料理を容器に入れる。	I put the food in a container.	物を入れる器。
+1562360:1	うちの社長は話せる人だ。	Our boss is an understanding person.	話がわかる。物分かりがよい。
+1578400:0	弓の弦を張る。	I string the bow.	弓に張る糸。
+1583480:0	貧に苦しむ人々を助ける。	We help people suffering from poverty.	貧しいこと。
+1584990:0	夏祭りに浴衣を着ていく。	I wear a yukata to the summer festival.	夏に着る、木綿の単の着物。
+1589720:0	犬が飼い主を待っている。	The dog is waiting for its owner.	その動物を飼っている人。
+1590410:0	粘土の塊をこねる。	I knead a lump of clay.	固まって一つになったもの。
+1590410:1	人の塊が駅から出てきた。	A crowd of people came out of the station.	一か所に集まった人々。
+1590410:2	彼は好奇心の塊だ。	He's curiosity personified.	その性質を極端に持つ人。
+1590600:0	好きな科目は数学だ。	My favourite subject is maths.	学校で教える学問の区分。
+1590880:0	この関数のグラフをかく。	Draw the graph of this function.	一方の値が決まると、もう一方の値が決まる関係。
+1599400:0	風邪がやっと治った。	My cold has finally cleared up.	病気やけがが良くなる。
+1600780:0	果たして彼は来なかった。	Sure enough, he didn't come.	思ったとおり。
+1600780:1	果たして本当だろうか。	Could it really be true?	本当に。いったい。
+1602130:0	山に声の響きがこだました。	The sound of our voices echoed in the mountains.	音が反響すること。
+1602130:2	この言葉は響きが美しい。	This word has a beautiful sound to it.	音や声の感じ。
+1604430:0	駅で彼を見かけた。	I spotted him at the station.	偶然に見る。
+1622100:0	放課後は部活がある。	I have club activities after school.	学校の、授業以外のクラブ活動。
