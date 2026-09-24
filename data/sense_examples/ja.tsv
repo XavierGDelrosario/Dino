@@ -5088,3 +5088,56 @@
 2843960:0	彼も来るんだろう。	He's probably coming too.	推し量る気持ちを表す語。
 1529520:0	財布の中にお金がない。	There's no money in my wallet.	存在しない。
 1008490:0	春になると花が咲く。	When spring comes, the flowers bloom.	ある事柄が起こると、次の事柄が起こることを表す語。
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BATCH 70 — the saved queue is done; now the rest of the frequency ≥ 400 set from
+# the whole dictionary (non-katakana, least frequent first). Archaic / specialist
+# senses of otherwise-common words are skipped.
+# ═══════════════════════════════════════════════════════════════════════════════
+1007040:0	それに、値段も安い。	And besides, it's cheap.	その上。さらに。
+1152730:0	二人は固く握手した。	The two shook hands firmly.	親しみを示すために、互いに手を握り合うこと。
+1152730:1	両社は環境問題で握手した。	The two companies joined hands on environmental issues.	仲直りしたり、協力したりすること。
+1154820:1	試験は案外な結果に終わった。	The exam turned out unexpectedly.	思っていたのと違う様子。
+1183090:0	先生の恩は忘れない。	I won't forget what I owe my teacher.	人から受けた、ありがたい行い。
+1183090:1	親の恩に報いる。	I repay my parents' kindness.	情けをかけること。いつくしみ。
+1188690:0	何とも言えない美しさだ。	It's a beauty beyond words.	本当に。まったく。
+1188690:1	彼は何とも思っていない。	He doesn't care in the least.	打ち消しの語と共に用いて、少しもそうでないことを表す。
+1192940:0	木に果実が実った。	Fruit has ripened on the tree.	植物の実。
+1192940:1	努力の果実を手にした。	I reaped the fruits of my efforts.	努力などによって得られた、よい結果。
+1205280:0	格安の航空券を買った。	I bought a cheap plane ticket.	値段が特に安いこと。
+1205740:0	卵の殻をむく。	I peel the shell off the egg.	物の外側を包む、硬いもの。
+1214270:1	簡易な方法で調べる。	We check it by a simple method.	手軽なこと。
+1222510:0	春の気配を感じる。	I sense a hint of spring.	はっきりとは見えないが、何となく感じられる様子。
+1227560:2	疲れたから、もう休む。	I'm tired, so I'm going to bed.	寝る。床につく。
+1227560:3	仕事を少し休んで、お茶を飲もう。	Let's take a short break from work and have some tea.	続けていたことを、しばらくやめる。
+1241450:0	祖母は琴を弾く。	My grandmother plays the koto.	日本の弦楽器の一つ。十三本の弦を張ったもの。	こと
+1253700:0	父は激怒した。	My father flew into a rage.	激しく怒ること。
+1253840:0	この絵は彼の傑作だ。	This painting is his masterpiece.	とても優れた作品。
+1253840:1	あの失敗は傑作だった。	That blunder was hilarious.	とても滑稽なこと。
+1271290:0	計算に誤りがあった。	There was an error in the calculation.	間違い。
+1274120:0	公正な判断を下す。	We make a fair judgement.	偏りがなく、正しいこと。
+1277440:1	いい加減な返事をするな。	Don't give me a half-hearted answer.	物事をいい加減にすます様子。無責任な様子。
+1282220:0	店の前に行列ができた。	A queue formed in front of the shop.	多くの人が列を作って並ぶこと。
+1283300:0	高価な指輪をもらった。	I was given an expensive ring.	値段が高いこと。
+1295510:0	細い道を歩いた。	I walked down a narrow path.	幅が狭い。細かい。
+1297430:1	母にカレーの作り方を教わった。	My mother taught me her curry recipe.	料理の作り方。
+1306160:1	彼は自分の使命を果たした。	He carried out his duty.	果たすべき務め。
+1310830:0	死後の世界を信じる。	I believe in life after death.	死んだ後。
+1316620:0	次世代の技術を開発する。	We develop next-generation technology.	次の世代。
+1318470:0	ドアが自動的に閉まった。	The door closed automatically.	機械などが、自然にそうなる様子。
+1335210:1	旅行者はガイドに従う。	The tourists follow the guide.	人の後について行く。
+1345520:1	試合の序盤は互角だった。	The early stages of the match were even.	物事の始まりの段階。
+1358660:0	今日は食欲がない。	I have no appetite today.	物を食べたいと思う気持ち。
+1368490:0	人前で話すのは苦手だ。	I'm not good at speaking in public.	人の見ている所。
+1414250:0	祖父は大正の生まれだ。	My grandfather was born in the Taishō era.	明治の次、昭和の前の元号。
+1425080:0	中東の情勢が不安定だ。	The situation in the Middle East is unstable.	アジアの西部から、アフリカの北東部にかけての地域。
+1428960:0	腸の調子が悪い。	My bowels are upset.	胃から肛門まで続く、食べ物を消化する管。
+1440780:0	店内は禁煙です。	Smoking is not allowed inside the shop.	店の中。
+1447000:2	彼は窓の外に視線を投げた。	He cast a glance out of the window.	視線や影などを向ける。
+1447910:0	道路が町を東西に走る。	The road runs east–west through the town.	東と西。
+1447910:1	東西の文化を比べる。	We compare Eastern and Western cultures.	東洋と西洋。
+1461110:0	難民を受け入れる。	We take in refugees.	戦争や災害などで、住む所を失った人。
+1471330:0	その会社は破産した。	That company went bankrupt.	財産をすべて失うこと。
+1483900:0	彼はいつも皮肉を言う。	He's always being sarcastic.	遠回しに意地悪く言うこと。
+1483900:1	皮肉なことに、雨は試合の後で止んだ。	Ironically, the rain stopped after the match.	思っていたのと反対になる様子。
+1490710:0	浜で貝を拾った。	I gathered shells on the beach.	海や湖の、水に接している平らな土地。
