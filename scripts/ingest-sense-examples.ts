@@ -97,6 +97,11 @@ async function main(): Promise<void> {
 
     // A sentence REMOVED from the corpus has to leave the cache too, or the deletion
     // never reaches anyone — the row above only touches senses still in the file.
+    //
+    // ‼️ SCOPED TO THIS FILE'S LANGUAGE PAIR, like the DELETE above. Unscoped, it treated
+    // every EN→JA row as a withdrawn curation and wiped its definition_source — which
+    // for EN→JA is the English WordNet definition PROJECTED by the edge (20260764), not
+    // anything this file ever wrote. Caught before a prod run that would have erased 260.
     const { rowCount: cleared } = await client.query(
       `UPDATE words w
           SET example = NULL, example_gloss = NULL, definition_source = NULL,
@@ -104,13 +109,15 @@ async function main(): Promise<void> {
               -- Back to the default order, NOT to NULL — a withdrawn curation restores
               -- the dictionary's ordering, it does not erase it.
               sense_rank = w.jmdict_sense_pos
-        WHERE (w.example IS NOT NULL OR w.example_gloss IS NOT NULL
+        WHERE w.source_lang = $1 AND w.target_lang = $2
+          AND (w.example IS NOT NULL OR w.example_gloss IS NOT NULL
                OR w.definition_source IS NOT NULL OR w.example_reading IS NOT NULL
                OR w.sense_rank IS DISTINCT FROM w.jmdict_sense_pos)
           AND NOT EXISTS (
             SELECT 1 FROM sense_curation c
              WHERE c.dictionary_ref = lower(w.dictionary_ref)
                AND c.source_lang = w.source_lang AND c.target_lang = w.target_lang)`,
+      [SOURCE_LANG, TARGET_LANG],
     );
 
     await client.query("COMMIT");
