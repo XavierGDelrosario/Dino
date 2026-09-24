@@ -587,16 +587,6 @@ export function TranslateView({
             <>
               {hasActions && (
                 <div className="reader__actions">
-                  {addAllWords.length > 0 && (
-                    <AddToListButton
-                      words={addAllWords}
-                      lists={t.lists}
-                      label={tr("translate.addAll", { n: addAllWords.length, noun: noun(addAllWords.length) })}
-                      onAdd={t.addWords}
-                      onCreateList={t.createNamedList}
-                      className="btn"
-                    />
-                  )}
                   {/* ONE quiz slot, not two. New words come first — that is what a
                       reader is here for — and only once there are none left does the
                       same position offer the saved words instead. Showing both put
@@ -618,6 +608,18 @@ export function TranslateView({
                         {tr("translate.reviewSaved", { n: t.reviewableCount, noun: noun(t.reviewableCount) })}
                       </button>
                     )
+                  )}
+                  {/* Add N sits AFTER the quiz slot (user, 2026-09-25): studying the text
+                      is the reader's main action, filing it all away the secondary one. */}
+                  {addAllWords.length > 0 && (
+                    <AddToListButton
+                      words={addAllWords}
+                      lists={t.lists}
+                      label={tr("translate.addAll", { n: addAllWords.length, noun: noun(addAllWords.length) })}
+                      onAdd={t.addWords}
+                      onCreateList={t.createNamedList}
+                      className="btn"
+                    />
                   )}
                 </div>
               )}
