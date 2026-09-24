@@ -3814,3 +3814,45 @@
 1529930:0	この切符は無効だ。	This ticket is invalid.	効き目や効力がないこと。
 1264960:0	彼女は個性が強い。	She has a strong personality.	その人だけが持っている性質。
 1224880:0	ここに座ってもよろしいですか。	May I sit here?	よい、の丁寧な言い方。
+
+# ── BATCH 40 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 1427520 帳 (lives in compounds — 手帳, 通帳), 1283030 香港 (a place name),
+# and 2087680 強い/こわい (a mis-resolved save of つよい — queued for the repoint).
+1310920:0	森の中で死体が見つかった。	A body was found in the woods.	死んだ人や動物の体。
+1006570:0	せめて一日だけでも休みたい。	I'd like at least one day off.	十分ではないが、少なくともこれだけは。
+2261500:0	おばさんの家に泊まった。	I stayed at my aunt's house.	父や母の姉妹。
+1601160:0	夕日が湖に反映している。	The setting sun is reflected in the lake.	光や色が映ること。
+1213990:0	店の前に大きな看板がある。	There's a big sign in front of the shop.	店の名前などを書いて、人目につく所に出す板。
+1546270:0	専門の用語が多くてわかりにくい。	It's full of technical terms and hard to follow.	ある分野で使われる言葉。
+1598350:0	入学の手続きを済ませた。	I completed the enrolment procedures.	物事を行うのに必要な順序や方法。
+1592990:0	看護師が夜に交代する。	The nurses change shifts at night.	入れ替わること。
+1599290:0	二つの国が同盟を結んだ。	The two countries formed an alliance.	同じ目的のために、国などが約束して協力すること。
+1339460:0	会議に出席した。	I attended the meeting.	会や授業などに出ること。
+1504460:0	本を種類ごとに分類する。	I sort the books by type.	種類ごとに分けること。
+1586700:0	あの男は怪しい。	That man is suspicious.	普通と違っていて、疑わしいようす。
+1476520:0	祖父は畑で野菜を育てている。	My grandfather grows vegetables in the field.	野菜などを作る土地。
+1473210:0	相手の気持ちに配慮する。	I'm considerate of the other person's feelings.	あれこれと心を配ること。
+1520190:0	手を洗って病気を防ぐ。	You prevent illness by washing your hands.	悪いことが起こらないようにする。
+1315240:0	京都には古い寺が多い。	Kyoto has many old temples.	仏像をまつり、僧が住む所。
+1267280:0	湖でボートに乗った。	We went out in a boat on the lake.	陸に囲まれた、広く深い水の所。
+1314540:0	過去の事例を調べる。	We look into past cases.	前にあった実際の例。
+1006110:0	雪はすっかり溶けた。	The snow has completely melted.	残らず全部。
+1494220:0	父は不動産の会社で働いている。	My father works at a real estate company.	土地や建物などの財産。
+1534380:0	網で魚をとる。	We catch fish with a net.	糸などを編んで作った、目のあるもの。
+1203380:0	外科の手術を受けた。	I had surgery.	手術で病気やけがを治す医学。
+1423680:0	駅は二つの町の中間にある。	The station is halfway between the two towns.	二つのものの間。
+1206610:0	学会で研究を発表した。	I presented my research at an academic conference.	学者が研究を発表し合う団体や集まり。
+1158280:0	祖父母は田舎に移住した。	My grandparents moved to the countryside.	ほかの土地に移り住むこと。
+1562970:1	昼ご飯に丼を食べた。	I had a rice bowl for lunch.	ご飯の上に具をのせた料理。
+1269330:0	晴れのち曇り。	Sunny, then cloudy later.	ある時より後。
+1264330:0	その言い方は失礼だ。	That's a rude way to put it.	言葉の言い表し方。
+1587670:0	いよいよ明日は試験だ。	The exam is finally tomorrow.	とうとう。ついに。
+1606810:0	女性の割合が増えている。	The proportion of women is growing.	全体に対する、ある部分の量の比。
+1448580:0	湯を沸かしてお茶を入れる。	I boil water and make tea.	熱くした水。
+1298230:0	昨年、日本を訪れた。	I visited Japan last year.	今年の前の年。
+1345640:0	日曜日を除いて毎日働く。	I work every day except Sunday.	その中から外す。
+1258660:0	新人の研修に参加した。	I took part in the new-staff training.	仕事に必要な知識や技術を学ぶこと。
+1282180:0	犯人の行方はわからない。	The culprit's whereabouts are unknown.	行った先。
+1336900:0	荷物の重量を量る。	We weigh the luggage.	物の重さ。
+1600280:0	喉が痛い。	I have a sore throat.	口の奥の、食べ物や息が通る所。
+1376060:0	新しい政党ができた。	A new political party was formed.	同じ政治の考えを持つ人の団体。
