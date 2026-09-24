@@ -5141,3 +5141,56 @@
 1483900:0	彼はいつも皮肉を言う。	He's always being sarcastic.	遠回しに意地悪く言うこと。
 1483900:1	皮肉なことに、雨は試合の後で止んだ。	Ironically, the rain stopped after the match.	思っていたのと反対になる様子。
 1490710:0	浜で貝を拾った。	I gathered shells on the beach.	海や湖の、水に接している平らな土地。
+
+# ── BATCH 71 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1504510:0	党は二つに分裂した。	The party split in two.	一つのものが、いくつかに分かれること。
+1513250:0	部屋の温度を一定に保つ。	I keep the room at a constant temperature.	その状態が変わらないようにする。
+1513250:1	この天気なら明日まで保つだろう。	With weather like this, it should hold until tomorrow.	その状態が長く続く。
+1519080:0	寺の坊主がお経を読む。	The temple priest chants a sutra.	寺に住む僧。
+1519080:1	弟は頭を坊主にした。	My younger brother had his head shaved.	髪を短く刈った頭。また、その人。
+1519080:2	坊主、名前は何だ。	What's your name, sonny?	男の子を親しんで呼ぶ語。
+1519080:3	今日の釣りは坊主だった。	I didn't catch a thing fishing today.	釣りで、魚が一匹も釣れないこと。
+1530690:0	あのチームは無敵だ。	That team is unbeatable.	敵がいないほど強いこと。
+1542640:0	昨夜はよく眠れなかった。	I didn't sleep well last night.	昨日の夜。	ゆうべ
+1545400:0	容姿で人を判断してはいけない。	You mustn't judge people by their looks.	顔かたちや姿。
+1562030:0	二人はようやく和解した。	The two finally made up.	争いをやめて、仲直りすること。
+1562030:1	裁判で和解が成立した。	A settlement was reached in court.	裁判で、当事者が互いに譲り合って争いを終わらせること。
+1576990:0	下半身を鍛える。	I train my lower body.	体の、腰から下の部分。
+1584270:1	本文の意味を説明しなさい。	Explain the meaning of this passage.	問題となっている、その文章。
+1601650:0	引き出しに手紙をしまった。	I put the letter away in the drawer.	机などの、引いて出し入れする箱。
+1601650:1	銀行で預金の引き出しをした。	I made a withdrawal at the bank.	預けたお金を取り出すこと。
+1601650:2	彼は話の引き出しが多い。	He has plenty of stories up his sleeve.	物事に対応するための、知識や経験の蓄え。
+1604480:1	工事は来月終わる見込みだ。	The work is expected to finish next month.	先のことを予想すること。
+2008870:0	難しい。だからこそ挑戦したい。	It's hard. That's exactly why I want to try.	そうであるから、なおさら。
+2827769:0	鎌倉には古い寺が多い。	Kamakura has many old temples.	神奈川県の南東部にある市。
+1001620:0	昼ご飯におにぎりを食べた。	I had a rice ball for lunch.	ご飯を丸や三角に握ったもの。
+1012210:0	彼は命令に忠実だ。	He's faithful to his orders.	真心を込めて、よく務める様子。
+1155780:0	毎日練習するなんて偉いね。	Practising every day — good for you.	行いが立派である様子。
+1155780:1	彼は会社の偉い人だ。	He's someone important at the company.	地位や身分が高い様子。
+1155780:2	偉いことになった。	Things have got serious.	程度がはなはだしい様子。大変な様子。
+1155780:3	この坂を上るのは偉い。	Climbing this slope is hard work.	苦しい。つらい。
+1164650:0	いったん決めたら、最後までやる。	Once I decide, I see it through.	一度。
+1164650:1	いったん家に帰ってから出かける。	I'll go home for a bit before going out.	しばらく。一時的に。
+1172460:0	彼は嘘つきだ。	He's a liar.	よく嘘を言う人。
+1195890:0	港に貨物が届いた。	The cargo arrived at the port.	運ばれる品物。
+1203520:0	外見で人を判断するな。	Don't judge people by appearances.	外から見た様子。
+1206560:0	彼は音楽の学院に通っている。	He attends a music academy.	学校。
+1207030:0	新しい学年が始まった。	The new school year has begun.	一年を単位とした、学校の教育の期間。
+1207030:1	弟と私は学年が二つ違う。	My younger brother is two years below me at school.	学年の段階。
+1207200:0	学歴より経験を重視する。	We value experience over academic background.	どんな学校を卒業したかという経歴。
+1212050:0	他人の生活に干渉するな。	Don't interfere in other people's lives.	他人のことに、立ち入って口を出すこと。
+1212110:0	彼が忘年会の幹事をする。	He's organising the year-end party.	会などの世話をする役。また、その人。
+1238110:0	彼は脅迫の電話を受けた。	He received a threatening phone call.	相手を脅して、何かをさせようとすること。
+1268830:2	この機械は古い型と互換がある。	This machine is compatible with the old model.	互いに取り替えて使えること。
+1269540:0	江戸時代の後期に建てられた。	It was built in the late Edo period.	ある期間を分けたうちの、あとの時期。
+1278010:0	大学で工学を学んでいる。	I'm studying engineering at university.	科学の知識を工業に応用する学問。
+1288640:0	転んで足を骨折した。	I fell and broke my leg.	骨が折れること。
+1311420:0	娘は私立の学校に通っている。	My daughter goes to a private school.	個人や団体が作り、運営すること。
+1316840:0	この町は治安がいい。	This town is safe.	国や社会の秩序が保たれていること。
+1330170:0	寿と書かれた紙を貼る。	We put up a paper reading "congratulations".	めでたいこと。祝い。
+1330500:0	今年は収益が増えた。	Revenue rose this year.	事業などで得た利益。
+1341350:0	今は秋刀魚が旬だ。	Pacific saury is in season now.	魚や野菜などの、最も味のよい時期。
+1341350:1	彼は今、旬の俳優だ。	He's the actor of the moment.	今、最も人気があること。
+1344270:0	ヨーロッパ諸国を旅した。	I travelled around the countries of Europe.	多くの国々。
+1352510:0	この道は上りがきつい。	The climb on this road is steep.	高い所へ上がること。坂道。
+1352510:1	上りの電車に乗った。	I took the up train.	地方から都へ向かうこと。また、その電車。
