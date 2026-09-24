@@ -740,14 +740,6 @@ textarea.translate__box::-webkit-scrollbar {
   align-items: center;
 }
 
-/* The example panel is a full-width flex item sitting BEFORE the add button in DOM
-   order, so opening it used to push Add onto a third row underneath. Ordering it last
-   keeps the markup (and the reading order) as SenseExample writes it while the panel
-   still lands at the bottom of the card, under everything it expands. */
-.result > .senseex {
-  order: 1;
-}
-
 .result--primary {
   border-color: var(--accent);
   padding: 0.95rem 1rem;

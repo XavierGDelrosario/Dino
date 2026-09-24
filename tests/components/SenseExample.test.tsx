@@ -115,3 +115,17 @@ describe("SenseExample — inside a Lists row", () => {
     expect(screen.queryByRole("button", { name: /example/i })).toBeNull();
   });
 });
+
+// Layout can't be observed in jsdom, so the one rule that keeps the row's controls
+// still is pinned at the source. The panel renders right after the 例 toggle; without
+// `order: 1` every control that follows it (the Lists speaker, Translate's Add) wraps
+// onto a line BELOW the opened panel — the button jumps when 例 is pressed. It lives in
+// the SHARED stylesheet so no host can be left out, as the Lists row once was.
+describe("SenseExample — the opened panel never displaces the row's controls", () => {
+  it("orders the panel last in its row, in the shared stylesheet", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync("src/components/common/senseexample.css", "utf8");
+    const rule = css.match(/\n\.senseex\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toMatch(/order:\s*1;/);
+  });
+});
