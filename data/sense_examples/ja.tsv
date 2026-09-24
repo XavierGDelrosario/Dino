@@ -3685,3 +3685,573 @@
 1421510:0	地面が雨でぬれている。	The ground is wet from the rain.	土地の表面。
 1217700:0	最後まで頑張ろう。	Let's keep at it to the end.	くじけずに、努力を続ける。
 1452030:0	今年の売り上げは前年の同期を上回った。	This year's sales beat the same period last year.	同じ時期。
+
+# ── BATCH 37 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2198630 済/ずみ (a suffix, 〜済み), 2251090 丘/つかさ (a mis-resolved save,
+# like 寮/つかさ) and 1193180:2 詩/うた (IPADIC reads 詩 as し in every context).
+1545330:0	森の中で妖精に出会う話だ。	It's a story about meeting a fairy in the forest.	西洋の伝説に出てくる、小さくて不思議な力を持つもの。
+1452030:2	スマホとパソコンのデータを同期する。	I sync the data between my phone and my computer.	二つ以上の機械の動きや内容を、合わせてそろえること。
+1371780:0	水は水素と酸素でできている。	Water is made of hydrogen and oxygen.	最も軽い気体の元素。
+1441210:0	三十歳で転職した。	I changed jobs at thirty.	職業や勤め先を変えること。
+1320580:0	心臓の疾患で入院した。	I was hospitalised with a heart condition.	体の病気。
+1366730:0	彼は人格が立派だ。	He's a person of fine character.	その人の、人としての性質や品位。
+1356330:0	彼は音楽に情熱を注いでいる。	He pours his passion into music.	激しく燃え上がる気持ち。
+1605460:0	丘の上に大きな屋敷がある。	There's a big mansion on the hill.	広い土地に建っている、大きくて立派な家。
+1291500:0	靴に砂が入った。	I've got sand in my shoes.	岩が砕けてできた、細かい粒。
+1254220:0	彼は留学する決意を固めた。	He made up his mind to study abroad.	はっきりと心を決めること。
+1477170:0	英語の発音を練習する。	I practise my English pronunciation.	言葉を声に出すときの音の出し方。
+1375620:0	なるべく早く返事をください。	Please reply as soon as you can.	できるだけ。
+1590550:0	母は深い悲しみに沈んだ。	My mother was sunk in deep grief.	悲しいと思う気持ち。
+1432850:0	毎日電車で学校に通う。	I go to school by train every day.	同じ所へ何度も行き来する。
+1415150:0	オーストラリアは大陸だ。	Australia is a continent.	地球の上の、非常に広い陸地。
+1254900:0	友達とバンドを結成した。	I formed a band with my friends.	団体などを作ること。
+1522620:0	問題の本質を見極める。	We get to the heart of the problem.	そのものの、本当の性質。
+1483540:0	二つの商品の値段を比べる。	I compare the prices of the two products.	二つ以上のものを並べて、違いを調べる。
+1298790:0	旅行で写真をたくさん撮った。	I took lots of photos on the trip.	カメラで写真などを写す。
+1255840:0	家賃は月末に払う。	The rent is paid at the end of the month.	月の終わりのころ。
+1396590:0	猫が鳥を狙っている。	The cat is eyeing the bird.	目標に当てようとして、よく見る。
+1533500:0	この部屋の面積を測った。	I measured the floor area of this room.	平らな面の広さ。
+1279590:0	校長が朝の挨拶をした。	The head teacher gave the morning address.	学校で一番上の立場の先生。
+1178450:0	遠慮しないで食べてください。	Please don't hold back — help yourself.	人に気をつかって、言葉や行いを控えめにすること。
+1449030:0	当局は事故の原因を調べている。	The authorities are investigating the cause of the accident.	ある仕事を受け持っている役所。
+1234370:0	彼の意見に共感した。	I could relate to his view.	人の気持ちや考えに、自分も同じように感じること。
+1587290:0	先生から本をいただいた。	I received a book from my teacher.	目上の人からもらう。
+1215200:0	週末は映画を鑑賞する。	I watch films at the weekend.	芸術作品を味わうこと。
+1371920:0	水道の水を飲む。	I drink tap water.	飲み水などを、管で家に送る仕組み。
+1169940:0	店内での飲食は禁止です。	No eating or drinking in the shop.	飲むことと食べること。
+1293240:0	再度確認してください。	Please check again.	もう一度。
+1929950:0	彼女は詩を書くのが好きだ。	She likes writing poems.	心に感じたことを、調子のある言葉で表したもの。
+1454590:0	前半で二点の得点を挙げた。	We scored two points in the first half.	試合や試験でとった点。
+1367720:0	人妻に恋をする物語だ。	It's a story about falling in love with a married woman.	結婚している女の人。
+1547320:0	彼は金への欲が強い。	He's very greedy for money.	何かをほしいと思う心。
+1437670:0	安全対策を徹底する。	We enforce the safety measures thoroughly.	すみずみまで、行き届かせること。
+1361110:0	慎重に運転してください。	Please drive carefully.	注意深く、軽はずみなことをしないようす。
+1232870:0	父は留学を許してくれた。	My father let me study abroad.	願いを聞き入れて、そうしてよいと認める。
+1467160:0	参加は任意です。	Participation is optional.	その人の自由な意思に任せること。
+
+# ── BATCH 38 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2655350 係/がかり (suffix, 〜係), 2081070 寄り (a sumo technique),
+# 2464210 志/シリング (a mis-resolved save — 志 read as the currency) and 2845092 愛媛
+# (a prefecture name — a proper noun, not vocabulary).
+1546830:0	住民の要望に応えて公園を作った。	They built a park in response to residents' requests.	こうしてほしいと、強く望むこと。
+1523240:0	その作家の本名は知られていない。	That writer's real name isn't known.	本当の名前。
+1543320:0	予備の電池を持っていく。	I'll take spare batteries.	足りなくなったときのために、用意しておくもの。
+1361770:0	新型の車が発売された。	A new model of car has gone on sale.	新しい型。
+1581710:0	昼間は仕事で家にいない。	I'm out at work during the day.	朝から夕方までの、明るい間。
+1468830:0	彼の年収は高い。	He has a high annual income.	一年間の収入。
+1505190:0	大学で日本の文学を学んだ。	I studied Japanese literature at university.	小説や詩など、言葉で表した芸術。
+1347180:0	駅前に古い商店が並んでいる。	Old shops line the street by the station.	物を売る店。
+1154430:0	暗号を解くのに時間がかかった。	It took a long time to crack the code.	ほかの人にわからないように決めた、秘密の記号。
+1466260:0	今年の春に入社した。	I joined the company this spring.	会社に入って、社員になること。
+1338600:0	毎朝八時に出勤する。	I go to work at eight every morning.	勤め先に仕事をしに行くこと。
+1326990:0	シャツのボタンが取れた。	A button came off my shirt.	付いていた物が離れて落ちる。
+1218760:0	母はプレゼントをとても喜んだ。	My mother was delighted with the present.	うれしいと思う。
+1538820:0	日本は車を多く輸出している。	Japan exports a lot of cars.	国内の品物を外国へ売ること。
+1601880:0	来週、引っ越しをする。	I'm moving house next week.	住む所を変えること。
+1379230:0	事故の生存者が見つかった。	Survivors of the accident were found.	生きていること。生き残ること。
+1378840:0	彼は生涯独身だった。	He stayed single all his life.	生まれてから死ぬまでの間。
+1481090:0	軍の一部が反乱を起こした。	Part of the army rose in revolt.	政府などに逆らって、武力で争うこと。
+1266850:0	都会で孤独を感じる。	I feel lonely in the city.	仲間がなく、ひとりでいること。
+1497980:0	試合に負けて悔しい。	I'm gutted we lost the match.	相手に勝てない。
+1251870:0	二つの事件にはつながりがある。	There's a link between the two cases.	関係があること。
+1333600:0	広場で集会が開かれた。	A rally was held in the square.	多くの人が一つの所に集まること。
+1346740:0	この町は商業が盛んだ。	Commerce thrives in this town.	物を売り買いして利益を得る仕事。
+1464300:0	旅行の日程を決めた。	We settled the itinerary for the trip.	毎日の予定。
+1385370:0	台風が本州に接近している。	The typhoon is approaching Honshu.	近づくこと。
+1201280:0	海岸を散歩した。	We walked along the beach.	海と陸の境の所。
+1478370:0	この仕事には危険が伴う。	This job comes with danger.	一緒に起こる。付いてくる。
+1518320:0	これはあくまで私の意見です。	This is only my opinion.	どこまでも。ただ、それだけであること。
+1423650:0	弟は中学校に通っている。	My younger brother goes to junior high.	小学校を卒業した子どもが通う学校。
+1279050:0	控えの選手が試合に出た。	A reserve player came on.	必要なときのために、用意しておくもの。
+1456010:0	この料理には独特の香りがある。	This dish has a distinctive aroma.	そのものだけが持っている、特別な様子。
+1486460:0	週末に美術館へ行った。	I went to an art gallery at the weekend.	絵や彫刻などを集めて見せる施設。
+1180060:0	習ったことを仕事に応用する。	I apply what I learned to my work.	知識などを、ほかのことに当てはめて使うこと。
+1517380:0	自然には一定の法則がある。	Nature follows certain laws.	物事の間にある、決まった関係。
+1378030:0	ホテルの正面に車を止めた。	I parked in front of the hotel.	建物などの、前の面。
+1317490:0	彼は責任の自覚がない。	He has no sense of responsibility.	自分の立場や状態を、自分でよく知ること。
+1248710:0	軍隊が町に入った。	The troops entered the town.	兵士の集まり。
+1503210:0	時計を分解して修理した。	I took the clock apart and fixed it.	まとまっているものを、ばらばらにすること。
+
+# ── BATCH 39 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2845112 栃木 (a place name), 2081360 材 and 2120810 度目 (bound forms that
+# only occur attached — 〜材, 〜度目).
+1518180:0	この地方は水が豊富だ。	This region has plenty of water.	たくさんあるようす。
+1453900:0	少女の瞳は大きく輝いていた。	The girl's eyes were big and shining.	目の中心にある黒い部分。
+1429060:0	わからない言葉を辞書で調べる。	I look up words I don't know in a dictionary.	わからないことを、いろいろな方法で知ろうとする。
+1322320:0	古い雑誌を捨てた。	I threw away the old magazines.	いらない物を手から離して、なくす。
+1286320:0	車で国境を越えた。	We crossed the border by car.	国と国との境。
+1477660:0	子どもの発想はおもしろい。	Children come up with interesting ideas.	新しい考えを思いつくこと。
+1477200:0	不正が発覚した。	The fraud came to light.	隠していたことが、人に知られること。
+1004690:0	この間、駅で先生に会った。	I ran into my teacher at the station the other day.	少し前のある時。	このあいだ
+1590520:0	新しい工場が稼働を始めた。	The new factory has started operating.	機械などが動いて、仕事をすること。
+1297650:0	彼はこの曲を作曲した。	He composed this piece.	音楽を作ること。
+1278040:0	この町は工業が盛んだ。	Industry thrives in this town.	原料を加工して、製品を作る産業。
+1591150:0	遠くから鐘の音が聞こえる。	I can hear a bell in the distance.	音や声が耳に入る。
+1208970:0	株式を売って資金を集めた。	They raised funds by selling shares.	会社の資本を分けた単位。株。
+1400300:0	早速始めよう。	Let's get started right away.	すぐに。
+1467560:0	顔で本人を認証する。	It verifies your identity by your face.	正しいものであると、確かめて認めること。
+1311450:0	針に糸を通す。	I thread the needle.	布を縫うのに使う、細く長いもの。
+1450590:0	この川の水は透明だ。	The water in this river is clear.	すきとおって、向こうが見えるようす。
+1004520:0	こっそり部屋を出た。	I slipped out of the room.	人に知られないように、そっと。
+1310050:0	彼女に指輪を贈った。	I gave her a ring.	指にはめる輪。
+1404570:0	部屋の温度を測定する。	We measure the temperature of the room.	機械などを使って、長さや重さなどを測ること。
+1598590:0	電話で問い合わせをした。	I made an enquiry by phone.	わからないことを聞いて確かめること。
+1352930:0	上級のクラスに入った。	I got into the advanced class.	程度や地位が上であること。
+1521260:0	県の北部で雪が降った。	It snowed in the north of the prefecture.	ある地域の、北の方の部分。
+1194580:0	夏祭りで花火を見た。	We watched fireworks at the summer festival.	火薬を使って、空に光や色を出すもの。
+1200120:0	この部屋は快適だ。	This room is comfortable.	気持ちよく、過ごしやすいようす。
+1229500:0	求人の広告を見て応募した。	I saw a job ad and applied.	働く人を探して募集すること。
+1473980:0	会社は土地を売却した。	The company sold off the land.	売り払うこと。
+1546880:0	彼女の踊りはとても美しい。	Her dancing is beautiful.	音楽に合わせて体を動かすこと。
+1424690:0	中世の城を見学した。	We visited a medieval castle.	古代と近代の間の時代。
+1159020:0	彼の説明に違和感を覚えた。	Something about his explanation felt off.	しっくりこない感じ。
+1247030:0	同じ失敗を繰り返すな。	Don't make the same mistake again.	同じことを何度もする。
+1310670:0	エンジンを止める。	I switch the engine off.	動いているものを動かないようにする。
+1327410:0	この料理は手間がかかる。	This dish takes a lot of work.	ある事をするのに必要な時間や労力。
+1333090:0	早起きの習慣をつけたい。	I want to get into the habit of getting up early.	いつもそうすることになっている行い。
+1480540:0	自分の行動を反省した。	I reflected on what I had done.	自分の行いを振り返って考えること。
+1351900:0	鳩は平和の象徴だ。	The dove is a symbol of peace.	目に見えないものを、形のあるもので表すこと。
+1529930:0	この切符は無効だ。	This ticket is invalid.	効き目や効力がないこと。
+1264960:0	彼女は個性が強い。	She has a strong personality.	その人だけが持っている性質。
+1224880:0	ここに座ってもよろしいですか。	May I sit here?	よい、の丁寧な言い方。
+
+# ── BATCH 40 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 1427520 帳 (lives in compounds — 手帳, 通帳), 1283030 香港 (a place name),
+# and 2087680 強い/こわい (a mis-resolved save of つよい — queued for the repoint).
+1310920:0	森の中で死体が見つかった。	A body was found in the woods.	死んだ人や動物の体。
+1006570:0	せめて一日だけでも休みたい。	I'd like at least one day off.	十分ではないが、少なくともこれだけは。
+2261500:0	おばさんの家に泊まった。	I stayed at my aunt's house.	父や母の姉妹。
+1601160:0	夕日が湖に反映している。	The setting sun is reflected in the lake.	光や色が映ること。
+1213990:0	店の前に大きな看板がある。	There's a big sign in front of the shop.	店の名前などを書いて、人目につく所に出す板。
+1546270:0	専門の用語が多くてわかりにくい。	It's full of technical terms and hard to follow.	ある分野で使われる言葉。
+1598350:0	入学の手続きを済ませた。	I completed the enrolment procedures.	物事を行うのに必要な順序や方法。
+1592990:0	看護師が夜に交代する。	The nurses change shifts at night.	入れ替わること。
+1599290:0	二つの国が同盟を結んだ。	The two countries formed an alliance.	同じ目的のために、国などが約束して協力すること。
+1339460:0	会議に出席した。	I attended the meeting.	会や授業などに出ること。
+1504460:0	本を種類ごとに分類する。	I sort the books by type.	種類ごとに分けること。
+1586700:0	あの男は怪しい。	That man is suspicious.	普通と違っていて、疑わしいようす。
+1476520:0	祖父は畑で野菜を育てている。	My grandfather grows vegetables in the field.	野菜などを作る土地。
+1473210:0	相手の気持ちに配慮する。	I'm considerate of the other person's feelings.	あれこれと心を配ること。
+1520190:0	手を洗って病気を防ぐ。	You prevent illness by washing your hands.	悪いことが起こらないようにする。
+1315240:0	京都には古い寺が多い。	Kyoto has many old temples.	仏像をまつり、僧が住む所。
+1267280:0	湖でボートに乗った。	We went out in a boat on the lake.	陸に囲まれた、広く深い水の所。
+1314540:0	過去の事例を調べる。	We look into past cases.	前にあった実際の例。
+1006110:0	雪はすっかり溶けた。	The snow has completely melted.	残らず全部。
+1494220:0	父は不動産の会社で働いている。	My father works at a real estate company.	土地や建物などの財産。
+1534380:0	網で魚をとる。	We catch fish with a net.	糸などを編んで作った、目のあるもの。
+1203380:0	外科の手術を受けた。	I had surgery.	手術で病気やけがを治す医学。
+1423680:0	駅は二つの町の中間にある。	The station is halfway between the two towns.	二つのものの間。
+1206610:0	学会で研究を発表した。	I presented my research at an academic conference.	学者が研究を発表し合う団体や集まり。
+1158280:0	祖父母は田舎に移住した。	My grandparents moved to the countryside.	ほかの土地に移り住むこと。
+1562970:1	昼ご飯に丼を食べた。	I had a rice bowl for lunch.	ご飯の上に具をのせた料理。
+1269330:0	晴れのち曇り。	Sunny, then cloudy later.	ある時より後。
+1264330:0	その言い方は失礼だ。	That's a rude way to put it.	言葉の言い表し方。
+1587670:0	いよいよ明日は試験だ。	The exam is finally tomorrow.	とうとう。ついに。
+1606810:0	女性の割合が増えている。	The proportion of women is growing.	全体に対する、ある部分の量の比。
+1448580:0	湯を沸かしてお茶を入れる。	I boil water and make tea.	熱くした水。
+1298230:0	昨年、日本を訪れた。	I visited Japan last year.	今年の前の年。
+1345640:0	日曜日を除いて毎日働く。	I work every day except Sunday.	その中から外す。
+1258660:0	新人の研修に参加した。	I took part in the new-staff training.	仕事に必要な知識や技術を学ぶこと。
+1282180:0	犯人の行方はわからない。	The culprit's whereabouts are unknown.	行った先。
+1336900:0	荷物の重量を量る。	We weigh the luggage.	物の重さ。
+1600280:0	喉が痛い。	I have a sore throat.	口の奥の、食べ物や息が通る所。
+1376060:0	新しい政党ができた。	A new political party was formed.	同じ政治の考えを持つ人の団体。
+
+# ── BATCH 41 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+1352700:0	箱の上下を確かめてから開ける。	Check which way up the box is before you open it.	上と下の方向。	うえした
+1472370:0	道路の雪を排除する。	We clear the snow from the road.	じゃまなものを、取り除くこと。
+1634500:0	たまに映画を見に行く。	I go to see a film now and then.	時々。まれに。
+1501620:0	店で代金を払った。	I paid at the shop.	お金を渡す。
+1406230:0	祖母は孫と遊ぶのが好きだ。	My grandmother loves playing with her grandchildren.	子どもの子ども。
+1409580:0	毎朝体操をしている。	I do exercises every morning.	体を丈夫にするために、体を動かす運動。
+1362730:0	水不足が深刻になっている。	The water shortage is getting serious.	物事が重大で、簡単には解決しないようす。
+1201000:0	古い倉庫を店に改造した。	They converted an old warehouse into a shop.	作り直して、形や性質を変えること。
+1265040:0	古の都の姿をしのぶ。	I picture the ancient capital as it once was.	遠い昔。
+1443620:0	時計の電池が切れた。	My watch battery has run out.	電気をためておいて、少しずつ出すもの。
+1375860:0	この薬の成分を調べた。	I looked up the ingredients of this medicine.	物を作っている、一つ一つのもの。
+1560850:0	ガスの漏れに気をつける。	Watch out for gas leaks.	液体や気体などが、すき間から外に出ること。
+1344120:0	駅前の書店で雑誌を買った。	I bought a magazine at the bookshop by the station.	本を売る店。
+1159810:0	兄は大学で医学を学んでいる。	My brother is studying medicine at university.	病気の原因や治し方を研究する学問。
+1555440:0	家の裏に林がある。	There's a wood behind the house.	木がたくさん生えている所。
+1195710:1	彼は営業の課に配属された。	He was assigned to the sales section.	会社や役所などの、仕事を分けた一つの単位。
+1341930:0	子どもの純粋な心を大切にしたい。	I want to cherish a child's innocent heart.	まじりけがなく、清らかなようす。
+1214980:0	星の動きを観測する。	We observe the movement of the stars.	自然の様子を、器械などを使って調べること。
+1205220:0	道路を拡張する工事が始まった。	Work to widen the road has begun.	範囲や規模を広げること。
+1528040:0	十八歳未満は入れません。	No entry for under-eighteens.	その数に届かないこと。
+1529550:0	財布がなくなった。	My wallet has gone missing.	あった物が、見えなくなる。
+1317810:0	地方の自治を進める。	We promote local self-government.	自分たちのことを、自分たちで治めること。
+1612770:0	友達に就職のお祝いを贈った。	I gave a friend a present to celebrate their new job.	めでたいことを喜ぶこと。また、その品物。
+1313910:0	注意の事項をよく読む。	Read the points to note carefully.	一つ一つの事柄。
+1496890:0	布団を干した。	I aired the futon.	寝るときに、下に敷いたり上に掛けたりするもの。
+1465720:0	祖父は病気で入院した。	My grandfather went into hospital because he was ill.	病気やけがを治すために、病院に入ること。
+1225490:0	彼の話には疑いがある。	There's some doubt about his story.	本当かどうか、あやしいと思う気持ち。
+1335520:0	みかんの汁が手についた。	I got orange juice on my hands.	物から出る水分。
+1602700:0	カメラに付属の電池を使う。	Use the battery that comes with the camera.	主な物に付いていること。
+1204700:0	該当する項目に丸をつけてください。	Please circle the items that apply.	条件などに当てはまること。
+1246270:0	駅で偶然友達に会った。	I ran into a friend at the station by chance.	思いがけないこと。
+1529880:0	宇宙は無限に広がっている。	The universe stretches on forever.	限りがないこと。
+1517100:0	大阪方面の電車に乗る。	I take a train bound for Osaka.	ある方向や地域。
+1310680:0	たばこをやめた。	I've quit smoking.	続けていたことを終わりにする。
+1326320:0	主要な都市を訪れた。	I visited the major cities.	物事の中心になっていて、大切なこと。
+1202950:0	窓を開放して空気を入れる。	I open the windows to let the air in.	戸や窓などを開けたままにすること。
+1386140:0	その節はお世話になりました。	Thank you for your help on that occasion.	その時。その折。	せつ
+1367870:0	人事を尽くして天命を待つ。	Do all you can and leave the rest to heaven.	人の力でできること。
+1499480:0	機械の部品を交換した。	I replaced some of the machine's parts.	機械などを作っている、一つ一つの部分。
+1406660:0	安く売ったら損だ。	Selling it cheap would be a loss.	利益を失うこと。
+1359850:0	泥棒が家に侵入した。	A burglar broke into the house.	入ってはいけない所に、無理に入ること。
+1561590:0	会議の内容を録音した。	I recorded the meeting.	音をテープなどに記録すること。
+
+# ── BATCH 42 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+1359150:0	彼は信仰が厚い。	He has a deep faith.	神や仏を信じて、敬うこと。
+1443720:0	山の中は電波が弱い。	The signal is weak in the mountains.	通信に使われる、電気の波。
+1196270:0	成長の過程を記録する。	We record the process of growth.	物事が進んでいく道筋。
+1321480:0	このかばんは実用的だ。	This bag is practical.	実際に役に立つこと。
+1413260:0	兄は大学生だ。	My older brother is a university student.	大学で学ぶ学生。
+1253800:0	橋の桁が古くなっている。	The bridge's girders are getting old.	柱の上に渡して、上の物を支える横木。
+1271310:0	誤解を解きたい。	I want to clear up the misunderstanding.	意味を取り違えること。
+1173100:0	空に白い雲が浮かんでいる。	White clouds are floating in the sky.	空に浮かぶ、水の小さな粒の集まり。
+1599730:0	なんとなく元気が出ない。	For some reason I just don't feel up to much.	はっきりした理由もなく。
+1207360:0	彼の楽曲はよく知られている。	His songs are well known.	音楽の作品。
+1427360:0	店員の丁寧な対応に感心した。	I was impressed by the shop assistant's courteous service.	礼儀正しく、心がこもっているようす。
+1306860:0	史上最高の記録が出た。	A record high for all time was set.	歴史の上で。
+1185930:0	下着を着替えた。	I changed my underwear.	服の下に、肌に直接着るもの。
+1153440:0	客を丁寧に扱う。	We treat our customers courteously.	人に対して、ある態度で接する。
+1579720:0	一人で暮らすのは寂しい。	Living alone is lonely.	仲間がいなくて、心細いようす。
+1547510:0	翌日は雨だった。	It rained the next day.	次の日。
+1311640:0	紫の花が咲いている。	Purple flowers are blooming.	赤と青をまぜた色。
+1605845:2	陰に陽に彼を支えた。	I supported him both in private and in public.	表に現れていること。	よう
+1606950:0	学生は割引がある。	Students get a discount.	決まった値段から、いくらか安くすること。
+1433050:0	円は日本の通貨だ。	The yen is Japan's currency.	国で使われているお金。
+1433070:0	電車は駅を通過した。	The train went through the station without stopping.	止まらずに通り過ぎること。
+1223660:0	倒れた自転車を起こした。	I picked up the bicycle that had fallen over.	横になっているものを立たせる。
+1007060:0	今日はそれほど寒くない。	It's not that cold today.	そんなに。
+1489600:0	雑誌の表紙に彼女の写真が載った。	Her photo was on the cover of the magazine.	本や雑誌の外側を包む紙。
+1320920:0	春が来たことを実感する。	I really feel that spring has come.	実際に感じること。
+1437430:0	適切な判断をした。	We made the right call.	ちょうどよく当てはまるようす。
+1292400:0	工事が再開された。	The construction work has resumed.	止まっていたことを、また始めること。
+1590250:0	間違った箇所を直した。	I corrected the parts that were wrong.	ある特定の所。
+1410930:0	京都に三日間滞在した。	I stayed in Kyoto for three days.	よその土地に、しばらくとどまること。
+1345470:0	ついでがあれば寄ってください。	Drop in if you get the chance.	何かをする、よい機会。
+1205100:0	各地で雨が降った。	It rained all over the country.	それぞれの土地。
+1538850:0	船で荷物を輸送する。	We ship the goods by boat.	人や物を運ぶこと。
+1433880:0	爪を切った。	I cut my nails.	指の先にある、硬いもの。
+1346150:0	試合に勝った。	We won the match.	相手を負かす。
+1574470:0	昼にうどんを食べた。	I had udon for lunch.	小麦粉で作った、太くて白い麺。
+1377290:0	正式に結婚を申し込んだ。	I formally proposed.	決められた方法に従っていること。
+1198500:0	首相が記者と会見した。	The prime minister held a press conference.	人と会うこと。特に、正式に会って話すこと。
+1489880:0	月の表面は岩でおおわれている。	The surface of the moon is covered in rock.	物の外側の面。
+1477250:0	彼女は実力を発揮した。	She showed what she could do.	持っている力を十分に表すこと。
+1594480:0	支払いはカードでお願いします。	I'll pay by card, please.	お金を払うこと。
+1242700:0	請求された金額に驚いた。	I was shocked by the amount I was charged.	お金の量。
+1412400:0	社長の代理で会議に出た。	I attended the meeting on the president's behalf.	本人の代わりに物事をすること。
+1499460:0	部長に報告した。	I reported to the department head.	会社の部の、一番上の立場の人。
+1449710:0	国の統計を見る。	I look at the national statistics.	数を集めて、全体の様子を調べること。
+
+# ── BATCH 43 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 1244950 具/ぐ ("tool" — never stands alone in modern prose) and 2406710
+# 直/ただ (a second ただ entry; not obviously a mis-save, not obviously teachable).
+1579780:0	店の主人が笑顔で迎えてくれた。	The owner of the shop greeted us with a smile.	店や家の中心となる人。
+1282280:0	今日の講師は有名な作家だ。	Today's speaker is a famous writer.	講演や講習で教える人。
+1242510:0	近年、外国人の観光客が増えた。	The number of foreign tourists has grown in recent years.	最近の数年。
+1336260:0	この会社は経験を重視する。	This company puts a lot of weight on experience.	大切なものとして考えること。
+1513320:0	書類を金庫に保管する。	We keep the documents in the safe.	物を大切に預かってしまっておくこと。
+2868440:0	細い管に水を通す。	Run water through a thin tube.	中が空いている、細長いもの。	くだ
+1433470:0	合格の通知が届いた。	I got notice that I'd passed.	必要なことを知らせること。
+1411110:0	彼には一つ貸しがある。	He owes me one.	人に貸してあること。また、相手に与えた恩。
+1279990:0	港に大きな船が着いた。	A big ship arrived in port.	船が止まって、人や荷物を乗り降りさせる所。
+1559400:0	地域と学校が連携して活動する。	The community and the school work together.	協力して物事を行うこと。
+1589880:0	その事件には関わりたくない。	I don't want to get mixed up in that affair.	関係を持つ。
+2188720:1	急ぐ要はない。	There's no need to hurry.	必要であること。
+1340700:0	スピーカーの出力を上げる。	Turn up the speakers' output.	機械が外に出す力や信号。
+1154520:0	大統領が暗殺された。	The president was assassinated.	ひそかにねらって、人を殺すこと。
+1493370:0	試験で不正をした。	He cheated on the exam.	正しくないこと。
+2188720:0	彼の説明は要を得ている。	His explanation gets right to the point.	物事の大切な点。
+1533000:0	部屋がめちゃくちゃに散らかっている。	The room is a complete mess.	筋道が通らず、ひどいようす。
+1551790:0	彼は立派な医者になった。	He became a fine doctor.	すぐれていて、りっぱなようす。
+1559450:0	二つの党が連合を組んだ。	The two parties formed a coalition.	二つ以上のものが、一つにまとまること。
+1234210:0	父は競馬が好きだ。	My father loves horse racing.	馬を走らせて順位を争う競技。
+1308640:0	市内のホテルに泊まった。	We stayed at a hotel in the city.	市の中。
+1590480:0	変な格好で寝ていた。	I was sleeping in a funny position.	物の形や、体の姿勢。
+1214900:0	アリの動きを観察した。	I watched how the ants moved.	物事の様子を注意してよく見ること。
+1431330:0	試験の直前に勉強した。	I studied right before the exam.	すぐ前。
+1410290:0	二人の意見が対立している。	The two of them disagree.	反対の立場に立って、互いに譲らないこと。
+1442750:0	夏休みに田舎へ帰った。	I went back to the countryside for the summer holidays.	都会から離れた土地。
+1351030:0	風邪の症状が出た。	I've come down with cold symptoms.	病気のときに体に現れる様子。
+1451350:0	彼の動作はゆっくりしている。	He moves slowly.	体の動き。
+1312130:0	子どもの視点で考える。	I think about it from a child's point of view.	物事を見る立場。
+2015610:0	もうすぐ夏休みだ。	The summer holidays are almost here.	間もなく。
+1252490:0	会場の警備が厳しい。	Security at the venue is tight.	事故や犯罪が起こらないように守ること。
+1604740:0	この国には多くの民族が住んでいる。	Many ethnic groups live in this country.	言葉や文化などを共にする人々の集まり。
+1287180:0	国立の大学に入った。	I got into a national university.	国が作って、国が経営していること。
+1296670:0	料理の材料を買う。	I buy the ingredients for dinner.	物を作るもとになるもの。
+1483600:0	今日は比較的暖かい。	It's relatively warm today.	ほかと比べてみると。
+1297710:0	この本の作者は若い。	The author of this book is young.	作品を作った人。
+1431850:0	珍しい鳥を見た。	I saw a rare bird.	めったにないようす。
+1339220:0	彼は大会に出場した。	He competed in the tournament.	試合などに出ること。
+1414470:0	仕事はだいたい終わった。	The work is mostly done.	ほとんど。おおよそ。
+1199010:0	この文の解釈が難しい。	This sentence is hard to interpret.	言葉や物事の意味を考えて、理解すること。
+1258220:0	王は大きな権力を持っていた。	The king held great power.	人を従わせる力。
+1496240:0	駅の付近で事故があった。	There was an accident near the station.	ある場所の近く。
+
+# ── BATCH 44 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 2078050 活/かつ (rarely stands alone), and two mis-resolved saves queued for
+# the repoint — 2257380 まち/襠 ("gusset", for 町) and 2845086 大分/おおいた (for だいぶ).
+1628260:0	少し時間をいただけますか。	Could I have a moment of your time?	いただくことができる。
+1372980:0	数学が苦手だ。	I'm bad at maths.	数や図形について研究する学問。
+1363650:0	彼は真剣な顔で話した。	He spoke with a serious face.	本気で、一生懸命なようす。
+1282410:0	彼は町の発展に貢献した。	He contributed to the town's development.	役に立つように力を尽くすこと。
+1234140:0	会社どうしの競争が激しい。	Competition between companies is fierce.	勝ち負けや優劣を争うこと。
+1520380:0	事故を防止する対策をとる。	We take measures to prevent accidents.	悪いことが起こらないように防ぐこと。
+1210620:0	約束の日を勘違いしていた。	I'd got the day of the appointment wrong.	思い違いをすること。
+1397340:0	彼は素直に謝った。	He apologised without making excuses.	ひねくれていなくて、おだやかなようす。
+1361590:0	新幹線で大阪へ行った。	I went to Osaka on the bullet train.	主な都市を結ぶ、非常に速い鉄道。
+1396550:0	銃の狙いを定めた。	He took aim with the gun.	目標に当てようとすること。
+1176510:0	試合は延長に入った。	The game went into extra time.	長さや期間をのばすこと。
+1582030:0	天皇が国民に言葉を述べた。	The Emperor addressed the nation.	日本の国の象徴である人。
+1541690:0	この駐車場は有料だ。	This car park charges a fee.	料金が必要なこと。
+1440670:0	店員に道を聞いた。	I asked a shop assistant for directions.	店で働く人。
+1512220:0	手紙の返事を書いた。	I wrote a reply to the letter.	呼びかけや手紙に答えること。
+1200490:0	この歌を聞くと子どもの頃が懐かしい。	This song makes me nostalgic for my childhood.	昔を思い出して、心がひかれるようす。
+1528790:0	民主と自由を守る。	We defend democracy and freedom.	国の政治を国民が決めること。
+1198060:0	母は祖父の介護をしている。	My mother is caring for my grandfather.	病人や老人の世話をすること。
+1308610:0	新しい市長が選ばれた。	A new mayor was elected.	市の一番上の立場の人。
+1334080:0	ここに住所を書いてください。	Please write your address here.	住んでいる所。
+1177820:0	遠くに山が見える。	I can see mountains in the distance.	遠い所。
+1263210:0	人口が減少している。	The population is falling.	数や量が減ること。
+1538870:0	日本は石油を輸入している。	Japan imports oil.	外国から品物を買い入れること。
+1199510:0	練習の回数を増やす。	I'll practise more often.	物事が行われる度の数。
+1499540:0	営業の部門に移った。	I moved to the sales division.	全体を分けた、一つ一つの部分。
+1414920:0	だいぶ寒くなった。	It's got a lot colder.	かなり。
+1402820:0	メールを送信した。	I sent the email.	通信で情報を送ること。
+1575870:0	彼は親に依存している。	He relies on his parents.	ほかのものに頼って成り立つこと。
+1434250:0	体力の低下を感じる。	I can feel my stamina declining.	程度や位置が下がること。
+1344200:0	必要な書類をそろえた。	I got together the documents I need.	事務の記録などを書いた紙。
+1329740:0	来年、大学を受験する。	I'm taking university entrance exams next year.	試験を受けること。
+1321240:0	彼には十分な実績がある。	He has a strong track record.	実際に上げた成果。
+1588060:0	受付で名前を言った。	I gave my name at reception.	来た人の用件を聞いて、取り次ぐ所。
+1005190:0	さっさと片付けなさい。	Tidy up and be quick about it.	ぐずぐずしないで、すばやく。
+1602900:0	不要な物を捨てた。	I threw out the things I don't need.	必要がないこと。
+1465850:0	四月に小学校に入学した。	I started primary school in April.	学校に入ること。
+1378040:1	もっとまともな仕事を探しなさい。	Find yourself a proper job.	まじめで、きちんとしているようす。
+1544090:0	余計な物は買わない。	I don't buy things I don't need.	必要以上であること。
+1283000:0	調査の項目を決める。	We decide the items to survey.	内容を小さく分けた、一つ一つ。
+1591250:0	彼が助かったのは奇跡だ。	It's a miracle he survived.	普通では考えられない、不思議な出来事。
+1398420:0	彼女は小説の創作を続けている。	She keeps writing fiction.	新しく作品を作り出すこと。
+
+# ── BATCH 45 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 1537250:2 野/の, 1194480 か月, 1354720 乗り, 2593990 勝/しょう (bound forms —
+# 野良, 三か月, 〜乗り, 三勝), and 1164950:0 一定 (the saved sense is the rare verb
+# "to settle"; the everyday 一定の is another sense).
+1507180:0	彼は平気な顔でうそをつく。	He lies with a straight face.	何とも思わず、落ち着いているようす。
+1545260:0	娘は幼稚園に通っている。	My daughter goes to kindergarten.	小学校に入る前の子どもが通う所。
+1220560:0	申し込みの期限は明日だ。	The deadline for applications is tomorrow.	前もって決められた、終わりの時。
+1541560:0	手伝ってくれるとありがたい。	I'd be grateful if you could help.	感謝したい気持ちであるようす。
+1364920:0	神様にお祈りした。	I prayed to God.	神を敬って言う言葉。
+1283830:0	飛行機は高度を下げた。	The plane lost altitude.	地面や海面からの高さ。
+1518120:0	先生の家を訪問した。	I visited my teacher's house.	人をたずねること。
+1435530:0	言葉の定義を調べる。	I look up the definition of the word.	言葉の意味をはっきりと決めること。
+1352320:0	質問がある人は手を上げてください。	Raise your hand if you have a question.	下から上へ移す。
+1386960:0	彼は将来に絶望した。	He despaired of his future.	希望を全く失うこと。
+1284740:0	合計で三千円です。	That's three thousand yen in total.	全部を合わせた数。
+1349860:0	海岸に松が並んでいる。	Pine trees line the shore.	一年中葉が緑の、針のような葉を持つ木。
+1596370:0	相互の理解を深める。	We deepen our mutual understanding.	お互いに同じことをし合うこと。
+1204070:0	情報が外部に漏れた。	The information leaked outside.	ある物事の外側。
+1333680:0	朝九時に駅前に集合する。	We meet up in front of the station at nine.	一つの所に集まること。
+1463930:0	毎晩日記をつけている。	I keep a diary every night.	毎日の出来事を書いた記録。
+1421630:0	人前で歌うのは恥ずかしい。	Singing in front of people is embarrassing.	人に見られて、きまりが悪いようす。
+1605280:0	彼はもともと無口な人だ。	He's always been a quiet person.	初めから。
+1343310:0	私はテニス部に所属している。	I belong to the tennis club.	団体などの一員であること。
+1298120:0	古いデータを削除した。	I deleted the old data.	取り除くこと。
+1394600:0	ようやく仕事が終わった。	At last the work is done.	長い時間がかかって、やっと。
+1436410:0	レポートを提出した。	I handed in my report.	書類などを差し出すこと。
+1497110:0	スマホが広く普及した。	Smartphones have become widespread.	広く世の中に行き渡ること。
+1535880:0	忘れ物に気づいて途中で戻った。	I realised I'd forgotten something and turned back halfway.	来た方へ引き返す。
+1202150:0	みな元気です。	Everyone is well.	そこにいる人の全部。
+1596090:0	せっかく来たのに店が閉まっていた。	I came all this way and the shop was shut.	わざわざ苦労して。
+1320900:0	正月は実家に帰る。	I go back to my parents' at New Year.	自分の生まれた家。
+1583640:0	隣の夫婦は仲がいい。	The couple next door get on well.	結婚している男女。
+1396390:0	全力で走った。	I ran as hard as I could.	持っているすべての力。
+1453580:0	同僚と昼ご飯を食べた。	I had lunch with a colleague.	同じ職場で働く人。
+1363130:0	ビザを申請した。	I applied for a visa.	役所などに、許可を願い出ること。
+1395410:0	全身が痛い。	My whole body aches.	体全体。
+1199680:0	アンケートに回答した。	I answered the questionnaire.	質問などに答えること。
+1200740:0	改めてお礼を申し上げます。	Let me thank you once again.	もう一度。
+1507720:0	平日は仕事で忙しい。	I'm busy with work on weekdays.	休日ではない日。
+1380650:0	この工場で車を製作している。	Cars are manufactured at this factory.	道具や機械を使って物を作ること。
+1281270:0	航空の会社で働いている。	I work for an airline.	飛行機で空を飛ぶこと。
+1430930:0	地震の直後に停電した。	The power went out right after the earthquake.	すぐ後。
+1180030:0	コンテストに応募した。	I entered the contest.	募集に応じて申し込むこと。
+
+# ── BATCH 46 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+1223021:0	学校の規則を守る。	I follow the school rules.	守らなければならない決まり。
+1241810:0	運動で筋肉をつける。	I build muscle by exercising.	体を動かす働きをする組織。
+1222840:0	好きな季節は秋だ。	My favourite season is autumn.	春・夏・秋・冬の、一年の区切り。
+1515700:0	仕事の報酬を受け取った。	I received payment for the work.	仕事をしたお礼として払われるお金や品物。
+1577985:0	ご用の方は受付におる者にお声がけください。	If you need anything, please speak to our staff at reception.	いる、の丁寧な言い方。
+1283400:0	高級なホテルに泊まった。	We stayed at an upmarket hotel.	品質や程度が高いこと。
+1375880:0	新しい法律が成立した。	The new law was passed.	物事がまとまって、できあがること。
+1397270:0	私は料理の素人だ。	I'm an amateur when it comes to cooking.	その事を専門にしていない人。
+1443810:0	夏は電力の消費が増える。	Electricity consumption goes up in summer.	電気の力。
+1528630:0	民間の会社で働いている。	I work for a private company.	国や役所に属さないこと。
+1297110:0	急な坂を上った。	I walked up a steep slope.	傾いている道。
+1449670:0	服の色を統一した。	We made all the clothes the same colour.	ばらばらのものを、一つにまとめること。
+1352880:0	上記の住所に送ってください。	Please send it to the address above.	上に書いてあること。
+1273510:0	公共の場所では静かにする。	Keep quiet in public places.	社会の人々みんなに関係すること。
+1595070:0	彼は昔からの知り合いだ。	He's someone I've known for a long time.	互いに知っている人。
+1472800:0	背中がかゆい。	My back is itchy.	体の後ろの、肩から腰までの部分。
+1367120:0	娘は人形で遊んでいる。	My daughter is playing with her doll.	人の形に作ったおもちゃ。
+1554280:0	電気の料金を払った。	I paid the electricity bill.	物を使ったり、サービスを受けたりするときに払うお金。
+1505470:0	彼は文章が上手だ。	He writes well.	考えなどを文字で書き表したもの。
+1275210:0	仕事の効率を上げる。	We make our work more efficient.	使った力に対して、得られた結果の割合。
+1235240:0	写真を友達と共有した。	I shared the photos with my friends.	一つのものを、何人かで持ったり使ったりすること。
+1505470:1	次の文章を英語に訳しなさい。	Translate the following sentence into English.	文。
+1317110:0	駅までの道を地図で示した。	I showed the way to the station on the map.	人に分かるように見せる。
+1174070:0	永遠の愛を誓った。	They vowed eternal love.	いつまでも変わらずに続くこと。
+1001770:0	お客様、こちらへどうぞ。	This way, please, sir.	客を敬って言う言葉。
+1364670:0	正月に神社へお参りに行った。	I visited a shrine at New Year.	日本の神をまつる所。
+1466850:0	パスワードを入力してください。	Please enter your password.	コンピューターに情報を入れること。
+1294170:0	もはや手遅れだ。	It's already too late.	今となっては。
+1532410:0	明確な目標を持つ。	I have a clear goal.	はっきりしていて、確かなようす。
+1008950:0	どうせ間に合わないだろう。	We won't make it in time anyway.	どのようにしても、結果は同じで。
+1351730:0	詳しい説明を聞いた。	I heard a detailed explanation.	細かいところまで、よくわかるようす。
+1606140:0	合格の喜びを家族と分かち合った。	I shared the joy of passing with my family.	うれしいと思う気持ち。
+1371830:0	新しい水着を買った。	I bought a new swimsuit.	泳ぐときに着る服。
+1127680:0	それ、まじで言ってるの？	Are you serious?	本気であること。
+1523170:0	会社の本部は東京にある。	The company's headquarters are in Tokyo.	組織の中心となる所。
+1206080:0	失敗する覚悟はできている。	I'm prepared to fail.	悪い結果になっても受け入れる、心の準備。
+1161170:0	一応確認しておきます。	I'll check, just to be sure.	十分ではないが、ひと通り。
+1219060:0	基礎からしっかり学ぶ。	I learn thoroughly from the basics.	物事を支える、もとになる部分。
+1583460:0	子どもが猫の絵を描いた。	The child drew a picture of a cat.	絵や図をかく。
+1517040:0	会社の方針が変わった。	The company's policy has changed.	物事を進める方向や方法。
+1200930:0	法律の改正が決まった。	The amendment to the law has been approved.	規則などを、よりよく改めること。
+1373060:0	数字を書き間違えた。	I wrote the number wrong.	数を表す文字。
+1482010:0	腹が減ったから飯を食おう。	I'm starving — let's eat.	ご飯。食事。
+1253130:0	芸能の世界で働きたい。	I want to work in show business.	演劇や音楽などの芸。
+
+# ── BATCH 47 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: bound forms / prefixes / suffixes — 1480060 反/たん, 2229780 異/こと,
+# 2056720 現〜, 2265630 〜焼き, 1552090:2 一流's 流, 2653620 がち (slang, written ガチ)
+# and 2016470 〜がち; and two mis-resolved saves queued for the repoint —
+# 2844141 波/は (the counter, for なみ) and 1247250 公/きみ (君's entry, for おおやけ).
+1477750:0	風の力で発電する。	We generate electricity with wind power.	電気を起こすこと。
+1331030:0	周囲の人に気を配る。	I'm considerate of the people around me.	物の周り。
+1250310:0	形式にこだわりすぎる。	They're too hung up on form.	物事の外から見た形。
+1592290:0	色の組み合わせがいい。	The colours go well together.	いくつかのものを組み合わせたもの。
+1346230:0	勝負はまだ決まらない。	The contest is still undecided.	勝つか負けるか。
+1307740:0	姿勢を正して座る。	I sit up straight.	体の構え方。
+1466290:0	珍しい本を入手した。	I got hold of a rare book.	手に入れること。
+1593070:0	国境を越えて旅をした。	We travelled across the border.	ある所を通って、向こう側へ行く。
+1854880:0	古い家を売りに出した。	I put the old house up for sale.	売ること。
+1357510:0	書類に職業を書く。	I write my occupation on the form.	生活のためにする仕事。
+1163340:0	一瞬、何が起きたかわからなかった。	For a moment I didn't know what had happened.	非常に短い時間。
+1602710:0	両親は元気です。	My parents are well.	父と母。
+1225900:0	子どもに教育を受けさせるのは親の義務だ。	It's a parent's duty to have their children educated.	しなければならないこと。
+1501350:0	この問題は複雑だ。	This problem is complicated.	物事がこみ入っていて、わかりにくいようす。
+1173030:0	二人の出会いは運命だった。	Their meeting was fate.	人の力ではどうにもならない、めぐり合わせ。
+1432840:0	彼は日本酒の通だ。	He's a connoisseur of sake.	ある物事について、よく知っている人。
+1283510:0	弟は高校生だ。	My younger brother is in high school.	高等学校の生徒。
+1199000:0	会議は五時に解散した。	The meeting broke up at five.	集まっていた人が別れること。
+1541290:0	このパスポートは有効だ。	This passport is valid.	効き目があること。
+1488710:0	標準の大きさを選ぶ。	I choose the standard size.	物事の、よりどころとなるもの。
+1241070:0	父は銀行に勤務している。	My father works at a bank.	勤め先で仕事をすること。
+1586780:0	あらゆる方法を試した。	I tried every possible method.	全部の。
+1376240:0	車の整備をした。	I had the car serviced.	いつでも使えるように整えること。
+1590145:0	木の影が長くのびている。	The tree's shadow stretches long.	光がさえぎられてできる暗い部分。
+1484660:0	台風で住民が避難した。	Residents evacuated because of the typhoon.	災害を避けて、安全な所へ移ること。
+1590970:0	彼の演技は完璧だった。	His performance was flawless.	欠点がまったくないこと。
+1269510:0	言ったことを後悔している。	I regret what I said.	してしまったことを、後になって悔やむこと。
+1543000:0	旅行の予算を立てる。	We draw up a budget for the trip.	前もって見積もった費用。
+1151120:0	近所の人に挨拶した。	I said hello to the neighbours.	人に会ったときや別れるときに交わす言葉や動作。
+1295100:0	災害に備えて水を買った。	I bought water in case of disaster.	地震や台風などによる大きな被害。
+1364360:0	彼は真面目に働く。	He works conscientiously.	本気で、誠実なようす。
+1254130:0	決して諦めない。	I'll never give up.	どんなことがあっても。
+1206820:0	毎日日本語を学習している。	I study Japanese every day.	知識や技術を学んで身につけること。
+1604420:0	人は見かけによらない。	You can't judge people by appearances.	外から見た様子。
+1383260:0	赤ちゃんが泣いている。	The baby is crying.	生まれて間もない子ども。
+
+# ── BATCH 48 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 1480050 反/たん (a fabric measure), 1216010 関東 (a region name), 1522310
+# 本格 (lives in 本格的), 2106250 〜産 and 1257080 〜圏 (bound forms), 1039140 カレー
+# (katakana), and 2707020 袋/たい (a counter — a mis-save of ふくろ, queued).
+1437450:0	適当な言葉が見つからない。	I can't find the right word.	目的や条件によく合っているようす。
+1550160:0	理論と実際は違う。	Theory and practice are different.	筋道を立てて組み立てた考え。
+1232410:0	彼は私の頼みを拒否した。	He turned down my request.	求めを断ること。
+1238550:0	鏡で自分の顔を見た。	I looked at my face in the mirror.	姿を映して見る道具。
+1199250:0	人質が解放された。	The hostages were released.	束縛をといて、自由にすること。
+1375470:0	このカメラは性能がいい。	This camera performs well.	機械などの性質と能力。
+1426680:0	夏は虫が多い。	There are lots of insects in summer.	小さな生き物。昆虫など。
+1550020:0	理想と現実は違う。	Ideals and reality are different.	考えられる最もよい状態。
+1445650:0	昔は奴隷として働かされた人々がいた。	In the past there were people forced to work as slaves.	人として扱われず、他人の持ち物として働かされた人。
+1409540:0	体重が三キロ増えた。	I've put on three kilos.	体の重さ。
+1270590:0	ご飯を炊いた。	I cooked the rice.	炊いた米。
+1289520:0	今夜は雨が降るそうだ。	I hear it's going to rain tonight.	今日の夜。
+1449210:0	当日は雨だった。	It rained on the day.	その日。
+1402400:0	登山の装備をそろえた。	I got my climbing gear together.	必要な道具を身につけること。また、その道具。
+1454970:0	特殊な技術が必要だ。	It requires special skills.	普通とは違っていること。
+1237030:0	日曜日に教会へ行く。	I go to church on Sundays.	キリスト教の信者が集まって祈る所。
+1234700:0	二人には共通の趣味がある。	The two of them have a hobby in common.	二つ以上のものに当てはまること。
+1591290:0	日本に興味を持ったきっかけは何ですか。	What got you interested in Japan?	物事が始まる、もとになること。
+1596780:0	台風が近づいている。	A typhoon is approaching.	夏から秋にかけて来る、強い風と雨を伴う低気圧。
+1199640:0	車輪が回転している。	The wheel is turning.	くるくる回ること。
+1464980:0	牛の乳をしぼる。	We milk the cows.	動物の母が子を育てるために出す白い液体。
+1309800:0	画面の指示に従ってください。	Please follow the instructions on the screen.	指し示すこと。
+1357490:0	市役所の職員に聞いた。	I asked a member of staff at city hall.	役所や学校などで働く人。
+1236350:0	参加を強制されるのは嫌だ。	I don't like being forced to take part.	無理にさせること。
+1218450:0	会社は危機を乗り越えた。	The company pulled through the crisis.	非常に危ない状態。
+1535440:0	彼は医者を目指している。	He's aiming to become a doctor.	目標として、それに向かって進む。
+1409550:0	新しい体制で仕事を始めた。	We started work under a new set-up.	組織などの仕組み。
+1520200:0	国の防衛について話し合う。	We discuss national defence.	攻撃を防いで、守ること。
+1477390:0	雑誌は毎月発行される。	The magazine is published every month.	本や新聞などを印刷して出すこと。
+1364520:0	歯の神経が痛む。	The nerve in my tooth hurts.	体の感覚や動きを伝える糸のような組織。
+1426650:0	ラーメンを注文した。	I ordered ramen.	品物などを頼むこと。
+1365480:0	医者の診断を受けた。	I was examined by a doctor.	医者が病気の状態を調べて判断すること。
+1205950:0	雨が降る確率は五十パーセントだ。	There's a fifty per cent chance of rain.	ある事が起こる見込みの割合。
+1506320:0	戦争で新しい兵器が使われた。	New weapons were used in the war.	戦争に使う道具。
+1483520:0	男女の比は一対一だ。	The ratio of men to women is one to one.	二つの数の割合。
+1225630:0	彼の説明に疑問を感じた。	I had doubts about his explanation.	疑わしいと思うこと。
+1392910:0	車が前後に動いた。	The car moved back and forth.	前と後ろ。
+
+# ── BATCH 49 — saved senses, frequency ≥ 400, least frequent first (continued). ──
+# Skipped: 1459650 和/なぎ (a genuine rare sense, left as saved), 1412840 台湾 (a place
+# name) and 1500330 副〜 (a prefix).
+1461160:0	りんごを二つ買った。	I bought two apples.	一の次の数。
+1595970:0	コンピューターで機械を制御する。	The machine is controlled by computer.	機械などを、思いどおりに動かすこと。
+1249470:0	最近、若者の車離れの傾向がある。	Lately young people are tending to give up on cars.	物事がある方向に向かう様子。
+1333150:0	この部屋はたばこ臭い。	This room stinks of cigarettes.	いやなにおいがするようす。
+1269060:0	午前十時に会いましょう。	Let's meet at ten in the morning.	夜中から昼までの間。
+1318260:0	今日は自宅で仕事をする。	I'm working from home today.	自分の家。
+1244470:0	私は数学が苦手だ。	I'm bad at maths.	うまくできないこと。
+1599760:0	台所からいい匂いがする。	There's a lovely smell coming from the kitchen.	鼻で感じるもの。香り。
+1554010:0	両方の意見を聞く。	I listen to both sides.	二つのもの、どちらも。
+1231490:0	牧場で牛を育てている。	They raise cattle on the ranch.	乳や肉をとるために飼う、大きな動物。
+1405050:0	車の速度を落とす。	I slow the car down.	物が進む速さ。
+1454510:1	料理は私の得意だ。	Cooking is my strong point.	上手で、自信があること。
+1549140:0	卵を二つ割った。	I cracked two eggs.	鳥などが産む、からに包まれたもの。
+1205510:0	梅の核を取り除く。	I take the stones out of the plums.	果物の中にある、硬い種。
+1402870:0	送料は無料です。	Shipping is free.	物を送るのにかかるお金。
+1424410:0	雨で試合が中止になった。	The match was called off because of rain.	予定していたことを取りやめること。
+1361650:0	新規のお客様は割引があります。	New customers get a discount.	新しく始めること。
+1523400:0	小説を英語に翻訳した。	I translated the novel into English.	ある言葉を、ほかの言葉に言いかえること。
+1223230:0	書類に名前が記載されていない。	My name isn't on the document.	書類などに書いてのせること。
+1408370:0	太陽が東から昇る。	The sun rises in the east.	地球を照らす、明るい星。
+1477720:0	町は大きく発展した。	The town has grown a great deal.	勢いが広がって、盛んになること。
+1539230:0	彼女は優秀な学生だ。	She's an outstanding student.	ほかよりも特にすぐれていること。
+1486530:0	彼の母親は美人だ。	His mother is a beautiful woman.	顔や姿が美しい女の人。
+1530020:0	彼は私の忠告を無視した。	He ignored my advice.	あるものを、ないかのように扱うこと。
+1334150:0	駅の近くに住宅が増えた。	There's more housing near the station now.	人が住むための家。
+1351270:0	第三章を読んだ。	I read chapter three.	長い文章の、内容で分けた一つのまとまり。
+1208920:0	会社の株を買った。	I bought shares in the company.	会社の資本を分けた単位。
+1361000:0	子どもの心理を研究する。	I study children's psychology.	心の働き。
+1282000:0	いきなり雨が降り出した。	It suddenly started to rain.	前触れもなく、急に。
+1251810:0	研究を継続する。	We continue the research.	前から行っていることを、続けること。
+1595610:0	少なくとも一時間はかかる。	It'll take at least an hour.	どんなに少なく見ても。
+1312690:0	教師の資格を取った。	I got a teaching qualification.	ある事をするのに必要な条件。
+1417040:0	メートルは長さの単位だ。	The metre is a unit of length.	物の量を測るもとになる量。
+1595090:0	銀の指輪を買った。	I bought a silver ring.	白く光る金属。
+1539040:0	彼女は誰にでも優しい。	She's kind to everyone.	思いやりがあって、親切なようす。
+1229350:0	平和を求める。	We long for peace.	ほしいと願う。
+1436720:0	彼は諦めが早い。	He gives up too easily.	もうだめだと思って、望みを捨てること。
+1327790:0	父は心臓の手術を受けた。	My father had heart surgery.	病気を治すために体を切ること。
+1351400:0	彼女は笑顔で答えた。	She answered with a smile.	笑っている顔。
+1323500:0	仕事の邪魔をしないで。	Don't get in the way of my work.	物事の妨げになること。
+1403160:0	観光客が増加している。	The number of tourists is growing.	数や量が増えること。
