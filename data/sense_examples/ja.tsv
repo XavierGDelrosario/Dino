@@ -6437,3 +6437,42 @@
 1583250:1	いいえ、どういたしまして。	Not at all — you're welcome.	礼を言われたときの返事。
 1956230:0	彼の言を信じる。	I believe his words.	言葉。
 2084330:0	各地で乱が起きた。	Rebellions broke out everywhere.	世の中が乱れること。戦乱。
+
+# ── BATCH 100 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+2845094:0	高知はかつおが有名だ。	Kochi is famous for bonito.	四国の南部にある県。
+1008570:0	急いで行った。ところが、店は閉まっていた。	I hurried there. However, the shop was closed.	前の事柄から予想されることと、反対のことが起こることを表す語。
+1199120:0	古い建物を解体する。	We demolish the old building.	建物などをばらばらにすること。
+1199120:1	その組織は解体された。	The organisation was dissolved.	組織を解散させること。
+1214530:0	規制を緩和する。	We relax the regulations.	厳しさを和らげること。
+1214810:0	観客が拍手を送った。	The audience applauded.	見物する人。
+1222640:0	気味の悪い話だ。	It's a creepy story.	そのことから受ける感じ。
+1226930:0	戦争で多くの人が虐殺された。	Many people were massacred in the war.	むごい方法で殺すこと。
+1234320:0	二人は映画で共演した。	The two co-starred in a film.	一緒に出演すること。
+1237470:0	大人でも難しい。まして子どもには無理だ。	It's hard even for adults, let alone children.	なおさら。
+1237470:1	歩くのもつらいのに、まして走るなど無理だ。	Walking is hard enough, much less running.	なおさら〜ない。
+1256490:0	この部屋は居間兼食堂だ。	This room is a living room cum dining room.	二つ以上を兼ねること。
+1275490:0	社員の厚生に力を入れる。	We focus on staff welfare.	人々の生活を豊かにすること。
+1287210:0	国連の会議が開かれた。	A UN meeting was held.	国際連合の略。
+1294910:0	温室でトマトを栽培する。	We grow tomatoes in a greenhouse.	植物を植えて育てること。
+1298790:1	ビデオで試合を撮る。	I film the match on video.	録画や録音をする。
+1324360:0	若手の社員が活躍している。	The young employees are doing great work.	若い人。
+1330100:0	魔女の呪いにかかった。	I was put under a witch's curse.	災いが起こるように祈ること。
+1341840:0	兵士は盾で身を守った。	The soldier protected himself with a shield.	敵の攻撃を防ぐ板。
+1341840:1	彼は法律を盾にとって反論した。	He used the law as his justification to argue back.	口実。
+1357990:0	指で画面に触れる。	I touch the screen with my finger.	手などで軽く触る。
+1357990:1	電線に触れると危ない。	It's dangerous to touch power lines.	物と物とが接する。
+1357990:2	外国の文化に触れる。	I come into contact with foreign culture.	経験する。
+1357990:3	彼はその問題に触れなかった。	He didn't touch on that issue.	話題にする。
+1357990:4	その行為は法に触れる。	That act breaks the law.	規則に反する。
+1360360:0	法案を審議する。	We deliberate on the bill.	よく検討すること。
+1368020:0	人種の差別に反対する。	We oppose racial discrimination.	人類を身体的な特徴で分けた区分。
+1370860:0	焼肉のたれを作る。	I make a dipping sauce for yakiniku.	料理にかける調味液。
+1375520:0	書類に性別を書く。	I write my gender on the form.	男女の区別。
+1379180:0	画像を自動で生成する。	We generate images automatically.	作り出すこと。
+1379640:0	今が桜の盛りだ。	The cherry blossoms are at their peak.	勢いが最も盛んな時。	さかり
+1379650:0	ご飯の盛りがいい。	The rice portions are generous.	器に盛った量。
+1381750:0	一人の青年が話しかけてきた。	A young man spoke to me.	若い男性。
+1389410:0	占いで運勢を見る。	I have my fortune told.	物事の吉凶を判断すること。
+1389410:1	占いに相談した。	I consulted a fortune-teller.	占う人。
+1392260:0	彼は選手権を獲得した。	He won the championship.	選手権大会で優勝した資格。
+1401090:1	父の土地を相続した。	I inherited my father's land.	財産を受け継ぐこと。
