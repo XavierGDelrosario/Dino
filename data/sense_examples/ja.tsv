@@ -7445,3 +7445,38 @@
 1609180:0	学校でのいじめを防ぐ。	We prevent bullying at school.	弱い者を苦しめること。
 2078850:0	今日は早めに帰る。	I'm going home a bit earlier today.	少し早い様子。
 2078850:1	早めのペースで走る。	I run at a slightly faster pace.	少し速い様子。
+
+# ── BATCH 125 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+2845606:0	お茶を一杯いかがですか。	How about a cup of tea?	どのように。勧めるときに使う語。
+2848543:0	陽が昇る。	The sun rises.	太陽。
+1157070:0	椅子に座る。	I sit on a chair.	腰をかける家具。
+1157070:1	社長の椅子を狙う。	I'm after the president's seat.	地位。
+1178940:0	汚い手で触らないで。	Don't touch it with dirty hands.	汚れている。
+1178940:1	彼の字は汚い。	His handwriting is messy.	乱れている。
+1178940:2	汚い言葉を使うな。	Don't use foul language.	下品である。
+1178940:3	汚いやり方で勝った。	He won by underhanded means.	卑怯である。
+1178940:4	彼は金に汚い。	He's greedy about money.	けちである。
+1194430:0	今月は稼ぎが少ない。	My earnings are low this month.	稼いだお金。
+1195770:0	電話代を課金する。	We charge for the phone calls.	料金をかけること。
+1195770:1	ゲームに課金する。	I pay for extras in the game.	有料の機能に支払うこと。
+1203090:0	階段を上る。	I climb the stairs.	上り下りするための段。
+1205270:0	彼とは格が違う。	He's in a different league from me.	地位。身分。
+1257950:0	実験で仮説を検証する。	We test the hypothesis by experiment.	確かめること。
+1279120:0	攻めの姿勢を崩さない。	We keep up an attacking stance.	攻めること。
+1282980:0	次の項を読んでください。	Please read the next paragraph.	文章の区切り。
+1311870:0	長い議論の末、結論に至った。	After a long debate, we reached a conclusion.	ある状態になる。
+1311870:1	この道は駅に至る。	This road leads to the station.	ある所に行き着く。
+1323030:0	会社は客に謝罪した。	The company apologised to its customers.	謝ること。
+1329810:0	メールを受信した。	I received an email.	通信を受けること。
+1363740:0	子どもは親の真似をする。	Children imitate their parents.	まねること。
+1363740:1	ばかな真似はよせ。	Don't do anything stupid.	振る舞い。
+1384830:1	彼とは縁を切った。	I cut ties with him.	関係を断つ。
+1384830:4	駅員が切符を切る。	The station attendant punches the ticket.	切符などに切れ目を入れる。
+1384830:5	手紙の封を切る。	I open the letter.	封を開ける。
+1384830:6	新生活のスタートを切る。	I make a start on my new life.	始める。
+1384830:7	期限を切って仕事を頼む。	I give the job a set deadline.	限定する。
+1384830:9	洗った野菜の水を切る。	I drain the washed vegetables.	水気を除く。
+1384830:10	風を切って走る。	I run cutting through the wind.	横切る。
+1384830:13	ハンドルを右に切る。	I turn the steering wheel to the right.	方向を変える。
+1384830:15	トランプを切る。	I shuffle the cards.	カードを混ぜる。
+1384830:17	会社は多くの社員を切った。	The company let many employees go.	関係を断って辞めさせる。
