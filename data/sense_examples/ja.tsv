@@ -5907,3 +5907,54 @@
 1551530:5	先輩を立てる。	I defer to my senior.	敬って、その人の面目を保つ。
 1551530:8	客にお茶を立てる。	I prepare tea for the guests.	抹茶をたてる。
 1553660:0	両手で箱を持つ。	I hold the box in both hands.	左右の手。
+
+# ── BATCH 88 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1600460:0	次の駅で乗り換えがある。	There's a change at the next station.	別の乗り物に乗り移ること。
+1600460:1	新しい携帯会社への乗り換えを考える。	I'm thinking of switching to a new phone carrier.	ほかのものに切り替えること。
+2014380:0	この地域は人口が密だ。	This area is densely populated.	すき間なく詰まっている様子。
+2014380:1	二人は密な関係にある。	The two have a close relationship.	関係が深い様子。
+2014380:2	密な計画を立てる。	We draw up a detailed plan.	細かい所まで行き届いている様子。
+2101970:0	鶏のがらでスープを取る。	I make stock from chicken bones.	肉を取った後の、鶏の骨。
+2101970:2	祭りの後にがらが残った。	Leftovers remained after the festival.	使った後に残った、要らないもの。
+2628140:0	あまりに下手で笑えた。	It was so bad I couldn't help laughing.	自然に笑ってしまう。
+2628140:1	あの話は本当に笑える。	That story is really funny.	おかしくて笑いたくなる。
+2847628:0	巣の中でひなが鳴いている。	Chicks are chirping in the nest.	鳥の子。
+2847628:1	三月にひなを飾る。	We display hina dolls in March.	ひな祭りに飾る人形。
+1158470:0	政治の維新を求める。	We call for political reform.	物事を改めて新しくすること。
+1158470:1	維新の後、日本は近代化した。	Japan modernised after the Meiji Restoration.	明治維新。
+1183590:0	今日は海が穏やかだ。	The sea is calm today.	静かで、落ち着いている様子。
+1183590:1	穏やかな話し合いで解決した。	It was settled through amicable discussion.	度を越さず、穏当な様子。
+1221300:0	宇宙飛行士が地球に帰還した。	The astronauts returned to Earth.	遠くから帰ってくること。
+1224020:0	空に星が輝く。	Stars shine in the sky.	きらきらと光る。
+1224020:1	子どもの目が喜びに輝いた。	The child's eyes lit up with joy.	生き生きとした表情になる。
+1229030:0	彼の言葉が私の救いになった。	His words were a comfort to me.	救うこと。助け。
+1229030:1	どんな状況にも救いはある。	There's a saving grace in every situation.	心の慰めになるもの。
+1235960:0	二つの国の境界に川が流れる。	A river runs along the border between the two countries.	物と物との境目。
+1251880:0	この道は駅につながっている。	This road leads to the station.	つながり合う。結ばれる。
+1251880:1	小さなミスが大事故につながる。	Small mistakes can lead to major accidents.	ある結果に結びつく。
+1251880:2	私たちは血がつながっている。	We're related by blood.	血縁関係がある。
+1252680:0	税の負担を軽減する。	We reduce the tax burden.	減らして軽くすること。
+1272950:0	美しい光景に見とれた。	I was entranced by the beautiful scene.	目に見える景色や様子。
+1281930:0	学校の行事に参加する。	I take part in school events.	決まって行う催し。
+1326410:0	それが今の主流の考え方だ。	That's the mainstream view today.	中心となる流れや傾向。
+1336980:0	重力に逆らって飛ぶ。	It flies against gravity.	地球が物を引きつける力。
+1347830:0	山の小屋に泊まった。	I stayed in a mountain hut.	粗末な小さい建物。
+1347830:1	芝居の小屋に通う。	I go regularly to a small playhouse.	芝居などを見せる建物。
+1356580:0	二国が条約を結んだ。	The two countries signed a treaty.	国と国との間の取り決め。
+1365500:0	日曜日は診療を休みます。	The clinic is closed on Sundays.	病気を診察し、治療すること。
+1369620:0	孔子は仁を説いた。	Confucius taught benevolence.	人を思いやる心。
+1372800:1	それはずいぶんな言い方だ。	That's a horrible way to put it.	ひどい様子。
+1374300:1	子どもは世話がかかる。	Children take a lot of looking after.	面倒。手数。
+1384860:0	ギターの弦が切れた。	The guitar string snapped.	一続きのものが離れる。
+1384860:1	転んで唇が切れた。	I fell and cut my lip.	傷がつく。
+1384860:2	靴下のかかとが切れた。	The heel of my sock has worn through.	すり減って穴があく。
+1384860:3	大雨で堤防が切れた。	The embankment burst in the heavy rain.	崩れる。決壊する。
+1384860:4	電池が切れた。	The battery has died.	効き目がなくなる。
+1384860:5	パスポートの期限が切れた。	My passport has expired.	期限が過ぎる。
+1384860:6	牛乳が切れている。	We're out of milk.	たくわえがなくなる。
+1384860:7	彼とは縁が切れた。	I've broken off ties with him.	関係がなくなる。
+1384860:8	このナイフはよく切れる。	This knife cuts well.	切る力が優れている。
+1384860:9	彼は頭が切れる。	He's sharp.	頭の働きが鋭い。
+1384860:14	彼はすぐ切れる。	He loses his temper easily.	我慢できずに怒り出す。
+1401770:0	総務の仕事をしている。	I work in general affairs.	組織全体に関わる事務。
+1406460:0	相手の意見を尊重する。	I respect other people's opinions.	価値のあるものとして大切に扱うこと。
