@@ -6635,3 +6635,53 @@
 2412340:0	猫は私の癒しだ。	My cat is my comfort.	心や体を癒すこと。
 1011740:0	ほんの少しだけください。	Just a tiny bit, please.	わずかな。
 1164440:0	一族が集まった。	The whole family gathered.	同じ血筋の人々。
+
+# ── BATCH 105 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+2410890:0	炉のそばで暖まる。	I warm myself by the hearth.	火をたいて暖を取る所。
+2410890:1	炉で陶器を焼く。	We fire pottery in the kiln.	物を熱したり溶かしたりする設備。
+1187290:0	仮の住まいで暮らす。	I'm living in temporary accommodation.	一時的であること。
+1192380:0	家電を買い替える。	I replace our home appliances.	家庭で使う電気製品。
+1193880:0	工場で火災が起きた。	A fire broke out at the factory.	火事。
+1194460:0	この仕事は稼げる。	This job pays well.	働いてお金を得られる。
+1196170:0	肥料を過剰に与えた。	I gave it too much fertiliser.	多すぎること。
+1218760:1	友人の成功を喜ぶ。	I congratulate my friend on his success.	祝う。
+1218760:2	ご提案を喜んでお受けします。	I'm happy to accept your proposal.	快く受け入れる。
+1218760:3	喜んでお手伝いします。	I'll gladly help.	進んで行う。
+1226140:0	議長が会議を開いた。	The chair opened the meeting.	会議をまとめる役の人。
+1252330:0	警官が事故の現場に来た。	A police officer came to the scene of the accident.	警察官。
+1252360:0	医者に警告された。	The doctor warned me.	前もって注意すること。
+1259890:0	計画の見直しが必要だ。	The plan needs reviewing.	もう一度調べ直すこと。
+1264410:0	彼はその問題に言及した。	He referred to the issue.	話がそのことに触れること。
+1278590:0	駅前の広場で待ち合わせる。	We meet in the square in front of the station.	人が集まれる、広く開けた場所。
+1278590:1	森の中の広場で休む。	We rest in a clearing in the forest.	広く開けた土地。
+1285090:0	二つの会社が合体した。	The two companies merged.	一つになること。
+1326990:1	薬を飲んだら痛みが取れた。	The pain went away after I took the medicine.	痛みなどがなくなる。
+1326990:2	この地方は米がよく取れる。	This region produces a lot of rice.	収穫される。
+1326990:3	その言葉は冗談とも取れる。	Those words could be taken as a joke.	そう解釈できる。
+1326990:4	この料理は味のバランスが取れている。	This dish is well balanced in flavour.	調和が保たれる。
+1339790:0	引用の出典を示す。	I cite the source of the quotation.	引用した言葉などの出どころ。
+1343640:0	書類に署名する。	I sign the document.	自分の名前を書くこと。
+1345210:0	勝利の女神がほほ笑んだ。	Lady Luck smiled on us.	女性の神。
+1350990:0	舞台の照明が消えた。	The stage lighting went out.	光で照らすこと。
+1365960:0	工事の進みが遅い。	The construction is progressing slowly.	物事の進み具合。
+1373160:0	血液の数値を調べる。	We check the blood test values.	計算や測定で得られた数。
+1375390:0	彼は優しい性質だ。	He has a gentle nature.	生まれつきの気質。
+1375390:1	水の性質を調べる。	We study the properties of water.	物が持っている特徴。
+1390210:0	国は戦国の世となった。	The country fell into an age of civil war.	国が乱れ、戦いの続く世。
+1390210:1	戦国の武将について学ぶ。	I learn about warlords of the Warring States period.	戦国時代。
+1396260:0	壁の全面にペンキを塗る。	I paint the whole wall.	全体の面。
+1402890:0	山で熊に遭遇した。	I ran into a bear in the mountains.	偶然に出会うこと。
+1411850:0	社長の業務を代行する。	I act on behalf of the president.	代わって行うこと。
+1491050:0	彼は頻繁に電話をかけてくる。	He calls frequently.	たびたびである様子。
+1516630:0	放射線を浴びる。	I'm exposed to radiation.	放射性物質から出る光線。
+1521410:0	僕らは同じクラスだ。	We're in the same class.	僕たち。
+1535390:0	事故を目撃した。	I witnessed the accident.	実際にその場で見ること。
+1556410:0	どんな規則にも例外がある。	Every rule has an exception.	一般の規則に当てはまらないこと。
+1557110:0	冷蔵庫に牛乳を入れる。	I put the milk in the fridge.	食べ物を冷やしておく箱。
+1579210:0	食事の最中に電話が鳴った。	The phone rang in the middle of the meal.	物事が盛んに行われている時。
+1581610:0	道の端を歩く。	I walk along the edge of the road.	物の終わりの部分。	はし
+1581610:1	話の端から間違っていた。	The story was wrong from the very start.	始まり。	はし
+1623100:0	馬を調教する。	I train horses.	動物を訓練すること。
+1721230:0	お茶と一緒に最中を食べる。	I eat a monaka with my tea.	もち米の皮にあんを挟んだ和菓子。	もなか
+2020990:0	番外編より本編の方が面白い。	The main story is more interesting than the spin-off.	物語の主要な部分。
+2020990:2	予告の後に本編が始まった。	The feature started after the trailers.	映画館で上映される作品そのもの。
