@@ -5519,3 +5519,94 @@
 1322400:0	絵が斜めにかかっている。	The picture is hanging crooked.	傾いていること。
 1322400:1	彼は物事を斜めに見る。	He takes a cynical view of things.	素直でない様子。
 1325880:0	この曲はドラマの主題歌だ。	This song is the drama's theme song.	映画やドラマなどのために作られた歌。
+
+# ── BATCH 79 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1337500:0	明日は祝日で学校が休みだ。	Tomorrow is a public holiday, so there's no school.	国が定めた祝いの日。
+1353500:0	その会社は株式を上場した。	The company listed its shares.	株式を取引所で売買できるようにすること。
+1357580:0	彼は職務を果たした。	He carried out his duties.	仕事として受け持っている務め。
+1387930:0	先進の技術を取り入れる。	We adopt advanced technology.	進歩の度合いが進んでいること。
+1409640:0	水分が体内に吸収される。	Water is absorbed into the body.	体の中。
+1415850:0	沢で魚を釣った。	I fished in a mountain stream.	山の間を流れる小さな谷川。
+1415850:1	沢に鳥が集まっている。	Birds are gathering in the marsh.	水がたまり、草が生えている低い土地。
+1416170:0	ドアを強く叩く。	I bang hard on the door.	手や物で打つ。
+1416170:1	新聞は政府を叩いた。	The newspapers slammed the government.	厳しく非難する。
+1416170:2	彼の意見を叩いてみよう。	Let's sound out his opinion.	相手の考えを探る。
+1416170:3	魚を包丁で叩く。	I chop the fish finely with a knife.	肉や魚を細かく刻む。
+1416170:4	値段を叩いて安く買った。	I beat the price down and bought it cheap.	値段を無理に下げさせる。
+1416170:5	彼は大口を叩いた。	He talked big.	言う。しゃべる。
+1418530:1	炭酸の飲み物が好きだ。	I like fizzy drinks.	炭酸ガスを溶かした水や飲み物。
+1432240:0	飛行機が山に墜落した。	The plane crashed into a mountain.	高い所から落ちること。
+1444610:1	川に橋を渡す。	We build a bridge across the river.	一方からもう一方へかけ渡す。
+1444610:2	彼に手紙を渡した。	I handed him the letter.	人の手に移す。
+1444680:1	調査は十年に渡った。	The survey spanned ten years.	ある範囲に及ぶ。
+1449790:0	王が国を統治していた。	A king governed the country.	国を治めること。
+1455370:0	この地方特有の料理だ。	It's a dish peculiar to this region.	それだけが特に持っていること。
+1496730:0	彼は一代で富を築いた。	He built a fortune in one generation.	財産。
+1496730:1	海の富を活用する。	We make use of the sea's resources.	役に立つ資源。
+1513260:0	空港の保安検査を受ける。	I go through airport security.	社会の安全を保つこと。
+1513260:1	工場の保安に気を配る。	We pay attention to safety at the factory.	事故が起きないようにすること。
+1523130:0	子どもを守るのは母親の本能だ。	Protecting her child is a mother's instinct.	生まれつき持っている性質や行動の傾向。
+1524850:0	牛乳を温めると膜ができる。	A skin forms when you heat milk.	物の表面を覆う薄い皮。
+1535790:0	正月に餅を食べる。	We eat mochi at New Year.	もち米を蒸してついた食べ物。
+1535850:0	本を棚に戻す。	I put the book back on the shelf.	元の所や状態に返す。
+1535850:1	気分が悪くて戻してしまった。	I felt sick and threw up.	食べた物を吐く。
+1535850:2	株価が値を戻した。	The share price recovered.	下がった値段が元に近づく。
+1538090:0	この知識は将来役立つ。	This knowledge will be useful in future.	使って効果がある。
+1538960:0	ただいま、帰ったよ。	I'm home!	外から帰ったときの挨拶。
+1538960:1	ただいま、会議中です。	We're in a meeting at the moment.	今。現在。
+1538960:2	ただいま戻りました。	I've just got back.	ついさっき。
+1538960:3	ただいま参ります。	I'll be right there.	すぐに。
+1547410:0	欲望を抑える。	I keep my desires in check.	何かを欲しいと強く思う気持ち。
+1550980:0	船がようやく陸に着いた。	The ship finally reached land.	地球の表面で、水に覆われていない所。
+1556620:0	冬は足の冷えがつらい。	Cold feet in winter are a misery.	冷えること。
+1558220:0	歴代の首相の写真が並ぶ。	Photos of successive prime ministers are lined up.	何代も続いてきたこと。
+1559710:0	株価と為替が連動する。	Share prices move in step with exchange rates.	一つが動くと、関係するものも動くこと。
+1590150:0	木の陰で休む。	I rest in the shade of a tree.	光の当たらない所。
+1590150:1	ドアの陰に隠れる。	I hide behind the door.	物の後ろの側。
+1590150:2	彼は陰で私を支えてくれた。	He supported me behind the scenes.	表に出ない所。
+1590150:3	彼女の顔には陰がある。	There's a gloom about her face.	暗い感じ。
+1590870:0	肝心なことを忘れていた。	I'd forgotten the most important thing.	最も大切なこと。
+1594040:0	最後の仕上げをする。	I add the finishing touches.	最後に完成させること。
+1598750:0	年寄りを大切にする。	We look after the elderly.	年を取った人。
+1598750:1	引退後、彼は年寄りになった。	After retiring, he became a sumo elder.	日本相撲協会の役員。
+1721830:0	彼の演技は絶賛された。	His performance was highly praised.	この上なく褒めること。
+1730040:0	この店のラーメンは日本一だ。	This shop's ramen is the best in Japan.	日本で最も優れていること。	にほんいち
+
+# ── BATCH 80 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1853490:0	心から感謝しています。	I'm grateful from the bottom of my heart.	本当の気持ちから。
+1857320:0	海は昨夜の荒れが残っている。	The sea is still rough from last night's storm.	天候が悪くなること。また、肌などが荒れること。
+2633130:1	彼にはまだ鍛えが足りない。	He still needs more training.	厳しく訓練すること。
+2834408:0	犬のふんを片付ける。	I clean up after the dog.	動物の大便。
+1012940:0	彼とは手紙のやりとりをしている。	I exchange letters with him.	物や言葉を、互いに与えたり受けたりすること。
+1157000:0	この問題はやさしい。	This question is easy.	簡単である。
+1160520:0	この地方は稲の育ちが早い。	Rice grows quickly in this region.	育つこと。成長の具合。
+1160520:1	彼は東京育ちだ。	He grew up in Tokyo.	どこで、どのように育ったかということ。
+1169990:0	飲料を冷やしておく。	I keep the drinks chilled.	飲み物。
+1171120:0	右手でボールを投げる。	I throw the ball with my right hand.	右の手。
+1171120:1	右手に海が見える。	You can see the sea on your right.	右の方向。
+1188980:0	あの男は何者だ。	Who is that man?	どういう人か、わからない人。
+1208410:0	活発な議論が行われた。	A lively discussion took place.	元気がよく、勢いのある様子。
+1235870:0	卿はイギリスの貴族の称号だ。	"Lord" is a title of the British nobility.	イギリスで、貴族の名に付ける敬称。
+1239460:0	会社の業績が上がった。	The company's performance improved.	事業や研究などで上げた成果。
+1239650:0	局長が会見を開いた。	The bureau chief held a press conference.	局の長。
+1244090:0	この区域は立ち入り禁止だ。	This area is off limits.	区切られた範囲の土地。
+1248770:0	敵の軍団が迫ってきた。	The enemy corps was closing in.	軍隊の大きな部隊。
+1259440:0	工場を見学した。	We toured the factory.	実際に見て学ぶこと。
+1259440:1	体調が悪いので体育は見学する。	I'm feeling unwell, so I'll sit out PE.	授業などに参加せず、見ていること。
+1266560:0	土台の固めが大切だ。	Firming up the foundation is important.	固めること。
+1266560:2	守りの固めを強化する。	We strengthen our defences.	守りを固めること。
+1271510:0	大統領には護衛が付いている。	The president has bodyguards.	付き添って守ること。
+1274640:0	公平に判断してください。	Please judge fairly.	偏りがなく、平等であること。
+1279780:0	新しい小説の構想を練る。	I work out the plot of a new novel.	計画や作品の全体の組み立てを考えること。
+1280770:0	紅茶を一杯ください。	A cup of black tea, please.	茶の葉を発酵させて作る茶。
+1304290:0	鉄は酸化すると錆びる。	Iron rusts when it oxidises.	物質が酸素と結びつくこと。
+1322930:0	社内で会議が開かれた。	A meeting was held in-house.	会社の中。
+1323350:0	草むらに蛇がいた。	There was a snake in the grass.	細長い体で、足のない爬虫類。
+1323350:1	神話に大きな蛇が登場する。	A great serpent appears in the myth.	大きな蛇。大蛇。
+1324110:2	着物の尺が足りない。	The kimono isn't long enough.	物の長さ。
+1325980:0	彼が計画を主導した。	He took the lead on the plan.	中心となって導くこと。
+1327560:3	傘の手元が壊れた。	The handle of my umbrella broke.	道具の、手で持つ部分。
+1349480:1	その条件を承知した。	I agreed to the terms.	相手の頼みなどを聞き入れること。
+1349480:2	今度やったら承知しないぞ。	Do it again and I won't forgive you.	許すこと。
+1354600:0	彼は丈が高い。	He's tall.	背の高さ。
+1354600:1	ズボンの丈を詰める。	I take up the length of my trousers.	衣服の長さ。
