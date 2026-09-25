@@ -7039,3 +7039,81 @@
 1320280:0	彼の成功に嫉妬した。	I was jealous of his success.	人をうらやみ、ねたむこと。
 1350140:0	消化の良い食べ物を食べる。	I eat food that's easy to digest.	食べ物を体内で吸収しやすい形にすること。
 1350140:1	一度に多くの情報を消化できない。	I can't take in so much information at once.	よく理解して自分のものにすること。
+
+# ── BATCH 115 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1350140:2	年内に有給を消化する。	I'll use up my paid leave before the end of the year.	使い切ること。
+1366300:0	寒さで体の震えが止まらない。	I can't stop shivering from the cold.	震えること。
+1371200:0	これは私の推測に過ぎない。	This is just my guess.	おしはかること。
+1406710:0	台風で大きな損害を受けた。	We suffered heavy damage in the typhoon.	損なわれること。
+1423270:0	ヘルメットの着用が必要だ。	A helmet must be worn.	衣服などを身につけること。
+1439080:0	ここは子どもにとって天国だ。	This place is paradise for children.	神のいる理想の世界。
+1470660:0	この村は農業が盛んだ。	Farming thrives in this village.	作物を作ったり家畜を飼ったりする仕事。
+1476520:1	彼は技術の畑を歩んできた。	He's worked his whole career in engineering.	専門の分野。
+1477960:0	髪の毛を切った。	I had my hair cut.	頭に生える毛。
+1481640:0	生徒を班に分ける。	We divide the students into groups.	全体をいくつかに分けたまとまり。
+1512130:2	恩を返す。	I repay the kindness.	受けたことに報いる。
+1520190:1	事故を防ぐ。	We prevent accidents.	起こらないようにする。
+1530220:0	この島は無人だ。	This island is uninhabited.	人がいないこと。
+1586700:1	明日晴れるかは怪しい。	It's doubtful it'll be sunny tomorrow.	確かでない。
+1586700:2	彼の英語は怪しい。	His English is shaky.	頼りない。
+1586700:3	夜中に怪しい物音がした。	There was a strange noise in the night.	不気味である。
+1586700:4	空模様が怪しくなってきた。	The sky is starting to look threatening.	悪くなりそうだ。
+1597180:0	駅でたまたま友達に会った。	I happened to run into a friend at the station.	偶然に。
+1630870:0	見逃しのないように確認する。	I check so nothing gets overlooked.	見落とすこと。
+1632880:0	窓越しに海が見える。	I can see the sea through the window.	へだてて。
+1632880:1	三年越しの夢がかなった。	A dream I'd had for three years came true.	その期間ずっと。
+1956920:0	能の舞を見る。	I watch a Noh dance.	舞うこと。
+1957060:0	彼の意見は理にかなっている。	His opinion makes sense.	物事の筋道。道理。
+2008040:0	こうして二人は結婚した。	And so the two got married.	このようにして。
+2260200:0	さらの靴を履く。	I wear brand-new shoes.	新しいこと。
+1007030:0	それなりに楽しかった。	It was fun in its own way.	それにふさわしい程度に。
+1007030:1	安い物にはそれなりの理由がある。	Cheap things are cheap for a reason.	それ相応。
+1012520:0	もしかして、田中さんですか。	Are you by any chance Mr Tanaka?	ひょっとして。
+
+# ── BATCH 116 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1179040:0	川の汚染が深刻だ。	The river pollution is serious.	汚れること。
+1203380:1	外科で診てもらう。	I get examined in the surgery department.	手術などで病気を治す診療科。
+1220940:0	時計の機構を調べる。	I examine the watch's mechanism.	仕組み。
+1220940:1	国の行政の機構を改める。	We reform the country's administrative structure.	組織の仕組み。
+1221020:0	飛行機の機体に傷がある。	There's damage to the plane's fuselage.	飛行機の胴体。
+1223130:0	旅の記を書く。	I write an account of my travels.	書き記したもの。
+1265000:0	個別に面談をする。	We hold individual interviews.	一つ一つ別にすること。
+1269350:0	後で電話します。	I'll call you later.	時間がたってから。
+1277780:0	新商品は好評だ。	The new product has been well received.	評判がよいこと。
+1289150:1	今更言うまでもない。	It hardly needs saying again.	改めて。
+1290020:0	植物は根で水を吸う。	Plants draw up water through their roots.	植物の、地中に伸びる部分。
+1290020:1	歯の根が痛む。	The root of my tooth hurts.	物の付け根。
+1290020:2	悪の根を断つ。	We cut evil off at the root.	物事の元。
+1290020:3	彼は根は優しい。	He's kind at heart.	生まれつきの性質。
+1319630:0	予算を執行する。	We implement the budget.	実際に行うこと。
+1319630:1	刑の執行が行われた。	The sentence was carried out.	刑罰を実際に行うこと。
+1321530:0	彼は実力のある選手だ。	He's a genuinely capable player.	実際に持っている力。
+1321530:1	実力で相手を排除する。	They remove the opponent by force.	武力。
+1335640:0	紙を縦に折る。	I fold the paper lengthwise.	上下の方向。
+1335640:3	縦の関係を大切にする。	We value hierarchical relationships.	上下の関係。
+1377390:0	検査の結果は正常だった。	The test results were normal.	普通の状態であること。
+1377660:0	それは正当な理由だ。	That's a legitimate reason.	道理にかなっていること。
+1379620:0	しょうがを刻む。	I chop the ginger.	辛い味の根茎を持つ植物。
+1402420:0	彼の走りは速い。	He's a fast runner.	走ること。
+1402420:2	走りの筍を食べる。	I eat the first bamboo shoots of the season.	季節の初物。
+1417330:0	英語の単語を覚える。	I memorise English words.	言葉の単位。
+1420580:0	知事が記者会見を開いた。	The governor held a press conference.	都道府県の長。
+1421590:0	人前で恥をかいた。	I embarrassed myself in public.	恥ずかしいこと。
+1423560:1	今夜は中華にしよう。	Let's have Chinese food tonight.	中華料理。
+1423680:1	中間の立場を取る。	I take a neutral stance.	どちらにも偏らないこと。
+1423680:2	中間の試験が近い。	The midterm exams are coming up.	物事の途中。
+1430100:0	彼とは長年の友人だ。	He's a friend of many years.	長い年月。
+1486440:0	美術の授業が好きだ。	I like art class.	美を表現する芸術。
+1495000:0	この料理はまずい。	This food tastes bad.	味が悪い。
+1495000:1	彼の説明はまずい。	His explanation is poor.	下手である。
+1495000:2	まずい顔をしている。	He has a plain face.	見た目が悪い。
+1495000:3	それはまずいことになった。	That's a bad turn of events.	都合が悪い。
+1522630:0	本社は東京にある。	Headquarters are in Tokyo.	会社の中心となる事務所。
+1531620:0	新しい商品の名称を決める。	We decide the name for the new product.	呼び名。
+1579100:0	今朝は寒かった。	It was cold this morning.	今日の朝。
+1601690:0	引き続き調査を行う。	We'll continue the investigation.	続けて。
+1601690:1	引き続き、次の議題に移ります。	Next, we'll move on to the following item.	次に。
+1611280:0	払いは現金でお願いします。	Please pay in cash.	代金を払うこと。
+1620810:0	小型の車を買った。	I bought a small car.	形が小さいこと。
+1755220:0	山形はさくらんぼの産地だ。	Yamagata is a cherry-growing region.	東北地方の南西部にある県。
+1954950:0	気持ちのいい目覚めだった。	It was a pleasant awakening.	目が覚めること。
