@@ -6349,3 +6349,61 @@
 1557450:2	先生に礼をする。	I bow to the teacher.	頭を下げること。
 1557450:3	彼に礼を渡した。	I gave him a thank-you gift.	感謝の品物。
 1578730:2	足の甲を打った。	I hit the top of my foot.	手や足の表側。	こう
+
+# ── BATCH 98 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1593570:0	ご存知のとおり、明日は休みです。	As you know, tomorrow is a holiday.	知っていること。敬った言い方。
+1595200:0	隣国の侵略を受けた。	We were invaded by a neighbouring country.	他国に攻め入って、土地などを奪うこと。
+1597350:0	だんだん寒くなってきた。	It's gradually getting colder.	少しずつ。
+1603950:0	雨はますます強くなった。	The rain grew heavier and heavier.	前よりいっそう。
+1617560:0	長い眠りから覚醒した。	He awoke from a long sleep.	目を覚ますこと。
+1787140:0	大震災の教訓を忘れない。	We won't forget the lessons of the great earthquake.	大きな地震による災害。
+1955810:0	彼の料理はまだ素人の域を出ない。	His cooking hasn't got beyond amateur level.	ある範囲や程度。
+1981450:0	あんなに怒った彼は初めて見た。	I've never seen him that angry.	あれほど。
+1981570:0	お笑いの番組を見る。	I watch a comedy show.	人を笑わせる話や芸。
+1981570:1	彼はお笑いの世界に入った。	He went into the comedy business.	落語や漫才などの芸能。
+2131810:2	寝不足で目の下にくまができた。	I've got dark circles under my eyes from lack of sleep.	目の下にできる黒ずみ。
+5555810:0	兄は東大に通っている。	My older brother goes to the University of Tokyo.	東京大学の略。
+1159430:0	事故の遺体が見つかった。	The bodies from the accident were found.	死んだ人の体。
+1180470:3	扇子に金箔を押す。	I apply gold leaf to the fan.	箔などを貼り付ける。
+1180470:5	試合は終始相手に押されていた。	We were on the back foot throughout the match.	勢いで相手を圧倒する。
+1180470:7	彼は病気を押して出社した。	He came to work despite being ill.	困難に構わず物事をする。
+1180470:8	忘れないように念を押した。	I made sure to remind him so he wouldn't forget.	確かめる。
+1180470:9	会議が三十分押している。	The meeting is running thirty minutes late.	予定より遅れる。
+1184370:0	下りの電車に乗る。	I take the down train.	都から地方へ向かうこと。また、その電車。
+1184370:1	ここからは下りの道だ。	From here the road is downhill.	低い方へ下ること。
+1184370:3	川の下りを楽しむ。	We enjoy a trip down the river.	川の下流へ向かうこと。
+1190370:0	車が急に加速した。	The car suddenly accelerated.	速度を増すこと。
+1210870:0	今回だけは勘弁してください。	Please let me off just this once.	許すこと。
+1211440:0	物語はついに完結した。	The story has finally concluded.	すっかり終わること。
+1229840:1	この地方は毎年水不足に泣いている。	This region suffers from water shortages every year.	苦しむ。困る。
+1229840:2	今回は泣いてくれ。	Please just accept it this time.	無理を承知で我慢する。
+1229840:3	そんなことをしたら名が泣くぞ。	Do that and you'll disgrace your name.	評判に値しない。
+1242420:0	近代の歴史を学ぶ。	I study modern history.	現代に近い時代。
+1260070:0	人によって見方は違う。	People have different points of view.	物事を見る立場。考え方。
+1260070:1	オペラの見方を教わる。	I learn how to appreciate opera.	物事を理解し、味わう方法。
+1267740:0	彼は仕事に誇りを持っている。	He takes pride in his work.	自分を優れていると思う気持ち。
+1317760:0	これは私の自作の歌だ。	This is a song I wrote myself.	自分で作ること。また、その作品。
+1336500:0	重大な問題が起きた。	A serious problem has arisen.	非常に大切で、影響が大きい様子。
+1338850:0	出口はあちらです。	The exit is over there.	外へ出る所。
+1338850:1	空気の出口が詰まった。	The air vent is blocked.	液体や気体が出ていく所。
+1340170:0	今日は私の出番だ。	Today's my shift.	仕事などの当番。
+1340170:1	彼の出番は第二幕だ。	His entrance is in the second act.	舞台に出る順番。
+1340170:2	いよいよ君の出番だ。	Now it's your time to shine.	活躍する機会。
+1342980:0	公演の初日に行った。	I went on the opening night.	物事の最初の日。
+1342990:0	元日の朝、海で初日を拝む。	On New Year's morning we watch the first sunrise by the sea.	元日の朝の日の出。	はつひ
+1364950:0	彼は本物の紳士だ。	He's a true gentleman.	礼儀正しく、品位のある男性。
+1385710:0	塩分の摂取を控える。	I cut down my salt intake.	栄養などを体に取り入れること。
+1385710:1	外国の文化を摂取する。	We take in foreign culture.	取り入れて自分のものにすること。
+1386990:0	その動物は絶滅した。	That animal has gone extinct.	生物の種類が絶えること。
+1386990:1	病気の絶滅を目指す。	We aim to eradicate the disease.	完全に滅ぼすこと。
+1402380:0	シートベルトを装着する。	I fasten my seatbelt.	身につけたり、取り付けたりすること。
+1406750:0	会社は大きな損失を出した。	The company made a large loss.	利益や財産を失うこと。
+1426220:0	抽選で景品が当たった。	I won a prize in the lottery.	くじを引いて選ぶこと。
+1427110:0	本の著者に会った。	I met the author of the book.	本を書いた人。
+1428390:0	朝食にパンを食べた。	I had bread for breakfast.	朝の食事。
+1436900:0	靴に泥が付いた。	I got mud on my shoes.	水と混ざってどろどろになった土。
+1444010:0	ともかくやってみよう。	Anyway, let's give it a try.	いずれにしても。
+1444010:1	値段はともかく、味がいい。	Price aside, it tastes good.	それは別として。
+1445360:0	京都の土産を買った。	I bought a souvenir from Kyoto.	旅先で買って帰る品物。
+1445360:1	友人の家に土産を持っていく。	I take a gift to my friend's house.	人の家を訪ねるときに持っていく品物。
+1445360:2	とんだ土産をもらったものだ。	What a nasty parting gift that was.	ありがたくない贈り物。
