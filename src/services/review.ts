@@ -21,6 +21,7 @@
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
 import { type UserWord } from "./words/userWords";
+import { findWordsByIds } from "./words/repository";
 import type { LangCode } from "./language";
 import { offlineStore } from "./offline/store";
 import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
@@ -155,14 +156,34 @@ export async function getReviewQueue(params: {
     proficiencyBand: r.proficiency_band,
     partOfSpeech: r.part_of_speech,
     frequency: r.frequency,
-    // Sense enrichment (20260750) isn't in review_queue's column list; surfacing an
-    // example on a card means widening that SQL function. Explicitly null, not forgotten.
-    example: null,
-    exampleGloss: null,
-    definitionSource: null,
-    exampleReading: null,
+    // Sense enrichment (20260750) isn't in review_queue's column list — filled in just
+    // below from the `words` cache (the card's "Show example").
+    example: null as string | null,
+    exampleGloss: null as string | null,
+    definitionSource: null as string | null,
+    exampleReading: null as string | null,
     retrievability: r.retrievability,
   }));
+
+  // The example sentence for each card, read by id from `words` (one round-trip for
+  // ≤ limit ids) rather than by widening review_queue, which would need a migration in
+  // every environment first. BEST-EFFORT: the example is a hint, so a failed read
+  // leaves the cards example-less instead of failing a session that loaded fine.
+  try {
+    const senses = await findWordsByIds(
+      items.map((i) => i.dictionaryWordId).filter((id): id is string => Boolean(id)),
+    );
+    for (const item of items) {
+      const sense = item.dictionaryWordId ? senses.get(item.dictionaryWordId) : undefined;
+      if (!sense) continue;
+      item.example = sense.example;
+      item.exampleGloss = sense.exampleGloss;
+      item.definitionSource = sense.definitionSource;
+      item.exampleReading = sense.exampleReading;
+    }
+  } catch (e) {
+    console.warn("[review] couldn't load card examples; continuing without them.", e);
+  }
 
   // Cache the deck for a later offline session, anchored to the SERVER's clock so an
   // offline grade can be timestamped without ever reading the device's (see clock.ts).
