@@ -6407,3 +6407,33 @@
 1445360:0	京都の土産を買った。	I bought a souvenir from Kyoto.	旅先で買って帰る品物。
 1445360:1	友人の家に土産を持っていく。	I take a gift to my friend's house.	人の家を訪ねるときに持っていく品物。
 1445360:2	とんだ土産をもらったものだ。	What a nasty parting gift that was.	ありがたくない贈り物。
+
+# ── BATCH 99 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1452030:1	彼とは会社の同期だ。	He joined the company the same year as me.	同じ年に入学や入社をしたこと。また、その人。
+1463740:0	雨の後、空に虹が出た。	A rainbow appeared in the sky after the rain.	空に現れる、七色の弧。
+1474110:0	被害者に賠償を支払う。	We pay compensation to the victims.	損害を償うこと。
+1490580:0	この店の品質は高い。	This shop's quality is high.	品物の性質や良し悪し。
+1491190:0	天気が不安定だ。	The weather is unsettled.	落ち着かず、変わりやすいこと。
+1491370:0	その方法は不可だ。	That approach is no good.	よくないこと。
+1491370:1	ここでの撮影は不可です。	Photography is not permitted here.	できないこと。許されないこと。
+1491370:2	数学の成績は不可だった。	I got a failing grade in maths.	成績で、不合格。
+1498100:0	事故で三人が負傷した。	Three people were injured in the accident.	けがをすること。
+1503280:0	料金を分割で払う。	I pay in instalments.	いくつかに分けること。
+1508380:1	彼に並ぶ選手はいない。	No player can match him.	同じ程度である。
+1526790:0	トラックは荷物を満載している。	The truck is fully loaded with cargo.	いっぱいに積むこと。
+1526790:1	この雑誌は写真が満載だ。	This magazine is packed with photos.	記事などがたくさん載っていること。
+1526790:2	楽しさ満載のイベントだ。	It's an event packed with fun.	たっぷり含まれていること。
+1536930:0	夜中に目が覚めた。	I woke up in the middle of the night.	夜の遅い時間。	よなか
+1538300:0	薬物の使用は禁止されている。	Drug use is prohibited.	薬。特に、乱用されるおそれのある薬。
+1545700:0	地震の揺れを感じた。	I felt the earthquake shaking.	揺れること。
+1545700:1	心の揺れが表情に出る。	Her wavering shows on her face.	気持ちが定まらないこと。
+1573150:0	たまには贅沢をしよう。	Let's treat ourselves once in a while.	必要以上にお金をかけること。
+1573150:1	彼は贅沢に暮らしている。	He lives in luxury.	ぜいたくな暮らしをする。
+1573150:2	新鮮な魚を贅沢に使った料理だ。	It's a dish made with lavish amounts of fresh fish.	たっぷりと使う様子。
+1573150:3	贅沢を言うな。	Don't be so demanding.	身分以上の望み。
+1580555:0	それは誠の話だ。	That's a true story.	本当のこと。
+1580555:1	誠を尽くして謝る。	I apologise with complete sincerity.	真心。
+1583250:0	いいえ、違います。	No, that's not right.	否定の返事。
+1583250:1	いいえ、どういたしまして。	Not at all — you're welcome.	礼を言われたときの返事。
+1956230:0	彼の言を信じる。	I believe his words.	言葉。
+2084330:0	各地で乱が起きた。	Rebellions broke out everywhere.	世の中が乱れること。戦乱。
