@@ -6178,3 +6178,43 @@
 1408810:8	畑を打つ。	I till the field.	田畑を耕す。
 1408810:9	庭に水を打つ。	I sprinkle water in the garden.	水をまく。
 1408810:10	一芝居打つ。	I put on an act.	何かを行う。
+
+# ── BATCH 94 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1421360:0	この地帯は地震が多い。	This zone has many earthquakes.	ある特徴を持った一定の範囲の土地。
+1440730:0	店長に相談する。	I talk to the shop manager.	店の責任者。
+1475810:0	町は爆撃を受けた。	The town was bombed.	飛行機から爆弾を落として攻撃すること。
+1513970:0	会社は多くの株を保有している。	The company holds a lot of shares.	持っていること。
+1517160:0	国会に法案が提出された。	A bill was submitted to the Diet.	法律の案。
+1519860:0	小説の冒頭を読む。	I read the opening of the novel.	文章や話の初め。
+1520120:0	日本は多くの国と貿易をしている。	Japan trades with many countries.	外国と品物を売り買いすること。
+1522060:0	城の周りに堀がある。	There's a moat around the castle.	城の周りに掘った、水をたたえた溝。
+1522060:1	町の中を堀が流れている。	A canal runs through the town.	地面を掘って水を通した所。
+1542040:0	甘い物の誘惑に負けた。	I gave in to the temptation of sweets.	人の心を迷わせて、引き込むこと。
+1546490:0	牧場に羊がいる。	There are sheep at the farm.	毛を取るために飼われる動物。
+1551050:0	陸上で暮らす動物だ。	It's an animal that lives on land.	陸の上。
+1573190:1	台風が大きな被害をもたらした。	The typhoon caused major damage.	ある状態を引き起こす。
+1599620:0	彼の実力は並ではない。	His ability is far from ordinary.	普通。ありふれていること。
+1599620:1	牛丼の並を注文した。	I ordered a regular-size beef bowl.	普通の程度の品。
+1601260:0	ばかなことを言うな。	Don't talk nonsense.	愚かな人。
+1601260:1	そんなばかな話があるか。	How can that be so ridiculous?	ばかげている様子。
+1601260:2	ばかにならない金額だ。	It's no trifling sum.	取るに足りない様子。
+1601260:4	今日はばかに暑い。	It's ridiculously hot today.	並外れて。
+1631660:0	おいおい、待ってくれよ。	Hey, hey, wait a minute!	人を呼び止めたりするときに言う語。
+1631660:1	子どもがおいおい泣いている。	The child is bawling.	声を上げて泣く様子。
+1707310:0	秋は米の取り入れで忙しい。	Autumn is busy with the rice harvest.	農作物を取り入れること。
+2712120:0	その間、私は外で待っていた。	In the meantime, I waited outside.	その時間の中。そうしている間。	そのあいだ
+2845097:0	徳島は阿波踊りで有名だ。	Tokushima is famous for the Awa Odori dance.	四国の東部にある県。
+2845138:0	三重には伊勢神宮がある。	Ise Grand Shrine is in Mie.	近畿地方の東部にある県。
+1002570:0	お疲れ様でした。	Thank you for your hard work.	相手の苦労をねぎらう言葉。
+1002570:1	お先に。お疲れ様。	I'm off — see you.	別れるときの挨拶の言葉。
+1151090:0	これは父の愛用の万年筆だ。	This is my father's favourite fountain pen.	気に入って、いつも使うこと。
+1158310:0	苗を畑に移植する。	I transplant the seedlings to the field.	植物を別の場所に植え替えること。
+1158310:1	彼は心臓の移植を受けた。	He had a heart transplant.	臓器などを体に移し植えること。
+1158310:3	ゲームを別の機種に移植する。	We port the game to another platform.	ソフトウェアを別の環境で動くようにすること。
+1159380:0	古代の遺跡を訪ねる。	I visit ancient ruins.	昔の建物などの跡。
+1165850:0	一般人も参加できる。	Members of the public can also take part.	特別な身分や職業でない、普通の人。
+1201330:0	祖父は海軍にいた。	My grandfather was in the navy.	海上の防衛にあたる軍隊。
+1222230:0	朝の風が気持ちいい。	The morning breeze feels nice.	心地よい。
+1222230:1	晴れて気持ちいい朝だ。	It's a lovely, cheerful morning.	気分が晴れやかである。
+1226880:0	彼が映画の脚本を書いた。	He wrote the screenplay for the film.	劇や映画の台本。
+1226950:0	動物の虐待は許されない。	Animal abuse is unacceptable.	ひどい扱いをすること。
