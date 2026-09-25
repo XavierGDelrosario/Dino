@@ -6114,3 +6114,67 @@
 1552120:0	トイレの水を流す。	I flush the toilet.	水などを流れさせる。
 1552120:1	川に灯籠を流す。	We float lanterns down the river.	水に浮かべて運ばせる。
 1552120:2	大雨が橋を流した。	The heavy rain washed the bridge away.	押し流す。
+
+# ── BATCH 92 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1552120:3	駅で音楽を流している。	Music is playing at the station.	放送する。
+1552120:4	彼は悪いうわさを流した。	He spread a nasty rumour.	世間に広める。
+1552120:5	タクシーが町を流している。	The taxi is cruising the streets.	客を探して、あちこち回る。
+1552120:6	雨で試合を流した。	The match was called off because of rain.	予定をやめにする。
+1552120:8	最後の一周は軽く流した。	I took the last lap easy.	力を入れずに軽くする。
+1552120:11	彼は私の忠告を軽く流した。	He brushed off my advice.	気にとめずにやり過ごす。
+1557630:0	零から始める。	I start from zero.	数がないこと。ゼロ。
+1580490:0	乗客が電車を降りる。	The passengers get off the train.	乗り物に乗る客。
+1580550:1	彼は仲間の信を失った。	He lost his friends' trust.	信用。
+1590300:0	数々の賞を受けた。	He received numerous awards.	数が多い様子。
+1621640:0	夜の明けを待つ。	I wait for daybreak.	夜が明けること。
+1638070:0	カレーは家庭料理の定番だ。	Curry is a home-cooking classic.	いつも決まって用いられるもの。
+1638070:1	この店の定番の商品だ。	It's one of this shop's staple items.	流行に関係なく売れる商品。
+2092720:0	甲子園で試合を見た。	I watched a game at Koshien Stadium.	兵庫県にある野球場。
+2092720:1	高校生たちは甲子園を目指す。	The high schoolers are aiming for Koshien.	全国高校野球大会。
+2190820:0	姉ちゃんに漫画を借りた。	I borrowed a manga from my big sister.	姉を親しんで呼ぶ語。
+2190820:1	店の姉ちゃんが親切だった。	The girl at the shop was nice.	若い女性を親しんで呼ぶ語。
+2855028:0	文字の揃えを左にする。	I set the text alignment to left.	揃えること。
+1006690:0	成績はそこそこだ。	My grades are all right.	ほどほどに。まあまあ。
+1006690:1	朝ご飯もそこそこに家を出た。	I barely finished breakfast before rushing out.	十分にしないまま、急いで。
+
+# ── BATCH 93 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1012730:0	やがて雨が止んだ。	Before long, the rain stopped.	間もなく。
+1012730:2	努力はやがて報われる。	Hard work pays off in the end.	ついには。
+1155920:0	彼は偉大な科学者だ。	He's a great scientist.	優れていて、立派な様子。
+1163170:0	これは桜の一種だ。	This is a kind of cherry tree.	一つの種類。
+1163170:1	それは一種の病気だ。	It's an illness of sorts.	ある意味で、そう言えるもの。
+1170500:0	王の暗殺の陰謀が発覚した。	A plot to assassinate the king was uncovered.	ひそかに企てる悪い計画。
+1183820:0	この楽器の音源を調べる。	I look into this instrument's sound source.	音を出すもと。
+1183820:1	ライブの音源を聞く。	I listen to a recording of the live show.	録音された音。
+1204500:0	計画の概要を説明する。	I outline the plan.	物事のだいたいの内容。
+1206030:0	新しい制度を確立した。	We established a new system.	しっかりと打ち立てること。
+1226390:0	ここでの喫煙は禁止です。	Smoking is not allowed here.	たばこを吸うこと。
+1227610:0	一週間の休暇を取った。	I took a week's holiday.	仕事などを休むこと。
+1235730:0	二国が貿易の協定を結んだ。	The two countries concluded a trade agreement.	相談して取り決めること。
+1236980:0	彼は小学校の教員だ。	He's an elementary school teacher.	学校で教える職員。
+1240810:0	勤めを果たす。	I fulfil my duties.	務め。仕事。
+1244870:0	害虫を駆逐する。	We exterminate the pests.	追い払うこと。
+1262460:0	機械の原理を学ぶ。	I learn the principles of the machine.	物事を成り立たせている根本の法則。
+1283850:0	高等な技術が必要だ。	Advanced skills are needed.	程度が高いこと。
+1289000:0	今や誰もが携帯を持っている。	Now everyone has a mobile phone.	今となっては。
+1291880:0	座席を予約する。	I book a seat.	座るための席。
+1298960:0	財布に札が入っている。	There are banknotes in my wallet.	紙のお金。
+1298970:0	受付で札を受け取る。	I receive a ticket at reception.	目印などにする、小さな紙や板。	ふだ
+1298970:1	荷物に札を付ける。	I put a tag on the luggage.	名前などを書いて付けるもの。	ふだ
+1298970:2	入り口に「準備中」の札がかかっている。	There's a "Closed" sign on the door.	文字を書いて掲げる板。	ふだ
+1300720:0	包装が三重になっている。	The packaging is triple-layered.	三つ重なっていること。
+1319030:0	公園に鹿がいる。	There are deer in the park.	枝のような角を持つ、草食の動物。
+1339660:0	来週、大阪へ出張する。	I'm going on a business trip to Osaka next week.	仕事で出かけること。
+1347200:0	彼は商売がうまい。	He's good at business.	物を売り買いすること。
+1347200:1	教えるのが私の商売だ。	Teaching is my profession.	職業。
+1382830:0	石油の値段が上がった。	The price of oil has gone up.	地下から取れる燃えやすい油。
+1382830:1	ストーブに石油を入れる。	I fill the heater with kerosene.	灯油。
+1391940:0	彼の成功が羨ましい。	I envy his success.	人のことを見て、自分もそうなりたいと思う様子。
+1391940:1	羨ましい立場だ。	It's an enviable position.	人が羨むような様子。
+1408810:1	時計が十二時を打った。	The clock struck twelve.	鐘などを鳴らす。
+1408810:2	脈が速く打つ。	My pulse is racing.	規則正しく動く。
+1408810:6	文に句読点を打つ。	I put punctuation in the sentence.	記号などを書き入れる。
+1408810:7	手でそばを打つ。	I make soba noodles by hand.	麺を作る。
+1408810:8	畑を打つ。	I till the field.	田畑を耕す。
+1408810:9	庭に水を打つ。	I sprinkle water in the garden.	水をまく。
+1408810:10	一芝居打つ。	I put on an act.	何かを行う。
