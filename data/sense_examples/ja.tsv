@@ -6965,3 +6965,47 @@
 1808820:1	この店は値段が高めだ。	This shop is a bit pricey.	やや値段が高い様子。
 1956120:0	菌を培養する。	We culture the fungus.	かびなどの微生物。
 1956120:1	手を洗って菌を落とす。	I wash my hands to get rid of germs.	病気のもとになる微生物。
+
+# ── BATCH 113 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1173990:0	栄養のある食事をとる。	I eat nutritious meals.	生物が生きるために取り入れる成分。
+1213990:1	彼はチームの看板だ。	He's the team's star attraction.	人を引きつける目玉。
+1213990:4	今日はもう看板です。	We're closed for the day.	店の営業が終わること。
+1237680:1	彼は視野が狭い。	He's narrow-minded.	考えなどが限られている。
+1243320:0	金曜日は早く帰る。	I go home early on Fridays.	一週間のうち、木曜日の次の日。
+1244250:0	本物と偽物の区別がつかない。	I can't tell the real thing from the fake.	違いによって分けること。
+1267610:0	動物園で虎を見た。	I saw a tiger at the zoo.	黄色に黒い縞のある猛獣。
+1277040:0	この部屋は南向きだ。	This room faces south.	向いている方向。
+1286050:0	イベントの告知を出す。	We put out an announcement about the event.	知らせること。
+1287830:0	黒人の歌手が歌った。	A Black singer performed.	皮膚の色が黒い人種の人。
+1289480:0	こんばんは、いい夜ですね。	Good evening, lovely night, isn't it?	夜の挨拶の言葉。
+1343250:0	彼は拳銃を所持していた。	He was carrying a handgun.	持っていること。
+1351560:0	車が壁に衝突した。	The car crashed into the wall.	ぶつかること。
+1351560:1	二人の意見が衝突した。	Their opinions clashed.	対立すること。
+1365170:0	親子で旅行に行く。	Parent and child go on a trip together.	親と子。
+1371120:0	医者が推奨する運動だ。	It's exercise recommended by doctors.	よいものとして勧めること。
+1379520:0	番組は生放送だ。	The show is broadcast live.	録画せずに、そのまま放送すること。
+1406070:0	それなら、私が行こう。	In that case, I'll go.	そうであるならば。
+1420780:0	女性の社会的な地位が上がった。	Women's social standing has risen.	社会の中での立場。
+1420780:1	彼は会社で高い地位にある。	He holds a senior position at the company.	組織の中の役職。
+1429700:0	鳥が空を飛ぶ。	Birds fly in the sky.	空中を進む。
+1429700:1	溝を飛んで越える。	I jump over the ditch.	跳ねる。
+1429700:2	泥が服に飛んだ。	Mud splashed on my clothes.	飛び散る。
+1429700:3	知らせを聞いて病院に飛んで行った。	On hearing the news I rushed to the hospital.	急いで行く。
+1429700:4	犯人は海外へ飛んだ。	The culprit fled overseas.	逃げる。
+1429700:5	ショックで記憶が飛んだ。	The shock wiped my memory.	消える。
+1429700:6	電気のヒューズが飛んだ。	The fuse blew.	切れて外れる。
+1429700:7	社内に変なうわさが飛んでいる。	Strange rumours are flying around the office.	広まる。
+1429700:8	怒った彼のパンチが飛んできた。	He got angry and a punch came flying.	勢いよく出てくる。
+1429700:9	この本はページが飛んでいる。	This book has pages missing.	抜けている。
+1441080:0	気分を転換する。	I change my mood.	別のものに変えること。
+1449910:0	藤の花が見ごろだ。	The wisteria is at its best.	春に紫色の花房を垂らす植物。
+1463650:0	肉体を鍛える。	I train my body.	生きている人の体。
+1464110:0	会議の日時を決める。	We set the date and time for the meeting.	日と時刻。
+1500750:0	町の復興が進んでいる。	The town's reconstruction is under way.	衰えたものを再び盛んにすること。
+1505340:0	祖父の文庫を整理する。	I sort out my grandfather's book collection.	書物を集めたもの。
+1505340:1	この小説を文庫で読んだ。	I read this novel in paperback.	小型で安価な本。
+1512040:0	チームを編成する。	We put together a team.	組織を組み立てること。
+1516220:0	宝石の指輪を買った。	I bought a jewelled ring.	美しく貴重な石。
+1523450:0	駅までおよそ十分かかる。	It takes about ten minutes to the station.	おおよそ。
+1523450:1	およそ人は自分に甘い。	People are generally easy on themselves.	一般に。
+1523450:2	それはおよそ無理な話だ。	That's completely impossible.	まったく。
