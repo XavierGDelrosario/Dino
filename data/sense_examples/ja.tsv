@@ -6476,3 +6476,43 @@
 1389410:1	占いに相談した。	I consulted a fortune-teller.	占う人。
 1392260:0	彼は選手権を獲得した。	He won the championship.	選手権大会で優勝した資格。
 1401090:1	父の土地を相続した。	I inherited my father's land.	財産を受け継ぐこと。
+
+# ── BATCH 101 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1409520:0	私は太りやすい体質だ。	I'm the type who puts on weight easily.	生まれつき持っている体の性質。
+1409520:1	会社の古い体質を変える。	We change the company's old culture.	組織などが持っている性質。
+1411530:0	隊長が命令を出した。	The commanding officer gave the order.	隊を率いる人。
+1413740:0	大佐が部隊を率いた。	The colonel led the unit.	軍隊の階級の一つ。
+1415750:0	先生の宅を訪ねた。	I visited my teacher's house.	家。住まい。
+1422230:0	庭に竹が生えている。	Bamboo is growing in the garden.	節のある、まっすぐな茎を持つ植物。
+1426480:0	家の柱に傷がある。	There's a scratch on the pillar of the house.	家を支える、縦に立てた材木。
+1426480:1	彼は家族の柱だ。	He's the mainstay of the family.	中心となって支える人や物。
+1432850:1	毎日電車で会社に通う。	I commute to work by train every day.	決まった所へ行き来する。
+1432850:2	体中に血が通う。	Blood circulates through the body.	流れが通じる。
+1444290:0	車の塗装がはげた。	The car's paintwork has peeled.	塗料を塗ること。
+1445770:0	強風で木が倒された。	The tree was blown down in the strong wind.	立っているものを横にする。
+1445770:1	決勝で強敵を倒した。	We beat a strong rival in the final.	負かす。
+1445770:2	革命で政府を倒した。	The revolution overthrew the government.	滅ぼす。
+1448970:0	当該の部署に問い合わせる。	I enquire with the relevant department.	そのことに当たる。
+1450890:0	朝から頭痛がする。	I've had a headache since this morning.	頭が痛むこと。
+1469890:2	濃いスープを飲む。	I drink a thick soup.	液体の濃度が高い。
+1469890:4	二人は濃い関係だ。	The two are very close.	関係が深い。
+1477780:0	政府は緊急の措置を発動した。	The government invoked emergency measures.	動き出させること。
+1478050:0	そんなことをすると罰が当たる。	If you do that, you'll get your comeuppance.	神や仏が与える罰。	ばち
+1478060:0	遅刻の罰として掃除をした。	I cleaned as a penalty for being late.	悪い行いに対する懲らしめ。	ばつ
+1483540:1	二人で力を比べる。	The two of us test our strength against each other.	競う。
+1491570:0	彼の態度に不快を感じた。	I was displeased by his attitude.	気持ちがよくないこと。
+1524290:0	畑で麻を育てる。	We grow hemp in the field.	茎から繊維を取る植物。
+1524290:1	麻のシャツは涼しい。	Linen shirts are cool.	麻の繊維で作った布。
+1537990:0	会社の役員が集まる。	The company's directors gather.	会社の経営に当たる重役。
+1537990:1	町内会の役員を務める。	I serve as an officer of the neighbourhood association.	会などの役を受け持つ人。
+1562530:0	脇に本を挟む。	I tuck a book under my arm.	腕の付け根の下。
+1562530:1	道の脇に花が咲いている。	Flowers are blooming beside the road.	すぐそば。
+1562530:2	荷物を脇に寄せる。	I move the luggage to one side.	邪魔にならない所。
+1790980:0	最近、風邪気味だ。	I've been feeling a bit under the weather lately.	そのような傾向があることを表す語。
+1956190:0	彼は芸を磨いている。	He's honing his craft.	身につけた技術。
+1989500:0	二人の実力には大きな開きがある。	There's a big gap in ability between the two.	差。隔たり。
+1989500:1	あじの開きを焼く。	I grill a butterflied horse mackerel.	魚を切り開いて干したもの。
+2009220:0	彼は反省するどころか怒り出した。	Far from reflecting on it, he got angry.	そうではなく、むしろ反対であることを表す語。
+2009220:1	漢字どころか平仮名も読めない。	He can't read hiragana, let alone kanji.	言うまでもなく。
+2081550:0	彼は知の巨人だ。	He's an intellectual giant.	知恵。知識。
+2110850:0	二度と遅刻しません。	I'll never be late again.	打ち消しの語と共に用いて、もう決してしないことを表す。
