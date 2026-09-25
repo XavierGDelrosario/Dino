@@ -7198,3 +7198,86 @@
 1518130:0	この国は資源が豊かだ。	This country is rich in resources.	十分にある様子。
 1518130:1	豊かな暮らしを送る。	I lead an affluent life.	裕福な様子。
 1518130:2	彼女は心の豊かな人だ。	She's a big-hearted person.	ゆったりとしている様子。
+
+# ── BATCH 119 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1519170:0	帽子をかぶって出かける。	I put on a hat and go out.	頭にかぶるもの。
+1542160:1	彼は若い頃よく遊んだ。	He played around a lot when he was young.	酒や賭け事などにふける。
+1542160:2	工場の機械が遊んでいる。	The factory machines are sitting idle.	使われずにいる。
+1542160:3	週末に友達と遊ぶ。	I hang out with friends at the weekend.	人と会って楽しく過ごす。
+1545350:0	それは容易なことではない。	That's no easy thing.	たやすい様子。
+1552350:0	タンカーから油が流出した。	Oil spilled from the tanker.	流れ出ること。
+1552350:1	若者の流出が続いている。	The outflow of young people continues.	人や物が外へ出ていくこと。
+1560850:1	書類に漏れがないか確認する。	I check the documents for omissions.	抜け落ちること。
+1604350:0	部屋の真ん中に机を置く。	I put the desk in the middle of the room.	中央。
+2845120:0	秋田は米どころだ。	Akita is a rice-producing region.	東北地方の北西部にある県。
+1168050:0	書類に印を押す。	I stamp my seal on the document.	はんこ。	いん
+1168060:0	地図に印を付ける。	I put a mark on the map.	目印。
+1168060:1	鳩は平和の印だ。	The dove is a symbol of peace.	象徴。
+1168060:4	感謝の印に花を贈る。	I send flowers as a token of my gratitude.	気持ちを表すもの。
+1194450:0	アルバイトで学費を稼ぐ。	I earn my tuition from a part-time job.	働いてお金を得る。
+1194450:1	時間を稼ぐ。	I buy time.	得点や時間などを得る。
+1194450:2	彼は朝から晩まで稼いでいる。	He works hard from morning to night.	一生懸命に働く。
+1195710:0	教科書の第三課を読む。	I read lesson three of the textbook.	教科書の区切り。
+1214980:1	それは希望的な観測だ。	That's wishful thinking.	推測。見通し。
+1232440:0	会社は大阪に拠点を置く。	The company is based in Osaka.	活動のよりどころとなる場所。
+1249910:0	兄さんは大学生だ。	My big brother is a university student.	兄を親しんで呼ぶ語。
+1249910:1	先輩を兄さんと慕う。	I look up to my senior like a big brother.	兄のように慕う人。
+1249910:2	そこの兄さん、ちょっと。	Hey, young man, a moment.	若い男性に呼びかける語。
+1252310:0	台風に警戒する。	We stay alert for the typhoon.	用心すること。
+1278380:0	お役に立てれば幸いです。	I'd be glad if I could be of help.	幸せ。
+1278380:1	雨が降ったのが幸いした。	The rain turned out to be a blessing.	よい結果になること。
+1278380:2	幸い、けがはなかった。	Fortunately, no one was hurt.	運よく。
+1304560:0	今日も残業だ。	I'm working overtime again today.	決まった時間外に仕事をすること。
+1310810:0	彼は死刑を宣告された。	He was sentenced to death.	命を奪う刑罰。
+1381550:0	青春を楽しむ。	I enjoy my youth.	若い時代。
+1383150:0	失敗の責めを負う。	I take responsibility for the failure.	責任。
+1390780:0	森の泉で水をくむ。	I draw water from a spring in the forest.	地中から水がわき出る所。
+1396530:0	政府は必要な措置をとった。	The government took the necessary measures.	対処すること。
+
+# ── BATCH 120 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1400560:0	兄弟の争いが絶えない。	The brothers never stop fighting.	争うこと。
+1400560:1	優勝の争いが激しい。	The race for the title is fierce.	競争。
+1417020:0	それは単なるうわさだ。	That's a mere rumour.	ただの。
+1442500:0	山田太郎殿	To: Mr Taro Yamada	手紙などで、人の名前に付ける敬称。
+1468540:0	年金で暮らす。	I live on a pension.	毎年支払われる一定のお金。
+1483410:0	彼は世間の非難を浴びた。	He faced public criticism.	欠点や過ちを責めること。
+1485770:0	犬が尾を振る。	The dog wags its tail.	動物のしっぽ。
+1485770:2	彗星の尾が見える。	You can see the comet's tail.	彗星の長く伸びた光。
+1490070:0	この店は評判がいい。	This shop has a good reputation.	世間の評価。
+1490070:1	町の評判になっている。	It's the talk of the town.	うわさ。
+1512240:0	メールに返信する。	I reply to the email.	返事の手紙やメール。
+1512710:0	彼は弁が立つ。	He's a fluent speaker.	話すこと。話しぶり。
+1516160:0	子どもは国の宝だ。	Children are the nation's treasure.	貴重なもの。
+1529550:1	財布のお金がなくなった。	I've run out of money in my wallet.	尽きる。
+1529550:2	痛みがなくなった。	The pain has gone.	消える。
+1541810:0	地名の由来を調べる。	I look into the origin of the place name.	物事の起こり。
+1542020:0	客を席に誘導する。	I show the guests to their seats.	導くこと。
+1545300:0	昔話に妖怪が出てくる。	Yokai appear in old folk tales.	化け物。
+1583720:0	風邪をひいた。	I've caught a cold.	寒気や熱、咳などが出る病気。
+1586070:0	彼とは相性がいい。	We get on well.	互いの性質が合うかどうか。
+1601820:0	久々に友達と会った。	I met a friend for the first time in ages.	久しぶり。
+1609660:0	学校の決まりを守る。	I follow the school rules.	規則。
+1609660:1	それで話に決まりがついた。	That settled the matter.	決着。
+1609660:2	朝の散歩が私の決まりだ。	A morning walk is my habit.	習慣。
+1609660:3	遅刻して決まりが悪い。	I feel awkward for being late.	人に対する体裁。
+1612770:1	結婚のお祝いを贈る。	I send a wedding gift.	祝いの品物。
+1856610:0	店を新しく開いた。	We opened a new shop.	新たに。
+2259080:0	ここから富士山が見れる。	You can see Mount Fuji from here.	見ることができる。
+1008990:0	どうにか間に合った。	I somehow made it in time.	何とか。
+1168190:0	ポスターを印刷する。	I print a poster.	文字や絵を紙に写すこと。
+1176820:0	彼女の演技は素晴らしい。	Her acting is superb.	役を演じること。
+1179330:0	奥さんによろしく。	Give my regards to your wife.	他人の妻を呼ぶ語。
+1201600:0	海賊が船を襲った。	Pirates attacked the ship.	海の上で船を襲う盗賊。
+1205870:0	彼の無実を確信している。	I'm convinced of his innocence.	固く信じること。
+1246270:1	偶然、昔の友達に会った。	I met an old friend by chance.	たまたま。
+1250390:0	生物は様々な形態を持つ。	Living things take many forms.	形。
+1258130:0	私にはその権限がない。	I don't have the authority for that.	行うことのできる範囲。
+1282270:0	英会話の講座に通う。	I attend an English conversation course.	講習会。
+1296160:0	裁判所に訴える。	I take it to court.	裁判を行う所。
+1304200:0	その案に賛成する。	I support that proposal.	よいと認めて同意すること。
+1310000:0	彼を議長に指名した。	We nominated him as chair.	名前を挙げて選ぶこと。
+1310000:1	先生に指名されて答えた。	The teacher called on me and I answered.	名前を呼んで当てること。
+1310680:1	雨で計画をやめた。	We called off the plan because of the rain.	取りやめる。
+1312720:0	日本は資源が少ない。	Japan has few natural resources.	生産のもとになるもの。
+1323940:0	借金を返す。	I pay off my debt.	お金を借りること。
+1325050:0	彼が映画で主演する。	He's starring in the film.	主役を演じること。
