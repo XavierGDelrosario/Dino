@@ -6889,3 +6889,40 @@
 1446740:1	寺に古い塔がある。	There's an old pagoda at the temple.	仏の骨などを納める建物。
 1519130:0	工事の妨害をする。	They obstruct the construction.	邪魔をすること。
 1551950:0	詳しい説明は略とする。	I'll omit the detailed explanation.	省くこと。
+
+# ── BATCH 111 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1558420:0	古いゴムは劣化しやすい。	Old rubber deteriorates easily.	品質が悪くなること。
+1578540:0	顧客の要望に応える。	We meet our customers' needs.	お得意様。
+1583260:0	人混みを避けて歩く。	I walk avoiding the crowds.	触れないように離れる。
+1583260:1	彼はその話題を避けた。	He avoided the topic.	関わらないようにする。
+1583260:2	危険を避けるために準備する。	We prepare to avert danger.	災いなどを防ぐ。
+1583260:3	道を避けて車を通す。	I move out of the way to let the car through.	脇へ寄る。
+1585330:0	大和の国の歴史を学ぶ。	I study the history of ancient Yamato.	日本の古い呼び名。
+1591760:0	画面の切り替えがうまくいかない。	The screen switching isn't working.	切り替えること。
+1597850:0	客が次々と来た。	Customers came one after another.	続けて。
+1600260:1	仕事を残して帰った。	I went home leaving work unfinished.	やり終えないでおく。
+1600260:2	ケーキを少し残しておく。	I'll save a little of the cake.	取っておく。
+1600260:3	祖父は多くの財産を残した。	My grandfather left a large fortune.	死後に伝える。
+1610920:0	彼は取締役に就任した。	He became a company director.	会社の業務を決める役員。
+2154810:0	さよなら、また明日。	Goodbye — see you tomorrow.	別れの挨拶。
+2154810:1	独身生活にさよならした。	I said goodbye to single life.	別れを告げること。
+2582300:0	東日本で大きな地震があった。	There was a big earthquake in eastern Japan.	日本の東部の地方。	ひがしにほん
+2770930:0	がんばれ、あと少しだ。	Keep going, you're almost there!	励ましの言葉。
+2845102:0	福井には恐竜の博物館がある。	Fukui has a dinosaur museum.	北陸地方の南西部にある県。
+2845105:0	富山は魚がおいしい。	Toyama's fish is delicious.	北陸地方の東部にある県。
+1006790:0	家具をそっくり新しくした。	I replaced all the furniture.	全部。
+1006790:1	彼は父親にそっくりだ。	He's the spitting image of his father.	よく似ている様子。
+1150450:0	子どもを愛する親は多い。	Many parents love their children.	深く大切に思う。
+1158710:1	僧が黒い衣を着ている。	The monk is wearing a black robe.	僧の着る服。
+1158710:2	天ぷらの衣をつける。	I coat it in tempura batter.	揚げ物などの外側を覆うもの。
+1159020:1	喉に違和感がある。	My throat feels a bit off.	体の調子が普段と違う感じ。
+1176660:0	被災地に援助を送る。	We send aid to the disaster area.	助けること。
+1181190:0	欧州を旅行した。	I travelled around Europe.	ヨーロッパ。
+1188530:0	何より健康が大切だ。	Health matters above all.	ほかのどんなものよりも。
+1188530:1	元気で何よりです。	I'm so glad you're well.	一番よいこと。
+1196060:0	過激な意見は受け入れられない。	Radical opinions aren't accepted.	度を越して激しい様子。
+1196060:1	過激な運動は体に悪い。	Overly strenuous exercise is bad for you.	程度が激しすぎる様子。
+1199060:0	データを解析する。	We analyse the data.	詳しく調べて明らかにすること。
+1217070:0	子どもにおもちゃを買った。	I bought my child a toy.	子どもの遊び道具。
+1217070:1	人をおもちゃにするな。	Don't toy with people.	遊びの対象として扱われるもの。
+1226500:2	最後の詰めが甘かった。	Our final push was too weak.	物事の最終段階。
