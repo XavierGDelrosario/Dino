@@ -8375,3 +8375,62 @@
 1254180:1	最後のシュートで勝利を決めた。	The last shot clinched the victory.	勝負をつける。
 1254180:3	朝は散歩と決めている。	I make a point of walking every morning.	習慣とする。
 1254180:4	頭から嘘だと決めてかかる。	They assume from the start that it's a lie.	思い込む。
+
+# ── BATCH 146 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1277140:0	川の向こうに村がある。	There's a village on the other side of the river.	反対側。
+1277140:1	向こうに山が見える。	I can see mountains over there.	遠く離れた所。
+1277140:2	向こうに着いたら連絡する。	I'll get in touch when I arrive.	行き先。
+1277140:3	向こうが謝るべきだ。	The other side should apologise.	相手方。
+1277140:4	向こう一週間は雨だ。	It'll rain for the coming week.	今から先。
+1320930:1	アナウンサーが試合を実況する。	The announcer gives live commentary on the match.	その場の様子を伝えること。
+1320930:2	彼はゲームの実況をしている。	He does Let's Play videos.	遊ぶ様子を解説しながら配信すること。
+1323250:0	前の車両に移る。	I move to the front carriage.	鉄道の車や自動車。
+1376240:1	市が道路を整備する。	The city improves the roads.	使えるように整えること。
+1421020:0	この地区は静かだ。	This district is quiet.	区切られた地域。
+1438690:0	明日の天気はどうですか。	What's the weather like tomorrow?	空の様子。
+1438690:1	明日は天気になるといいね。	I hope it's fine tomorrow.	晴れ。
+1439090:0	彼は数学の天才だ。	He's a mathematical genius.	生まれつきすぐれた才能を持つ人。
+1455060:0	雑誌で京都を特集する。	The magazine runs a feature on Kyoto.	特定の題目を中心に編集すること。
+1474910:0	白い雪が降る。	White snow falls.	雪のような色である。
+1474910:1	白い紙に名前を書く。	I write my name on a blank sheet of paper.	何も書いていない。
+1483140:0	彼女には彼氏がいる。	She has a boyfriend.	恋人である男性。
+1488710:1	彼は標準より背が高い。	He's taller than average.	平均。
+1548370:2	留守を隣人に頼む。	I leave the house in my neighbour's care.	任せる。
+1548370:4	頼む、見逃してくれ。	Please, let me off this once.	強くお願いするときの語。
+1552100:0	皿を流しに置く。	I put the plates in the sink.	台所の洗い場。
+1552100:1	流しのタクシーを拾う。	I hail a cruising taxi.	客を求めて移動すること。
+1577280:0	暇があれば遊びに来て。	Come over if you have some free time.	自由な時間。
+1577280:1	この料理は暇がかかる。	This dish takes a lot of time.	手間と時間。
+1577280:2	会社から三日の暇をもらう。	I get three days off from work.	休み。
+1577280:3	店主は店員に暇を出した。	The owner dismissed the clerk.	解雇。
+1577280:4	今日は暇だ。	I'm free today.	忙しくない様子。
+1577280:5	今日は店が暇だ。	Business is slow at the shop today.	客が少ない様子。
+1587150:0	若手を育成する。	We train young talent.	育て上げること。
+1590145:1	水に月の影が映る。	The moon is reflected in the water.	映った姿。
+1590145:2	不況が生活に暗い影を落とす。	The recession casts a dark shadow over our lives.	不吉な兆し。
+1590145:3	窓から月の影が差し込む。	Moonlight shines in through the window.	光。
+1590145:4	かつての強さは影もない。	Not a trace of his former strength remains.	名残。
+1631370:0	この作戦なら行ける。	This plan will work.	うまくいく。
+1631370:1	この酒はなかなか行ける。	This sake is pretty good.	味がよい。
+1631370:2	彼は結構行ける口だ。	He can hold his drink.	酒が飲める。
+1913290:0	奴らが来るぞ。	They're coming!	彼ら。乱暴な言い方。
+2016470:1	冬は曇りがちだ。	It tends to be cloudy in winter.	そうなりやすい傾向。
+2845099:0	愛知は車の生産で有名だ。	Aichi is famous for car production.	中部地方にある県。
+1151120:1	式で挨拶をする。	I give a speech at the ceremony.	儀式での短い話。
+1151120:2	彼からは何の挨拶もない。	There's been no response from him at all.	返事。
+1151120:3	近所に挨拶に回る。	I make courtesy calls around the neighbourhood.	訪問して礼を述べること。
+1151120:5	これはご挨拶だね。	Well, that's a fine thing to say!	皮肉を込めて言う語。
+1195820:1	夏休みの課題を終えた。	I finished my summer homework.	宿題。
+1195820:2	解決すべき課題が多い。	There are many issues to resolve.	取り組むべき問題。
+1198770:0	会長が挨拶した。	The chairman gave a speech.	会の長。
+1273170:1	公の場で発言する。	I speak in a public forum.	社会一般。
+1273170:2	事件が公になった。	The incident came to light.	世間に知られること。
+1289590:1	騒音に困っている。	I'm bothered by the noise.	迷惑する。
+1289590:2	彼は生活に困っている。	He's hard up.	貧しくて苦しむ。
+1297510:0	好きな作家の本を読む。	I read books by my favourite author.	小説などを書く人。
+1327020:0	記者が事件を取材する。	The reporter covers the incident.	情報を集めること。
+1364360:1	彼は真面目な人だ。	He's an honest man.	誠実な様子。
+1485630:0	地震への備えをする。	We prepare for earthquakes.	準備。
+1491520:0	それは不可能だ。	That's impossible.	できないこと。
+1537700:0	野郎ばかりの飲み会だ。	It's a drinking party with only guys.	男。乱暴な言い方。
+1537700:1	この野郎!	You bastard!	男を罵る語。
