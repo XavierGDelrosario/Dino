@@ -8089,3 +8089,66 @@
 1501060:0	福祉の仕事をしている。	I work in social welfare.	人々の幸福と生活の安定。
 1505260:0	文句を言うな。	Stop complaining.	不満。
 1505260:1	広告の文句を考える。	I think up the wording for an ad.	語句。
+
+# ── BATCH 141 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1533130:0	医師の免許を取った。	I got my medical licence.	特定の行為を公に許すこと。
+1533130:1	免許を取りに教習所に通う。	I'm going to driving school to get my licence.	運転免許。
+1548220:0	来年、日本へ行く。	I'm going to Japan next year.	今年の次の年。
+1550880:0	二人は去年離婚した。	They divorced last year.	夫婦が婚姻を解消すること。
+1570240:0	ゆでた麺をざるに上げる。	I drain the boiled noodles in a colander.	竹などで編んだ水切り用の器。
+1570240:1	この会社の警備はざるだ。	This company's security is full of holes.	抜けが多いこと。
+1570240:2	昼はざるを食べた。	I had zaru soba for lunch.	ざるそば。
+1570240:3	彼はざるだから、いくら飲んでも酔わない。	He drinks like a fish and never gets drunk.	酒にいくらでも強い人。
+1596090:1	せっかくの休みが雨でつぶれた。	My long-awaited day off was ruined by rain.	待ち望んだ。貴重な。
+1596090:2	せっかくのご厚意ですが、お断りします。	It's very kind of you, but I must decline.	相手の好意を大切に思う気持ちを表す。
+1609020:0	毎日同じ料理では飽きが来る。	Eating the same thing every day gets boring.	飽きること。
+1631470:0	雨の降りが強くなった。	The rain came down harder.	雨や雪の降ること。
+1805460:0	彼はすぐほらを吹く。	He's always bragging.	大げさな話。
+2629370:1	この池は食いがいい。	The fish bite well in this pond.	魚が餌に食いつくこと。
+2845106:0	長野は山が多い。	Nagano is mountainous.	中部地方にある県。
+2859455:0	この字は読める。	I can read this character.	読むことができる。
+2859455:1	この小説はなかなか読める。	This novel is quite a good read.	読む価値がある。
+2859455:2	彼の考えが読めた。	I could see what he was thinking.	見抜く。
+1153270:0	圧倒的な勝利を収めた。	We won an overwhelming victory.	ほかを大きく上回る様子。
+1164950:1	一定の速度で走る。	I run at a constant speed.	変わらない様子。
+1188350:0	なんだか悲しい。	Somehow I feel sad.	どういうわけか。
+1199470:0	空き缶を回収する。	We collect the empty cans.	集めて取り戻すこと。
+1200740:1	改めてお礼に伺います。	I'll come by properly to thank you.	特に。わざわざ。
+1223880:0	パソコンを起動する。	I boot up the computer.	機械を動かし始めること。
+1240750:0	わずかなお金しかない。	I have only a little money.	ほんの少し。
+1240750:1	わずか三日で完成した。	It was finished in just three days.	たった。
+1250630:0	駅の掲示板を見る。	I check the notice board at the station.	知らせを貼り出す板。
+1250630:1	ネットの掲示板に書き込む。	I post on an online forum.	インターネット上で意見を交わす場。
+1259620:0	見事な演技だった。	It was a superb performance.	すばらしい様子。
+1259620:1	見事に失敗した。	I failed completely.	完全な様子。
+1288340:0	腰が痛い。	My lower back hurts.	背骨の下の部分。
+1288340:1	このうどんは腰がある。	These udon noodles have a nice firm bite.	弾力。粘り。
+1309700:0	隊長が部隊を指揮する。	The captain commands the unit.	指図して人を動かすこと。
+1309700:1	彼がオーケストラを指揮する。	He conducts the orchestra.	演奏を導くこと。
+1331670:0	銀行に就職した。	I got a job at a bank.	職に就くこと。
+1355120:2	売り上げが一億円の大台に乗った。	Sales passed the hundred-million-yen mark.	ある数値に達する。
+1355120:3	会社の経営が軌道に乗った。	The business got on track.	流れに沿って進む。
+1355120:4	その話に乗った。	I went along with the plan.	誘いに加わる。
+1355120:5	音楽に乗って踊る。	I dance to the music.	調子に合わせる。
+1355120:6	敵の挑発に乗った。	He fell for the enemy's provocation.	だまされる。誘いにかかる。
+1355120:7	風に乗って花の香りがする。	The scent of flowers is carried on the wind.	運ばれる。
+1355120:8	今日は化粧がよく乗る。	My make-up is going on well today.	よくなじむ。
+1380650:1	映画を製作する。	We produce a film.	映画などを作ること。
+1386070:0	このホテルは設備が整っている。	This hotel is well equipped.	備え付けた装置。
+1390240:0	勇敢な戦士が戦った。	Brave warriors fought.	戦う兵士。
+1392330:0	選択肢が多い。	There are many options.	選ぶことのできる候補。
+1410780:0	彼は態度が悪い。	He has a bad attitude.	振る舞いの様子。
+1410780:1	政府は態度を明らかにした。	The government made its position clear.	物事に対する立場。
+1420010:0	男の子が生まれた。	A baby boy was born.	男の子供。
+1421850:2	大阪に支店を置く。	We set up a branch in Osaka.	設ける。
+1421850:3	社長は秘書を置いた。	The president hired a secretary.	人をある地位につける。
+1421850:4	彼に信頼を置いている。	I place my trust in him.	心を寄せる。
+1421850:5	作家は筆を置いた。	The writer laid down his pen.	書くのをやめる。
+1421850:6	下宿人を置く。	We take in lodgers.	住まわせる。
+1421850:7	少し間を置いて話す。	I speak after a short pause.	間をあける。
+1421850:8	前もって切符を買って置く。	I buy the ticket in advance.	前もってする。
+1421850:9	窓を開けて置く。	I leave the window open.	その状態を続けさせる。
+1423640:0	中学の友達に会った。	I met a friend from junior high.	中学校。
+1437500:0	この規則を適用する。	We apply this rule.	当てはめること。
+1437960:0	鉄道で旅をする。	I travel by rail.	レールを敷いた交通機関。
+1483380:0	扉を開ける。	I open the door.	開き戸。
