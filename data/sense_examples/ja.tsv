@@ -8478,3 +8478,61 @@
 1154770:0	いい案が浮かんだ。	I came up with a good idea.	考え。計画。
 1154770:1	これはまだ案にすぎない。	This is still only a draft.	下書き。
 1158950:0	交通違反をした。	I committed a traffic violation.	規則に背くこと。
+
+# ── BATCH 148 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1213400:1	部屋に甘い香りがする。	There's a sweet fragrance in the room.	心地よい香りや響き。
+1213400:2	この漬物は塩が甘い。	These pickles are lightly salted.	塩気が少ない。
+1213400:4	写真のピントが甘い。	The photo's focus is soft.	仕上がりが不十分な様子。
+1213400:5	ねじの締めが甘い。	The screw isn't tight enough.	締まりがゆるい。
+1213400:7	甘い言葉に乗せられた。	I was taken in by sweet talk.	人を誘い込む様子。
+1231690:0	去年、大学を卒業した。	I graduated from university last year.	今年の前の年。
+1260490:1	ドアに鍵をかける。	I lock the door.	錠。
+1270590:1	みんな、ご飯ですよ。	Everyone, dinner's ready!	食事。
+1349370:0	早めに床に就く。	I go to bed early.	寝床。	とこ
+1349370:1	祖父は病の床にある。	My grandfather is on his sickbed.	病人が寝ている所。	とこ
+1349380:0	床に座る。	I sit on the floor.	建物の下の平らな面。
+1353260:0	上司に報告する。	I report to my boss.	職場で自分より上の立場の人。
+1358600:0	食品の安全を守る。	We ensure food safety.	食べ物。
+1390600:0	販売の戦略を立てる。	We draw up a sales strategy.	大局的な計画。
+1444980:1	何とか時間を都合する。	I'll make time somehow.	やりくりすること。
+1444980:2	友人に金を都合してもらった。	A friend lent me some money.	金を用立てること。
+1445670:0	怒りを抑える。	I hold back my anger.	腹立ち。
+1457390:0	農家で豚を飼う。	We raise pigs on the farm.	家畜の一つ。
+1457390:1	今夜は豚を焼く。	I'm grilling pork tonight.	豚の肉。
+1466950:0	どうしても行きたい。	I want to go no matter what.	何としても。
+1466950:2	どうしても思い出せない。	I just can't remember.	どうやっても。
+1466950:3	冬はどうしても太る。	I always end up gaining weight in winter.	結局は。
+1532160:0	上官の命令に従う。	I obey my superior's orders.	言いつけ。
+1532160:1	プログラムに命令を書く。	I write instructions into the program.	コンピューターへの指示。
+1576200:0	この恩は一生忘れない。	I'll never forget this kindness as long as I live.	生きている間。
+1576200:1	一生のお願いだ。	This is the biggest favour I'll ever ask.	生涯でただ一度の。
+1591660:0	二つの大学が共同で研究する。	The two universities do joint research.	力を合わせること。
+1591660:1	台所を共同で使う。	We share the kitchen.	共有すること。
+1611750:0	これは見た目より重い。	This is heavier than it looks.	外見。
+1612700:0	彼は健康そのものだ。	He's the picture of health.	それ自体。
+2845085:0	熊本は九州にある。	Kumamoto is in Kyushu.	九州にある県。
+1002650:0	お母さんに電話する。	I call my mum.	母を敬い親しんで呼ぶ語。
+1007480:0	作文は間違いだらけだ。	The essay is riddled with mistakes.	〜が多い。
+1007480:1	子供が泥だらけになった。	The child got covered in mud.	一面に付いている。
+1177070:0	ろうそくの炎が揺れる。	The candle flame flickers.	燃えているときの光。
+1177070:1	彼は嫉妬の炎を燃やした。	He burned with jealousy.	激しい感情。
+1199640:1	彼は頭の回転が速い。	He's quick-witted.	働き。
+1199640:2	この店は客の回転がいい。	This shop has a quick turnover of customers.	入れ替わり。
+1199640:3	ボールに回転をかける。	I put spin on the ball.	回ること。
+1212570:0	その映画に感動した。	I was moved by that film.	深く心を動かされること。
+1213060:0	走って汗をかいた。	I ran and worked up a sweat.	皮膚から出る水分。
+1213060:1	冷たいグラスが汗をかいている。	The cold glass is beaded with condensation.	物の表面につく水滴。
+1234700:1	二人には共通する趣味がある。	They share a hobby.	共に通じる。
+1257590:0	憲法を改正する。	We amend the constitution.	国の基本法。
+1288550:1	傘の骨が折れた。	One of the umbrella's ribs broke.	骨組み。
+1288550:3	彼は骨のある男だ。	He's a man with backbone.	気骨。
+1309800:1	医者の指示に従う。	I follow the doctor's instructions.	指図。
+1340780:0	剣の術を学ぶ。	I study swordsmanship.	技。
+1340780:1	なす術もなかった。	There was nothing we could do.	手段。
+1340780:3	魔女が術をかけた。	The witch cast a spell.	魔法。
+1347680:0	将軍が軍を率いる。	The general leads the army.	軍を指揮する人。
+1347680:1	徳川家の将軍が国を治めた。	The Tokugawa shoguns ruled the country.	幕府の長。
+1353320:0	彼女は歌が上手だ。	She sings well.	技術がすぐれている様子。
+1451210:2	ついに警察が動いた。	The police finally took action.	行動を起こす。
+1451210:3	その話に心が動いた。	I was tempted by the offer.	心を動かされる。
+1451210:4	相場が大きく動いた。	Prices fluctuated sharply.	変動する。
