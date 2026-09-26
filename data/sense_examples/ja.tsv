@@ -9441,3 +9441,41 @@
 1465590:6	試合で点が入った。	A point was scored in the match.	得点になる。
 1465590:7	部屋の暖房が入る。	The heating in the room comes on.	作動する。
 1465590:8	今日から梅雨に入った。	The rainy season started today.	始まる。
+
+# ── BATCH 171 — dictionary-wide frequency ≥ 500 range, least frequent first (continued). ──
+1465590:9	壁にひびが入る。	A crack forms in the wall.	生じる。
+1465590:10	試合前に気合が入る。	I get fired up before the match.	こもる。
+1465590:11	お茶が入ったよ。	The tea's ready.	用意ができる。
+1465590:12	酒が入ると彼は陽気になる。	He gets cheerful once he's had a drink.	酔う。
+1474900:3	碁で白を持つ。	I play white in go.	白い碁石。
+1484920:1	非常な努力をした。	I made an extraordinary effort.	並外れた。
+1584680:2	役者が能の面をつける。	The actor puts on a noh mask.	能楽の仮面。	おもて
+1584695:7	このゲームは次の面が難しい。	The next level of this game is hard.	段階。
+1589590:1	祖父は静かに終わりを迎えた。	My grandfather passed away peacefully.	死。
+1630630:0	会の決めに従う。	I follow the club's rules.	決まり。
+1264610:2	今日を限りに引退する。	I'm retiring as of today.	最後。
+1264610:3	できる限り頑張る。	I'll do everything I can.	〜の範囲の全部。
+1264610:4	雨が降らない限り行く。	I'll go unless it rains.	〜しない以上は。
+1264610:5	子供はこの限りではない。	Children are exempt from this.	範囲内。
+1264610:6	うれしい限りだ。	I couldn't be happier.	極み。
+1264610:7	今回限りの特別価格だ。	It's a special price, this time only.	〜だけ。
+1383180:1	会社が損害に対する責任を負う。	The company bears liability for the damage.	法的な義務。
+1397450:1	三人ずつの組に分かれる。	We split into groups of three.	集団。
+1407980:1	多分の寄付をいただいた。	We received a generous donation.	多くの。
+1412170:3	会社の代表に電話する。	I call the company's main number.	代表電話。
+1460850:1	計画の実現は難しい。	The plan is practically impossible to carry out.	不可能に近い。
+1460850:3	彼は難しい顔をしている。	He's looking grim.	不機嫌な。
+1477620:1	風車で電気を発生させる。	We generate electricity with windmills.	生み出すこと。
+1562400:1	話題の映画を見た。	I saw the film everyone's talking about.	評判の。
+1577915:1	父の敵を討つ。	I avenge my father.	仇討ち。	かたき
+1582000:1	甘い物はダイエットの敵だ。	Sweets are a diet's worst enemy.	害になるもの。
+1172400:3	嘘!本当に?	No way! Really?	驚きの語。
+1387240:2	まず満足できる出来だ。	The result is reasonably satisfying.	一応。
+1387240:3	まずこれで一安心だ。	For now, we can breathe easy.	ひとまず。
+1523060:1	本当の名前を名乗る。	I give my real name.	正式な。
+1523060:2	彼は本当の友達だ。	He's a true friend.	真の。
+1548530:0	リストに落ちがある。	There's something missing from the list.	漏れ。
+1548530:1	結局、損をするのが落ちだ。	You'll only end up losing.	結末。
+1548530:2	この話の落ちは最高だ。	The punch line of this story is brilliant.	笑い話の結末。
+1583470:0	店に品を並べる。	I lay out the goods in the shop.	品物。
+1583470:1	品の良い布を選ぶ。	I choose good-quality cloth.	品質。
