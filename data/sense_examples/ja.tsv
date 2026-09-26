@@ -8327,3 +8327,51 @@
 1237150:3	駅前でピアノの教室を開く。	She runs a piano school near the station.	特定の技芸を教える所。
 1289220:0	今週は忙しい。	I'm busy this week.	この週。
 1299030:0	兵士が敵を殺す。	The soldier kills the enemy.	命を奪う。
+
+# ── BATCH 145 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1299050:0	犯人は二人を殺害した。	The culprit murdered two people.	人を殺すこと。
+1302480:0	その国も参戦した。	That country went to war too.	戦争に加わること。
+1302480:1	来月の大会に参戦する。	I'm entering next month's tournament.	競技などに参加すること。
+1357300:0	植物に水をやる。	I water the plants.	草や木。
+1358340:0	好きな食べ物は何ですか。	What's your favourite food?	食べるもの。
+1360380:0	書類の審査に通った。	I passed the document screening.	調べて評価すること。
+1373850:0	世の中は厳しい。	The world is a tough place.	社会。
+1383240:0	赤い花が咲いた。	A red flower bloomed.	血のような色である。
+1432840:1	友人に手紙を一通出した。	I sent a letter to a friend.	手紙や書類を数える語。
+1451040:0	母は働きに出ている。	My mother goes out to work.	働くこと。
+1451040:1	彼は今回よい働きをした。	He did a good job this time.	成果。
+1451040:2	夫の働きで暮らしている。	We live on my husband's earnings.	収入。
+1451040:3	胃の働きが弱い。	My stomach isn't working well.	機能。
+1455220:0	会員には特典がある。	Members get perks.	特別の待遇。
+1467350:0	妻が妊娠した。	My wife is pregnant.	子を身ごもること。
+1470970:1	成績に波がある。	My grades go up and down.	起伏。
+1470970:2	人の波が押し寄せた。	A wave of people surged forward.	押し寄せる動き。
+1470970:3	改革の波が広がる。	A wave of reform is spreading.	世の中の動き。
+1506890:2	彼はまだ平の社員だ。	He's still a rank-and-file employee.	役職のない者。	ひら
+1524670:0	彼は毎回遅れて来る。	He's late every time.	そのたびごと。
+1552090:0	自分流にやる。	I do it my own way.	やり方。
+1576100:0	一時に会おう。	Let's meet at one.	一時ちょうどの時刻。
+1576100:1	一時は医者を目指していた。	At one time I wanted to be a doctor.	以前のある時期。
+1576100:2	店は一時営業を停止する。	The shop is temporarily closing.	しばらくの間。
+1596960:0	敵と戦う。	We fight the enemy.	戦争をする。
+1596960:1	決勝で強豪と戦う。	We face a strong team in the final.	競う。
+1596960:2	病気と戦う。	I battle my illness.	困難に立ち向かう。
+1604750:0	向いの店で買う。	I buy it at the shop across the street.	向かい側。
+1753790:0	世界中を旅する。	I travel all over the world.	世界のいたる所。
+1854880:1	この店の売りは安さだ。	This shop's selling point is its low prices.	強み。
+2056700:0	彼は計画に異を唱えた。	He objected to the plan.	違った意見。	い
+2153940:0	ありがと、助かった。	Thanks, that helped.	感謝の軽い言い方。
+2609780:0	二階建ての家に住む。	I live in a two-storey house.	建物の階数や構造を表す語。
+2845088:0	山口は本州の西にある。	Yamaguchi is at the western end of Honshu.	中国地方にある県。
+1159710:0	医は仁術だ。	Medicine is a benevolent art.	病気を治す術。
+1160550:0	彼は私の育ての親だ。	He's the one who raised me.	育てること。
+1199000:1	バンドが解散した。	The band split up.	組織がなくなること。
+1199000:2	首相が国会を解散した。	The prime minister dissolved the Diet.	議員の資格を任期前に解くこと。
+1210360:1	彼の冗談は寒い。	His jokes are lame.	つまらない。
+1236650:0	おそらく雨になるだろう。	It'll probably rain.	たぶん。
+1236750:0	恐怖で声も出ない。	I'm too terrified to speak.	恐れる気持ち。
+1238660:0	驚きを隠せない。	I can't hide my surprise.	驚くこと。
+1253060:0	彼は芸術を愛する。	He loves the arts.	美を表現する活動。
+1254180:1	最後のシュートで勝利を決めた。	The last shot clinched the victory.	勝負をつける。
+1254180:3	朝は散歩と決めている。	I make a point of walking every morning.	習慣とする。
+1254180:4	頭から嘘だと決めてかかる。	They assume from the start that it's a lie.	思い込む。
