@@ -8152,3 +8152,63 @@
 1437500:0	この規則を適用する。	We apply this rule.	当てはめること。
 1437960:0	鉄道で旅をする。	I travel by rail.	レールを敷いた交通機関。
 1483380:0	扉を開ける。	I open the door.	開き戸。
+
+# ── BATCH 142 — dictionary-wide frequency ≥ 400, least frequent first (continued). ──
+1486670:0	美容のために野菜を食べる。	I eat vegetables for my looks.	容姿の美しさ。
+1486670:1	美容の専門学校に通う。	I attend a beauty school.	容姿を美しくする技術。
+1500880:0	道の幅を測る。	I measure the width of the road.	横の長さ。
+1500880:1	解釈に幅を持たせる。	I leave room for interpretation.	ゆとり。
+1500880:2	値段の幅が大きい。	There's a wide range of prices.	差。範囲。
+1510720:0	季節の変わりを感じる。	I feel the seasons changing.	変わること。
+1510720:1	大人も子供も変わりはない。	Adults and children are no different.	違い。
+1510720:2	家族に変わりはない。	All is well with the family.	異常。
+1510950:0	ひらがなを漢字に変換する。	I convert hiragana into kanji.	別のものに変えること。
+1511350:2	彼は変態だ。	He's a pervert.	異常な性的嗜好をもつ人。
+1511350:3	幼虫がさなぎに変態する。	The larva metamorphoses into a pupa.	動物が成長の過程で形を変えること。
+1527070:0	私はいつも君の味方だ。	I'm always on your side.	仲間。
+1527070:1	弱い方に味方する。	I side with the weaker party.	支持すること。
+1533610:0	麺が伸びる前に食べる。	I eat before the noodles go soggy.	小麦粉などを細長くした食べ物。
+1577985:1	雨が降っております。	It is raining.	ている、の丁寧な言い方。
+1581590:0	谷に川が流れている。	A river flows through the valley.	山と山の間の低い所。
+1606710:0	わざわざ来てくれてありがとう。	Thanks for going out of your way to come.	手間をかけて特に。
+1606710:1	わざわざ遠回りする。	I deliberately take the long way round.	故意に。
+1615490:0	彼女は純な心の持ち主だ。	She has an innocent heart.	汚れのない様子。
+2061250:0	うわ、びっくりした。	Whoa, you startled me!	驚いたときに出る声。
+2593990:2	チームは五勝した。	The team won five games.	勝ち数を数える語。
+1159260:0	父の遺産を相続した。	I inherited my father's estate.	死者が残した財産。
+1169610:0	選手が引退を発表した。	The player announced his retirement.	職や地位から退くこと。
+1190710:0	ペット可の部屋を探す。	I'm looking for a pet-friendly flat.	許されること。
+1190710:2	成績は可だった。	I got a C.	成績評価の一つ。
+1199040:0	運動でストレスを解消する。	I relieve stress through exercise.	取り除くこと。
+1206800:0	彼は有名な学者だ。	He's a famous scholar.	学問を研究する人。
+1217110:0	父はがんで入院した。	My father was hospitalised with cancer.	悪性の腫瘍。
+1257040:0	兄と喧嘩した。	I had a fight with my brother.	言い争いや殴り合い。
+1261140:0	原に草が茂っている。	Grass grows thick on the plain.	平らで広い土地。
+1263360:0	川の源を訪ねる。	I visit the source of the river.	水の流れ出るもと。
+1263360:1	健康は幸せの源だ。	Health is the source of happiness.	物事の起こるもと。
+1296970:0	財布を落とした。	I dropped my wallet.	お金を入れる袋。
+1297110:1	彼は五十の坂を越えた。	He's past fifty.	人生の区切りとなる年齢。
+1314270:0	事務の仕事をしている。	I do office work.	書類などを扱う仕事。
+1315060:0	児童が校庭で遊ぶ。	Children play in the schoolyard.	子供。
+1332400:0	車を修理に出す。	I take my car in for repair.	直すこと。
+1343150:0	彼はいわゆる天才だ。	He's what you'd call a genius.	世間でいう。
+1367120:1	彼は社長の人形にすぎない。	He's nothing but the president's puppet.	他人の言いなりになる人。
+1375880:1	契約が成立した。	The contract was concluded.	まとまること。
+1375880:2	その理論は成立しない。	That theory doesn't hold.	理屈が通ること。
+1405070:0	選挙の速報が流れた。	Early election results came in.	素早く知らせること。
+1418410:2	旦那、いい品がありますよ。	I've got some fine goods, sir.	男性客などを呼ぶ語。
+1448810:1	肩が壁に当たる。	My shoulder touches the wall.	触れる。
+1448810:2	今日は母の誕生日に当たる。	Today falls on my mother's birthday.	相当する。
+1448810:5	新商品が当たった。	The new product was a hit.	成功する。
+1448810:6	全員で困難に当たる。	We all face the difficulty together.	立ち向かう。
+1448810:7	駅は家の北に当たる。	The station lies to the north of my house.	その方向にある。
+1448810:8	警察が捜査に当たる。	The police are handling the investigation.	担当する。
+1448810:10	授業で先生に当たった。	The teacher called on me in class.	指名される。
+1448810:11	子供に当たるな。	Don't take it out on the kids.	八つ当たりする。
+1448810:12	心配するには当たらない。	There's no need to worry.	必要がない。
+1448810:13	今日は彼のバットがよく当たっている。	His bat is on fire today.	よく打てる。
+1448810:16	辞書に当たって確かめる。	I check it in a dictionary.	調べる。
+1448810:17	床屋でひげを当たる。	I get a shave at the barber's.	そる。
+1448810:18	彼は私のいとこに当たる。	He's my cousin.	親族関係にある。
+1469660:0	燃料が切れた。	We ran out of fuel.	燃やして熱を得る物質。
+1473150:0	家具の配置を変える。	I change the furniture layout.	割り当てて置くこと。
