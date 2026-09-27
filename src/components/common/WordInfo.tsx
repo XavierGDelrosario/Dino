@@ -1,6 +1,6 @@
 // Shared word-info ("?") affordance: a small round "?" button that toggles a
 // floating panel showing the word's Level (JLPT/CEFR via getProficiency — the curated
-// band, else the frequency estimate, shown alike) and
+// band, else the stored estimate, shown alike) and
 // Part of Speech (JMdict codes → one coarse category). Used by BOTH a Lists row
 // and a flashcard, so the two surfaces stay identical (extract-once).
 //
@@ -19,11 +19,10 @@ export interface WordInfoTarget {
   sourceLang: LangCode;
   proficiencyBand: number | null;
   partOfSpeech: string[] | null;
-  /** Corpus frequency (Zipf ×100) → a plain-language "Commonness" band, and the input
-   *  to the level estimate when the word has no curated band. */
+  /** Stored level estimate, shown when there's no curated band (see getProficiency). */
+  estimatedBand?: number | null;
+  /** Corpus frequency (Zipf ×100) → a plain-language "Commonness" band. */
   frequency: number | null;
-  /** Lets the level estimate skip JMdict names (optional — see getProficiency). */
-  jmdictEntryId?: string | null;
 }
 
 /** The Level + Commonness + Part-of-Speech rows — the shared panel CONTENT. */

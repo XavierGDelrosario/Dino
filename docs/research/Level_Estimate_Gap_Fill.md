@@ -43,7 +43,29 @@ estimate — all common/mid words. Below Zipf 3 stays Unranked on purpose (mostl
 the JLPT; "N2" would tell a learner to know them). Prod lookups: ~91% of looked-up words
 carry a frequency, so coverage there is higher than the dictionary-wide figure.
 
-## 4. Next
+## 4. Revision (20260779): word shape × teaching lists, stored
+
+The frequency-only rule over-filled N3: it called advanced news/business compounds
+(苦悩, 配属, 給付, 月収) N3. Measured on staging's full JMdict (58.9k headwords):
+
+- **Word shape matters.** Among listed kanji compounds at Zipf 3.5–4.0 only 21% are
+  N3-or-easier (52% N1); kanji compounds need Zipf ≳ 4.5 before most are N3.
+- **Teaching-list membership matters more.** Kanji compounds at Zipf 3.5–5.0 on a NINJAL
+  teaching list: 48% ≤N3, 30% N1; on none: 20% ≤N3, **63% N1**. 85% of unranked words are
+  on no list.
+- **JMdict's `common` flag is useless here** (1,985 of 1,992 such compounds carry it), and a
+  stricter N3 bar only trades one error for the other.
+
+Scored on listed words that are on no teaching list (the unranked population's shape):
+frequency-only 28% exact → **50% with shape × list**; N1 correctly called N1 8% → 56%;
+N1 shown as N3 51% → 44%; true N3 shown harder 16% → 22%. Dictionary-wide estimates move
+from N3 47% / N2 53% / N1 0% to roughly N3 34% / N2 3% / N1 63%.
+
+The membership signal needs per-word data, so the RESULT is computed once and stored
+(`estimated_band` on the dictionary writings + `words`) rather than storing the list or
+mirroring a rule on the client. Storage: < 1 MB.
+
+## 5. Next
 
 A Claude classifier, scored on the levelled words before trusting it (~$3 for a
 Haiku/Sonnet/Opus comparison; ~$1–9 to fill the ~34k common prod words, batch). The same

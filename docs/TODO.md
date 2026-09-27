@@ -354,6 +354,9 @@ redundancy cleanup — check `users.level`'s consumers before removing it.
   axis, no shared test pinning them (cf. `display_confidence` ↔ `services/confidence.ts`).
 
 ### Proficiency label axis — remaining `[#8]`
+- **Drop the read-time level-estimate pieces** (`language_level_estimate`, `estimated_band()`, `measure_level_estimate()`, `level_estimate_bins()` + its `build:leveling` call) once no installed client calls `level_estimate_bins()` at startup (anything built before PR for 20260779).
+- **Place / country names still get estimated levels** (松山, インド, 台湾 are ordinary JMdict entries): ingest JMdict's `misc` "place"/"person" tags and exclude them in `not_leveled_vocab`.
+- **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
 Pipeline, ingest, projection, resolver, learn and calibration are **DONE + LIVE**.
 `WordInfo.tsx` renders `getProficiency()` in **ListRow**, **FlashcardCard** and
 **ArticleWordList**. Remaining: the **translate result head** and the **reader hovercard**.

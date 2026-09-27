@@ -59,7 +59,7 @@ export interface FilterTarget {
   proficiencyBand: number | null;
   partOfSpeech: string[] | null;
   frequency: number | null;
-  jmdictEntryId?: string | null;
+  estimatedBand?: number | null;
   confidenceRating: number;
   originallyTranslatedDate: string;
   lastReviewedDate: string | null;

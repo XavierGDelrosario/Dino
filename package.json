@@ -24,6 +24,7 @@
     "build:irregulars": "tsx scripts/build-irregulars.ts",
     "ingest:english-proficiency": "tsx scripts/ingest-english-proficiency.ts",
     "apply:proficiency": "tsx scripts/apply-proficiency-bands.ts",
+    "apply:level-estimates": "tsx scripts/apply-level-estimates.ts",
     "ingest:sense-examples": "tsx scripts/ingest-sense-examples.ts",
     "validate:sense-examples": "tsx scripts/validate-sense-examples.ts",
     "db:up": "bash scripts/supabase-up.sh",

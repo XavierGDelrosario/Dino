@@ -22,22 +22,10 @@ import { AdminPage } from "./views/AdminPage";
 import { LegalView } from "./views/LegalView";
 import { useI18n } from "./i18n";
 import { useRouter, Link } from "./router";
-import { loadLevelEstimates } from "./services/proficiency/loadEstimates";
 import "./components/common/common.css";
 
 export function App() {
   const { userId, email, isAnonymous, recovering, clearRecovery, loading, error } = useSession();
-
-  // The level-estimate bin table (7 rows) is read DURING the splash, in parallel with
-  // sign-in, so the first render's labels / summaries / filters already carry estimated
-  // levels — they're memoized, and a late arrival wouldn't repaint them. It never holds
-  // the app past its timeout, and a failed read just means curated levels only.
-  const [estimatesReady, setEstimatesReady] = useState(false);
-  useEffect(() => {
-    let active = true;
-    loadLevelEstimates().then(() => { if (active) setEstimatesReady(true); });
-    return () => { active = false; };
-  }, []);
   const { t } = useI18n();
   const { path, navigate } = useRouter();
 
@@ -90,7 +78,7 @@ export function App() {
   // Startup: nothing but the mascot + dots until the session exists — the header's
   // menus have nothing to act on yet, and this picks up exactly where index.html's
   // pre-bundle splash left off.
-  if (loading || !estimatesReady) return <SplashScreen />;
+  if (loading) return <SplashScreen />;
 
   return (
     // The app is a phone-width column everywhere EXCEPT /admin: that's an ops

@@ -56,6 +56,7 @@ describe("findCachedWord", () => {
       frequency: null,
       difficultyOverride: null,
       proficiencyBand: null,
+      estimatedBand: null,
       jmdictEntryId: "1467640",
       jmdictSensePos: 0,
       // Sense enrichment (20260750) — null for a row the authored corpus hasn't

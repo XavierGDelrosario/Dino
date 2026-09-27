@@ -48,10 +48,9 @@ export interface UserWord {
   proficiencyBand: number | null;
   partOfSpeech: string[] | null;
   frequency: number | null;
-  /** The sense's JMdict entry (null for a standalone word / an MT row). Lets the level
-   *  estimate skip JMdict names, like the SQL does (services/proficiency/estimate.ts).
-   *  Optional: the review queue's rows don't carry it (the names check is then skipped). */
-  jmdictEntryId?: string | null;
+  /** Stored level estimate when there's no curated band (20260779). Optional: the review
+   *  queue's rows don't carry it, and a database without the column degrades to null. */
+  estimatedBand?: number | null;
   /** A sentence demonstrating the SAVED SENSE, its gloss, a monolingual definition,
    *  and pinned furigana for the target inside `example`. Null when unwritten. */
   example: string | null;
@@ -73,7 +72,7 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
     | "proficiency_band"
     | "part_of_speech"
     | "frequency"
-    | "jmdict_entry_id"
+    | "estimated_band"
     | "example"
     | "example_gloss"
     | "definition_source"
@@ -90,9 +89,10 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
 // the session the moment the database says it lacks them. The mapping reads them with
 // `?? null`, so an un-migrated database degrades to "no example written yet".
 const DICTIONARY_COLUMNS =
-  "translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency, jmdict_entry_id";
-/** Added by 20260750. Absent on any database that hasn't taken it. */
-const DICTIONARY_COLUMNS_OPTIONAL = "example, example_gloss, definition_source, example_reading";
+  "translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency";
+/** Added by 20260750 (the example columns) and 20260779 (estimated_band). Absent on any
+ *  database that hasn't taken them. */
+const DICTIONARY_COLUMNS_OPTIONAL = "example, example_gloss, definition_source, example_reading, estimated_band";
 
 /** Latched false by the first 42703; a reload re-probes, so applying the migration
  *  heals the client with no redeploy. */
@@ -184,7 +184,7 @@ function toUserWord(row: UserWordRow): UserWord {
     proficiencyBand: row.words?.proficiency_band ?? null,
     partOfSpeech: row.words?.part_of_speech ?? null,
     frequency: row.words?.frequency ?? null,
-    jmdictEntryId: row.words?.jmdict_entry_id ?? null,
+    estimatedBand: row.words?.estimated_band ?? null,
     // Sense enrichment (20260750). NOT suppressed by a custom_translation: an override
     // renames the MEANING, while the example still demonstrates the saved sense.
     example: row.words?.example ?? null,
@@ -240,7 +240,7 @@ export async function saveDictionaryWord(params: {
     proficiencyBand: word.proficiencyBand,
     partOfSpeech: word.partOfSpeech,
     frequency: word.frequency,
-    jmdictEntryId: word.jmdictEntryId,
+    estimatedBand: word.estimatedBand,
   };
 }
 
@@ -285,7 +285,7 @@ export async function saveDictionaryWords(params: {
           proficiencyBand: w.proficiencyBand,
           partOfSpeech: w.partOfSpeech,
           frequency: w.frequency,
-          jmdictEntryId: w.jmdictEntryId,
+          estimatedBand: w.estimatedBand,
         }
       : uw;
   });
