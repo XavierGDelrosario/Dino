@@ -1,7 +1,8 @@
 // Profile page: identity (email / date created) + the three language settings —
 // NATIVE (default translation output), LEARNING (default "I'm learning" + input),
 // and APP language (UI localization). Native/learning persist on `users` (follow the
-// account); app language is the client-side i18n locale.
+// account); app language is the client-side i18n locale. Below them, the History
+// section (components/profile).
 import { useEffect, useState } from "react";
 import { getUserProfile, updateUserLanguages } from "../services/session";
 import { targetOptions, DEFAULT_NATIVE_LANGUAGE, DEFAULT_LEARNING_LANGUAGE } from "../services/language";
@@ -10,6 +11,7 @@ import { useI18n, LOCALES, type Locale } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { Link } from "../router";
 import { AttributionFooter } from "../components/common/AttributionFooter";
+import { HistorySection } from "../components/profile/HistorySection";
 import "../components/common/common.css";
 
 export function ProfilePage({
@@ -90,6 +92,10 @@ export function ProfilePage({
       </div>
 
       <ErrorText message={err} />
+
+      {/* History: calendar, activity/confidence plot, confidence by level. Accounts
+          only (guests are sent to sign-up before this page renders). */}
+      {!isAnonymous && <HistorySection userId={userId} />}
 
       {/* Footer: Back (left) · Delete account (right). Sign-out lives in the
           top-right account menu; delete is its own confirmation page. */}
