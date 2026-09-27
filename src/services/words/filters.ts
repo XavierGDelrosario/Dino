@@ -20,7 +20,7 @@
 // No I/O — safe during render.
 
 import { frequencyCommonness, type LevelValue } from "../difficulty";
-import { proficiencyFrameworkFor } from "../proficiency";
+import { getProficiency, proficiencyFrameworkFor } from "../proficiency";
 import { partOfSpeechCategory, type LangCode, type PosCategory } from "../language";
 
 /** A named span, offered as a shortcut inside the calendar (see `periodRange`). */
@@ -59,6 +59,7 @@ export interface FilterTarget {
   proficiencyBand: number | null;
   partOfSpeech: string[] | null;
   frequency: number | null;
+  jmdictEntryId?: string | null;
   confidenceRating: number;
   originallyTranslatedDate: string;
   lastReviewedDate: string | null;
@@ -200,9 +201,10 @@ export function makeMatcher(f: WordFilters): (word: FilterTarget) => boolean {
     if (langs.size > 0 && !langs.has(word.sourceLang)) return false;
 
     const bands = narrowingBands.get(word.sourceLang);
-    // A word with no curated band maps to the "—" pseudo-band, so it survives while
-    // "—" is checked (the default) and drops only when the user unchecks it.
-    if (bands && !bands.has(word.proficiencyBand ?? NO_BAND)) return false;
+    // The level shown everywhere else (curated, else estimated — getProficiency), so the
+    // filter agrees with the "?" panel and the summary. A word with neither maps to the
+    // "—" pseudo-band: it survives while "—" is checked (the default).
+    if (bands && !bands.has(getProficiency(word)?.band ?? NO_BAND)) return false;
 
     if (usage.size > 0) {
       const commonness = frequencyCommonness(word);

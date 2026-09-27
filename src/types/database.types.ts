@@ -903,6 +903,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      level_estimate_bins: {
+        Args: Record<PropertyKey, never>
+        Returns: { language: string; freq_bin: number; band: number }[]
+      }
       list_overview: {
         Args: { p_freq_bins?: number[] }
         Returns: {
