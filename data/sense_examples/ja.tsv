@@ -9526,3 +9526,44 @@
 1281020:3	留学を考えている。	I'm thinking of studying abroad.	計画する。
 1281020:4	最悪の事態を考える。	I anticipate the worst.	想定する。
 1281020:5	新しい方法を考える。	I come up with a new method.	考案する。
+
+# ── BATCH 173 — dictionary-wide frequency ≥ 500 range, least frequent first (continued). ──
+1281020:6	私は彼を親友と考えている。	I regard him as my best friend.	そうであると見なす。
+1293940:1	飲みすぎて最終に乗り遅れた。	I drank too much and missed the last train.	その日のうちで最後に出る電車やバス。
+1412560:1	指輪の台から宝石が外れた。	The stone came loose from the ring's setting.	宝石などをはめこんで支えるもの。
+1412560:3	駐車場に車が三台止まっている。	Three cars are parked in the lot.	車や機械などを数える語。	だい
+1412560:4	気温が三十度台まで上がった。	The temperature rose into the thirties.	数量のおおよその範囲を表す語。
+1579070:0	こいつは僕の弟だ。	This guy is my little brother.	この人。親しみや軽蔑をこめて言う語。
+1579070:1	こいつはよく切れる包丁だ。	This one is a really sharp knife.	この物。ぞんざいに指して言う語。
+1579070:2	こいつ、待て！	Hey, you! Wait!	相手をののしって呼びかける語。
+1009290:0	どれが君のかばんですか。	Which one is your bag?	三つ以上の中から一つを指して問う語。
+1009290:1	どれ、ちょっと見せてごらん。	Well now, let me have a look.	何かを始めようとするときに発する語。
+1220540:0	工事の第一期が終わった。	The first phase of construction is finished.	ある長さに区切った期間。	き
+1220540:2	この寺は江戸期に建てられた。	This temple was built in the Edo period.	歴史上の時代。
+1220540:3	知事は二期目に入った。	The governor has entered a second term.	任期を数える単位。	き
+1220540:5	がんは第三期まで進んでいた。	The cancer had progressed to stage three.	病気の進み具合の段階。	き
+1220540:6	アニメの第二期が始まる。	The second season of the anime is starting.	番組などの続編の区切り。	き
+1391780:1	嵐で電話の線が切れた。	The storm cut the telephone line.	電気を通す細い金属のひも。
+1391780:2	窓から光の線が差し込んだ。	A beam of light shone in through the window.	まっすぐに進む光や放射線のすじ。
+1391780:3	この線は東京駅まで行く。	This line goes to Tokyo Station.	電車やバスなどの路線。
+1391780:4	彼女は体の線がきれいだ。	She has a lovely figure.	物の形を表す輪郭。
+1391780:5	点数が合格の線に届かなかった。	My score didn't reach the passing level.	ある基準となる程度。
+1391780:7	その線で話を進めよう。	Let's proceed along those lines.	行動や考えの方針。
+1391780:8	彼は線が細くて頼りない。	He's delicate and not very dependable.	人の与える印象。
+1471120:1	彼は党内のどの派にも属さない。	He doesn't belong to any faction within the party.	政党などの中で意見を同じくする集団。
+1471120:2	この派の画家は光を大切にした。	Painters of this school valued light.	学問や芸術で、考え方や作風を同じくする人々。
+1471120:3	仏教のこの派は山奥に寺を持つ。	This sect of Buddhism has temples deep in the mountains.	宗教で、教えの違いによって分かれた集団。
+2150610:0	米政府が新しい方針を発表した。	The US government announced a new policy.	アメリカ合衆国のこと。
+1584930:1	魚はあまり好きではない。	I'm not very fond of fish.	下に打ち消しを伴って、それほどではないようす。
+1584930:2	あまり食べると太るよ。	If you eat too much, you'll gain weight.	程度が度を越しているようす。
+1584930:3	あまりのことに言葉も出なかった。	It was so shocking that I was left speechless.	程度がはなはだしいようす。
+1584930:4	今日の料理はあまりだった。	Today's food was only so-so.	あまりよくないようす。
+1584930:5	あれから十年あまりが過ぎた。	More than ten years have passed since then.	数量を表す語について、それより少し多いこと。
+1196030:1	彼女には暗い過去がある。	She has a dark past.	人に知られたくない、その人の以前の経歴。
+1196030:2	動詞を過去の形に直す。	Change the verb to the past tense.	文法で、すでに済んだことを表す形。
+1220570:1	期待の新人が入社した。	A promising newcomer joined the company.	将来に大きな望みがかけられていること。
+1254760:1	返事は明日で結構です。	Tomorrow is fine for your reply.	それで十分で差し支えないようす。
+1254760:4	文章の結構を整える。	I tidy up the structure of the essay.	全体の組み立て。構成。
+1264740:0	りんごを三個買った。	I bought three apples.	小さい物を数える語。
+1264740:2	個を大切にする社会を目指す。	We aim for a society that values the individual.	全体に対する一人一人。
+1264740:3	彼は僕より二個上だ。	He's two years older than me.	年齢や学年の差を数える語。
