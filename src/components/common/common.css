@@ -62,6 +62,15 @@
      Interpolated with color-mix at render time — see services/analyze/palette.ts. */
   --ord-common: #35c06d;
   --ord-rare: #2b5fc4;
+  /* Per-level identity lines (History's confidence plot): a CATEGORICAL set, one fixed
+     hue per band slot 1–6 (JLPT N5…N1 / CEFR A1…C2), so neighbouring levels read apart
+     at a glance — the --ord ramp blended them. Validated (CVD + contrast) per theme. */
+  --lvl-1: #3987e5;
+  --lvl-2: #d95926;
+  --lvl-3: #199e70;
+  --lvl-4: #c98500;
+  --lvl-5: #d55181;
+  --lvl-6: #9085e9;
 
   /* Semantic status colours. --danger-* are the destructive set (delete account,
      errors); --success is the affirmative one (a saved word, a "known" swipe). */
@@ -116,6 +125,12 @@
 
   --ord-common: #1f9d5c;
   --ord-rare: #2148ac;
+  --lvl-1: #2a78d6;
+  --lvl-2: #eb6834;
+  --lvl-3: #1baf7a;
+  --lvl-4: #eda100;
+  --lvl-5: #e87ba4;
+  --lvl-6: #4a3aa7;
 
   --danger: #b3261e;
   --danger-text: #a3200f;

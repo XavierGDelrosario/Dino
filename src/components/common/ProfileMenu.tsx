@@ -1,9 +1,9 @@
 // Person-icon dropdown (top-right): profile link + sign-in (guest) / sign-out
 // (account). The forms live on their own pages now (AuthPage); this just navigates.
 //
-// ORDER: email · Profile · Theme · sign-in/sign-out. This is the ACCOUNT menu, so the
+// ORDER: email · Profile · History · Theme · sign-in/sign-out. This is the ACCOUNT menu, so the
 // account's own destination leads and the theme is a setting that merely lives here.
-// For a GUEST, Profile is absent (there is no account behind it), so the theme row rises
+// For a GUEST, Profile and History are absent (there is no account behind it), so the theme row rises
 // to the top on its own — a guest has no profile page but still needs the theme.
 import { signOut } from "../../services/session";
 import { useI18n } from "../../i18n";
@@ -37,7 +37,10 @@ export function ProfileMenu({
           It sits ABOVE the theme row: this is the ACCOUNT menu, so the account's own
           destination leads, and the theme is a setting that happens to live here. */}
       {!isAnonymous && (
-        <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>
+        <>
+          <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>
+          <Link to="/history" className="profilemenu__item" onClick={close}>{t("history.title")}</Link>
+        </>
       )}
       <ThemeToggle />
       {isAnonymous ? (

@@ -49,6 +49,11 @@
   align-self: flex-start;
 }
 
+/* The plot's time span, centred under the plot. */
+.hist__seg--range {
+  align-self: center;
+}
+
 .hist__segbtn {
   padding: 0.3rem 0.65rem;
   background: none;

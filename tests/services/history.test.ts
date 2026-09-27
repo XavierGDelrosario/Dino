@@ -27,11 +27,11 @@ describe("bucketStart", () => {
 
 describe("bucketStarts", () => {
   it("ends with the bucket containing today, oldest first", () => {
-    const d = bucketStarts("30d", TODAY).map(dayKey);
+    const d = bucketStarts("1m", TODAY).map(dayKey);
     expect(d).toHaveLength(30);
     expect(d[29]).toBe("2026-09-30");
     expect(d[0]).toBe("2026-09-01");
-    const m = bucketStarts("12m", TODAY).map(dayKey);
+    const m = bucketStarts("1y", TODAY).map(dayKey);
     expect(m[0]).toBe("2025-10-01");
     expect(m[11]).toBe("2026-09-01");
   });
@@ -46,20 +46,20 @@ describe("activitySeries", () => {
   ];
 
   it("sums added / reviewed per bucket, zero-filled", () => {
-    const added = activitySeries(days, "added", "30d", TODAY);
+    const added = activitySeries(days, "added", "1m", TODAY);
     expect(added.slice(-1)[0]).toEqual({ key: "2026-09-30", value: 1 });
     expect(added.slice(-3)[0]).toEqual({ key: "2026-09-28", value: 3 });
     expect(added[0].value).toBe(0);
-    const weekly = activitySeries(days, "reviewed", "12w", TODAY);
+    const weekly = activitySeries(days, "reviewed", "3m", TODAY);
     expect(weekly.slice(-1)[0]).toEqual({ key: "2026-09-28", value: 14 });
   });
 
   it("total is the running vocabulary at the END of each bucket, including before the range", () => {
-    const total = activitySeries(days, "total", "30d", TODAY);
+    const total = activitySeries(days, "total", "1m", TODAY);
     expect(total[0].value).toBe(100);
     expect(total.slice(-3)[0]!.value).toBe(103);
     expect(total.slice(-1)[0]!.value).toBe(106);
-    const monthly = activitySeries(days, "total", "12m", TODAY);
+    const monthly = activitySeries(days, "total", "1y", TODAY);
     expect(monthly.slice(-1)[0]!.value).toBe(106);
     expect(monthly.slice(-4)[0]!.value).toBe(100); // Jun 2026: only the December words
   });
@@ -75,15 +75,15 @@ describe("confidenceLines", () => {
   ];
 
   it("averages within a bucket and leaves idle buckets as gaps", () => {
-    const daily = confidenceLines(snaps, "30d", TODAY, "JA", "Unranked");
+    const daily = confidenceLines(snaps, "1m", TODAY, "JA", "Unranked");
     expect(daily.overall.slice(-1)[0]!.value).toBe(3);
     expect(daily.overall.slice(-2)[0]!.value).toBeNull(); // 09-29: no snapshot
-    const weekly = confidenceLines(snaps, "12w", TODAY, "JA", "Unranked");
+    const weekly = confidenceLines(snaps, "3m", TODAY, "JA", "Unranked");
     expect(weekly.overall.slice(-1)[0]!.value).toBe(2.5);
   });
 
   it("draws one line per level present (empty slots skipped), unranked last, JLPT labels", () => {
-    const { bands } = confidenceLines(snaps, "30d", TODAY, "JA", "Unranked");
+    const { bands } = confidenceLines(snaps, "1m", TODAY, "JA", "Unranked");
     expect(bands.map((b) => b.label)).toEqual(["N5", "Unranked"]);
     expect(bands[0].points.slice(-1)[0]!.value).toBe(4);
   });

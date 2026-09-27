@@ -11,7 +11,6 @@
 import { useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useI18n, type MessageKey } from "../../i18n";
 import { dayKey, parseDayKey } from "../../services/words/filters";
-import { ordinalColor } from "../../services/analyze/palette";
 import {
   RANGES,
   activitySeries,
@@ -31,9 +30,11 @@ const METRICS: { value: PlotMetric; label: MessageKey }[] = [
   { value: "confidence", label: "history.metricConfidence" },
 ];
 const RANGE_OPTS: { value: HistoryRange; label: MessageKey }[] = [
-  { value: "30d", label: "history.range30d" },
-  { value: "12w", label: "history.range12w" },
-  { value: "12m", label: "history.range12m" },
+  { value: "1w", label: "history.range1w" },
+  { value: "1m", label: "history.range1m" },
+  { value: "3m", label: "history.range3m" },
+  { value: "6m", label: "history.range6m" },
+  { value: "1y", label: "history.range1y" },
 ];
 
 interface Series {
@@ -47,10 +48,12 @@ interface Series {
 
 // Geometry (viewBox units; the SVG scales to its container's width).
 const W = 640;
-const H = 220;
+// Confidence gets a taller plot: its axis is a fixed 0–5 and the level lines sit close
+// together, so the extra height spreads each whole step apart where the counts don't need it.
+const H_ACTIVITY = 220;
+const H_CONFIDENCE = 380;
 const M = { top: 12, right: 12, bottom: 26, left: 36 };
 const PW = W - M.left - M.right;
-const PH = H - M.top - M.bottom;
 
 /** A "nice" axis ceiling ≥ v (1, 2, 5 × 10^k), so gridlines land on round numbers. */
 function niceMax(v: number): number {
@@ -63,7 +66,7 @@ function niceMax(v: number): number {
 export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const { t, locale } = useI18n();
   const [metric, setMetric] = useState<PlotMetric>("added");
-  const [range, setRange] = useState<HistoryRange>("30d");
+  const [range, setRange] = useState<HistoryRange>("1m");
   const [hover, setHover] = useState<number | null>(null);
   const today = useMemo(() => new Date(), []);
   const unranked = t("history.unranked");
@@ -81,16 +84,13 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
       ];
     }
     const lines = confidenceLines(history.confidence, range, today, history.mainLang, unranked);
-    const ranked = lines.bands.filter((b) => b.slot > 0);
     const out: Series[] = lines.bands.map((b) => ({
       id: `band-${b.slot}`,
       label: b.label,
-      // Easy → hard along the same ordinal ramp as the Difficulty bars; unranked is the
-      // muted ink, dashed, so it never reads as one more level.
-      color:
-        b.slot === 0
-          ? "var(--muted)"
-          : ordinalColor(ranked.length > 1 ? ranked.findIndex((r) => r.slot === b.slot) / (ranked.length - 1) : 0),
+      // One fixed categorical hue per level SLOT (--lvl-N), so a level keeps its colour
+      // whichever others are present; unranked is the muted ink, dashed, so it never
+      // reads as one more level.
+      color: b.slot === 0 ? "var(--muted)" : `var(--lvl-${b.slot})`,
       width: 2,
       dashed: b.slot === 0,
       points: b.points,
@@ -102,6 +102,8 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const keys = series[0]?.points.map((p) => p.key) ?? [];
   const n = keys.length;
   const isConf = metric === "confidence";
+  const H = isConf ? H_CONFIDENCE : H_ACTIVITY;
+  const PH = H - M.top - M.bottom;
   const hasData = series.some((s) => s.points.some((p) => p.value != null && (isConf || p.value > 0)));
   const yMax = isConf ? 5 : niceMax(Math.max(0, ...series.flatMap((s) => s.points.map((p) => p.value ?? 0))));
   const ticks = isConf ? [0, 1, 2, 3, 4, 5] : [0, yMax / 2, yMax];
@@ -152,22 +154,6 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
             </option>
           ))}
         </select>
-        <div className="hist__seg" role="group" aria-label={t("history.rangeAria")}>
-          {RANGE_OPTS.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              className={`hist__segbtn${range === r.value ? " is-active" : ""}`}
-              aria-pressed={range === r.value}
-              onClick={() => {
-                setRange(r.value);
-                setHover(null);
-              }}
-            >
-              {t(r.label)}
-            </button>
-          ))}
-        </div>
       </div>
 
       {isConf && <p className="hist__note">{t("history.confidenceNote")}</p>}
@@ -275,6 +261,24 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
           )}
         </div>
       )}
+
+      {/* Time span under the plot, like a stock chart: short → long. */}
+        <div className="hist__seg hist__seg--range" role="group" aria-label={t("history.rangeAria")}>
+          {RANGE_OPTS.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              className={`hist__segbtn${range === r.value ? " is-active" : ""}`}
+              aria-pressed={range === r.value}
+              onClick={() => {
+                setRange(r.value);
+                setHover(null);
+              }}
+            >
+              {t(r.label)}
+            </button>
+          ))}
+        </div>
 
       {hasData && series.length > 1 && (
         <ul className="hist-plot__legend">

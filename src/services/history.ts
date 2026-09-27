@@ -122,13 +122,17 @@ export function parseHistory(data: unknown): ProfileHistory {
 // ── Pure bucketing ─────────────────────────────────────────────────────────────
 
 export type Granularity = "day" | "week" | "month";
-export type HistoryRange = "30d" | "12w" | "12m";
+export type HistoryRange = "1w" | "1m" | "3m" | "6m" | "1y";
 export type ActivityMetric = "added" | "total" | "reviewed";
 
+// Short spans plot by day, the middle ones by week, a year by month — so every range
+// lands at 7–30 points and the line stays readable.
 export const RANGES: Record<HistoryRange, { granularity: Granularity; count: number }> = {
-  "30d": { granularity: "day", count: 30 },
-  "12w": { granularity: "week", count: 12 },
-  "12m": { granularity: "month", count: 12 },
+  "1w": { granularity: "day", count: 7 },
+  "1m": { granularity: "day", count: 30 },
+  "3m": { granularity: "week", count: 13 },
+  "6m": { granularity: "week", count: 26 },
+  "1y": { granularity: "month", count: 12 },
 };
 
 /** The first day of the bucket `d` falls in: itself, its Monday, or the 1st. */

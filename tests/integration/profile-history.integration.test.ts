@@ -44,12 +44,32 @@ async function seedWord(user: TestUser, input: string, addedAt: string, reviews:
   await pg!.query(`UPDATE user_words SET originally_translated_date = $2 WHERE user_word_id = $1`, [id, addedAt]);
   for (const r of reviews) {
     await pg!.query(
-      `INSERT INTO review_log (user_word_id, user_id, grade, reviewed_at, repeats)
-       VALUES ($1, $2, 3, $3, $4)`,
+      `INSERT INTO review_log (user_word_id, user_id, grade, reviewed_at, repeats, new_stability)
+       VALUES ($1, $2, 3, $3, $4, 1)`,
       [id, user.userId, r.at, r.repeats ?? 1],
     );
   }
   return id;
+}
+
+/** A saved DICTIONARY sense with the given POS / JMdict entry / band (service-seeded:
+ *  clients can't write `words`). Unique per call so parallel runs never collide. */
+async function seedSense(
+  user: TestUser,
+  o: { pos: string[]; entry: string; band: number | null; frequency?: number },
+) {
+  const tag = Math.random().toString(36).slice(2, 10);
+  const w = await pg!.query(
+    `INSERT INTO words (input, translation, source_lang, target_lang, is_verified, part_of_speech,
+                        jmdict_entry_id, dictionary_ref, proficiency_band, frequency)
+     VALUES ($1, 'x', 'JA', 'EN', true, $2, $3, $4, $5, $6) RETURNING word_id`,
+    [`史${tag}`, o.pos, o.entry, `${o.entry}:${tag}`, o.band, o.frequency ?? null],
+  );
+  await pg!.query(
+    `INSERT INTO user_words (user_id, input, source_lang, target_lang, dictionary_word_id)
+     VALUES ($1, $2, 'JA', 'EN', $3)`,
+    [user.userId, `史${tag}`, w.rows[0].word_id],
+  );
 }
 
 type Day = { day: string; added: number; reviewed: number; reviews: number };
@@ -94,6 +114,63 @@ describe.skipIf(!ENABLED)("profile_history()", () => {
     const after = (await history(a, "UTC")).days;
     expect(on(after, "2026-08-10")?.added).toBe(1);
     expect(on(after, "2026-08-11")).toBeUndefined(); // its review cascaded away
+  });
+});
+
+describe.skipIf(!ENABLED)("Unranked excludes grammar, affixes, interjections and names (20260776)", () => {
+  it("drops those unranked senses from the level counts, keeps the rest", async (ctx) => {
+    if (!pg) return ctx.skip();
+    const u = await makeUser();
+    await seedSense(u, { pos: ["prt"], entry: "2028990", band: null });     // に — grammar
+    await seedSense(u, { pos: ["aux-v"], entry: "2654310", band: null });   // よう "let's"
+    await seedSense(u, { pos: ["n"], entry: "5747047", band: null });       // とき the train — a name
+    await seedSense(u, { pos: ["suf"], entry: "1005340", band: null });     // 〜さん — suffix
+    await seedSense(u, { pos: ["pref"], entry: "1270190", band: null });    // 御〜 — prefix
+    await seedSense(u, { pos: ["int"], entry: "2139720", band: null });     // ん "huh?" — interjection
+    await seedSense(u, { pos: ["adv"], entry: "2158950", band: null });     // よう "well" — content
+    await seedSense(u, { pos: ["prt"], entry: "1002980", band: 1 });        // a LISTED particle keeps its band
+    await seedWord(u, "史H", "2026-07-21T05:00:00Z");                       // custom word: still unranked
+
+    const { data, error } = await u.client.rpc("profile_history", { p_tz: "UTC" });
+    expect(error).toBeNull();
+    const bands = (data as { bands: { band: number; n: number }[] }).bands;
+    expect(bands.find((b) => b.band === -1)?.n).toBe(2); // the adverb + the custom word
+    expect(bands.find((b) => b.band === 1)?.n).toBe(1);
+
+    // The nightly snapshot agrees (slot 0 = unranked), and its total still counts all 9.
+    await pg!.query(`SELECT snapshot_confidence_daily((now() AT TIME ZONE 'UTC')::date)`);
+    const row = await pg!.query(
+      `SELECT word_count, band_n FROM user_confidence_daily WHERE user_id = $1`, [u.userId],
+    );
+    expect(row.rows[0]).toMatchObject({ word_count: 9, band_n: [2, 1] });
+  });
+});
+
+describe.skipIf(!ENABLED)("estimated levels fill the gap (20260777)", () => {
+  it("levels an unranked word from its frequency: never below N3, nothing under Zipf 3", async (ctx) => {
+    if (!pg) return ctx.skip();
+    // Measured from the loaded JMdict; a database without it has nothing to estimate from.
+    const { rows } = await pg!.query(`SELECT measure_level_estimate('JA') AS n`);
+    if (!rows[0].n) return ctx.skip();
+    const band = async (f: number | null) =>
+      (await pg!.query(`SELECT estimated_band('JA', $1) AS b`, [f])).rows[0].b;
+    expect(await band(250)).toBeNull();             // below the Zipf 3.0 cutoff
+    expect(await band(null)).toBeNull();
+    for (const f of [300, 450, 600, 800]) expect(await band(f)).toBeGreaterThanOrEqual(3);
+    expect((await pg!.query(`SELECT estimated_band('EN', 450) AS b`)).rows[0].b).toBeNull();
+
+    const u = await makeUser();
+    const common = await band(450);
+    await seedSense(u, { pos: ["n"], entry: "4900001", band: null, frequency: 450 });   // estimated
+    await seedSense(u, { pos: ["n"], entry: "4900002", band: null, frequency: 250 });   // too rare: Unranked
+    await seedSense(u, { pos: ["n"], entry: "4900003", band: 1, frequency: 250 });      // curated always wins
+    await seedSense(u, { pos: ["prt"], entry: "4900004", band: null, frequency: 700 }); // grammar: never estimated
+    const { data, error } = await u.client.rpc("profile_history", { p_tz: "UTC" });
+    expect(error).toBeNull();
+    const bands = (data as { bands: { band: number; n: number }[] }).bands;
+    expect(bands.map((b) => [b.band, b.n])).toEqual(
+      [[-1, 1], [1, 1], [common, 1]].sort((a, b) => a[0] - b[0]),
+    );
   });
 });
 

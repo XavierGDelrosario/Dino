@@ -16,6 +16,7 @@ import { SplashScreen } from "./components/common/Loading";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
+import { HistoryPage } from "./views/HistoryPage";
 import { DeleteAccountPage } from "./views/DeleteAccountPage";
 import { AdminPage } from "./views/AdminPage";
 import { LegalView } from "./views/LegalView";
@@ -136,6 +137,7 @@ export function App() {
         path === "/signin" ? <AuthPage mode="signin" />
         : path === "/signup" ? <AuthPage mode="signup" />
         : path === "/profile" ? (isAnonymous ? <AuthPage mode="signup" /> : <ProfilePage userId={userId} isAnonymous={isAnonymous} email={email} />)
+        : path === "/history" ? (isAnonymous ? <AuthPage mode="signup" /> : <HistoryPage userId={userId} />)
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
         : path === "/admin" ? <AdminPage />
         : <HomeView userId={userId} />
