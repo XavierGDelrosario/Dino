@@ -48,6 +48,10 @@ export interface UserWord {
   proficiencyBand: number | null;
   partOfSpeech: string[] | null;
   frequency: number | null;
+  /** The sense's JMdict entry (null for a standalone word / an MT row). Lets the level
+   *  estimate skip JMdict names, like the SQL does (services/proficiency/estimate.ts).
+   *  Optional: the review queue's rows don't carry it (the names check is then skipped). */
+  jmdictEntryId?: string | null;
   /** A sentence demonstrating the SAVED SENSE, its gloss, a monolingual definition,
    *  and pinned furigana for the target inside `example`. Null when unwritten. */
   example: string | null;
@@ -69,6 +73,7 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
     | "proficiency_band"
     | "part_of_speech"
     | "frequency"
+    | "jmdict_entry_id"
     | "example"
     | "example_gloss"
     | "definition_source"
@@ -85,7 +90,7 @@ type UserWordRow = Database["public"]["Tables"]["user_words"]["Row"] & {
 // the session the moment the database says it lacks them. The mapping reads them with
 // `?? null`, so an un-migrated database degrades to "no example written yet".
 const DICTIONARY_COLUMNS =
-  "translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency";
+  "translation, input_reading, translation_reading, proficiency_band, part_of_speech, frequency, jmdict_entry_id";
 /** Added by 20260750. Absent on any database that hasn't taken it. */
 const DICTIONARY_COLUMNS_OPTIONAL = "example, example_gloss, definition_source, example_reading";
 
@@ -179,6 +184,7 @@ function toUserWord(row: UserWordRow): UserWord {
     proficiencyBand: row.words?.proficiency_band ?? null,
     partOfSpeech: row.words?.part_of_speech ?? null,
     frequency: row.words?.frequency ?? null,
+    jmdictEntryId: row.words?.jmdict_entry_id ?? null,
     // Sense enrichment (20260750). NOT suppressed by a custom_translation: an override
     // renames the MEANING, while the example still demonstrates the saved sense.
     example: row.words?.example ?? null,
@@ -234,6 +240,7 @@ export async function saveDictionaryWord(params: {
     proficiencyBand: word.proficiencyBand,
     partOfSpeech: word.partOfSpeech,
     frequency: word.frequency,
+    jmdictEntryId: word.jmdictEntryId,
   };
 }
 
@@ -278,6 +285,7 @@ export async function saveDictionaryWords(params: {
           proficiencyBand: w.proficiencyBand,
           partOfSpeech: w.partOfSpeech,
           frequency: w.frequency,
+          jmdictEntryId: w.jmdictEntryId,
         }
       : uw;
   });

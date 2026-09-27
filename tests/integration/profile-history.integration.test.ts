@@ -174,6 +174,32 @@ describe.skipIf(!ENABLED)("estimated levels fill the gap (20260777)", () => {
   });
 });
 
+describe.skipIf(!ENABLED)("estimated levels reach the Lists summary (20260778)", () => {
+  it("list_overview counts curated-else-estimated, and the client can read the bin table", async (ctx) => {
+    if (!pg) return ctx.skip();
+    const { rows } = await pg!.query(`SELECT measure_level_estimate('JA') AS n`);
+    if (!rows[0].n) return ctx.skip();
+    const u = await makeUser();
+
+    // The bin table the client mirrors: readable by a signed-in user, never below N3.
+    const bins = await u.client.rpc("level_estimate_bins");
+    expect(bins.error).toBeNull();
+    expect((bins.data ?? []).length).toBe(rows[0].n);
+    expect((bins.data ?? []).every((r: { band: number }) => r.band >= 3)).toBe(true);
+
+    const common = (await pg!.query(`SELECT estimated_band('JA', 450) AS b`)).rows[0].b as number;
+    await seedSense(u, { pos: ["n"], entry: "4900011", band: null, frequency: 450 });   // estimated
+    await seedSense(u, { pos: ["n"], entry: "4900012", band: null, frequency: 250 });   // too rare: —
+    await seedSense(u, { pos: ["n"], entry: "4900013", band: 1, frequency: 250 });      // curated wins
+    await seedSense(u, { pos: ["prt"], entry: "4900014", band: null, frequency: 700 }); // grammar: —
+    const { data, error } = await u.client.rpc("list_overview", {});
+    expect(error).toBeNull();
+    const all = (data as { list_id: string | null; band_counts: Record<string, number> }[])
+      .find((r) => r.list_id === null)!;
+    expect(all.band_counts).toEqual({ "-1": 2, "1": 1, [String(common)]: 1 });
+  });
+});
+
 describe.skipIf(!ENABLED)("snapshot_confidence_daily()", () => {
   it("writes one row per active user per day, idempotently, and skips idle users", async (ctx) => {
     if (!pg) return ctx.skip();

@@ -58,12 +58,12 @@ describe("labelForBand", () => {
 
 describe("getProficiency", () => {
   it("resolves a JA band to a JLPT label", () => {
-    expect(getProficiency(word("JA", 3))).toEqual({ framework: "JLPT", band: 3, label: "N3" });
-    expect(getProficiency(word("JA", 5))).toEqual({ framework: "JLPT", band: 5, label: "N1" });
+    expect(getProficiency(word("JA", 3))).toEqual({ framework: "JLPT", band: 3, label: "N3", source: "curated" });
+    expect(getProficiency(word("JA", 5))).toEqual({ framework: "JLPT", band: 5, label: "N1", source: "curated" });
   });
 
   it("resolves an EN band to a CEFR label", () => {
-    expect(getProficiency(word("EN", 4))).toEqual({ framework: "CEFR", band: 4, label: "B2" });
+    expect(getProficiency(word("EN", 4))).toEqual({ framework: "CEFR", band: 4, label: "B2", source: "curated" });
   });
 
   it("is null when the word has no band", () => {
