@@ -1,20 +1,19 @@
 // The done screen's recap: every word the session just showed, under the Retry /
-// New quiz buttons, drawn as Lists rows — headword with its reading in colour, the "?"
-// word info, the confidence dots (which are the "Forgot" control, as everywhere else),
-// the ＋ that files the word into a list (the shared ListMenu, so "New list…" works
-// here too), the meanings one per line, and the speak button. Shared by BOTH flashcard
+// New quiz buttons, drawn as the shared <WordRow> a Lists row uses — headword with its
+// reading in colour, the "?" word info, the confidence dots (which are the "Forgot"
+// control, as everywhere else), the ＋ that files the word into a list (the shared
+// TagListButton, so "New list…" works here too), the meanings one per line, and the
+// speak button. Shared by BOTH flashcard
 // quiz components (FlashcardView and TextQuizView) — a change to "the flashcard quiz"
 // applies to every surface. Edit and delete stay in Lists.
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useI18n } from "../../i18n";
 import { ConfidenceDots } from "../common/ConfidenceDots";
-import { ListMenu } from "../common/ListMenu";
-import { SpeakButton } from "../common/SpeakButton";
+import { TagListButton } from "../common/TagListButton";
 import { WordInfoButton } from "../common/WordInfo";
-import { pronounceableText } from "../../services/voice";
+import { WordRow } from "../common/WordRow";
 import type { List } from "../../services/lists";
 import type { CardFace } from "./FlashcardCard";
-import "../lists/lists.css";
 import "./flashcards.css";
 
 export interface QuizWordItem {
@@ -47,19 +46,10 @@ function QuizWordRow({
   onCreateList,
   onForgot,
 }: RowActions & { item: QuizWordItem }) {
-  const { t } = useI18n();
   const { word } = item;
-  const tagBtnRef = useRef<HTMLButtonElement>(null);
-  const [tagMenu, setTagMenu] = useState(false);
   // Confidence after a "Forgot" pressed on THIS screen, over the session's own value.
   const [softened, setSoftened] = useState<number | null>(null);
   const confidence = softened ?? item.confidence;
-
-  // One meaning per line, as in Lists — never the raw "cat; feline; puss" run.
-  const meanings = word.translation
-    .split(";")
-    .map((m) => m.trim())
-    .filter(Boolean);
   const saved = item.userWordId !== null;
   const forgot =
     onForgot && saved
@@ -67,13 +57,10 @@ function QuizWordRow({
       : undefined;
 
   return (
-    <li className="listrow">
-      <div className="listrow__header">
-        <span className="listrow__head">
-          {word.input}
-          {word.inputReading && <em className="listrow__reading">{word.inputReading}</em>}
-        </span>
-        <div className="listrow__meta">
+    <WordRow
+      word={word}
+      meta={
+        <>
           <WordInfoButton word={word} />
           {/* `previous` is the SESSION's starting value, so a "Forgot" pressed here
               keeps widening the same comparison instead of resetting the baseline. */}
@@ -83,49 +70,15 @@ function QuizWordRow({
             onForgot={forgot}
           />
           {saved && (
-            <>
-              <button
-                ref={tagBtnRef}
-                type="button"
-                className="iconbtn listrow__tag"
-                onClick={() => setTagMenu(true)}
-                aria-label={t("lists.addToList")}
-                title={t("lists.addToList")}
-              >
-                ＋
-              </button>
-              {tagMenu && (
-                <ListMenu
-                  anchorRef={tagBtnRef}
-                  lists={lists}
-                  title={t("lists.addToList")}
-                  onPick={(listId) => onTag(item, listId).then(() => setTagMenu(false))}
-                  onCreate={(name) =>
-                    onCreateList(name)
-                      .then((listId) => onTag(item, listId))
-                      .then(() => setTagMenu(false))
-                  }
-                  onClose={() => setTagMenu(false)}
-                />
-              )}
-            </>
+            <TagListButton
+              lists={lists}
+              onPick={(listId) => onTag(item, listId)}
+              onCreate={(name) => onCreateList(name).then((listId) => onTag(item, listId))}
+            />
           )}
-        </div>
-      </div>
-      <div className="listrow__foot">
-        <div className="listrow__meaning">
-          {meanings.map((m, i) => (
-            <span key={i} className="listrow__meaning-line">
-              {m}
-              {i === 0 && word.translationReading && (
-                <em className="listrow__reading">{word.translationReading}</em>
-              )}
-            </span>
-          ))}
-        </div>
-        <SpeakButton text={pronounceableText(word)} lang={word.sourceLang} size={16} />
-      </div>
-    </li>
+        </>
+      }
+    />
   );
 }
 
