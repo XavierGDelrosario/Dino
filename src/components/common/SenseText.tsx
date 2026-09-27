@@ -6,6 +6,10 @@ import type { Word } from "../../services/words/repository";
 import { displayHeadword } from "../../services/language";
 import "./SenseText.css";
 
+/** Most senses any sense list shows (the lookup even when expanded, and the reader's
+ *  hovercard). The EN→JA gloss-search tail past this is noise (docs/TODO.md). */
+export const MAX_SENSES = 12;
+
 export function SenseText({
   word,
   primary = false,

@@ -1,6 +1,6 @@
-// The in-depth summary's vocabulary table. Rows are formatted like a Lists row
-// (headword + reading · meanings · the shared "?" info panel · confidence dots),
-// with ONE article addition: a ×N occurrence chip (how often the word appears here).
+// The in-depth summary's vocabulary table. Rows are the shared <WordRow> a Lists row
+// uses (headword + reading · meanings · the "?" info panel · confidence dots · example
+// · listen), with ONE article addition: a ×N occurrence chip (how often it appears here).
 //
 // Controls mirror Lists exactly: a status segment (All / New / Known), the SAME
 // filter surface (funnel + panel, minus the vocab-history axes), the SAME sort
@@ -29,11 +29,11 @@ import { PAGE_SIZE } from "../../lib/pagination";
 import { WordInfoButton } from "../common/WordInfo";
 import { ConfidenceDots } from "../common/ConfidenceDots";
 import { AddToListButton } from "../translate/AddToListButton";
-import { SenseExample } from "../common/SenseExample";
+import { WordRow } from "../common/WordRow";
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
 import { useI18n } from "../../i18n";
-import "../lists/lists.css"; // .listrow* + .dots/.dot + .filtermenu* (match the Lists surface)
+import "../lists/lists.css"; // .filtermenu* (match the Lists surface)
 import "./article.css";
 
 const STATUSES: StatusFilter[] = ["all", "new", "known"];
@@ -69,22 +69,14 @@ function ArticleRow({
   onForgot?: (words: Word[]) => Promise<void>;
 }) {
   const { t } = useI18n();
-  const meanings = row.primary.translation
-    .split(";")
-    .map((m) => m.trim())
-    .filter(Boolean);
-
   return (
-    <li className="listrow">
-      <div className="listrow__header">
-        <span className="listrow__head">
-          {row.headword}
-          {row.reading && row.reading !== row.headword && (
-            <em className="listrow__reading">{row.reading}</em>
-          )}
-        </span>
-
-        <div className="listrow__meta">
+    <WordRow
+      word={row.primary}
+      headword={row.headword}
+      reading={row.reading && row.reading !== row.headword ? row.reading : null}
+      userId={userId}
+      meta={
+        <>
           <WordInfoButton word={row.primary} />
           {/* Frequency — the article-only addition: times this word appears here. */}
           <span className="awl__freq" title={t("media.occurrences", { n: row.occurrences })}>
@@ -108,34 +100,9 @@ function ArticleRow({
               className="iconbtn listrow__tag"
             />
           )}
-        </div>
-      </div>
-
-      {/* Bottom strip, matching a Lists row: the meaning(s) on the left and the example
-          disclosure on the right. The wrapper is what lets the opened panel take a
-          full-width line under the rule (see .listrow__foot / .senseex). */}
-      <div className="listrow__foot">
-        <div className="listrow__meaning">
-          {meanings.map((m, i) => (
-            <span key={i} className="listrow__meaning-line">
-              {m}
-              {i === 0 && row.primary.translationReading && (
-                <em className="listrow__reading">{row.primary.translationReading}</em>
-              )}
-            </span>
-          ))}
-        </div>
-
-        <SenseExample
-          example={row.primary.example}
-          exampleGloss={row.primary.exampleGloss}
-          definitionSource={row.primary.definitionSource}
-          userId={userId}
-          sourceLang={row.primary.sourceLang}
-          targetLang={row.primary.targetLang}
-        />
-      </div>
-    </li>
+        </>
+      }
+    />
   );
 }
 

@@ -1,4 +1,5 @@
-// One word in a list: headword (+reading) · meaning · confidence · row actions.
+// One word in a list, on the shared <WordRow>: headword (+reading) · meaning ·
+// confidence · row actions.
 // Editing the meaning is inline (setting custom_translation = an override on the
 // SAME user_words row, never a new one). "Add to list" tags it into a sub-list;
 // "Remove from list" only shows when viewing a sub-list (un-tags, keeps the word
@@ -6,13 +7,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { UserWord } from "../../services/words/userWords";
 import type { List } from "../../services/lists";
-import { ListMenu } from "../common/ListMenu";
+import { TagListButton } from "../common/TagListButton";
+import { WordRow } from "../common/WordRow";
 import { PencilIcon, TrashIcon } from "../common/icons";
 import { WordInfoButton } from "../common/WordInfo";
 import { ConfidenceDots } from "../common/ConfidenceDots";
-import { SpeakButton } from "../common/SpeakButton";
-import { SenseExample } from "../common/SenseExample";
-import { pronounceableText } from "../../services/voice";
 import { useI18n, type Locale } from "../../i18n";
 import "./lists.css";
 
@@ -58,8 +57,6 @@ export function ListRow({
   onToggleSelect?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [tagMenu, setTagMenu] = useState(false);
-  const tagBtnRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState(word.translation);
   const editRef = useRef<HTMLTextAreaElement>(null);
   const { t, locale } = useI18n();
@@ -76,13 +73,6 @@ export function ListRow({
     el.style.height = "auto";
     if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
   }, [draft, editing]);
-
-  // Split a multi-sense translation ("cat; feline; puss") so each meaning gets its
-  // own line below the header instead of one squished run.
-  const meanings = word.translation
-    .split(";")
-    .map((m) => m.trim())
-    .filter(Boolean);
 
   // In select mode the row itself IS the control (no checkbox) — but it still carries
   // its own buttons (?, edit, tag, delete, and the edit field), so a click that lands
@@ -114,21 +104,15 @@ export function ListRow({
     : {};
 
   return (
-    <li
-      className={`listrow${selectable ? " listrow--selectable" : ""}${
+    <WordRow
+      word={word}
+      userId={word.userId}
+      className={`${selectable ? "listrow--selectable" : ""}${
         selectable && selected ? " listrow--selected" : ""
       }`}
       {...selectProps}
-    >
-      {/* Header: the word (+reading) and ALL the metadata/actions, so the meaning
-          below gets the full row width. */}
-      <div className="listrow__header">
-        <span className="listrow__head">
-          {word.input}
-          {word.inputReading && <em className="listrow__reading">{word.inputReading}</em>}
-        </span>
-
-        <div className="listrow__meta">
+      meta={
+        <>
           {/* Word info as a floating OVERLAY (not inline text that reflows the row):
               Level (JLPT/CEFR) + Part of Speech, then the added/reviewed dates. The
               shared "?" affordance — same panel appears on the flashcard. */}
@@ -165,35 +149,14 @@ export function ListRow({
                 <PencilIcon size={16} />
               </button>
 
-              {/* Tag into a sub-list — the shared ListMenu, so "New list…" (create
-                  on the fly) works here just like the translate/quiz add button.
-                  Shown even with no sub-lists yet, so the first one can be made. */}
-              <button
-                ref={tagBtnRef}
-                className="iconbtn listrow__tag"
-                onClick={() => setTagMenu(true)}
-                aria-label={t("lists.addToList")}
-                title={t("lists.addToList")}
-              >
-                ＋
-              </button>
-              {tagMenu && (
-                <ListMenu
-                  anchorRef={tagBtnRef}
-                  lists={lists}
-                  title={t("lists.addToList")}
-                  onPick={(listId) => {
-                    onTag(listId);
-                    setTagMenu(false);
-                  }}
-                  onCreate={(name) => onCreateList(name).then(() => setTagMenu(false))}
-                  onClose={() => setTagMenu(false)}
-                />
-              )}
+              {/* Tag into a list — the shared ＋ menu, so "New list…" (create on the
+                  fly) works here just like the quiz recap. Shown even with no lists
+                  yet, so the first one can be made. */}
+              <TagListButton lists={lists} onPick={onTag} onCreate={onCreateList} />
 
-              {/* One trash button. In a sub-list it REMOVES FROM THIS LIST (word
-                  stays in the vocabulary); delete-from-vocabulary is only offered
-                  in ALL, where onRemoveFromList is absent. */}
+              {/* One trash button. In a list it REMOVES FROM THIS LIST (word stays in
+                  the vocabulary); delete-from-vocabulary is only offered in ALL, where
+                  onRemoveFromList is absent. */}
               {onRemoveFromList ? (
                 <button
                   className="iconbtn"
@@ -215,15 +178,10 @@ export function ListRow({
               )}
             </>
           )}
-        </div>
-      </div>
-
-      {/* Bottom row: the meaning(s) on the left, the speak button pinned bottom-RIGHT
-          — the row's one audio affordance, kept away from the cluster of edit/tag/
-          delete actions in the header so it reads as "play this", not another action.
-          It wraps BOTH branches, so it stays put while the meaning is being edited. */}
-      <div className="listrow__foot">
-        {editing ? (
+        </>
+      }
+      meaning={
+        editing ? (
           <span className="listrow__editing">
             {/* A TEXTAREA, not a single-line input: a multi-sense meaning ("nightclub;
                 club (weapon); playing-card suit") ran off the end of the field with
@@ -265,39 +223,8 @@ export function ListRow({
               ✕
             </button>
           </span>
-        ) : (
-          <div className="listrow__meaning">
-            {meanings.map((m, i) => (
-              <span key={i} className="listrow__meaning-line">
-                {m}
-                {i === 0 && word.translationReading && (
-                  <em className="listrow__reading">{word.translationReading}</em>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Example sentence for the saved SENSE, immediately left of the listen button:
-            both answer "tell me more about this word" rather than changing anything, so
-            they sit together and away from the header's edit/tag/delete cluster. Renders
-            nothing until the sense has been written up. */}
-        <SenseExample
-          example={word.example}
-          exampleGloss={word.exampleGloss}
-          definitionSource={word.definitionSource}
-          userId={word.userId}
-          sourceLang={word.sourceLang}
-          targetLang={word.targetLang}
-        />
-
-        {/* Read the WORD aloud — never the meaning (an English gloss spoken by a
-            Japanese voice is noise). Speaks the sense's reading where the headword is
-            kanji, so a homograph gets the meaning's own pronunciation. The language is
-            the row's own, so an English word in the EN-learner direction is spoken by
-            an English voice. */}
-        <SpeakButton text={pronounceableText(word)} lang={word.sourceLang} size={16} />
-      </div>
-    </li>
+        ) : undefined
+      }
+    />
   );
 }

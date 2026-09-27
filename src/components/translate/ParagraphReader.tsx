@@ -16,6 +16,7 @@ import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { summarizeReader } from "../../services/analyze/summarize";
 import { useI18n } from "../../i18n";
 import "./translate.css";
+import { MAX_SENSES } from "../common/SenseText";
 import "../common/SenseText.css"; // shared .sense* row/action styles
 
 // Only offer the Summary infographic once the text is long enough for the
@@ -380,9 +381,9 @@ function ParagraphReaderImpl({
     });
   };
 
-  // Cap at 12 senses (matches WordResults' MAX_SHOWN). The hovercard is transient, so
+  // Cap at MAX_SENSES (the same cap as the lookup). The hovercard is transient, so
   // there's no "show more" — just trim the noisy tail.
-  const hoveredSenses = (hover ? meaningsByWord.get(hover.key) ?? [] : []).slice(0, 12);
+  const hoveredSenses = (hover ? meaningsByWord.get(hover.key) ?? [] : []).slice(0, MAX_SENSES);
 
   // ── "Forgot" (top-right of the card) ────────────────────────────────────────
   // Offered only for senses the app currently claims you know: below

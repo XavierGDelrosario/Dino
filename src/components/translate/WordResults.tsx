@@ -1,20 +1,22 @@
 // Single-word lookup results: the primary sense prominently, then up to
-// DEFAULT_SHOWN total, with a "show more" revealing up to MAX_SHOWN. Anything past
-// MAX_SHOWN is dropped — the EN→JA gloss-search tail is noisy (acronym/mid-gloss
+// DEFAULT_SHOWN total, with a "show more" revealing up to MAX_SENSES. Anything past
+// MAX_SENSES is dropped — the EN→JA gloss-search tail is noisy (acronym/mid-gloss
 // matches; see docs/TODO.md), so capping trades a long noisy list for a tidy one.
 // Each sense renders via the shared <SenseText>; this only owns the row + add button.
+//
+// This is the deliberate exception to the shared list row (common/WordRow): it lists
+// the SENSES of one searched term, primary first, rather than a list of saved words.
 import { useState } from "react";
-
-const DEFAULT_SHOWN = 8; // meanings visible before "show more" (incl. the primary)
-const MAX_SHOWN = 12; // absolute ceiling, even when expanded
 import type { Word } from "../../services/words/repository";
 import type { List } from "../../services/lists";
-import { SenseText } from "../common/SenseText";
+import { SenseText, MAX_SENSES } from "../common/SenseText";
 import { SenseExample } from "../common/SenseExample";
 import { ConfidenceDots } from "../common/ConfidenceDots";
 import { AddToListButton } from "./AddToListButton";
 import { useI18n } from "../../i18n";
 import "./translate.css";
+
+const DEFAULT_SHOWN = 8; // meanings visible before "show more" (incl. the primary)
 
 export function WordResults({
   headword,
@@ -53,7 +55,7 @@ export function WordResults({
   }
 
   const [primary, ...rest] = meanings;
-  const others = rest.slice(0, MAX_SHOWN - 1); // drop the noisy tail past MAX_SHOWN
+  const others = rest.slice(0, MAX_SENSES - 1); // drop the noisy tail past MAX_SENSES
   const visibleOthers = expanded ? others : others.slice(0, DEFAULT_SHOWN - 1);
   const hiddenCount = others.length - (DEFAULT_SHOWN - 1); // revealed by "show more"
   const row = (word: Word, isPrimary = false) => (
