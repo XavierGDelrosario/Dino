@@ -80,8 +80,11 @@ async function main(): Promise<void> {
                 NOT not_leveled_vocab(h.part_of_speech, t.entry_id) AS levelable
            FROM ${table} t JOIN jmdict_entry_headword_mv h USING (entry_id)`,
       );
+    // A writing with no letter at all (○, ※) is a symbol, not vocabulary.
     const estimate = (r: WritingRow) =>
-      r.proficiency_band == null && r.levelable ? rule(r.text, r.frequency, teaching.has(r.text)) : null;
+      r.proficiency_band == null && r.levelable && /\p{L}/u.test(r.text)
+        ? rule(r.text, r.frequency, teaching.has(r.text))
+        : null;
 
     type Change = { id: string; text: string; was: number | null; band: number | null };
     const changes: Record<string, Change[]> = {};
