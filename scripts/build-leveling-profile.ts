@@ -33,7 +33,8 @@
 // USAGE:
 //   npm run build:leveling -- JA          # local (127.0.0.1:54322) by default
 //   DATABASE_URL='postgresql://…' npm run build:leveling -- EN
-// Re-run after re-ingesting frequency or proficiency data for that language.
+// Re-run after re-ingesting frequency or proficiency data for that language. It also
+// re-measures the estimated-level gap fill (language_level_estimate, migration 20260777).
 // =========================================================
 import { Client } from "pg";
 
@@ -204,6 +205,10 @@ async function main(): Promise<void> {
       [lang, o.group, o.offset],
     );
   }
+  // 4. The estimated-level gap fill (migration 20260777) is measured from the same bands,
+  //    so it is re-measured here too. Inside the transaction: a failure leaves the old one.
+  const est = await client.query<{ n: number }>(`SELECT measure_level_estimate($1) AS n`, [lang]);
+  console.log(`  estimated-level bins: ${est.rows[0].n}${est.rows[0].n ? "" : " (none — no measured source for this language)"}`);
   await client.query("COMMIT");
   await client.end();
   console.log(`✓ ${lang} profile written (ease is now live for ${lang} words)`);

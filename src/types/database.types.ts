@@ -921,6 +921,10 @@ export type Database = {
         Args: { p_source_lang: string }
         Returns: { band: number | null; frequency: number | null; known: boolean }[]
       }
+      profile_history: {
+        Args: { p_tz?: string }
+        Returns: Json
+      }
       record_review: {
         Args: { p_grade: number; p_user_word_id: string; p_reviewed_at?: string }
         Returns: {

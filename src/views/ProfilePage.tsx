@@ -1,7 +1,8 @@
 // Profile page: identity (email / date created) + the three language settings —
 // NATIVE (default translation output), LEARNING (default "I'm learning" + input),
 // and APP language (UI localization). Native/learning persist on `users` (follow the
-// account); app language is the client-side i18n locale.
+// account); app language is the client-side i18n locale. History has its own page
+// (/history, views/HistoryPage.tsx), linked from the account menu under Profile.
 import { useEffect, useState } from "react";
 import { getUserProfile, updateUserLanguages } from "../services/session";
 import { targetOptions, DEFAULT_NATIVE_LANGUAGE, DEFAULT_LEARNING_LANGUAGE } from "../services/language";
