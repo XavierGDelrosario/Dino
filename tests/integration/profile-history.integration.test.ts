@@ -56,20 +56,35 @@ async function seedWord(user: TestUser, input: string, addedAt: string, reviews:
  *  clients can't write `words`). Unique per call so parallel runs never collide. */
 async function seedSense(
   user: TestUser,
-  o: { pos: string[]; entry: string; band: number | null; frequency?: number },
+  o: {
+    pos: string[];
+    entry: string;
+    band: number | null;
+    frequency?: number;
+    input?: string;
+    /** Set the stored estimate directly (as apply-level-estimates would). */
+    estimated?: number;
+  },
 ) {
   const tag = Math.random().toString(36).slice(2, 10);
+  const input = o.input ?? `史${tag}`;
   const w = await pg!.query(
     `INSERT INTO words (input, translation, source_lang, target_lang, is_verified, part_of_speech,
                         jmdict_entry_id, dictionary_ref, proficiency_band, frequency)
      VALUES ($1, 'x', 'JA', 'EN', true, $2, $3, $4, $5, $6) RETURNING word_id`,
-    [`史${tag}`, o.pos, o.entry, `${o.entry}:${tag}`, o.band, o.frequency ?? null],
+    [input, o.pos, o.entry, `${o.entry}:${tag}`, o.band, o.frequency ?? null],
   );
+  const wordId = w.rows[0].word_id as string;
+  if (o.estimated !== undefined) {
+    // Setting estimated_band alone does not fire the trigger, exactly like the backfill.
+    await pg!.query(`UPDATE words SET estimated_band = $2 WHERE word_id = $1`, [wordId, o.estimated]);
+  }
   await pg!.query(
     `INSERT INTO user_words (user_id, input, source_lang, target_lang, dictionary_word_id)
      VALUES ($1, $2, 'JA', 'EN', $3)`,
-    [user.userId, `史${tag}`, w.rows[0].word_id],
+    [user.userId, input, wordId],
   );
+  return wordId;
 }
 
 type Day = { day: string; added: number; reviewed: number; reviews: number };
@@ -146,57 +161,45 @@ describe.skipIf(!ENABLED)("Unranked excludes grammar, affixes, interjections and
   });
 });
 
-describe.skipIf(!ENABLED)("estimated levels fill the gap (20260777)", () => {
-  it("levels an unranked word from its frequency: never below N3, nothing under Zipf 3", async (ctx) => {
+describe.skipIf(!ENABLED)("stored level estimates (20260779)", () => {
+  it("a cached word takes its writing's stored estimate by trigger; a curated band clears it", async (ctx) => {
     if (!pg) return ctx.skip();
-    // Measured from the loaded JMdict; a database without it has nothing to estimate from.
-    const { rows } = await pg!.query(`SELECT measure_level_estimate('JA') AS n`);
-    if (!rows[0].n) return ctx.skip();
-    const band = async (f: number | null) =>
-      (await pg!.query(`SELECT estimated_band('JA', $1) AS b`, [f])).rows[0].b;
-    expect(await band(250)).toBeNull();             // below the Zipf 3.0 cutoff
-    expect(await band(null)).toBeNull();
-    for (const f of [300, 450, 600, 800]) expect(await band(f)).toBeGreaterThanOrEqual(3);
-    expect((await pg!.query(`SELECT estimated_band('EN', 450) AS b`)).rows[0].b).toBeNull();
-
     const u = await makeUser();
-    const common = await band(450);
-    await seedSense(u, { pos: ["n"], entry: "4900001", band: null, frequency: 450 });   // estimated
-    await seedSense(u, { pos: ["n"], entry: "4900002", band: null, frequency: 250 });   // too rare: Unranked
-    await seedSense(u, { pos: ["n"], entry: "4900003", band: 1, frequency: 250 });      // curated always wins
-    await seedSense(u, { pos: ["prt"], entry: "4900004", band: null, frequency: 700 }); // grammar: never estimated
-    const { data, error } = await u.client.rpc("profile_history", { p_tz: "UTC" });
-    expect(error).toBeNull();
-    const bands = (data as { bands: { band: number; n: number }[] }).bands;
-    expect(bands.map((b) => [b.band, b.n])).toEqual(
-      [[-1, 1], [1, 1], [common, 1]].sort((a, b) => a[0] - b[0]),
+    // A throwaway dictionary entry below the JMdict-name range, whose writing carries an estimate.
+    const entry = `48${Math.floor(Math.random() * 1e5).toString().padStart(5, "0")}`;
+    const writing = `史推${entry}`;
+    await pg!.query(`INSERT INTO jmdict_entries (entry_id) VALUES ($1) ON CONFLICT DO NOTHING`, [entry]);
+    await pg!.query(
+      `INSERT INTO jmdict_kanji (entry_id, text, common, frequency, position, estimated_band)
+       VALUES ($1, $2, true, 420, 0, 5)`,
+      [entry, writing],
     );
+    const id = await seedSense(u, { pos: ["n"], entry, band: null, frequency: 420, input: writing });
+    const est = async () =>
+      (await pg!.query(`SELECT estimated_band FROM words WHERE word_id = $1`, [id])).rows[0].estimated_band;
+    expect(await est()).toBe(5);                       // copied on insert — no edge change needed
+
+    await pg!.query(`UPDATE words SET proficiency_band = 2 WHERE word_id = $1`, [id]);
+    expect(await est()).toBeNull();                    // the list wins; the guess is dropped
   });
-});
 
-describe.skipIf(!ENABLED)("estimated levels reach the Lists summary (20260778)", () => {
-  it("list_overview counts curated-else-estimated, and the client can read the bin table", async (ctx) => {
+  it("History and the Lists summary show curated-else-stored-estimate", async (ctx) => {
     if (!pg) return ctx.skip();
-    const { rows } = await pg!.query(`SELECT measure_level_estimate('JA') AS n`);
-    if (!rows[0].n) return ctx.skip();
     const u = await makeUser();
+    await seedSense(u, { pos: ["n"], entry: "4900021", band: null, estimated: 5 }); // estimated N1
+    await seedSense(u, { pos: ["n"], entry: "4900022", band: null });               // no estimate: unranked
+    await seedSense(u, { pos: ["n"], entry: "4900023", band: 1 });                  // curated N5
 
-    // The bin table the client mirrors: readable by a signed-in user, never below N3.
-    const bins = await u.client.rpc("level_estimate_bins");
-    expect(bins.error).toBeNull();
-    expect((bins.data ?? []).length).toBe(rows[0].n);
-    expect((bins.data ?? []).every((r: { band: number }) => r.band >= 3)).toBe(true);
+    const { data: hist, error: e1 } = await u.client.rpc("profile_history", { p_tz: "UTC" });
+    expect(e1).toBeNull();
+    const bands = (hist as { bands: { band: number; n: number }[] }).bands;
+    expect(bands.map((b) => [b.band, b.n])).toEqual([[-1, 1], [1, 1], [5, 1]]);
 
-    const common = (await pg!.query(`SELECT estimated_band('JA', 450) AS b`)).rows[0].b as number;
-    await seedSense(u, { pos: ["n"], entry: "4900011", band: null, frequency: 450 });   // estimated
-    await seedSense(u, { pos: ["n"], entry: "4900012", band: null, frequency: 250 });   // too rare: —
-    await seedSense(u, { pos: ["n"], entry: "4900013", band: 1, frequency: 250 });      // curated wins
-    await seedSense(u, { pos: ["prt"], entry: "4900014", band: null, frequency: 700 }); // grammar: —
-    const { data, error } = await u.client.rpc("list_overview", {});
-    expect(error).toBeNull();
-    const all = (data as { list_id: string | null; band_counts: Record<string, number> }[])
+    const { data: lo, error: e2 } = await u.client.rpc("list_overview", {});
+    expect(e2).toBeNull();
+    const all = (lo as { list_id: string | null; band_counts: Record<string, number> }[])
       .find((r) => r.list_id === null)!;
-    expect(all.band_counts).toEqual({ "-1": 2, "1": 1, [String(common)]: 1 });
+    expect(all.band_counts).toEqual({ "-1": 1, "1": 1, "5": 1 });
   });
 });
 

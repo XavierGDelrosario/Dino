@@ -37,6 +37,9 @@ export interface Word {
    *  HARDER, resolved to a display label by services/proficiency. Null until a wordlist
    *  is ingested. SEPARATE from the frequency axis above — never conflate. */
   proficiencyBand: number | null;
+  /** Stored level ESTIMATE when there's no curated band (migration 20260779); null otherwise.
+   *  Kept apart from proficiencyBand so a guess is never mistaken for the list. */
+  estimatedBand: number | null;
   /** STABLE JMdict identity: the sense this row was projected from, INDEPENDENT of the
    *  mutable headword — what `user_words` pins to via word_id and what a re-projection
    *  keys on. Null for non-JMdict rows. */
@@ -118,6 +121,7 @@ function toWord(row: WordRow): Word {
     frequency: row.frequency ?? null,
     difficultyOverride: row.difficulty_override ?? null,
     proficiencyBand: row.proficiency_band ?? null,
+    estimatedBand: row.estimated_band ?? null,
     jmdictEntryId: row.jmdict_entry_id ?? null,
     jmdictSensePos: row.jmdict_sense_pos ?? null,
     example: row.example ?? null,

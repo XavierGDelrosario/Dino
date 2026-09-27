@@ -79,6 +79,15 @@ We ship only the derived `<surface>\t<band>` numbers (surface → 1..5, easiest�
 not the original CSVs. JLPT® is a registered trademark of the Japan Foundation and
 JEES; this project is not affiliated with or endorsed by them.
 
+## Teaching vocabulary lists — NINJAL (`data/teaching_vocab/ja.tsv`)
+
+Which surfaces appear in any of the six Japanese-as-a-foreign-language teaching vocabulary
+lists compared in **日本語教育基本語彙データベース** (National Institute for Japanese Language
+and Linguistics, https://mmsrv.ninjal.ac.jp/brfvep/), licensed **CC BY 4.0**. Built by
+`scripts/build-teaching-vocab.py` from `rokusyutaisyo.csv`. We ship only the derived
+surface list; it is an INPUT to the stored level estimate (`scripts/apply-level-estimates.ts`),
+never shown to users.
+
 ## Proficiency band — CEFR / English (`data/proficiency/en.tsv`)
 
 > SHIPPED 2026-07-09. `data/proficiency/en.tsv` (8,845 surfaces, A1→1 … C2→6) is built by

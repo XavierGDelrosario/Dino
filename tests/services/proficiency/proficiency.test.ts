@@ -85,3 +85,22 @@ describe("proficiencyFrameworkFor", () => {
     expect(proficiencyFrameworkFor("KO")).toBeNull();
   });
 });
+
+describe("getProficiency — the stored estimate (20260779)", () => {
+  it("the curated band always wins, and says so", () => {
+    expect(getProficiency({ sourceLang: "JA", proficiencyBand: 1, estimatedBand: 3 })).toMatchObject({
+      label: "N5",
+      source: "curated",
+    });
+  });
+  it("falls back to the stored estimate, marked as estimated", () => {
+    expect(getProficiency({ sourceLang: "JA", proficiencyBand: null, estimatedBand: 5 })).toMatchObject({
+      label: "N1",
+      source: "estimated",
+    });
+  });
+  it("is null with neither — and a caller without the field gets curated only", () => {
+    expect(getProficiency({ sourceLang: "JA", proficiencyBand: null, estimatedBand: null })).toBeNull();
+    expect(getProficiency({ sourceLang: "JA", proficiencyBand: null })).toBeNull();
+  });
+});

@@ -625,6 +625,7 @@ export type Database = {
           example_reading: string | null
           sense_rank: number | null
           difficulty_override: number | null
+          estimated_band: number | null
           example: string | null
           example_gloss: string | null
           frequency: number | null
@@ -650,6 +651,7 @@ export type Database = {
           example_reading?: string | null
           sense_rank?: number | null
           difficulty_override?: number | null
+          estimated_band?: number | null
           example?: string | null
           example_gloss?: string | null
           frequency?: number | null
@@ -674,6 +676,7 @@ export type Database = {
           example_reading?: string | null
           sense_rank?: number | null
           difficulty_override?: number | null
+          estimated_band?: number | null
           example?: string | null
           example_gloss?: string | null
           frequency?: number | null
