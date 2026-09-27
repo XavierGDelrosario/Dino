@@ -9567,3 +9567,42 @@
 1264740:0	りんごを三個買った。	I bought three apples.	小さい物を数える語。
 1264740:2	個を大切にする社会を目指す。	We aim for a society that values the individual.	全体に対する一人一人。
 1264740:3	彼は僕より二個上だ。	He's two years older than me.	年齢や学年の差を数える語。
+
+# ── BATCH 174 — dictionary-wide frequency ≥ 500 range, least frequent first (continued). ──
+1522050:2	クラスのほとんどが賛成した。	Almost all of the class agreed.	全体のうちの大部分。
+1597470:1	スーツを二着買った。	I bought two suits.	衣服を数える語。	ちゃく
+1597470:2	マラソンで一着になった。	I came first in the marathon.	競走などで到着した順位を表す語。	ちゃく
+2037940:1	子どもの頃から書を習っている。	I've studied calligraphy since I was a child.	毛筆で字を書く芸術。書道。
+2037940:2	見事な書が壁に掛かっている。	A splendid piece of handwriting hangs on the wall.	書かれた文字。筆跡。
+1010080:0	はい、そうです。	Yes, that's right.	相手の問いに肯定して答える語。
+1010080:1	はい、わかりました。	Okay, understood.	相手の言うことを承知したときに言う語。
+1010080:2	名前を呼ばれて、はいと答えた。	When my name was called, I answered "Here."	呼ばれて返事をするときの語。
+1010080:3	はい？今何と言いましたか。	Pardon? What did you just say?	聞き返すときに言う語。
+1010080:4	はい、どうぞ。	Here you go.	物を差し出すときなどに言う語。
+1155060:1	十歳以下の子どもは無料だ。	Children ten and under are free.	数量や程度がそれより下であること。
+1155060:2	詳しくは以下に説明する。	Details are explained below.	そこから後に続くもの。
+1155060:3	社長以下全員が出席した。	Everyone, from the president down, attended.	その人を筆頭として、それに続く人々。
+1273820:1	数学の公式を覚える。	I memorize the math formulas.	数学などで、一般的な関係を表した式。
+1273820:2	好きな店の公式をフォローした。	I followed my favorite shop's official account.	企業や団体が運営する正式なアカウント。
+1412890:0	大きな犬を飼っている。	I have a big dog.	形や規模が大きいようす。
+1413940:1	祖母の大事な写真をなくした。	I lost my grandmother's precious photo.	価値があって大切なようす。
+1413940:3	国の大事を任された。	He was entrusted with a great national undertaking.	重大な事柄。大きな仕事。
+1465410:0	会場への入りは三時だ。	Entry to the venue is at three.	中へ入ること。
+1465410:1	今日は客の入りがいい。	Attendance is good today.	客などが入ってくる数。
+1465410:2	砂糖入りのコーヒーを頼んだ。	I ordered coffee with sugar.	それが中に入っていること。
+1465410:3	今月は入りが少ない。	Income is low this month.	入ってくる金。収入。
+1465410:6	今日は彼岸の入りだ。	Today is the first day of the equinox week.	ある期間が始まる最初の日。
+2833293:0	小さな誤解が大事になった。	A small misunderstanding turned into a crisis.	重大な出来事。大騒ぎになること。	おおごと
+1155150:1	以前ここに住んでいた。	I used to live here.	今より前の時。
+1247660:1	軍が政治の実権を握った。	The military seized political power.	軍隊を支配する組織。
+1259140:2	そろそろ先生が見える頃だ。	The teacher should be arriving any moment now.	「来る」の尊敬語。
+1404630:1	彼は足が長い。	He has long legs.	胴から下の部分全体。
+1404630:3	家に向かって足を速めた。	I quickened my pace toward home.	歩いたり走ったりする速さ。
+1559900:1	この電車は急行に連絡している。	This train connects with the express.	乗り物が互いにつながっていること。
+1559900:2	二つの事件には連絡がない。	The two incidents have no link.	物事の間のつながり。
+1587140:0	武士たちは戦に出た。	The samurai went off to war.	武力による争い。	いくさ
+1629200:1	彼はホームラン王だ。	He's the home run king.	その分野で最も優れている人。
+1629200:2	相手の王を詰めた。	I checkmated my opponent's king.	将棋で、上手の側の王将。
+2412230:0	靴下を三足買った。	I bought three pairs of socks.	靴や靴下を数える語。	そく
+1007310:1	だから言ったでしょう。	See, I told you so.	前に言ったとおりだと念を押す語。
+1236070:1	彼は体が強い。	He has a strong constitution.	体が丈夫で健康なようす。
