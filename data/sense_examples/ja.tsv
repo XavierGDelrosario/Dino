@@ -12270,3 +12270,60 @@
 1245380:0	冷蔵庫が空っぽだ。	The fridge is empty.	中に何もないこと。
 1246690:0	庭に穴を掘る。	I dig a hole in the garden.	土に穴をあける。
 1246690:1	問題を深く掘る。	We dig deep into the issue.	深く調べる。
+
+# ── BATCH 240 — JLPT-listed senses below frequency 400, most common first (tier c). ──
+1298090:0	鉛筆を削る。	I sharpen a pencil.	表面を薄くそぎ取る。
+1298090:1	予算を削る。	We cut the budget.	減らす。
+1298090:2	名簿から名前を削る。	They strike the name off the list.	取り除く。
+1331590:0	就業の時間を守る。	I keep to working hours.	仕事につくこと。
+1356960:0	水が蒸発する。	The water evaporates.	液体が気体になること。
+1356960:1	彼は突然蒸発した。	He suddenly vanished.	人が行方をくらますこと。
+1426140:0	友人の忠告を聞く。	I listen to my friend's advice.	注意して忠実に言うこと。
+1427220:0	食料を倉庫に貯蔵する。	We store food in the warehouse.	たくわえておくこと。
+1454920:0	地元の特産を売る。	We sell the local specialty.	その土地の特別な産物。
+1455670:0	独り言を言う。	I talk to myself.	相手なしに一人で言う言葉。
+1474850:0	ホテルに泊まる。	I stay at a hotel.	よそで夜を過ごす。
+1474850:1	港に船が泊まる。	A ship is moored in the harbor.	船がとどまる。
+1499890:0	地方の風習を調べる。	I research local customs.	ならわし。
+1504600:0	地下から温泉が噴出する。	Hot water gushes from underground.	勢いよく吹き出すこと。
+1507420:0	平常通り営業する。	We're open as usual.	ふだん。
+1519230:0	忘れ物を届ける。	I hand in a lost item.	置き忘れた物。
+1519230:1	忘れ物をしないように注意する。	I take care not to leave anything behind.	物を忘れること。
+1560700:0	髪をいじる。	I fiddle with my hair.	手でさわってもてあそぶ。
+1560700:1	設定をいじる。	I tinker with the settings.	手を加えて変える。
+1560700:2	趣味で機械をいじる。	I play around with machines as a hobby.	趣味として手がける。
+1560700:3	友達をいじる。	I tease my friend.	からかう。
+1580760:0	人目を気にする。	I worry about what people think.	他人の見る目。
+1582900:0	落ち葉を燃やす。	I burn fallen leaves.	火をつけて焼く。
+1582900:1	闘志を燃やす。	I'm fired up to fight.	気持ちを高める。
+1595680:0	医者が運動を勧める。	The doctor recommends exercise.	そうするように言う。
+1595680:1	いい本を勧める。	I recommend a good book.	推薦する。
+1595680:2	客に席を勧める。	I offer the guest a seat.	差し出す。
+1604850:0	虫歯を治す。	I get a cavity treated.	悪くなった歯。
+1643510:0	老いを感じる。	I feel my age.	年をとること。
+1007790:0	ちょくちょく遊びに来る。	He drops by now and then.	時々。
+1172310:0	川に渦ができる。	A whirlpool forms in the river.	ぐるぐる巻く水の流れ。
+1196490:0	過労で倒れる。	I collapse from overwork.	働きすぎて疲れること。
+1201520:0	夏に海水浴に行く。	We go swimming in the sea in summer.	海で泳いで遊ぶこと。
+1207310:0	事態を楽観する。	I'm optimistic about the situation.	よい方に考えること。
+1208560:0	滑らかな肌だ。	It's smooth skin.	表面がすべすべしているようす。
+1208560:1	滑らかに話す。	I speak fluently.	すらすらと進むようす。
+1227940:0	少し休息を取る。	I take a short rest.	休むこと。
+1233050:0	漁船が港に戻る。	The fishing boats return to port.	魚をとるための船。
+1244310:0	このコーヒーは苦い。	This coffee is bitter.	にがい味がする。
+1255560:0	月給をもらう。	I get my monthly salary.	月ごとの給料。
+1257730:0	懸命に働く。	I work with all my might.	力を尽くすようす。
+1260000:0	祭りを見物する。	We watch the festival.	見て楽しむこと。
+1271090:0	言葉の語源を調べる。	I look up the word's etymology.	言葉の起こり。
+1279080:0	医療費を控除する。	Medical expenses are deducted.	差し引くこと。
+1284930:0	手を挙げて合図する。	I raise my hand as a signal.	知らせるための動作。
+1294830:0	決議を採択する。	They adopt the resolution.	選んで取り上げること。
+1303190:0	山脈が続く。	The mountain range stretches on.	連なった山々。
+1303930:0	算数が苦手だ。	I'm bad at arithmetic.	小学校で習う計算。
+1312280:0	新しい方法を試みる。	I try a new method.	やってみる。
+1339150:0	九時に出社する。	I get to work at nine.	会社に行くこと。
+1347080:0	商社に勤める。	I work at a trading company.	貿易を行う会社。
+1350780:0	時間がなくて焦る。	I'm anxious because I'm short on time.	気持ちがせく。
+1350780:1	財布がなくて焦る。	I panic when I can't find my wallet.	慌てる。
+1379410:0	生年月日を記入する。	I fill in my date of birth.	生まれた年月日。
+1398320:0	新しい雑誌を創刊する。	They launch a new magazine.	新たに刊行すること。
