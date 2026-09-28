@@ -48,8 +48,9 @@ describe("HistorySection", () => {
     await screen.findByText("History");
     const todayCell = () => container.querySelector(".cal__day--today .cal__count");
     expect(todayCell()?.textContent).toBe("7");
-    fireEvent.click(within(container, ".hist-cal").getByRole("button", { name: "Cards reviewed" }));
-    expect(todayCell()?.textContent).toBe("3");
+    fireEvent.click(within(container, ".hist-cal").getByRole("button", { name: "Reviews" }));
+    // Every review that day (5), not the distinct cards (3).
+    expect(todayCell()?.textContent).toBe("5");
   });
 
   it("lists confidence per level, easy → hard then unranked", async () => {
