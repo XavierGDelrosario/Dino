@@ -54,6 +54,8 @@ vi.mock("@/hooks/useTextQuiz", () => ({
     position: 3,
     total: 2,
     restart: vi.fn(),
+    failed: [],
+    retryFailed: vi.fn(),
   }),
 }));
 vi.mock("@/hooks/useReview", () => ({
@@ -73,6 +75,8 @@ vi.mock("@/hooks/useReview", () => ({
     grade: vi.fn(),
     retry: vi.fn(),
     newQuiz: vi.fn(),
+    failed: [],
+    retryFailed: vi.fn(),
     restart: vi.fn(),
   }),
 }));

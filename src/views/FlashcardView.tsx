@@ -19,6 +19,7 @@ import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
 import { Loading } from "../components/common/Loading";
+import { SaveFailures } from "../components/flashcards/SaveFailures";
 
 export function FlashcardView({
   userId,
@@ -78,6 +79,11 @@ export function FlashcardView({
     return <p className="review__msg"><Loading text={t("review.loading")} /></p>;
   }
 
+  // The last card was graded; its write (and any still in flight) is landing.
+  if (r.status === "saving") {
+    return <p className="review__msg"><Loading text={t("quiz.saving")} /></p>;
+  }
+
   if (r.status === "error") {
     return (
       <div className="review__msg">
@@ -102,6 +108,7 @@ export function FlashcardView({
   if (r.status === "done") {
     return (
       <div className="review__msg">
+        <SaveFailures count={r.failed.length} error={r.error} onRetry={r.retryFailed} />
         <div className="review__actions">
           <button className="btn" onClick={r.retry}>
             {t("review.retrySame")}

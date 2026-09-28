@@ -38,7 +38,11 @@ vi.mock("@/services/calibration", () => ({
   seedStability: vi.fn(() => null),
 }));
 
-vi.mock("@/services/learn", () => ({ fetchLearnWords: vi.fn(async () => []) }));
+vi.mock("@/services/learn", () => ({
+  fetchLearnWords: vi.fn(async () => []),
+  nextLearnBatch: (_current: unknown, fetched: unknown[]) => fetched,
+  LEARN_BATCH: 10,
+}));
 
 // The real thing pulls Wikinews + the whole article analysis; this spec is about how
 // Learn HOSTS it, so a stub keeps the test honest about what it covers. It reports the

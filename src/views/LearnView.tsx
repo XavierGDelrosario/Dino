@@ -11,7 +11,7 @@
 // This tab's language picker is LOCAL: it seeds from the profile but never writes
 // back, so studying something else here for one session leaves your saved languages
 // alone. The placement quiz launched from here is handed the same on-screen value.
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { listUserLists, createList, type List } from "../services/lists";
 import {
   proficiencyFrameworkFor,
@@ -20,7 +20,7 @@ import {
 } from "../services/proficiency";
 import { getUserProficiencyBand } from "../services/calibration";
 import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
-import { fetchLearnWords } from "../services/learn";
+import { fetchLearnWords, nextLearnBatch, LEARN_BATCH } from "../services/learn";
 import { CalibrationView } from "./CalibrationView";
 // Lazy, like HomeView loaded it: Articles is a whole second surface (browse + the
 // article analysis + its reader), and folding it into Learn's chunk would make the
@@ -91,6 +91,13 @@ export function LearnView({ userId }: { userId: string }) {
   const [status, setStatus] = useState<"idle" | "loading" | "quiz" | "empty" | "error">("idle");
   const [cards, setCards] = useState<Word[][]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Bumped per batch: TextQuizView keys on it, so a prefetched batch swapped in without
+  // a loading screen still remounts the quiz (useTextQuiz only re-arms on a new LENGTH,
+  // and back-to-back batches are usually the same size).
+  const [batch, setBatch] = useState(0);
+  // The NEXT batch, fetched while the current one is quizzed so "New quiz" doesn't wait.
+  // Keyed by band + pair: a different level or language never reuses it.
+  const prefetched = useRef<{ key: string; promise: Promise<Word[][]>; ready: boolean } | null>(null);
 
   // The user's calibrated PROFICIENCY band (from the "Find my level" placement
   // quiz) — the band axis, shown as "your level: N3" + used to pre-highlight a band.
@@ -120,18 +127,48 @@ export function LearnView({ userId }: { userId: string }) {
     return list.listId;
   };
 
+  const batchKey = (b: number) => `${b}|${learning}|${explainIn}`;
+
+  /** Start drawing the batch after `current` at band `b`, in the background. Over-fetches
+   *  and drops the current batch's words (see nextLearnBatch). Never rejects. */
+  const prefetchNext = (b: number, current: Word[][]) => {
+    const entry = {
+      key: batchKey(b),
+      ready: false,
+      promise: fetchLearnWords({ band: b, source: learning, target: explainIn, limit: LEARN_BATCH * 2 })
+        .then((fetched) => nextLearnBatch(current, fetched))
+        .catch(() => [] as Word[][]) // a failed prefetch just means "fetch normally"
+        .finally(() => {
+          entry.ready = true;
+        }),
+    };
+    prefetched.current = entry;
+  };
+
   const start = async (b: number) => {
+    const pre = prefetched.current?.key === batchKey(b) ? prefetched.current : null;
+    prefetched.current = null;
     setBand(b);
-    setStatus("loading");
     setError(null);
-    setCards([]);
+    // A ready prefetch swaps straight in; anything else shows the loading state.
+    if (!pre?.ready) {
+      setStatus("loading");
+      setCards([]);
+    }
     try {
-      const fetched = await fetchLearnWords({ band: b, source: learning, target: explainIn });
+      let fetched = pre ? await pre.promise : [];
+      if (fetched.length === 0) {
+        setStatus("loading");
+        setCards([]);
+        fetched = await fetchLearnWords({ band: b, source: learning, target: explainIn, limit: LEARN_BATCH });
+      }
       if (fetched.length === 0) {
         setStatus("empty");
       } else {
         setCards(fetched);
+        setBatch((n) => n + 1);
         setStatus("quiz");
+        prefetchNext(b, fetched);
       }
     } catch (e) {
       setError(errorMessage(e));
@@ -140,6 +177,7 @@ export function LearnView({ userId }: { userId: string }) {
   };
 
   const reset = () => {
+    prefetched.current = null;
     setStatus("idle");
     setCards([]);
     setBand(null);
@@ -173,6 +211,7 @@ export function LearnView({ userId }: { userId: string }) {
     return (
       <section className="review">
         <TextQuizView
+          key={batch}
           userId={userId}
           cards={cards}
           lists={lists}
@@ -182,8 +221,8 @@ export function LearnView({ userId }: { userId: string }) {
           source="level"
           onCreateList={createNamedList}
           onClose={reset}
-          // Pull a fresh batch at the same band (the just-added words are now saved,
-          // so they're excluded as "unseen").
+          // A fresh batch at the same band — normally the one prefetched while this quiz
+          // ran (see prefetchNext), so it opens without a wait.
           onNewQuiz={band != null ? () => void start(band) : undefined}
         />
       </section>

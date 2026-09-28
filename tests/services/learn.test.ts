@@ -7,7 +7,8 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import { fetchLearnWords } from "@/services/learn";
+import { fetchLearnWords, nextLearnBatch } from "@/services/learn";
+import { makeWord } from "@test/fixtures";
 
 let stub: SupabaseStub;
 beforeEach(() => {
@@ -76,5 +77,19 @@ describe("fetchLearnWords", () => {
     await expect(
       fetchLearnWords({ band: 1, source: "JA", target: "EN" }),
     ).rejects.toThrow(/empty response/i);
+  });
+});
+
+describe("nextLearnBatch (the prefetched next quiz)", () => {
+  const card = (input: string) => [makeWord({ wordId: `w-${input}`, input })];
+
+  it("drops every word of the batch being quizzed and keeps at most `size`", () => {
+    const current = [card("猫"), card("犬")];
+    const fetched = [card("猫"), card("鳥"), card("犬"), card("魚"), card("馬")];
+    expect(nextLearnBatch(current, fetched, 2).map((c) => c[0].input)).toEqual(["鳥", "魚"]);
+  });
+
+  it("returns fewer (possibly none) when the level is running out", () => {
+    expect(nextLearnBatch([card("猫")], [card("猫")])).toEqual([]);
   });
 });
