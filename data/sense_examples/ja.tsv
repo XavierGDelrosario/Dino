@@ -12577,3 +12577,44 @@
 1319580:0	子どもをしかる。	I scold the child.	注意する。
 1436570:0	ねじを締める。	I tighten the screw.	固くする。
 1436570:1	ネクタイを締める。	I put on a necktie.	身につける。
+
+# ── BATCH 246 — remaining N5/N4 senses below frequency 350 (beginner catch-up). ──
+2846390:0	壊れた時計が直る。	The broken clock gets fixed.	修理される。
+2846390:1	彼の機嫌が直る。	His mood improves.	元の状態に戻る。
+2846390:2	間違いが直る。	The mistake is corrected.	正しくなる。
+2846390:3	寝たら風邪が直る。	A good sleep cures the cold.	病気がよくなる。
+1434120:0	川で魚を釣る。	I fish in the river.	魚をとる。
+1434120:1	景品で客を釣る。	They lure customers with freebies.	誘い寄せる。
+1534870:0	木綿のシャツを着る。	I wear a cotton shirt.	綿の糸で織った布。
+1291330:0	窓から日が差す。	Sunlight shines in through the window.	光が入る。
+1291330:2	頬に赤みが差す。	Her cheeks turn pink.	色が表れる。
+1291330:3	潮が差す。	The tide comes in.	水が満ちてくる。
+1291330:4	仕事に嫌気が差す。	I get sick of my job.	気持ちが起こる。
+1291330:5	雨なので傘を差す。	It's raining, so I put up my umbrella.	かざす。
+1291330:7	花瓶に花を差す。	I put flowers in the vase.	差し入れる。
+1291330:8	侍が刀を差す。	The samurai wears a sword at his side.	腰に帯びる。
+1291330:11	目薬を差す。	I put in eye drops.	液体を注ぐ。
+1362950:0	お礼を申し上げる。	I humbly express my thanks.	「言う」の謙譲語。
+1357250:0	庭に木を植える。	I plant a tree in the garden.	土に埋めて育てる。
+1357250:1	人工の毛を植える。	They implant artificial hair.	はめこむ。
+1357250:3	子どもに正義感を植える。	We instill a sense of justice in children.	考えを身につけさせる。
+1194870:0	花瓶に水を入れる。	I put water in the vase.	花を生ける器。
+1526360:0	万年筆で手紙を書く。	I write a letter with a fountain pen.	インクが入ったペン。
+1585315:0	みかんが六つある。	There are six mandarins.	六の数。
+1585315:1	息子は六つになった。	My son turned six.	六歳。
+1606680:0	お湯が沸く。	The water boils.	熱くなる。
+1606680:1	会場が歓声で沸く。	The venue erupts in cheers.	盛り上がる。
+1183300:0	お茶がぬるい。	The tea is lukewarm.	少し温かい。
+1183300:1	指導がぬるい。	The coaching is too soft.	厳しくない。
+1363090:0	田中と申します。	My name is Tanaka.	「言う」の謙譲語。
+1282340:0	講堂に集まる。	We gather in the auditorium.	講演などをする大きな部屋。
+1436560:0	ドアが閉まる。	The door closes.	開いていたものがとじる。
+1436560:2	鍵が閉まっている。	It's locked.	鍵がかかる。
+1514960:0	日が暮れる。	It gets dark.	暗くなる。
+1514960:1	今年も暮れる。	This year too comes to an end.	終わりになる。
+1514960:2	途方に暮れる。	I'm at a loss.	どうしてよいか分からなくなる。
+1314600:0	息子は父親に似る。	The son takes after his father.	形や性質が同じように見える。
+1589110:0	押入れに布団をしまう。	I put the futon away in the closet.	物を入れておく所。
+1305700:0	先生のお宅に伺う。	I call on my teacher at home.	訪問する。
+1305700:1	ちょっと伺いたいのですが。	I'd like to ask you something.	尋ねる。
+1305700:2	お話は伺っております。	I've heard about it.	聞く。
