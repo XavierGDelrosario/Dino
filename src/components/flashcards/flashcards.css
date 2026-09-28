@@ -506,3 +506,12 @@
   background: color-mix(in srgb, var(--grade-tint) 38%, var(--surface));
   border-color: color-mix(in srgb, var(--grade-tint) 65%, var(--surface));
 }
+
+/* Grades that didn't reach the server (SaveFailures) — above the done screen's actions. */
+.quiz__savefail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}

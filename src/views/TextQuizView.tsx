@@ -20,6 +20,8 @@ import { softenConfidence } from "../services/review";
 import { addUserWordToList } from "../services/words/userWords";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
+import { Loading } from "../components/common/Loading";
+import { SaveFailures } from "../components/flashcards/SaveFailures";
 import { useI18n } from "../i18n";
 import type { Word } from "../services/words/repository";
 import type { List } from "../services/lists";
@@ -119,9 +121,15 @@ export function TextQuizView({
     );
   }
 
+  // The last card was graded; its write (and any still in flight) is landing.
+  if (q.status === "saving") {
+    return <p className="review__msg"><Loading text={t("quiz.saving")} /></p>;
+  }
+
   if (q.status === "done") {
     return (
       <div className="review__msg">
+        <SaveFailures count={q.failed.length} error={q.error} onRetry={q.retryFailed} />
         <div className="review__foot">
           <button className="btn quiz__donebtn" onClick={q.restart}>
             {t("quiz.again")}
