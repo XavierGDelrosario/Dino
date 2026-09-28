@@ -12519,3 +12519,61 @@
 1208640:0	氷の上を滑る。	I glide over the ice.	なめらかに進む。
 1208640:1	雪道で滑る。	I slip on the snowy road.	足を取られる。
 1208640:2	床が滑る。	The floor is slippery.	すべりやすい。
+
+# ── BATCH 245 — remaining N5/N4 senses below frequency 350 (beginner catch-up). ──
+1209650:0	洗濯物が乾く。	The laundry dries.	水分がなくなる。
+1597530:0	茶碗にご飯をよそう。	I serve rice into a bowl.	ご飯やお茶を入れる器。
+1376470:0	明日は晴れる。	It'll be sunny tomorrow.	雲がなくなる。
+1376470:1	話をして気分が晴れる。	Talking makes me feel better.	気持ちがすっきりする。
+1376470:2	彼の疑いが晴れる。	The suspicion on him is cleared.	疑いがなくなる。
+1376470:3	霧が晴れる。	The fog clears.	消えてなくなる。
+1162130:0	一月ほど旅行する。	I travel for about a month.	一か月。	ひとつき
+1222700:0	汽車が煙を上げて走る。	The steam train runs, puffing smoke.	蒸気機関車。
+1222700:1	汽車で田舎に帰る。	I go back to the countryside by train.	長距離の列車。
+1360320:0	寝坊して遅刻した。	I overslept and was late.	遅くまで寝ていること。
+1360320:1	弟は寝坊だ。	My little brother is a late riser.	朝寝をする人。
+1185290:0	大学の近くに下宿する。	I lodge near the university.	よその家に住まわせてもらうこと。
+1185290:1	下宿を探す。	I look for a boarding house.	下宿する家。
+1443760:0	電報を打つ。	I send a telegram.	電信で送る知らせ。
+1490670:0	品物を届ける。	We deliver the goods.	しなもの。
+1201940:0	灰皿を片付ける。	I clear away the ashtray.	たばこの灰を入れる皿。
+1600470:0	次の駅で乗り換える。	I change trains at the next station.	別の乗り物に移る。
+1600470:1	新しい機種に乗り換える。	I switch to a new model.	別のものに変える。
+1240825:0	銀行に勤める。	I work at a bank.	勤務する。
+1240825:1	司会を勤める。	I act as the MC.	役目を果たす。
+1350080:0	消しゴムで消す。	I erase it with an eraser.	字を消す道具。
+1404700:0	二に三を足す。	Add three to two.	加える。
+1404700:1	スープに塩を足す。	I add salt to the soup.	付け加える。
+1404700:2	用を足す。	I take care of my business.	済ませる。
+1467620:0	雨に濡れる。	I get wet in the rain.	水がかかる。
+1195140:0	弱い者をいじめる。	They bully the weak.	わざと苦しめる。
+1195140:1	体をいじめる練習だ。	It's training that's tough on the body.	厳しく扱う。
+1556630:0	夜は冷える。	It gets chilly at night.	冷たくなる。
+1350610:0	火事で家が焼ける。	The house burns down in the fire.	燃える。
+1350610:1	魚がよく焼ける。	The fish is cooked through.	焼いた状態になる。
+1350610:2	海で肌が焼ける。	My skin tans at the beach.	日に焼ける。
+1350610:3	西の空が赤く焼ける。	The western sky glows red.	夕日で赤く染まる。
+1350610:4	日に当たって砂が焼ける。	The sand gets hot in the sun.	熱くなる。
+1350610:5	二人の仲のよさに焼ける。	I'm jealous of how close they are.	やきもちをやく。
+1518070:0	友人の家を訪ねる。	I visit a friend's house.	人に会いに行く。
+1546590:0	はがきを出す。	I send a postcard.	郵便はがき。
+1546590:1	はがきにメモを書く。	I write a memo on a card.	書き付け。
+1179005:0	服が汚れる。	My clothes get dirty.	きたなくなる。
+1310640:0	雨が止む。	The rain stops.	続いていたことが終わる。
+1584060:1	霧が山を包む。	The mountain is shrouded in mist.	覆う。
+1584060:2	悲しみを胸に包む。	I hide my sadness.	心に隠す。
+1584060:3	お祝いに一万円を包む。	I give ten thousand yen as a gift.	お金を包んで贈る。
+1268070:0	卵が五つある。	There are five eggs.	五の数。
+1268070:1	娘は五つになった。	My daughter turned five.	五歳。
+1543070:0	明日の予習をする。	I prepare for tomorrow's lesson.	前もって学習すること。
+1349410:0	床屋で髪を切る。	I get my hair cut at the barber.	散髪屋。
+1192420:0	家内が作った料理だ。	It's a dish my wife made.	自分の妻。
+1192420:1	家内安全を祈る。	I pray for my family's well-being.	家の中。家族。
+1006140:0	すっと立ち上がる。	I stand up quickly.	すばやく。
+1006140:1	すっと部屋を出る。	I quietly leave the room.	静かに。
+1006140:2	言いたいことを言ってすっとした。	I felt relieved after speaking my mind.	気分が晴れる。
+1002120:0	おまわりさんに道を聞く。	I ask a police officer the way.	警察官。
+1157090:0	何をなさるのですか。	What will you do?	「する」の尊敬語。
+1319580:0	子どもをしかる。	I scold the child.	注意する。
+1436570:0	ねじを締める。	I tighten the screw.	固くする。
+1436570:1	ネクタイを締める。	I put on a necktie.	身につける。
