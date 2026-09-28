@@ -9902,3 +9902,36 @@
 1378440:0	ウイスキーを生で飲む。	I drink whisky neat.	水などを混ぜていないこと。	き
 1378450:1	現場の生の声を聞く。	I hear the unfiltered voices of people on the ground.	手を加えていない、ありのままのようす。
 2088240:0	人は生と死について考える。	People reflect on life and death.	生きていること。生命。	せい
+
+# ── BATCH 186 — dictionary-wide frequency ≥ 500 range, least frequent first (continued). ──
+1191740:0	疲れたから、うちに帰ろう。	I'm tired, let's go home.	自分の家。家庭。
+1191740:1	去年、新しいうちを建てた。	We built a new house last year.	人の住む建物。家屋。
+1247250:0	君の名前は何ですか。	What's your name?	親しい相手や目下の人を指す語。
+1247260:0	田中君、ちょっと来てくれ。	Tanaka, come here a moment.	同輩や目下の人の名前につける語。
+1006670:1	荷物はそこに置いてください。	Please put your bags there.	話し相手に近い場所。
+1006670:2	そこが一番の問題だ。	That's the biggest problem.	今話題にしている点。
+1163400:1	材料を全部一緒にして混ぜる。	Put all the ingredients together and mix.	一つにまとめること。
+1163400:2	私も君と一緒の意見だ。	I have the same opinion as you.	同じであること。
+1163400:3	二人は駅に一緒に着いた。	The two of them arrived at the station at the same time.	同じ時であること。
+1861770:2	彼の小説は多く青春を描いている。	His novels mostly depict youth.	たいてい。主として。
+1259290:3	油断すると痛い目を見る。	Let your guard down and you'll get hurt.	ある事態を経験する。
+1345250:1	フランス語の女性名詞を覚える。	I memorize French feminine nouns.	文法で、名詞などの性の一つ。
+1430610:1	すぐに夏休みだ。	Summer vacation is coming soon.	時間がたたないうちに。まもなく。
+1430610:2	彼はすぐ怒る。	He gets angry easily.	たやすく。簡単に。
+1538900:1	このアプリはただで使える。	You can use this app for free.	料金がいらないこと。無料。
+1538900:2	こんなことをしたらただでは済まない。	You won't get away with doing this.	何事もないこと。無事。
+1538900:3	ただ見ているだけです。	I'm just looking.	それだけ。単に。
+1538900:4	いい店だ。ただ、少し高い。	It's a good shop. It's a bit expensive, though.	前の事柄に条件をつけ加える語。
+1436510:1	冗談にもほどがある。	There's a limit to joking around.	物事の限度。
+1436510:4	うわさの真偽のほどはわからない。	I don't know how true the rumor is.	物事の程度や様子。
+1436510:5	駅で十分ほど待った。	I waited about ten minutes at the station.	おおよその程度を表す語。
+1436510:6	死ぬほど疲れた。	I'm dead tired.	程度をたとえて示す語。
+1436510:7	考えるほどわからなくなる。	The more I think about it, the less I understand.	一方の程度が増すにつれて、もう一方も変わることを表す語。
+1547330:1	ちょっと手伝って欲しい。	I'd like you to help me a little.	他の人にそうしてもらいたい気持ちを表す語。
+1012980:1	子どもを使いにやる。	I send the child on an errand.	人を行かせる。
+1012980:2	窓の外に目をやる。	I glance out of the window.	視線などをその方へ向ける。
+1012980:6	仕事の後で一杯やる。	I have a drink after work.	飲んだり食べたりする。
+1012980:7	駅前の映画館で何をやるの？	What's showing at the cinema by the station?	催しや番組などを行う。上演する。
+1012980:14	弟に勉強を教えてやる。	I'll teach my little brother his lessons.	目下の人のために何かをしてあげる。
+1155400:0	王子が父の位を継いだ。	The prince succeeded to his father's throne.	王の地位。
+1155400:1	彼は高い位に就いた。	He rose to a high rank.	役所などでの地位。
