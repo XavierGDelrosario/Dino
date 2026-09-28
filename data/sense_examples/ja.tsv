@@ -10997,3 +10997,59 @@
 1538200:0	薬局で薬を買う。	I buy medicine at the pharmacy.	薬を売る店。
 1538200:1	病院の薬局で薬をもらう。	I get my medicine at the hospital dispensary.	病院で薬を調合する所。
 1540080:0	両国の友好を深める。	We deepen the friendship between our two countries.	仲よくすること。
+
+# ── BATCH 215 — JLPT-listed senses below frequency 400, most common first (tier c). ──
+1545710:0	地震で家が揺れる。	The house shakes in the earthquake.	ゆらゆら動く。
+1545710:1	気持ちが揺れる。	My feelings waver.	不安定になる。
+1577640:0	木の幹が太い。	The tree trunk is thick.	木の中心の太い部分。
+1577640:1	計画の幹となる考えだ。	It's the idea at the core of the plan.	物事の中心となる部分。
+1599900:0	荷物を肩に担う。	I carry the load on my shoulder.	肩にかつぐ。
+1599900:1	若者が未来を担う。	Young people carry the future.	責任などを引き受ける。
+1605630:0	柔らかいパンが好きだ。	I like soft bread.	ふんわりしていて形が変わりやすい。
+1605630:1	柔らかい光が差し込む。	A gentle light shines in.	穏やかである。
+1605630:2	柔らかい話題から始める。	Let's start with a light topic.	堅苦しくない。
+1605630:3	頭が柔らかい人だ。	She's a flexible thinker.	融通がきく。
+2841455:0	新しい住居を探す。	I look for a new residence.	住んでいる家。
+1174890:0	猫の爪は鋭い。	A cat's claws are sharp.	先がとがっていてよく切れる。
+1174890:1	鋭い痛みを感じた。	I felt a sharp pain.	強く激しい。
+1174890:2	彼は勘が鋭い。	He has keen intuition.	感覚や頭の働きがすばやい。
+1193130:0	これは架空の話だ。	This is a fictional story.	実際にはない作りごと。
+1196540:0	蚊に刺された。	I got bitten by a mosquito.	血を吸う小さな虫。
+1199900:0	地震で壁が壊れる。	The wall breaks in the earthquake.	形が崩れる。
+1199900:1	パソコンが壊れる。	The computer breaks down.	機械などが動かなくなる。
+1199900:2	二人の関係が壊れる。	Their relationship falls apart.	物事がだめになる。
+1250720:0	先生に敬意を払う。	I pay my respects to the teacher.	尊敬する気持ち。
+1268770:0	互いの意見を尊重する。	We respect each other's opinions.	相手と自分の両方。
+1275070:0	彼の功績をたたえる。	We praise his achievements.	立派な働き。
+1320170:0	結果に失望した。	I was disappointed with the result.	望みを失うこと。
+1349570:0	友人の招きを受ける。	I accept a friend's invitation.	招くこと。
+1354230:0	彼女は上品な話し方をする。	She speaks elegantly.	品がよいようす。
+1354230:1	この店は上品ばかりを売る。	This shop sells only first-class goods.	質のよい品物。
+1356740:0	六畳の部屋に住む。	I live in a six-mat room.	畳を数える言葉。部屋の広さの単位。
+1356750:0	畳の上で寝る。	I sleep on the tatami.	わらで作った日本の床の敷物。
+1357720:0	色彩が豊かな絵だ。	It's a richly colored painting.	いろどり。
+1372180:0	水曜に会議がある。	There's a meeting on Wednesday.	週の四日目。
+1403040:0	教室で騒ぐ。	They make noise in the classroom.	やかましく声を立てる。
+1403040:1	木々が風に騒ぐ。	The trees rustle in the wind.	ざわざわと音を立てる。
+1403040:2	祭りで一晩中騒ぐ。	We make merry all night at the festival.	浮かれて楽しむ。
+1403040:3	世間が騒ぐ事件だ。	It's an incident the public is making a fuss about.	大勢が問題にして言い立てる。
+1403040:4	そんなに騒ぐことはない。	There's no need to panic like that.	落ち着きを失う。
+1403040:5	胸が騒ぐ。	I feel uneasy.	心が落ち着かない。
+1403120:0	川の水かさが増す。	The river rises.	数や量が多くなる。
+1409250:0	朝に体温を測る。	I take my temperature in the morning.	体の温度。
+1442240:0	情報を正しく伝達する。	We communicate information accurately.	伝え届けること。
+1443790:0	電線に電流が流れる。	Electric current flows through the wire.	電気の流れ。
+1457830:0	内科の医者になる。	I become a doctor of internal medicine.	体の内部の病気を扱う医学。
+1457830:1	内科で診てもらう。	I get examined at internal medicine.	病院の内科の部門。
+1467280:0	大臣に任命される。	He is appointed minister.	役目につけること。
+1482710:0	逃げるのは卑怯だ。	Running away is cowardly.	勇気がないようす。
+1482710:1	卑怯な手を使う。	They use a dirty trick.	ずるくて正々堂々としていないようす。
+1483440:0	映画を批評する。	I review the film.	よい点悪い点を論じること。
+1516250:0	山の峰が見える。	I can see the mountain peak.	山の頂上。
+1532750:0	迷子を交番に連れて行く。	I take the lost child to the police box.	道に迷った子ども。
+1532940:0	姪が遊びに来た。	My niece came to visit.	兄弟姉妹の娘。
+1537150:0	夜明けに出発する。	We set off at dawn.	夜が明けるころ。
+1544870:0	与党が法案を出す。	The ruling party puts forward a bill.	政権を担っている政党。
+1557470:0	礼儀を守る。	I mind my manners.	社会生活での作法。
+1580050:0	出生の記録を調べる。	I look up the birth records.	生まれること。
+1582390:0	銅でできた像だ。	It's a statue made of copper.	赤みがかった金属。
