@@ -45,6 +45,12 @@ describe("activitySeries", () => {
     day("2026-09-30", 1, 0),
   ];
 
+  it("reviewed counts every review (repeats included), not distinct cards", () => {
+    const d: HistoryDay = { day: "2026-09-30", added: 0, reviewed: 2, reviews: 5 };
+    expect(activitySeries([d], "reviewed", "1m", TODAY).slice(-1)[0]).toEqual({ key: "2026-09-30", value: 5 });
+    expect(dayCounts([d], "reviewed").get("2026-09-30")).toBe(5);
+  });
+
   it("sums added / reviewed per bucket, zero-filled", () => {
     const added = activitySeries(days, "added", "1m", TODAY);
     expect(added.slice(-1)[0]).toEqual({ key: "2026-09-30", value: 1 });

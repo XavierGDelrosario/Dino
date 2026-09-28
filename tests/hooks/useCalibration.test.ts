@@ -53,6 +53,21 @@ beforeEach(() => {
 });
 
 describe("useCalibration (swipe placement)", () => {
+  it("never deals katakana-only words or anything carrying an affix tag", async () => {
+    let n = 0;
+    mockFetch.mockImplementation(async () => {
+      n += 1;
+      return [
+        [makeWord({ wordId: `k${n}`, input: "サッカー", sourceLang: "JA", proficiencyBand: 3, partOfSpeech: ["n"] })],
+        [makeWord({ wordId: `s${n}`, input: `様${n}`, sourceLang: "JA", proficiencyBand: 3, partOfSpeech: ["n", "suf"] })],
+        [word(`ok${n}`, 3)],
+      ];
+    });
+    const { result } = renderHook(() => useCalibration("u"));
+    await waitFor(() => expect(result.current.status).toBe("swiping"));
+    expect(result.current.current?.wordId).toMatch(/^ok/);
+  });
+
   it("loads a card and enters swiping", async () => {
     const { result } = renderHook(() => useCalibration("u"));
     await waitFor(() => expect(result.current.status).toBe("swiping"));

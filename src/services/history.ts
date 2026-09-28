@@ -176,7 +176,9 @@ export interface Point {
 }
 
 /**
- * One activity series over `range`. `added` / `reviewed` SUM within each bucket;
+ * One activity series over `range`. `added` / `reviewed` SUM within each bucket —
+ * `reviewed` counts every GRADE (a card reviewed twice in a day counts twice: `reviews`),
+ * not distinct cards;
  * `total` is the running vocabulary size at the END of each bucket — every word
  * saved up to then, including before the range starts (and never a deleted one).
  */
@@ -204,7 +206,7 @@ export function activitySeries(
   const sums = new Map<string, number>(keys.map((k) => [k, 0]));
   for (const d of days) {
     const k = dayKey(bucketStart(parseDayKey(d.day), g));
-    if (sums.has(k)) sums.set(k, sums.get(k)! + (metric === "added" ? d.added : d.reviewed));
+    if (sums.has(k)) sums.set(k, sums.get(k)! + (metric === "added" ? d.added : d.reviews));
   }
   return keys.map((k) => ({ key: k, value: sums.get(k)! }));
 }
@@ -289,11 +291,12 @@ export function confidenceLines(
   };
 }
 
-/** Per-day counts for one calendar metric, keyed by local day. */
+/** Per-day counts for one calendar metric, keyed by local day. "reviewed" is the total
+ *  number of reviews that day (every grade), not distinct cards. */
 export function dayCounts(days: HistoryDay[], metric: "added" | "reviewed"): Map<string, number> {
   const m = new Map<string, number>();
   for (const d of days) {
-    const v = metric === "added" ? d.added : d.reviewed;
+    const v = metric === "added" ? d.added : d.reviews;
     if (v > 0) m.set(d.day, v);
   }
   return m;
