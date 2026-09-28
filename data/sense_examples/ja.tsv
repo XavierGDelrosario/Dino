@@ -12965,3 +12965,52 @@
 1456890:4	雨を突いて出かける。	I head out despite the rain.	ものともせずに進む。
 1470710:0	農産物を輸出する。	They export agricultural produce.	農業でとれる物。
 1491210:0	不意に名前を呼ばれた。	My name was suddenly called.	突然であること。
+
+# ── BATCH 256 — JLPT-listed senses below frequency 400, most common first (tier c). ──
+1514360:0	ゆっくりと歩む。	I walk slowly.	歩く。
+1514360:1	苦難の人生を歩む。	She leads a life of hardship.	人生などを送る。
+1514360:2	解決に向けて歩む。	We move toward a solution.	進んでいく。
+1525780:0	万一に備える。	We prepare for the worst.	まれに起こる危険。
+1525780:1	万一遅れたら連絡してください。	If by any chance you're late, please let us know.	もしも。
+1535460:0	本の目次を見る。	I look at the book's table of contents.	内容の見出しを並べたもの。
+1544990:0	荷物をフロントに預ける。	I leave my bags at the front desk.	人に保管を頼む。	あずける
+1544990:1	この件は君に預ける。	I'm leaving this matter in your hands.	任せる。	あずける
+1544990:2	壁に体を預ける。	I lean my weight against the wall.	もたれかかる。	あずける
+1558760:0	故郷が恋しい。	I miss my hometown.	なつかしく慕わしい。
+1590240:0	図書の貸出を受け付ける。	We accept requests to borrow books.	貸し出すこと。
+1599640:0	並木の道を歩く。	I walk along a tree-lined road.	道に沿って並ぶ木。
+1601520:0	難しい仕事を引き受ける。	I take on a difficult job.	受け持つ。
+1601520:1	家業を引き受ける。	I take over the family business.	受け継ぐ。
+1601520:2	彼の身元を引き受ける。	I vouch for him.	保証する。
+1173420:0	小さな店を営む。	I run a small shop.	経営する。
+1173420:1	平和な生活を営む。	We lead a peaceful life.	行う。
+1173420:2	祖父の法事を営む。	We hold a memorial service for my grandfather.	儀式を行う。
+1178260:0	遠足で山に行く。	We go to the mountains on a school trip.	学校の日帰りの行事。
+1208640:3	入試に滑る。	I fail the entrance exam.	試験に落ちる。
+1208640:5	冗談が滑る。	The joke falls flat.	受けない。
+1219560:0	岸に波が寄せる。	Waves wash up on the shore.	近づく。
+1219560:1	机を窓際に寄せる。	I move the desk up to the window.	近くに移す。
+1219560:2	新聞に意見を寄せる。	I send my opinion to the newspaper.	送る。
+1219560:5	彼女に好意を寄せる。	I have feelings for her.	心を向ける。
+1250180:0	これを契機に始める。	I'll use this as a chance to start.	きっかけ。
+1250180:1	事故が改革の契機となる。	The accident triggers reform.	原因。
+1273050:0	真珠の光沢が美しい。	The pearl's luster is beautiful.	つや。
+1281450:0	波が荒い。	The waves are rough.	激しい。
+1281450:1	金遣いが荒い。	He's extravagant with money.	度を越している。
+1294760:0	法案を採決する。	They vote on the bill.	賛否を決めること。
+1295040:0	朝食を済ませる。	I finish breakfast.	終える。
+1295040:1	昼はパンで済ませる。	I make do with bread for lunch.	間に合わせる。
+1295040:2	問題を穏便に済ませる。	We settle the matter quietly.	解決する。
+1318220:0	自尊心を傷つける。	It hurts my pride.	自分を大切に思う心。
+1326880:0	洗濯物を取り入れる。	I bring in the laundry.	中に入れる。
+1326880:1	新しい技術を取り入れる。	We adopt new technology.	採用する。
+1326880:2	稲を取り入れる。	We harvest the rice.	収穫する。
+1378770:0	彼は生まれつき体が弱い。	He's been frail since birth.	生まれたときから。
+1416690:0	山道をたどる。	I follow the mountain path.	道に沿って進む。
+1416690:1	記憶をたどる。	I trace back my memory.	跡を追う。
+1416690:2	人口は減少の一途をたどる。	The population keeps declining.	ある方向へ進む。
+1418990:0	たんすに服をしまう。	I put the clothes in the chest of drawers.	衣類を入れる家具。
+1485350:0	子どもが道に飛び出す。	A child darts out into the road.	勢いよく出る。
+1485350:1	草むらから猫が飛び出す。	A cat suddenly appears from the grass.	急に現れる。
+1485350:2	釘が飛び出す。	A nail sticks out.	突き出る。
+1485350:3	家を飛び出す。	I run away from home.	出ていく。
