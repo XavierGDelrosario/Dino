@@ -1604,6 +1604,10 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
     expect(draw.length).toBeGreaterThan(0);
     expect(new Set(draw).size).toBe(draw.length);
 
+    // v9 (20260780): no katakana-only headwords in the pool, seen or not.
+    const wide = await learn(1000, false);
+    expect(wide.filter((w) => /^[ァ-ヶー・＝]+$/.test(w))).toEqual([]);
+
     // It's a real JMdict word (resolves via the same lookup the edge uses).
     const first = draw[0];
     const senses = ((await svc.rpc("jmdict_lookup", { p_input: first, p_source: "JA", p_target: "EN" })).data ??
