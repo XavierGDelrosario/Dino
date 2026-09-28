@@ -70,6 +70,7 @@ vi.mock("@/services/session", () => ({
 }));
 
 import { MediaView } from "@/views/MediaView";
+import { __resetBrowseMemory } from "@/services/media/browseCache";
 
 // The pair and the profile-settled flag are the HOST's now (Learn's picker), so the
 // spec supplies them the way Learn does.
@@ -84,6 +85,9 @@ const stars = () => screen.getAllByRole("button", { name: /Save this article|Rem
 const savedTab = () => screen.getByRole("tab", { name: /Saved/ });
 
 beforeEach(() => {
+  // The browse batch is kept for the day (browseCache); each test starts without one.
+  __resetBrowseMemory();
+  localStorage.clear();
   listFavorites.mockClear();
   addFavorite.mockClear();
   removeFavorite.mockClear();
@@ -192,5 +196,20 @@ describe("MediaView — ★ favourites", () => {
 
     fireEvent.click(savedTab());
     expect(await screen.findByText(/No saved articles yet/)).toBeTruthy();
+  });
+});
+
+describe("MediaView — the browse is kept for the day", () => {
+  it("re-entering shows the same batch without drawing again; Refresh draws a new one", async () => {
+    const first = view();
+    await waitFor(() => expect(randomHeadlines).toHaveBeenCalledTimes(1));
+    first.unmount(); // e.g. a quiz took over the Learn tab
+
+    view();
+    await screen.findAllByRole("listitem");
+    expect(randomHeadlines).toHaveBeenCalledTimes(1); // today's batch, kept
+
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
+    await waitFor(() => expect(randomHeadlines).toHaveBeenCalledTimes(2));
   });
 });

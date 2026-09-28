@@ -17,12 +17,14 @@
 // each is a fixed archive rather than a live feed — which is what the tab already
 // assumed: random browse over a corpus, not a news ticker.
 //
-// Two lists behind a toggle: BROWSE (a random batch, gone on Refresh) and
+// Two lists behind a toggle: BROWSE (a random batch, kept for the day — see
+// services/media/browseCache — and replaced on Refresh) and
 // FAVOURITES (★, kept). Random browse has no back-button, so a story you liked is
 // unrecoverable once refreshed away — the star is how a user keeps one. Only the
 // pointer is stored (title/url/snippet + the re-fetch coordinates), so opening a
 // favourite re-reads the live article; see services/media/favorites.ts.
 import { useCallback, useEffect, useState } from "react";
+import { browseKey, readBrowse, writeBrowse } from "../services/media/browseCache";
 import {
   randomHeadlines,
   fetchArticle,
@@ -84,21 +86,32 @@ export function MediaView({
   const [openedFrom, setOpenedFrom] = useState<Headline | null>(null);
   const favorites = useFavorites(userId, SITE, lang);
 
-  const load = useCallback(async () => {
+  /** Show today's kept batch, or draw a new one. `fresh` (the Refresh button) always
+   *  draws, and the new batch is what's kept for the rest of the day. */
+  const load = useCallback(async (fresh = false) => {
     // Nothing to browse until the profile says which wiki this is. `ready` is set
     // on a FAILED profile read too, so an unreachable profile falls back to the
     // default language instead of leaving the tab spinning forever.
     if (!ready) return;
+    const key = browseKey({ userId, site: SITE, lang });
+    const kept = fresh ? null : readBrowse(key);
     setError(null);
+    if (kept) {
+      setItems(kept);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      setItems(await randomHeadlines({ site: SITE, lang, limit: 12 }));
+      const drawn = await randomHeadlines({ site: SITE, lang, limit: 12 });
+      writeBrowse(key, drawn);
+      setItems(drawn);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [lang, ready]);
+  }, [lang, ready, userId]);
 
   // Re-runs when the learning language resolves or changes — a new corpus needs a
   // new batch, and the old one's headlines aren't studiable in the new direction.
@@ -213,7 +226,7 @@ export function MediaView({
       <div className="media__head">
         <p className="review__scope">{t("media.intro", { lang: t(LANG_NAME[lang] ?? "lang.JA") })}</p>
         {tab === "browse" && (
-          <button className="btn btn--sm" type="button" onClick={() => void load()} disabled={loading}>
+          <button className="btn btn--sm" type="button" onClick={() => void load(true)} disabled={loading}>
             {loading ? <LoadingDots /> : t("media.refresh")}
           </button>
         )}

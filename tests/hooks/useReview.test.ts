@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // Hook spec for useReview — the flashcard session driver. Queue is a snapshot
-// loaded once; grade records a review and advances; the last card ends the
-// session. A failed grade KEEPS the card so the user can retry. Services mocked.
+// loaded once; grade advances AT ONCE and records the review in the background; the
+// last card waits ("saving") for every write, then ends the session. A failed write
+// keeps its grade for retryFailed. Services mocked.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { makeUserWord } from "@test/fixtures";
@@ -109,22 +110,66 @@ describe("useReview", () => {
     expect(result.current.error).toBeTruthy();
   });
 
-  it("keeps the card and surfaces the error when a grade fails", async () => {
+  it("advances to the next card BEFORE the write lands (no wait between cards)", async () => {
     mockQueue.mockResolvedValue([item("a"), item("b")]);
+    let land!: (v: unknown) => void;
+    mockRecord.mockImplementationOnce(() => new Promise((r) => (land = r)) as never);
+    const { result } = renderHook(() => useReview("user-1"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    act(() => {
+      result.current.grade(4);
+    });
+    // The write is still in flight, and the next card is already showing.
+    expect(result.current.position).toBe(2);
+    expect(result.current.status).toBe("reviewing");
+
+    await act(async () => {
+      land({ userWordId: "a", confidenceRating: 4, stability: 5 });
+    });
+  });
+
+  it("waits in 'saving' after the last grade until every write has landed", async () => {
+    mockQueue.mockResolvedValue([item("a")]);
+    let land!: (v: unknown) => void;
+    mockRecord.mockImplementationOnce(() => new Promise((r) => (land = r)) as never);
+    const { result } = renderHook(() => useReview("user-1"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    act(() => {
+      result.current.grade(5);
+    });
+    expect(result.current.status).toBe("saving");
+    expect(result.current.submitting).toBe(true);
+
+    await act(async () => {
+      land({ userWordId: "a", confidenceRating: 5, stability: 9 });
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.gradedConfidence.get("a")).toBe(5);
+  });
+
+  it("keeps a failed grade and re-sends it with retryFailed — no re-grading", async () => {
+    const a = item("a");
+    mockQueue.mockResolvedValue([a]);
     mockRecord.mockRejectedValueOnce(new Error("record failed"));
     const { result } = renderHook(() => useReview("user-1"));
     await waitFor(() => expect(result.current.status).toBe("reviewing"));
-    const firstId = result.current.current!.userWordId;
 
     await act(async () => {
-      await result.current.grade(2);
+      result.current.grade(2);
     });
-
-    // Did not advance; error surfaced; count unchanged.
-    expect(result.current.current!.userWordId).toBe(firstId);
-    expect(result.current.position).toBe(1);
-    expect(result.current.reviewedCount).toBe(0);
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.failed).toEqual([{ card: a, grade: 2 }]);
     expect(result.current.error).toBeTruthy();
+
+    await act(async () => {
+      result.current.retryFailed();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.failed).toEqual([]);
+    expect(mockRecord).toHaveBeenCalledTimes(2);
+    expect(mockRecord.mock.calls[1][0]).toMatchObject({ userWordId: "a", grade: 2 });
   });
 
   it("restart reloads the queue", async () => {

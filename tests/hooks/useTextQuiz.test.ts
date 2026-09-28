@@ -2,8 +2,9 @@
 // Hook spec for useTextQuiz — the extract-and-quiz session over NEW words in a
 // pasted text. Each card is a word's full SENSE LIST (primary first): the user can
 // cycle meanings with next/prevMeaning and add the selected one with addWord (the
-// ＋ button). Grading saves the SELECTED sense then records the first review
-// (seeding SRS); when calibrate is on, finishing persists the user's level silently.
+// ＋ button). Grading advances AT ONCE and, in the background, saves the SELECTED sense
+// then records the first review (seeding SRS); the last card waits ("saving") for every
+// write. When calibrate is on, finishing persists the user's level silently.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { makeWord } from "@test/fixtures";
@@ -160,17 +161,46 @@ describe("useTextQuiz", () => {
     expect(mockSetLevel).not.toHaveBeenCalled();
   });
 
-  it("keeps the card and surfaces the error when a save fails", async () => {
-    mockSave.mockRejectedValueOnce(new Error("save failed"));
+  it("advances BEFORE the save + review land, and keeps the recap in card order", async () => {
+    // Card A's write lands AFTER card B's — the recap must still read A, B.
+    let landA!: (v: unknown) => void;
+    mockSave.mockImplementationOnce(() => new Promise((r) => (landA = r)) as never);
     const { result } = renderHook(() => useTextQuiz("user-1", [[wordA], [wordB]]));
 
-    await act(async () => {
-      await result.current.grade(3);
+    act(() => {
+      result.current.grade(3);
     });
+    expect(result.current.position).toBe(2); // no wait between cards
+    await act(async () => {
+      result.current.grade(5);
+    });
+    expect(result.current.status).toBe("saving"); // A is still in flight
 
-    expect(result.current.position).toBe(1);
-    expect(result.current.reviewedCount).toBe(0);
+    await act(async () => {
+      landA({ userWordId: "uw-wa", confidenceRating: 0 });
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.graded.map((g) => g.word.wordId)).toEqual(["wa", "wb"]);
+  });
+
+  it("keeps a failed grade and re-sends it with retryFailed — no re-grading", async () => {
+    mockSave.mockRejectedValueOnce(new Error("save failed"));
+    const { result } = renderHook(() => useTextQuiz("user-1", [[wordA]]));
+
+    await act(async () => {
+      result.current.grade(3);
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.failed).toEqual([{ index: 0, word: wordA, grade: 3 }]);
+    expect(result.current.graded).toEqual([]);
     expect(result.current.error).toBeTruthy();
-    expect(mockRecord).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.retryFailed();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.failed).toEqual([]);
+    expect(result.current.graded.map((g) => g.word.wordId)).toEqual(["wa"]);
+    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-wa", grade: 3 });
   });
 });

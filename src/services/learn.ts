@@ -62,3 +62,20 @@ export async function fetchLearnWords(params: {
   if (!data) throw new ServiceError("Empty response from translate function");
   return data.cards ?? [];
 }
+
+/** Words per level quiz. Matches the edge's DEFAULT_LEARN_LIMIT (supabase/functions/
+ *  translate/_lib.ts), which applies when no limit is sent. */
+export const LEARN_BATCH = 10;
+
+/**
+ * The next batch, drawn while the CURRENT one is still being quizzed. The pool only
+ * excludes words already SAVED, and the current quiz's words aren't saved until they
+ * are graded — so a prefetch over-fetches (see LearnView) and this drops every card
+ * whose headword is in the current batch, keeping at most `size`. Every card of the
+ * current batch is graded (and so saved) before "New quiz", so this is exactly the set
+ * the pool would have excluded by then.
+ */
+export function nextLearnBatch(current: Word[][], fetched: Word[][], size = LEARN_BATCH): Word[][] {
+  const inCurrent = new Set(current.map((card) => card[0]?.input).filter(Boolean));
+  return fetched.filter((card) => card[0] && !inCurrent.has(card[0].input)).slice(0, size);
+}
