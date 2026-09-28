@@ -44,8 +44,14 @@ const GRAMMATICAL_POS = new Set([
   "pref", "suf", "n-suf", "n-pref",
   "ctr", "aux", "aux-v", "aux-adj", "cop", "cop-da",
 ]);
-const isAffixOnly = (w: Word): boolean =>
-  !!w.partOfSpeech?.length && w.partOfSpeech.every((p) => GRAMMATICAL_POS.has(p));
+// Mirrors the pool's v9 rules (migration 20260780): ANY affix tag disqualifies, even
+// alongside a free-standing one, and katakana-only words aren't placement material.
+const AFFIX_POS = new Set(["pref", "suf", "n-suf", "n-pref"]);
+const KATAKANA_ONLY = /^[ァ-ヶー・＝]+$/;
+const isNotPlacementWord = (w: Word): boolean =>
+  (!!w.partOfSpeech?.length && w.partOfSpeech.every((p) => GRAMMATICAL_POS.has(p))) ||
+  !!w.partOfSpeech?.some((p) => AFFIX_POS.has(p)) ||
+  KATAKANA_ONLY.test(w.input);
 
 /**
  * @param langs the pair to place the user in. OPTIONAL, and passing it matters: the
@@ -110,7 +116,7 @@ export function useCalibration(
     const cols = batches.map((b) => b.map((senses) => senses[0]).filter(Boolean));
     const out: Word[] = [];
     for (let i = 0; i < PER_BAND_FETCH; i++) for (const col of cols) if (col[i]) out.push(col[i]);
-    return out.filter((w) => !isAffixOnly(w)).filter((w) => !shown.current.has(w.wordId));
+    return out.filter((w) => !isNotPlacementWord(w)).filter((w) => !shown.current.has(w.wordId));
   }, []);
 
   const refill = useCallback(
