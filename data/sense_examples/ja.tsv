@@ -11217,3 +11217,60 @@
 1412640:0	台所で料理をする。	I cook in the kitchen.	料理をする場所。
 1412640:1	会社の台所が苦しい。	The company's finances are tight.	お金のやりくり。
 1426100:0	二人は仲良しだ。	The two are close friends.	仲がよいこと。仲のよい人。
+
+# ── BATCH 219 — JLPT-listed senses below frequency 400, most common first (tier c). ──
+1450900:0	彼はチームの頭脳だ。	He's the brains of the team.	頭。知恵のもと。
+1450900:1	優れた頭脳を持つ。	She has a brilliant mind.	物事を考える力。
+1454740:0	私の特技は料理だ。	My special skill is cooking.	特別に得意な技術。
+1491400:0	水は生活に不可欠だ。	Water is essential to life.	なくてはならないこと。
+1514530:0	壁を補強する。	We reinforce the wall.	弱い所を補って強くすること。
+1514810:1	被災地に募金する。	I donate to the disaster area.	お金を寄付すること。
+1529330:0	朝はいつも眠い。	I'm always sleepy in the morning.	眠りたい気持ちである。
+1533440:0	入院中の祖母に面会する。	I visit my grandmother in hospital.	人に会うこと。
+1533660:0	解決策を模索する。	We grope for a solution.	手探りで探し求めること。
+1560670:0	廊下を走ってはいけない。	Don't run in the hallway.	部屋と部屋をつなぐ細長い通路。
+1588410:0	鶏が卵を生む。	The hen lays eggs.	子や卵を産む。
+1588410:1	誤解が争いを生む。	Misunderstandings give rise to conflict.	作り出す。
+1589500:2	勝負から降りる。	I drop out of the contest.	役や勝負をやめる。
+1589500:3	ビザが降りる。	The visa is issued.	許可などが出る。
+1589500:4	庭に霜が降りる。	Frost forms in the garden.	霜や露ができる。
+1592340:0	明日は曇りだ。	Tomorrow will be cloudy.	空が雲におおわれていること。
+1592340:1	眼鏡の曇りをふく。	I wipe the fog off my glasses.	表面がぼんやりしていること。
+1592340:2	心に曇りがある。	There's a shadow over my heart.	心が晴れないこと。
+1603100:0	雑誌の付録が楽しみだ。	I look forward to the magazine's free extra.	本や雑誌に付け加えたもの。
+1605510:0	三キロ痩せる。	I lose three kilograms.	体が細くなる。
+1605510:1	この土地は痩せる一方だ。	This land keeps getting poorer.	土地の養分が少なくなる。
+1609750:0	恋する気持ちを歌う。	I sing about being in love.	恋をする。
+1612650:0	あれこれ考える。	I think about this and that.	いろいろ。
+1000220:0	それは明白な事実だ。	That is an obvious fact.	はっきりしていて疑いがないようす。
+1113060:0	雲がふわふわ浮かぶ。	Clouds float lightly.	軽く浮かんでいるようす。
+1113060:1	ふわふわのパンを焼く。	I bake fluffy bread.	柔らかくふくらんでいるようす。
+1113060:2	気持ちがふわふわする。	I feel flighty.	落ち着かないようす。
+1212820:0	円をドルに換算する。	I convert yen into dollars.	ほかの単位に直して数えること。
+1219810:0	社会に寄与する。	I contribute to society.	役に立つこと。
+1246000:0	空腹で眠れない。	I'm too hungry to sleep.	お腹がすいていること。
+1252510:0	警部が事件を担当する。	A police inspector handles the case.	警察官の階級の一つ。
+1325180:0	主観で判断してはいけない。	You shouldn't judge subjectively.	自分だけの見方。
+1344230:1	諸君、よく聞いてくれ。	Everyone, listen carefully.	大勢に呼びかける言葉。
+1365460:0	医者の診察を受ける。	I get a medical examination.	医者が病状を調べること。
+1370410:0	図書を借りる。	I borrow books.	本。
+1403550:0	母に花を贈る。	I give my mother flowers.	贈り物として与える。
+1403550:1	彼に賞を贈る。	They award him a prize.	称号などを与える。
+1403760:0	早い決断を促す。	I urge a quick decision.	早くするようにせきたてる。
+1403760:1	成長を促す。	It stimulates growth.	進行を早める。
+1411340:0	大学を退学した。	I dropped out of university.	卒業前に学校をやめること。
+1411340:1	校則違反で退学になる。	He is expelled for breaking school rules.	学校をやめさせられること。
+1419570:0	誘いを断る。	I turn down the invitation.	受け入れない。
+1419570:1	前もって断っておく。	I'll let you know in advance.	あらかじめ知らせておく。
+1419570:2	先生に断って早く帰る。	I ask the teacher and leave early.	許しを得る。
+1429330:0	色の調和がとれている。	The colors are in harmony.	全体がよくつりあっていること。
+1437310:0	笛を吹く。	I play the flute.	吹いて鳴らす楽器。
+1437310:1	審判が笛を鳴らす。	The referee blows the whistle.	合図に使う呼び子。
+1473870:0	チケットは売り切れだ。	The tickets are sold out.	全部売れてしまうこと。
+1514110:0	犯人が捕まる。	The culprit is caught.	とらえられる。
+1514110:1	手すりに捕まる。	I hold on to the handrail.	しっかりつかむ。
+1514110:2	なかなかタクシーが捕まる場所じゃない。	It's not a place where you can easily get a taxi.	うまくとらえることができる。
+1514110:3	上司に捕まる。	I get held up by my boss.	引き止められる。
+1530280:0	空に無数の星が光る。	Countless stars shine in the sky.	数えきれないほど多いこと。
+1530630:0	自分の無知を恥じる。	I'm ashamed of my ignorance.	知識がないこと。
+1533700:0	他人の作品を模倣する。	They copy other people's work.	まねること。
