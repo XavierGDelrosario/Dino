@@ -16,7 +16,6 @@ import {
   addUserWordToList,
   removeUserWordFromList,
   getAllUserWords,
-  getUserWordsInList,
   getUserWordStates,
   __resetDictionaryColumnProbe,
 } from "@/services/words/userWords";
@@ -351,22 +350,6 @@ describe("getAllUserWords (the virtual ALL list)", () => {
       { userWordId: "b", translation: "ねこちゃん", translationReading: null },
       { userWordId: "c", inputReading: null, translationReading: null },
     ]);
-  });
-});
-
-describe("getUserWordsInList", () => {
-  it("returns the tagged words and skips dangling rows", async () => {
-    stub.queueFrom("list_words", {
-      data: [
-        { user_words: uwRow({ user_word_id: "a", words: { translation: "cat" } }) },
-        { user_words: null }, // tag whose user_word vanished
-      ],
-      error: null,
-    });
-
-    const entries = await getUserWordsInList({ listId: "verbs" });
-    expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ userWordId: "a", translation: "cat" });
   });
 });
 

@@ -1,26 +1,36 @@
 // Drives the Lists view: the user's sub-lists + the words in the selected one, where
 // null = the virtual ALL list (the whole vocabulary IS the user_words rows; there is no
 // ALL row). Errors surface in `error` rather than throwing to the view.
-import { useCallback, useEffect, useRef, useState } from "react";
+//
+// Reads come from the session VOCABULARY CACHE (services/words/vocabularyCache): ALL
+// loads once, and every list is a filter over it, so switching chips — or leaving the
+// tab and coming back — costs no request. Mutations go through the services, which
+// write their results through to that cache; this hook re-renders from it and never
+// patches words itself.
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
-  listUserLists,
   createList as createListSvc,
   renameList as renameListSvc,
   deleteList as deleteListSvc,
   type List,
 } from "../services/lists";
 import {
-  getAllUserWords,
-  getUserWordsInList,
-  USER_WORDS_PAGE_SIZE,
   saveDictionaryWord,
   createCustomWord,
   editUserWord,
   deleteUserWord,
   addUserWordsToList,
   removeUserWordFromList,
-  type UserWord,
 } from "../services/words/userWords";
+import {
+  cachedLists,
+  hasWords,
+  isReadable,
+  subscribeVocabulary,
+  vocabularyVersion,
+  wordsFor,
+} from "../services/words/vocabularyCache";
+import { ensureVocabulary } from "../services/words/vocabularyLoader";
 import { lookupWord } from "../services/lookup";
 import { softenConfidence } from "../services/review";
 import { errorMessage as message } from "../lib/errorMessage";
@@ -30,134 +40,57 @@ import { useStickyState } from "./useStickyState";
 
 export type ListStatus = "loading" | "ready" | "error";
 
-export function useLists(
-  userId: string,
-  /** `active` false = the word table isn't on screen, so don't fetch its rows. */
-  opts: { active?: boolean } = {},
-) {
-  const { active = true } = opts;
-  const [lists, setLists] = useState<List[]>([]);
+const NO_LISTS: List[] = [];
+
+// The cache loads whether or not the word table is on screen — on the overview it warms
+// up once, so opening any list from there is instant.
+export function useLists(userId: string) {
   // null = ALL. Sticky, so returning to Lists keeps the chip you were on — but a list
   // can be deleted elsewhere while you're away, so it's validated against `lists`
   // once they load rather than trusted.
   const [selectedListId, setSelectedListId] = useStickyState<string | null>(
     userId, "lists.selectedListId", null,
   );
-  const [words, setWords] = useState<UserWord[]>([]);
-  // False while later batches are still streaming in (the first page shows fast,
-  // the rest fill in behind it). Filters/counts are exact once this is true.
-  const [fullyLoaded, setFullyLoaded] = useState(false);
-  const [status, setStatus] = useState<ListStatus>("loading");
   const [error, setError] = useState<string | null>(null);
-  // Bumped on every (re)load so a superseded in-flight load (list switch)
-  // stops writing state instead of racing the newer one.
-  const loadSeq = useRef(0);
-  // Removed by a mutation WHILE the background stream is still running: the stream
-  // filters these out, so a not-yet-loaded page can't resurrect a just-deleted word.
-  // Cleared at the start of each load.
-  const suppressedIds = useRef<Set<string>>(new Set());
+  /** The cold load failed (a failed background re-check keeps the cached copy). */
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  const loadLists = useCallback(async () => {
-    try {
-      const ls = await listUserLists(userId);
-      setLists(ls);
-      // A restored selection can point at a list deleted on another surface or device
-      // — fall back to ALL rather than paging a list that no longer exists.
-      setSelectedListId((id) => (id === null || ls.some((l) => l.listId === id) ? id : null));
-    } catch (e) {
-      setError(message(e));
-    }
-  }, [userId, setSelectedListId]);
-
-  // Fetch one page (the ALL vocabulary or a sub-list) at the given offset.
-  const fetchPage = useCallback(
-    (offset: number) =>
-      selectedListId === null
-        ? getAllUserWords({ userId, offset, limit: USER_WORDS_PAGE_SIZE })
-        : getUserWordsInList({ listId: selectedListId, offset, limit: USER_WORDS_PAGE_SIZE }),
-    [userId, selectedListId]
-  );
-
-  // Load the WHOLE list (ALL or a sub-list) into the client cache — used only on
-  // list switch / initial load, NOT after mutations (those patch the cache in
-  // place, below). The list is likely to be browsed/filtered in full, so we pull
-  // every row rather than paging on demand: the first page renders immediately
-  // (status → ready), then the remaining pages stream in behind it in
-  // USER_WORDS_PAGE_SIZE batches so a huge vocabulary isn't one giant query. The
-  // view render-limits how many rows it draws ("Load more"), so a full cache never
-  // means a wall of DOM. Only once `fullyLoaded` is true do filters/counts see
-  // every word. Each batch MERGES onto current state (dedupe by id + skip
-  // suppressed) so a mutation racing the stream isn't clobbered.
-  const loadWords = useCallback(async () => {
-    const seq = ++loadSeq.current;
-    suppressedIds.current = new Set();
-    setStatus("loading");
-    setFullyLoaded(false);
-    setError(null);
-    try {
-      const first = await fetchPage(0);
-      if (seq !== loadSeq.current) return; // superseded by a newer load
-      setWords(first);
-      setStatus("ready");
-      if (first.length < USER_WORDS_PAGE_SIZE) {
-        setFullyLoaded(true);
-        return;
-      }
-      // Stream the rest in behind the first page, merging onto live state.
-      for (let offset = first.length; ; offset += USER_WORDS_PAGE_SIZE) {
-        const page = await fetchPage(offset);
-        if (seq !== loadSeq.current) return; // superseded mid-stream
-        setWords((cur) => {
-          const seen = new Set(cur.map((w) => w.userWordId));
-          const add = page.filter(
-            (w) => !seen.has(w.userWordId) && !suppressedIds.current.has(w.userWordId)
-          );
-          return add.length ? [...cur, ...add] : cur;
-        });
-        if (page.length < USER_WORDS_PAGE_SIZE) break;
-      }
-      setFullyLoaded(true);
-    } catch (e) {
-      if (seq !== loadSeq.current) return;
-      setError(message(e));
-      setStatus("error");
-    }
-  }, [fetchPage]);
-
-  // --- Local cache patches: apply a mutation's result to `words` in place instead
-  // of re-pulling the whole list (which would re-stream every batch on each edit). ---
-
-  /** Insert a new / re-added word (newest-first, matching the load order), unless
-   *  it's already present — saves are idempotent, so a re-add may already exist. */
-  const upsertLocal = useCallback((uw: UserWord) => {
-    setWords((ws) => (ws.some((w) => w.userWordId === uw.userWordId) ? ws : [uw, ...ws]));
-  }, []);
-
-  /** Replace an edited word in place (position unchanged; the view re-sorts). */
-  const replaceLocal = useCallback((uw: UserWord) => {
-    setWords((ws) => ws.map((w) => (w.userWordId === uw.userWordId ? uw : w)));
-  }, []);
-
-  /** Drop a word from the cache and suppress it from any in-flight stream page. */
-  const removeLocal = useCallback((userWordId: string) => {
-    suppressedIds.current.add(userWordId);
-    setWords((ws) => ws.filter((w) => w.userWordId !== userWordId));
-  }, []);
+  const version = useSyncExternalStore(subscribeVocabulary, vocabularyVersion);
 
   useEffect(() => {
-    loadLists();
-  }, [loadLists]);
-  // GATED on `active`. The Lists tab now lands on the overview, where no words are
-  // shown — and `selectedListId` is sticky, so without this the hook would stream the
-  // last-opened list (up to every page of it) behind a screen that displays none of it.
-  // Flipping active back to true runs the load then, which is where it is wanted.
-  useEffect(() => {
-    if (!active) return;
-    loadWords();
-  }, [loadWords, active]);
+    let live = true;
+    setLoadFailed(false);
+    ensureVocabulary(userId).catch((e) => {
+      if (!live) return;
+      setError(message(e));
+      setLoadFailed(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [userId]);
 
-  // Run a mutation and surface any error. The caller patches the local cache on
-  // success (no full reload); on failure the cache is left untouched. Returns
+  // The store replaces `lists` on change, so its reference is already stable.
+  const cached = cachedLists(userId);
+  const lists = cached ?? NO_LISTS;
+  const listsLoaded = cached !== null;
+  // `version` moves on each page and each write — it is what makes this re-read.
+  const words = useMemo(() => wordsFor(userId, selectedListId), [userId, selectedListId, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Filters/counts are exact once this is true.
+  const fullyLoaded = isReadable(userId, selectedListId);
+  // ALL paints from its first page; a sub-list needs ALL complete + the membership.
+  const shown = selectedListId === null ? hasWords(userId) : fullyLoaded;
+  const status: ListStatus = shown ? "ready" : loadFailed ? "error" : "loading";
+
+  // A restored selection can point at a list deleted on another surface or device —
+  // fall back to ALL rather than showing a list that no longer exists.
+  useEffect(() => {
+    if (!listsLoaded || selectedListId === null) return;
+    if (!lists.some((l) => l.listId === selectedListId)) setSelectedListId(null);
+  }, [listsLoaded, lists, selectedListId, setSelectedListId]);
+
+  // Run a mutation and surface any error. On success the service has already written
+  // the result through to the cache; on failure the cache is left untouched. Returns
   // whether it succeeded — callers that discard UI state on completion (e.g. the
   // multi-select clearing its picks) must NOT do so on a failure the user still
   // has to react to. Callers that don't care can keep ignoring the result.
@@ -175,10 +108,9 @@ export function useLists(
   const addCustomWord = useCallback(
     (p: { input: string; translation: string; sourceLang: LangCode; targetLang: LangCode }) =>
       guard(async () => {
-        const uw = await createCustomWord({ userId, ...p, listId: selectedListId ?? undefined });
-        upsertLocal(uw);
+        await createCustomWord({ userId, ...p, listId: selectedListId ?? undefined });
       }),
-    [guard, userId, selectedListId, upsertLocal]
+    [guard, userId, selectedListId]
   );
 
   /** Look a word up in the dictionary — ALL senses, no save. The UI auto-adds
@@ -189,46 +121,32 @@ export function useLists(
     []
   );
 
-  /** Save one dictionary sense into the current list (+ ALL), patching the cache.
+  /** Save one dictionary sense into the current list (+ ALL).
    *  Errors propagate so the caller (AddWord) can react. */
   const saveSenseToList = useCallback(
     async (word: Word) => {
-      const uw = await saveDictionaryWord({ userId, word, listId: selectedListId ?? undefined });
-      upsertLocal(uw);
+      await saveDictionaryWord({ userId, word, listId: selectedListId ?? undefined });
     },
-    [userId, selectedListId, upsertLocal]
+    [userId, selectedListId]
   );
 
   const editWord = useCallback(
     (userWordId: string, translation: string) =>
       guard(async () => {
-        const uw = await editUserWord({ userWordId, translation });
-        replaceLocal(uw);
+        await editUserWord({ userWordId, translation });
       }),
-    [guard, replaceLocal]
+    [guard]
   );
 
   /** "Forgot" from the row's confidence dots: drop this word one displayed-confidence
    *  bucket (services/review.softenConfidence — a self-report, not a graded review).
    *  The server no-ops below SOFTEN_MIN_CONFIDENCE and again for a word touched in the
    *  last 2s, so a double-press returns the same row rather than dropping two notches;
-   *  we patch the cache with whatever it actually returns rather than assuming −1. */
+   *  the cache takes whatever it actually returns rather than assuming −1. */
   const softenWord = useCallback(
     (userWordId: string) =>
       guard(async () => {
-        const res = await softenConfidence({ userWordId });
-        setWords((ws) =>
-          ws.map((w) =>
-            w.userWordId === userWordId
-              ? {
-                  ...w,
-                  stability: res.stability,
-                  confidenceRating: res.confidenceRating,
-                  lastReviewedDate: res.lastReviewedDate,
-                }
-              : w,
-          ),
-        );
+        await softenConfidence({ userWordId });
       }),
     [guard],
   );
@@ -237,9 +155,8 @@ export function useLists(
     (userWordId: string) =>
       guard(async () => {
         await deleteUserWord({ userWordId });
-        removeLocal(userWordId);
       }),
-    [guard, removeLocal]
+    [guard]
   );
 
   // Un-tag from the current sub-list → the word leaves THIS view (stays in ALL).
@@ -248,15 +165,13 @@ export function useLists(
       if (selectedListId === null) return Promise.resolve();
       return guard(async () => {
         await removeUserWordFromList({ listId: selectedListId, userWordId });
-        removeLocal(userWordId);
       });
     },
-    [guard, selectedListId, removeLocal]
+    [guard, selectedListId]
   );
 
-  // Tag a selection into an existing sub-list (one round trip). Never changes the
-  // current view's membership — the words are already shown here — so the cache
-  // needs no patch. The single-word row action is just the 1-element case (below),
+  // Tag a selection into an existing sub-list (one round trip); the service records
+  // the new membership in the cache. The single-word row action is just the 1-element case (below),
   // so the two paths can't drift.
   const tagWords = useCallback(
     (userWordIds: string[], listId: string) =>
@@ -265,15 +180,14 @@ export function useLists(
   );
 
   // Same, into a brand-new sub-list ("New list…" from the selection toolbar or a row).
-  // Reloads lists so the new one shows in the chips/menus.
+  // The new list reaches the chips/menus through the cache.
   const createListForWords = useCallback(
     (userWordIds: string[], name: string) =>
       guard(async () => {
         const list = await createListSvc({ userId, listName: name });
         await addUserWordsToList({ listId: list.listId, userWordIds });
-        await loadLists();
       }),
-    [guard, userId, loadLists]
+    [guard, userId]
   );
 
   // The ListRow (single-word) flavours of the two above.
@@ -291,13 +205,12 @@ export function useLists(
       setError(null);
       try {
         const list = await createListSvc({ userId, listName: name });
-        await loadLists();
         setSelectedListId(list.listId);
       } catch (e) {
         setError(message(e));
       }
     },
-    [userId, loadLists, setSelectedListId]
+    [userId, setSelectedListId]
   );
 
   const renameListById = useCallback(
@@ -305,12 +218,11 @@ export function useLists(
       setError(null);
       try {
         await renameListSvc({ listId, listName: name });
-        await loadLists();
       } catch (e) {
         setError(message(e));
       }
     },
-    [loadLists]
+    []
   );
 
   const deleteListById = useCallback(
@@ -319,12 +231,11 @@ export function useLists(
       try {
         await deleteListSvc(listId);
         if (selectedListId === listId) setSelectedListId(null);
-        await loadLists();
       } catch (e) {
         setError(message(e));
       }
     },
-    [selectedListId, loadLists, setSelectedListId]
+    [selectedListId, setSelectedListId]
   );
 
   return {

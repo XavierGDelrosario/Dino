@@ -705,6 +705,100 @@ describe("translateParagraph — proper nouns never reach paid MT", () => {
   });
 });
 
+// The same MT rule for Japanese. It used to match only the English PROPN tag, so every
+// Japanese name miss was bought: prod held 33 romanized-name MT rows (加奈子 → "Kanako")
+// created after the 人名/組織 demotion, which greys a token but never touched its lookup.
+describe("translateParagraph — Japanese names, fragments and counters never reach paid MT", () => {
+  beforeEach(() => __clearWordsCache());
+  const tok = (text: string, extra: Partial<AnalyzedToken> = {}): AnalyzedToken => ({
+    text, start: 0, end: text.length, reading: null, lemma: null, pos: "名詞", ...extra,
+  });
+  const routes = async (tokens: AnalyzedToken[]) => {
+    mockAnalyze.mockResolvedValue(tokens);
+    mockFindBatch.mockResolvedValue(new Map<string, Word[]>());
+    await translateParagraph({ input: "x", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    const calls = mockTranslateBatch.mock.calls.map((c) => c[0]);
+    // "mt" = sent in the MT-eligible batch; "dict" = dictionary-only. Throws if the key
+    // was never sent at all, so a missing call can't pass as "keeps MT".
+    return (k: string) => {
+      const call = calls.find((c) => c.inputs.includes(k));
+      if (!call) throw new Error(`${k} was never looked up`);
+      return call.dictionaryOnly ? "dict" : "mt";
+    };
+  };
+
+  it("a demoted 人名 / a 固有名詞 place / an unknown lone kanji / a bare counter → dictionary-only", async () => {
+    const via = await routes([
+      tok("加奈子", { pos: "人名", properNoun: true }),
+      tok("大月", { properNoun: true }),
+      tok("來", { unknownWord: true }),
+      tok("人組", { counter: true }),
+      tok("唐揚げ"), // an ordinary word: keeps its MT fallback
+    ]);
+    expect(via("加奈子")).toBe("dict");
+    expect(via("大月")).toBe("dict");
+    expect(via("來")).toBe("dict");
+    expect(via("人組")).toBe("dict");
+    expect(via("唐揚げ")).toBe("mt");
+  });
+
+  it("a key used by a content word AND a name keeps its MT fallback", async () => {
+    const via = await routes([tok("大和", { properNoun: true }), tok("大和")]);
+    expect(via("大和")).toBe("mt");
+  });
+
+  it("drops a lone unknown kanji that only MT knows (倖 in 倖田來未)", async () => {
+    mockAnalyze.mockResolvedValue([tok("倖", { unknownWord: true })]);
+    mockFindBatch.mockResolvedValue(new Map([["倖", [makeWord({ input: "倖", translation: "Happiness", partOfSpeech: null })]]]));
+    const res = await translateParagraph({ input: "倖", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    expect(res.meanings.get("倖")).toEqual([]);
+  });
+
+  it("drops JMnedict named entities (entry id ≥ 5,000,000) but keeps ordinary senses", async () => {
+    mockAnalyze.mockResolvedValue([tok("エールフランス")]);
+    mockFindBatch.mockResolvedValue(new Map([["エールフランス", [
+      makeWord({ input: "エールフランス", translation: "Air France", jmdictEntryId: "5741000", partOfSpeech: ["n"] }),
+    ]]]));
+    const res = await translateParagraph({ input: "x", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    expect(res.meanings.get("エールフランス")).toEqual([]);
+
+    mockAnalyze.mockResolvedValue([tok("猫")]);
+    mockFindBatch.mockResolvedValue(new Map([["猫", [makeWord({ input: "猫", jmdictEntryId: "1467640", partOfSpeech: ["n"] })]]]));
+    const cat = await translateParagraph({ input: "猫", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    expect(cat.meanings.get("猫")).toHaveLength(1);
+  });
+
+  it("after a number, a counter's prefix sense sorts last (三キロ is km/kg, not \"kilo-\")", async () => {
+    const kilo = [
+      makeWord({ wordId: "pref", input: "キロ", translation: "kilo-; 1000", partOfSpeech: ["pref"] }),
+      makeWord({ wordId: "km", input: "キロ", translation: "kilometre", partOfSpeech: ["n"] }),
+    ];
+    mockFindBatch.mockResolvedValue(new Map([["キロ", kilo]]));
+    mockTranslateBatch.mockResolvedValue(new Map()); // the 三キロ whole-surface probe misses
+    mockAnalyze.mockResolvedValue([tok("三キロ", { lemma: "キロ", composite: true })]);
+    const res = await translateParagraph({ input: "三キロ", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    expect(res.meanings.get("キロ")?.[0].wordId).toBe("km");
+
+    // Alone, キロ keeps the dictionary's order.
+    mockAnalyze.mockResolvedValue([tok("キロ")]);
+    const alone = await translateParagraph({ input: "キロ", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    expect(alone.meanings.get("キロ")?.[0].wordId).toBe("pref");
+  });
+
+  it("a number+counter that is its own headword looks itself up (三人組 → trio, not 人組)", async () => {
+    const trio = makeWord({ wordId: "trio", input: "三人組", translation: "trio", partOfSpeech: ["n"] });
+    mockAnalyze.mockResolvedValue([tok("三人組", { lemma: "人組", composite: true })]);
+    mockFindBatch.mockImplementation(async ({ inputs }) =>
+      new Map(inputs.includes("三人組") ? [["三人組", [trio]]] : []),
+    );
+    const res = await translateParagraph({ input: "三人組", sourceLang: "JA", targetLang: "EN", skipGloss: true });
+    expect(res.meanings.get("三人組")?.[0].translation).toBe("trio");
+    expect(res.tokens[0]).toMatchObject({ text: "三人組", lemma: "三人組" });
+    // 人組 was never asked of paid MT.
+    expect(mockTranslateBatch.mock.calls.some((c) => c[0].inputs.includes("人組") && !c[0].dictionaryOnly)).toBe(false);
+  });
+});
+
 // One word, one entry. The surface used to be the key, so it forked on CASE
 // ("Cats" at the start of a sentence vs "cats" mid-sentence) and on INFLECTION
 // (cat vs cats) — one word became two hover cards, two quiz cards and two rows in the

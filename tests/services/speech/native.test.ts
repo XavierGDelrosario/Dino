@@ -27,6 +27,7 @@ vi.mock("@capacitor-community/speech-recognition", () => ({
 }));
 
 import { nativeRecognizer } from "@/services/speech/providers/native";
+import { commitUtterance } from "@/services/speech/dictation";
 
 // Captures the listeners the provider registers so a test can fire plugin events.
 type Listeners = {
@@ -248,6 +249,52 @@ describe("nativeRecognizer (streaming)", () => {
       listeners.partialResults?.({ matches: ["今日は、雨です。明日は晴れ"] });
       // The late 。 rides at the head of the tail; the dictation layer moves it back.
       expect(onPartial).toHaveBeenLastCalledWith("。明日は晴れ");
+    });
+
+    // A line runs from the previous sentence end to the last one — never to a comma.
+    it("at a pause, commits up to the LAST terminator and keeps the rest open", async () => {
+      const { listeners, onPartial, onFinal } = await listen();
+      listeners.partialResults?.({ matches: ["今日は雨です。明日は"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenCalledTimes(1);
+      expect(onFinal).toHaveBeenLastCalledWith("今日は雨です。");
+      expect(onPartial).toHaveBeenLastCalledWith("明日は"); // still forming
+
+      // The sentence goes on — the committed half is not re-emitted.
+      listeners.partialResults?.({ matches: ["今日は雨です。明日は晴れです。"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenCalledTimes(2);
+      // The seam 。 rides at the head (as in any continuation); the dictation layer
+      // sees the line already ends with it and doesn't double it.
+      const box = onFinal.mock.calls.reduce((acc, [line]) => commitUtterance(acc, line), "");
+      expect(box).toBe("今日は雨です。\n明日は晴れです。\n");
+    });
+
+    it("does not end a line on a comma — the pause is mid-sentence", async () => {
+      const { listeners, onFinal } = await listen();
+      listeners.partialResults?.({ matches: ["明日は、"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).not.toHaveBeenCalled();
+
+      listeners.partialResults?.({ matches: ["明日は、晴れです。"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).toHaveBeenCalledTimes(1);
+      expect(onFinal).toHaveBeenCalledWith("明日は、晴れです。");
+    });
+
+    it("commits a held line anyway once the speaker has stopped for good", async () => {
+      const { listeners, onFinal } = await listen();
+      listeners.partialResults?.({ matches: ["それで、"] });
+      await vi.advanceTimersByTimeAsync(1500);
+      await flush();
+      expect(onFinal).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(3000); // past HOLD_MS
+      await flush();
+      expect(onFinal).toHaveBeenCalledWith("それで、");
     });
 
     it("treats a SHORTER hypothesis as a fresh one rather than swallowing it", async () => {

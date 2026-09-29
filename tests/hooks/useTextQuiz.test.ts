@@ -2,7 +2,8 @@
 // Hook spec for useTextQuiz — the extract-and-quiz session over NEW words in a
 // pasted text. Each card is a word's full SENSE LIST (primary first): the user can
 // cycle meanings with next/prevMeaning and add the selected one with addWord (the
-// ＋ button). Grading advances AT ONCE and, in the background, saves the SELECTED sense
+// ＋ button). Grading advances after a CARD_GAP_MS beat (never waiting on the write)
+// and, in the background, saves the SELECTED sense
 // then records the first review (seeding SRS); the last card waits ("saving") for every
 // write. When calibrate is on, finishing persists the user's level silently.
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -69,7 +70,7 @@ describe("useTextQuiz", () => {
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", word: wordA }));
     expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-wa", grade: 5 });
     expect(onGraded).toHaveBeenCalledWith("wa", "uw-wa", 4);
-    expect(result.current.position).toBe(2);
+    await waitFor(() => expect(result.current.position).toBe(2));
     expect(result.current.reviewedCount).toBe(1);
   });
 
@@ -107,6 +108,7 @@ describe("useTextQuiz", () => {
     await act(async () => {
       await result.current.grade(3);
     });
+    await waitFor(() => expect(result.current.position).toBe(2));
     act(() => result.current.nextMeaning()); // grade つらい, not the primary
     await act(async () => {
       await result.current.grade(4);
@@ -170,7 +172,9 @@ describe("useTextQuiz", () => {
     act(() => {
       result.current.grade(3);
     });
-    expect(result.current.position).toBe(2); // no wait between cards
+    expect(result.current.advancing).toBe(true); // the between-cards beat…
+    // …then the next card, with A's write still in flight.
+    await waitFor(() => expect(result.current.position).toBe(2));
     await act(async () => {
       result.current.grade(5);
     });

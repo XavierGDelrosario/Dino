@@ -20,8 +20,9 @@
 
 import { supabase } from "../config/supabaseClient";
 import { toServiceError } from "./errors";
-import { type UserWord } from "./words/userWords";
+import { confidenceInputsOf, type UserWord } from "./words/userWords";
 import { findWordsByIds } from "./words/repository";
+import { writeWordById } from "./words/vocabularyCache";
 import type { LangCode } from "./language";
 import { offlineStore } from "./offline/store";
 import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
@@ -239,6 +240,29 @@ export interface ReviewResult {
   queued?: boolean;
 }
 
+/** What record_review / soften_confidence return: the whole updated user_words row. */
+type ReturnedRow = {
+  user_word_id: string;
+  stability: number;
+  confidence_rating: number;
+  last_reviewed_date: string;
+  originally_translated_date: string;
+  short_stability?: number | null;
+  short_stability_at?: string | null;
+  peak_confidence?: number | null;
+};
+
+/** Write the new schedule through to the vocabulary cache, so Lists shows the grade
+ *  without re-reading. The row carries every confidence input, so the cached word
+ *  re-derives (on read) the exact number the server would. */
+function cacheReviewed(row: ReturnedRow): void {
+  writeWordById(row.user_word_id, {
+    stability: row.stability,
+    lastReviewedDate: row.last_reviewed_date,
+    confidenceInputs: confidenceInputsOf(row),
+  });
+}
+
 /**
  * Send a review to the server. ALWAYS hits the network and never queues — this is the
  * raw write, used by `recordReview` below and by the offline drain (offline/sync.ts),
@@ -260,12 +284,8 @@ export async function sendReview(params: {
   if (error || !data) throw toServiceError(error, "Failed to record review");
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array).
-  const row = (Array.isArray(data) ? data[0] : data) as {
-    user_word_id: string;
-    stability: number;
-    confidence_rating: number;
-    last_reviewed_date: string;
-  };
+  const row = (Array.isArray(data) ? data[0] : data) as ReturnedRow;
+  cacheReviewed(row);
   return {
     userWordId: row.user_word_id,
     stability: row.stability,
@@ -355,12 +375,8 @@ export async function softenConfidence(params: { userWordId: string }): Promise<
   if (error || !data) throw toServiceError(error, "Failed to lower confidence");
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array).
-  const row = (Array.isArray(data) ? data[0] : data) as {
-    user_word_id: string;
-    stability: number;
-    confidence_rating: number;
-    last_reviewed_date: string;
-  };
+  const row = (Array.isArray(data) ? data[0] : data) as ReturnedRow;
+  cacheReviewed(row);
   return {
     userWordId: row.user_word_id,
     stability: row.stability,

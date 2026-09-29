@@ -3,8 +3,9 @@
 // Safe to cache (where `user_words` is NOT) because `words` is READ-ONLY to clients and
 // effectively immutable within a session: the only way a row changes is a server-side
 // re-projection, and that change is benign — a better reading or ranking, never a wrong
-// meaning. `user_words` mutates constantly (every save, edit and review), so it stays
-// live. Worst case here is a slightly stale furigana until the next page load.
+// meaning. `user_words` mutates constantly (every save, edit and review), so its cache
+// (vocabularyCache.ts) is a different animal: WRITE-THROUGH from every service that
+// writes it, plus a TTL. Worst case here is a slightly stale furigana until the next page load.
 //
 // Keyed by (input, source, target) — the SEARCH term, matching how repository.ts
 // queries `words` — and holds the full sense list in the order the DB returned it.

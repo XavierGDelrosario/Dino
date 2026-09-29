@@ -17,6 +17,7 @@ import {
   type ReviewQueueItem,
 } from "../services/review";
 import { errorMessage as message } from "../lib/errorMessage";
+import { useCardGap } from "./useCardGap";
 
 export type ReviewStatus = "loading" | "reviewing" | "saving" | "empty" | "done" | "error";
 
@@ -56,6 +57,7 @@ export function useReview(
   const [queue, setQueue] = useState<ReviewQueueItem[]>([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const { advancing, after: afterGap, cancel: cancelGap } = useCardGap();
   const [status, setStatus] = useState<ReviewStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [reviewedCount, setReviewedCount] = useState(0);
@@ -78,6 +80,7 @@ export function useReview(
   const runSession = useCallback(
     (ids: string[] | undefined) => {
       session.current += 1;
+      cancelGap();
       setStatus("loading");
       setError(null);
       setFailed([]);
@@ -100,7 +103,7 @@ export function useReview(
           setStatus("error");
         });
     },
-    [userId, listId, limit]
+    [userId, listId, limit, cancelGap]
   );
 
   // "New quiz" / initial load / error-retry: re-rank from scratch (the next
@@ -154,18 +157,20 @@ export function useReview(
   const grade = useCallback(
     (g: ReviewGrade) => {
       const card = queue[index];
-      if (!card || status !== "reviewing") return;
+      if (!card || status !== "reviewing" || advancing) return;
       void write(card, g);
       setReviewedCount((n) => n + 1);
       const next = index + 1;
       if (next >= queue.length) {
         setStatus("saving");
       } else {
-        setIndex(next);
-        setFlipped(false);
+        afterGap(() => {
+          setIndex(next);
+          setFlipped(false);
+        });
       }
     },
-    [queue, index, status, write]
+    [queue, index, status, advancing, afterGap, write]
   );
 
   // The last grade waits here until every write has landed, then shows the recap.
@@ -189,6 +194,10 @@ export function useReview(
     flipped,
     flip,
     grade,
+    /** The pause between cards: hide the graded card. */
+    advancing,
+    /** No grading right now — between cards, or saving the finished session. */
+    locked: advancing || status === "saving",
     /** True only while the finished session waits for its last writes. */
     submitting: status === "saving",
     error,

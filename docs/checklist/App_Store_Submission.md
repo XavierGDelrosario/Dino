@@ -23,7 +23,7 @@ Character limits are noted where Apple enforces them; the values below are insid
 | Support URL | `https://<domain>/support` |
 | Privacy Policy URL | `https://<domain>/privacy` |
 | Marketing URL | *(leave blank)* |
-| Copyright | `2026 <your legal name or company>` |
+| Copyright | `2026 <your legal name>` (Individual enrollment — no company yet) |
 
 `<domain>` is `dino-86y.pages.dev` today; swap once the custom domain lands
 (`docs/TODO.md`). Both pages exist and are footer-linked.
@@ -136,6 +136,15 @@ declares mild profanity.
 
 ## 6. Before you submit
 
+- [ ] Join the Apple Developer Program **as an Individual** ($99/yr). The current
+      signing identity is a free-team "Apple Development" cert, which cannot distribute.
+      Then point `DEVELOPMENT_TEAM` at the paid team.
+- [ ] Build with **Xcode 26 / iOS 26 SDK** — required for every upload since
+      2026-04-28; Xcode 16.2 builds are refused at upload (see `docs/TODO.md`).
+- [ ] Privacy Policy names the operator (legal name + contact) and the Terms carry a
+      governing-law line — self-fixes, not counsel (`docs/TODO.md` Legal).
+- [ ] Answer **EU trader status**: non-trader while free and pre-revenue, or leave EU
+      storefronts off for v1.
 - [ ] Enable **Sign in with Apple** in Supabase (Services ID + .p8-signed secret,
       `config.toml [auth.external.apple]`). Mandatory because Google sign-in is
       offered — `linkApple`/`signInWithApple` are already implemented.

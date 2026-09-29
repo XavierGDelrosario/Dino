@@ -109,7 +109,7 @@ export function ListView({
   // as it did before this feature: chips, word table, no index and no way back to one.
   const [overviewSupported, setOverviewSupported] = useState(true);
   // `active` gates the word stream: while the overview is up, nothing loads rows.
-  const L = useLists(userId, { active: !browsing });
+  const L = useLists(userId);
   const { t } = useI18n();
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 

@@ -7,11 +7,16 @@ import { Capacitor, type PluginListenerHandle } from "@capacitor/core";
 import { SpeechRecognition } from "@capacitor-community/speech-recognition";
 import type { LangCode } from "../../language";
 import type { SpeechRecognizer, SpeechStreamHandle, SpeechStreamOptions } from "../types";
+import { ENDS_ON_COMMA, NON_CONTENT, lastSentenceEnd } from "../dictation";
 
 /** How long a gap in the partial stream counts as "the speaker finished": long enough
  *  to survive a mid-sentence pause, short enough that a line lands while still worth
  *  reading. */
 const SILENCE_MS = 1400;
+/** How much LONGER than SILENCE_MS a line held open at a pause (it ended on a comma, or
+ *  trails a finished sentence) waits for the rest before it is committed anyway — so a
+ *  speaker who simply stops never loses their last words (~4s of silence in all). */
+const HOLD_EXTRA_MS = 2600;
 /** iOS ends the task itself after roughly a minute and raises no event to hang a
  *  restart on, so the STATE is polled — cheap, and it never disturbs a live session. */
 const HEALTH_MS = 5_000;
@@ -30,9 +35,6 @@ const RESTART_DELAY_MS = 400;
  * adds it, applied on install by patch-package.
  */
 const ADDS_PUNCTUATION = true;
-
-/** Punctuation and whitespace — what iOS inserts and revises around words. */
-const NON_CONTENT = /[\p{P}\s]/u;
 
 /** Characters that are neither punctuation nor whitespace. */
 function contentLength(text: string): number {
@@ -137,22 +139,41 @@ export const nativeRecognizer: SpeechRecognizer = {
 
     let stopped = false;
     let forming = ""; // the utterance being said right now (not yet a line)
-    let heard = ""; // the engine's FULL hypothesis for the current session
-    let committed = ""; // the part of `heard` already promoted to lines
+    let committedContent = 0; // content chars of `heard` already promoted to lines
     const handles: PluginListenerHandle[] = [];
 
-    // Promote whatever is on the hypothesis into a committed line. Called at the
-    // silence boundary and again on stop(), so the sentence in flight is never lost.
-    const commit = () => {
-      const text = forming.trim();
-      forming = "";
-      onPartial("");
-      if (!text) return;
-      onFinal(text);
-      // iOS keeps ONE hypothesis running across a pause, so the next partial arrives
-      // with all of this still prefixed. Without the mark, every committed sentence
-      // would be re-emitted inside the next.
-      committed = heard;
+    // Promote the first `cut` characters of the utterance (default: all of it) into a
+    // committed line; the rest stays forming. Called whole on stop()/restart/the hold
+    // fallback, so the sentence in flight is never lost.
+    const commit = (cut = forming.length) => {
+      const text = forming.slice(0, cut).trim();
+      forming = forming.slice(cut).trim();
+      if (text) {
+        onFinal(text);
+        // iOS keeps ONE hypothesis running across a pause, so the next partial arrives
+        // with all of this still prefixed. Without the count, every committed sentence
+        // would be re-emitted inside the next.
+        committedContent += contentLength(text);
+      }
+      onPartial(forming); // what's still being said ("" when nothing is)
+    };
+
+    // A PAUSE ends a line only where a SENTENCE ends. With iOS punctuating, a line runs
+    // from the previous terminator (。！？…) to the last one — never to a comma, which
+    // pauses a sentence without ending it (「明日は、」 is half a sentence however long
+    // the breath). What follows the last terminator is the next sentence, still being
+    // said, so it stays open. Unpunctuated speech (iOS < 16, or iOS withholding the 。
+    // until the next words arrive) keeps the pause as the boundary, as before.
+    const boundary = () => {
+      const cut = lastSentenceEnd(forming);
+      if (cut > 0) {
+        commit(cut);
+        if (forming) armHold();
+      } else if (ENDS_ON_COMMA.test(forming)) {
+        armHold();
+      } else {
+        commit();
+      }
     };
 
     const run = async () => {
@@ -182,21 +203,33 @@ export const nativeRecognizer: SpeechRecognizer = {
     // restarting is reserved for a session that is genuinely dead (see `restart`).
     let cycling = false;
     let silence: ReturnType<typeof setTimeout> | null = null;
+    let hold: ReturnType<typeof setTimeout> | null = null;
     let health: ReturnType<typeof setInterval> | null = null;
 
-    const armSilence = () => {
+    const clearTimers = () => {
       if (silence) clearTimeout(silence);
-      silence = setTimeout(commit, SILENCE_MS);
+      if (hold) clearTimeout(hold);
+      silence = hold = null;
+    };
+
+    const armSilence = () => {
+      clearTimers();
+      silence = setTimeout(boundary, SILENCE_MS);
+    };
+
+    /** The held line's deadline: nothing more said → commit it as it stands. */
+    const armHold = () => {
+      if (hold) clearTimeout(hold);
+      hold = setTimeout(() => commit(), HOLD_EXTRA_MS);
     };
 
     /** Bring a DEAD session back. Never called for an ordinary pause. */
     const restart = async () => {
       if (stopped || cycling) return;
       cycling = true;
-      if (silence) clearTimeout(silence);
+      clearTimers();
       commit(); // don't lose the line in flight
-      heard = "";
-      committed = ""; // a new session starts a new hypothesis
+      committedContent = 0; // a new session starts a new hypothesis
       try {
         // Only stop something actually listening, and let the audio session tear down
         // before starting again — back-to-back is what crashed the app.
@@ -215,24 +248,22 @@ export const nativeRecognizer: SpeechRecognizer = {
       await SpeechRecognition.addListener("partialResults", ({ matches }) => {
         // Ignore what a DYING session emits mid-restart: iOS flushes one last
         // hypothesis — the whole session — as the task closes, and `restart` has by
-        // then cleared `committed`, so the flush reads as brand-new speech and the last
+        // then zeroed `committedContent`, so the flush reads as brand-new speech and the last
         // minute gets appended a second time.
         if (cycling || stopped) return;
         const full = matches?.[0] ?? "";
         if (!full) return;
-        heard = full;
         // Strip what is already on screen. Cut by LENGTH, not by a literal prefix
         // match: iOS REVISES earlier words as more audio arrives (記者 → 汽車), so
-        // `committed` regularly stops being a prefix of the hypothesis containing it,
+        // the committed text regularly stops being a prefix of the hypothesis containing it,
         // and falling back to the whole hypothesis re-emits every committed line. A
         // revision rewrites words without restarting the utterance, so the boundary
         // holds; a revision that changes the committed part's LENGTH shifts the cut by
         // a few characters, which beats repeating a paragraph. The length counted is
         // CONTENT only, so punctuation iOS adds or moves never shifts it (see
         // uncommittedTail).
-        const done = contentLength(committed);
-        if (contentLength(full) < done) committed = ""; // a new hypothesis, not a continuation
-        const rest = uncommittedTail(full, committed ? done : 0).trim();
+        if (contentLength(full) < committedContent) committedContent = 0; // a new hypothesis, not a continuation
+        const rest = uncommittedTail(full, committedContent).trim();
         if (!rest) return;
         forming = rest;
         onPartial(rest);
@@ -265,7 +296,7 @@ export const nativeRecognizer: SpeechRecognizer = {
     return {
       stop: () => {
         stopped = true;
-        if (silence) clearTimeout(silence);
+        clearTimers();
         if (health) clearInterval(health);
         commit(); // keep the half-said line rather than dropping it
         void SpeechRecognition.stop().catch(() => {});

@@ -45,6 +45,14 @@ const CLOSE_BRACKETS = new Set(["」", "』", "）", "〉", "》", "】", ")"]);
 
 const isDigit = (c: string | undefined) => c !== undefined && c >= "0" && c <= "9";
 
+/** Does a sentence span (as `splitSentences` cuts them) close on a terminator — as
+ *  opposed to running out, or ending on a comma? Closing brackets after it are allowed. */
+export function endsSentence(span: string): boolean {
+  let i = span.length - 1;
+  while (i >= 0 && CLOSERS.has(span[i])) i--;
+  return i >= 0 && (TERMINATORS.has(span[i]) || span[i] === ".");
+}
+
 /**
  * Split `text` into sentences, keeping each one's offsets in the source.
  *

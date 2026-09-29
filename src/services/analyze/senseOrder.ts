@@ -38,7 +38,7 @@ const sameReading = (a: string, b: string): boolean =>
  * relative order within each group. Returns the input array unchanged (same
  * reference) whenever there is nothing useful to do — see the header.
  */
-export function orderSensesByContextReading<T extends { inputReading: string | null }>(
+export function orderSensesByContextReading<T extends { inputReading: string | null; input?: string }>(
   senses: T[],
   contextReading: string | null | undefined,
 ): T[] {
@@ -49,7 +49,12 @@ export function orderSensesByContextReading<T extends { inputReading: string | n
   const match: T[] = [];
   const rest: T[] = [];
   for (const s of senses) {
-    (s.inputReading && sameReading(s.inputReading, reading) ? match : rest).push(s);
+    // A `uk` entry headwords as KANA with the kanji in inputReading (ため / 為), so its
+    // reading is the headword itself. A kanji headword never equals a kana reading, so
+    // checking `input` too can only ever match that uk case.
+    const reads =
+      (!!s.inputReading && sameReading(s.inputReading, reading)) || (!!s.input && sameReading(s.input, reading));
+    (reads ? match : rest).push(s);
   }
   // No discrimination either way → leave the dictionary's ranking alone.
   if (match.length === 0 || rest.length === 0) return senses;

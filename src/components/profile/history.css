@@ -118,8 +118,17 @@
   gap: 0.5rem;
 }
 
+/* Plot + (confidence only) the line toggles in a column beside it. */
+.hist-plot__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
 .hist-plot__frame {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .hist-plot__svg {
@@ -208,21 +217,71 @@
   background: none;
 }
 
-.hist-plot__legend {
+/* Confidence: the plot can be dragged — a grab cursor says so. Zoomed in, a one-finger
+   drag pans instead of scrolling the page (touch-action). */
+.hist-plot__hit--pan {
+  cursor: grab;
+}
+.hist-plot__hit--pan:active {
+  cursor: grabbing;
+}
+.hist-plot__svg--zoomed {
+  touch-action: none;
+}
+
+.hist-plot__zoom {
+  margin-left: auto;
+}
+.hist-plot__zoom .hist__segbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.hist-plot__toggles {
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.9rem;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 7.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.78rem;
-  color: var(--muted);
 }
 
-.hist-plot__legend li {
+.hist-plot__toggle {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.25rem 0.4rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+.hist-plot__toggle:hover {
+  background: var(--hover);
+}
+.hist-plot__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* Off: muted label, hollow key — the key keeps its hue so you can still find it. */
+.hist-plot__toggle.is-off {
+  color: var(--muted);
+}
+.hist-plot__toggle.is-off .hist-plot__key {
+  background: none;
+  height: 0;
+  border-top: 2px solid;
+  opacity: 0.5;
+}
+.hist-plot__toggle.is-off .hist-plot__key--dashed {
+  border-top-style: dashed;
 }
 
 /* ── Confidence by level ── */

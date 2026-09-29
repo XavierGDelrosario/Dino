@@ -181,8 +181,8 @@ export function TextQuizView({
           a sub-list or a newly-created one) and ←/→ meaning-cycle arrows when the
           word has more than one sense. Keyed on the sense so cycling the meaning
           resets the button to add the newly-shown one. */}
-      <div {...(q.flipped || q.submitting ? {} : swipe.props)}>
-      <div className="quizcard">
+      <div {...(q.flipped || q.locked ? {} : swipe.props)}>
+      <div className={`quizcard${q.advancing ? " flashcard--gap" : ""}`}>
         <FlashcardCard
           word={card}
           flipped={q.flipped}
@@ -280,7 +280,7 @@ export function TextQuizView({
 
       <ErrorText message={q.error} />
 
-      <GradeBar flipped={q.flipped} submitting={q.submitting} onReveal={q.flip} onGrade={q.grade} />
+      <GradeBar flipped={q.flipped} submitting={q.locked} onReveal={q.flip} onGrade={q.grade} />
 
       <div className="review__foot">{close}</div>
     </section>

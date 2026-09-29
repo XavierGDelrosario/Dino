@@ -153,8 +153,8 @@ export function FlashcardView({
 
       {/* Swipe props only while face-down (see the hook call above); revealed, the
           card is static and graded from the bar below. */}
-      <div {...(r.flipped || r.submitting ? {} : swipe.props)}>
-        <div className="swipecard__in" key={card.userWordId}>
+      <div {...(r.flipped || r.locked ? {} : swipe.props)}>
+        <div className={`swipecard__in${r.advancing ? " flashcard--gap" : ""}`} key={card.userWordId}>
           <FlashcardCard
             word={card}
             flipped={r.flipped}
@@ -173,7 +173,7 @@ export function FlashcardView({
 
       <ErrorText message={r.error} />
 
-      <GradeBar flipped={r.flipped} submitting={r.submitting} onReveal={r.flip} onGrade={r.grade} />
+      <GradeBar flipped={r.flipped} submitting={r.locked} onReveal={r.flip} onGrade={r.grade} />
     </section>
   );
 }

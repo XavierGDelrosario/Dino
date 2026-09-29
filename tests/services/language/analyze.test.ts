@@ -184,6 +184,18 @@ describe("analyze — a potential verb IPADIC splits (活かせる)", () => {
   );
 
   it(
+    "re-joins the CONDITIONAL too — 活かせれば splits as 活 + かせれ + ば",
+    async () => {
+      for (const src of ["経験を活かせれば良い", "スキルを活かせれば"]) {
+        const toks = await analyze(src, "JA");
+        expect(view(toks), src).toContainEqual(["活かせれ", "活かす", "動詞", "いかせれ"]);
+        expect(toks.some((t) => t.text === "活"), src).toBe(false);
+      }
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
     "leaves a REAL causative alone — 読ませる is still 読む plus grammar",
     async () => {
       for (const [src, verb, lemma] of [
@@ -195,6 +207,60 @@ describe("analyze — a potential verb IPADIC splits (活かせる)", () => {
         expect(toks.find((t) => t.pos === "動詞")?.text, src).toBe(verb);
         expect(toks.find((t) => t.pos === "動詞")?.lemma, src).toBe(lemma);
       }
+    },
+    KUROMOJI_TIMEOUT
+  );
+});
+
+// Quality reports #34–#40: names in context offered as vocabulary.
+describe("analyze — names the reader must not offer as words", () => {
+  it(
+    "a place + municipal suffix is a NAME (笛吹市, 大和村, 甲斐市); a prefecture stays a word",
+    async () => {
+      for (const [src, name] of [["笛吹市に行く", "笛吹"], ["大和村の人", "大和"], ["甲斐市で働く", "甲斐"]]) {
+        const t = (await analyze(src, "JA")).find((x) => x.text === name);
+        expect(t, src).toBeDefined();
+        expect(isContentPos(t!.pos), src).toBe(false);
+      }
+      for (const [src, word] of [["東京都に住む", "東京"], ["山梨県の山", "山梨"]]) {
+        const t = (await analyze(src, "JA")).find((x) => x.text === word);
+        expect(isContentPos(t!.pos), src).toBe(true);
+      }
+      // No suffix, no signal: 大和 alone is still the word.
+      const alone = (await analyze("大和は古い国の名前だ", "JA")).find((x) => x.text === "大和");
+      expect(isContentPos(alone!.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "flags the unknown lone kanji of a name IPADIC can't parse (倖田來未)",
+    async () => {
+      const toks = await analyze("倖田來未のライブ", "JA");
+      expect(toks.find((t) => t.text === "倖")?.unknownWord).toBe(true);
+      expect(toks.find((t) => t.text === "來")?.unknownWord).toBe(true);
+      expect(toks.find((t) => t.text === "田")?.unknownWord).toBeUndefined();
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "a merged number+counter carries the counter's own reading (九条 → じょう, 三本 → ほん)",
+    async () => {
+      const t = (await analyze("憲法第九条を読む", "JA")).find((x) => x.text.endsWith("条"));
+      expect(t).toMatchObject({ composite: true, lemma: "条", lemmaReading: "じょう" });
+      // …and a euphonic counter keeps its citation reading beside the whole-span one.
+      const hon = (await analyze("三本の木", "JA")).find((x) => x.composite);
+      expect(hon).toMatchObject({ reading: "さんぼん", lemmaReading: "ほん" });
+    },
+    KUROMOJI_TIMEOUT
+  );
+
+  it(
+    "marks a bare counter (人組 after a digit) so its miss is never bought from MT",
+    async () => {
+      const toks = await analyze("3人組が来た", "JA");
+      expect(toks.find((t) => t.text === "人組")?.counter).toBe(true);
     },
     KUROMOJI_TIMEOUT
   );

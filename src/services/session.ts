@@ -11,6 +11,7 @@ import { toServiceError } from "./errors";
 import { CURRENT_TERMS_VERSION } from "../lib/terms";
 import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
+import { resetVocabulary } from "./words/vocabularyCache";
 
 export interface UserProfile {
   userId: string;
@@ -188,6 +189,7 @@ export async function needsTermsAcceptance(userId: string): Promise<boolean> {
 /** Sign out into a FRESH anonymous guest (no login wall). Returns the new userId. */
 export async function signOut(): Promise<string> {
   await supabase.auth.signOut().catch(() => {});
+  resetVocabulary(); // don't hold the last account's vocabulary in memory
   return ensureSession();
 }
 
@@ -216,6 +218,7 @@ export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.functions.invoke("delete-account", { body: {} });
   if (error) throw toServiceError(error, "Could not delete your account");
   await supabase.auth.signOut().catch(() => {});
+  resetVocabulary();
 }
 
 /** Set a new password for the user currently in a recovery session (after they

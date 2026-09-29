@@ -17,6 +17,7 @@ import { recordReview, type ReviewGrade } from "../services/review";
 import { estimateLevel, setUserLevel, type CalibrationSample } from "../services/calibration";
 import { getDifficulty } from "../services/difficulty";
 import { errorMessage as message } from "../lib/errorMessage";
+import { useCardGap } from "./useCardGap";
 import type { Word } from "../services/words/repository";
 
 export type TextQuizStatus = "reviewing" | "saving" | "empty" | "done" | "error";
@@ -55,6 +56,7 @@ export function useTextQuiz(
   // Which sense of the current word is shown (0 = primary). Reset per card.
   const [meaningIndex, setMeaningIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const { advancing, after: afterGap, cancel: cancelGap } = useCardGap();
   const [status, setStatus] = useState<TextQuizStatus>(
     cards.length ? "reviewing" : "empty",
   );
@@ -88,6 +90,7 @@ export function useTextQuiz(
   // The word set is a SNAPSHOT taken when the session opens; restart re-walks it.
   const restart = useCallback(() => {
     session.current += 1;
+    cancelGap();
     calibrated.current = false;
     setFailed([]);
     setIndex(0);
@@ -99,7 +102,7 @@ export function useTextQuiz(
     setSavedIds(new Set());
     samples.current = [];
     setStatus(cards.length ? "reviewing" : "empty");
-  }, [cards.length]);
+  }, [cards.length, cancelGap]);
 
   // Re-arm if the caller opens the quiz with a different set.
   useEffect(() => {
@@ -188,7 +191,7 @@ export function useTextQuiz(
   const grade = useCallback(
     (g: ReviewGrade) => {
       const word = sense;
-      if (!word || status !== "reviewing") return;
+      if (!word || status !== "reviewing" || advancing) return;
       void write(index, word, g);
       if (calibrate) {
         const difficulty = getDifficulty(word).level;
@@ -199,12 +202,14 @@ export function useTextQuiz(
       if (next >= cards.length) {
         setStatus("saving");
       } else {
-        setIndex(next);
-        setMeaningIndex(0);
-        setFlipped(false);
+        afterGap(() => {
+          setIndex(next);
+          setMeaningIndex(0);
+          setFlipped(false);
+        });
       }
     },
-    [sense, status, write, calibrate, index, cards.length],
+    [sense, status, advancing, afterGap, write, calibrate, index, cards.length],
   );
 
   // The last grade waits here until every write has landed, then shows the recap —
@@ -250,6 +255,10 @@ export function useTextQuiz(
     flipped,
     flip,
     grade,
+    /** The pause between cards: hide the graded card. */
+    advancing,
+    /** No grading right now — between cards, or saving the finished session. */
+    locked: advancing || status === "saving",
     /** True only while the finished session waits for its last writes. */
     submitting: status === "saving",
     error,

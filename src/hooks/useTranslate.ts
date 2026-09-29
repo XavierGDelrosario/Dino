@@ -749,11 +749,14 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
       const seen = new Set<string>();
       for (const tok of para.tokens) {
         if (!isContentPos(tok.pos) || seen.has(wordKey(tok))) continue;
-        seen.add(tok.text);
+        seen.add(wordKey(tok)); // the SAME key as the check — a conjugated word twice is one word
         // Lead with the sense the SENTENCE used — kuromoji read this surface in
         // context, so a homograph shows the meaning actually on the page. No-op
         // unless the reading genuinely separates the senses.
-        const senses = orderSensesByContextReading(para.meanings.get(wordKey(tok)) ?? [], tok.reading);
+        const senses = orderSensesByContextReading(
+          para.meanings.get(wordKey(tok)) ?? [],
+          tok.lemmaReading ?? tok.reading, // a counter's own reading, not the whole 九条
+        );
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);
