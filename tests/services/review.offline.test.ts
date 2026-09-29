@@ -14,15 +14,8 @@ import { recordReview, sendReview } from "@/services/review";
 import { __setOfflineStore, __resetOfflineStore, type OfflineStore } from "@/services/offline/store";
 import { pending } from "@/services/offline/queue";
 import { setAnchor } from "@/services/offline/clock";
+import { memStore } from "@test/offlineStore";
 
-function memStore(): OfflineStore {
-  const m = new Map<string, unknown>();
-  return {
-    get: async <T,>(k: string) => (m.has(k) ? (m.get(k) as T) : null),
-    set: async <T,>(k: string, v: T) => void m.set(k, v),
-    del: async (k: string) => void m.delete(k),
-  };
-}
 
 let stub: SupabaseStub;
 let store: OfflineStore;

@@ -7,11 +7,10 @@
 //
 // ONLY for state that CANNOT BE WRONG if the world changed while you were away:
 // text the user typed, a sort order, which tab is open. Do NOT use it for a
-// client mirror of server data (`useTranslate`'s saved/confidence maps, the
-// words/lists arrays) — unmounting is what currently guarantees those re-read
-// fresh, and a stale mirror shows a word as saved after it was deleted
-// elsewhere. That's a cache with no invalidation path; we already have one of
-// those in `words` (see projection_version) and don't want a second.
+// client mirror of server data (`useTranslate`'s saved/confidence maps) — a stale
+// mirror shows a word as saved after it was deleted elsewhere. That's a cache with no
+// invalidation path. The Lists words/lists arrays DO survive a tab switch now, but
+// through services/words/vocabularyCache, which every write updates — not here.
 //
 // Values are held as-is (no serialization), so Map/Set/undefined all survive.
 // Nothing here outlives a page reload — that's deliberate, not a gap to fill.

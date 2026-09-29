@@ -475,8 +475,10 @@ const ROMANIZED_NAME = /^\p{Lu}\p{Ll}+$/u;
  *
  * Applied on the SINGLE-word path only. The batch path feeds one list to both the
  * upsert and the response mapping, so skipping a write there would also drop the word
- * from the reply — and the reader that drives it already demotes 人名/組織 through
- * kuromoji, so names barely reach it.
+ * from the reply. The reader keeps names off the batch's MT instead: a name, grammar
+ * or counter token is sent dictionary-only (lookup.ts, isMtWorthy). Before that rule
+ * covered Japanese, 33 romanized-name rows were bought through the batch (加奈子 →
+ * "Kanako") despite the 人名/組織 demotion, which only greys a token, not its lookup.
  */
 export function isRomanizedName(
   translation: string,

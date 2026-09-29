@@ -43,6 +43,18 @@ describe("summarizeReader", () => {
     expect(conf.buckets[0]).toMatchObject({ key: "new", value: 1 });
   });
 
+  it("counts a conjugated word ONCE when it appears twice (the key is the lemma, not the surface)", () => {
+    const went = (): AnalyzedToken => ({ ...tok("行っ", "動詞"), lemma: "行く" });
+    const { data } = summarizeReader({
+      tokens: [went(), tok("た", "助動詞"), went(), tok("た", "助動詞")],
+      meaningsByWord: new Map([["行く", [makeWord({ wordId: "iku", input: "行く" })]]]),
+      saved: new Set(),
+      confidence: new Map(),
+    });
+    const pie = Object.fromEntries(data.pie!.buckets.map((x) => [x.key, x.value]));
+    expect(pie).toEqual({ known: 0, new: 1 });
+  });
+
   it("bins confidence 0..5 for known words, taking the max over saved senses", () => {
     // Keys are wordKey(token) — lowercased — so the fixture uses that form.
     const tokens = [tok("A"), tok("B"), tok("C")];

@@ -14,16 +14,8 @@ import {
   type PendingGrade,
 } from "@/services/offline/queue";
 import type { OfflineStore } from "@/services/offline/store";
+import { memStore } from "@test/offlineStore";
 
-/** The in-memory store the pure queue is written against. */
-function memStore(): OfflineStore {
-  const m = new Map<string, unknown>();
-  return {
-    get: async <T,>(k: string) => (m.has(k) ? (m.get(k) as T) : null),
-    set: async <T,>(k: string, v: T) => void m.set(k, v),
-    del: async (k: string) => void m.delete(k),
-  };
-}
 
 let store: OfflineStore;
 beforeEach(() => { store = memStore(); });

@@ -6,7 +6,7 @@
 // for a space, which is exactly the change that silently collapses an hour of
 // speech back into one sentence and stops any translation ever appearing.
 import { describe, it, expect } from "vitest";
-import { commitUtterance, withPartial } from "@/services/speech/dictation";
+import { commitUtterance, lastSentenceEnd, withPartial } from "@/services/speech/dictation";
 import { splitSentences } from "@/services/language/sentences";
 
 describe("commitUtterance", () => {
@@ -103,5 +103,39 @@ describe("withPartial", () => {
   it("leaves the box alone when the partial is empty", () => {
     const box = commitUtterance("", "猫");
     expect(withPartial(box, "")).toBe(box);
+  });
+});
+
+// Where a pause may cut a punctuated utterance into a line: from the previous sentence
+// end to the LAST one. Commas pause a sentence; they never end it.
+describe("lastSentenceEnd", () => {
+  it("cuts after the last terminator, leaving the sentence still being said", () => {
+    const t = "今日は雨です。明日は";
+    expect(t.slice(0, lastSentenceEnd(t))).toBe("今日は雨です。");
+  });
+
+  it("takes every finished sentence, not just the first", () => {
+    const t = "雨です。寒いですか？明日は";
+    expect(t.slice(0, lastSentenceEnd(t))).toBe("雨です。寒いですか？");
+  });
+
+  it("never cuts at a comma", () => {
+    expect(lastSentenceEnd("明日は、")).toBe(0);
+    expect(lastSentenceEnd("雨です。明日は、晴れ、")).toBe("雨です。".length);
+    expect(lastSentenceEnd("Well, I think, maybe")).toBe(0);
+  });
+
+  it("keeps a closing bracket with its sentence and ignores a 。 inside a quote", () => {
+    const t = "彼は「行くよ。」と言った。それで";
+    expect(t.slice(0, lastSentenceEnd(t))).toBe("彼は「行くよ。」と言った。");
+  });
+
+  it("ignores the previous line's late 。 at the head of the utterance", () => {
+    expect(lastSentenceEnd("。明日は晴れ")).toBe(0);
+    expect(lastSentenceEnd("。明日は晴れ。")).toBe("。明日は晴れ。".length);
+  });
+
+  it("does not treat a decimal point as a sentence end", () => {
+    expect(lastSentenceEnd("It costs 3.5 dollars")).toBe(0);
   });
 });

@@ -8,7 +8,21 @@
 // value is hover-only. Confidence draws one line per level (the ordinal easy→hard ramp
 // the Difficulty bars already use) plus the overall average in the text ink; buckets
 // with no snapshot are bridged, because an idle day writes nothing.
-import { useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
+//
+// Confidence only: each line has a toggle in a column BESIDE the plot (the legend,
+// made clickable), and the plot zooms and pans (pinch / Ctrl-⌘-scroll / the ± buttons /
+// + − 0 keys to zoom, drag to move). The level lines sit a fraction of a point apart on
+// a 0–5 axis, so zooming Y is what actually separates them. The window math lives in
+// plotView.ts (pure); this file only turns pointer events into calls to it.
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { useI18n, type MessageKey } from "../../i18n";
 import { dayKey, parseDayKey } from "../../services/words/filters";
 import {
@@ -19,6 +33,7 @@ import {
   type Point,
   type ProfileHistory,
 } from "../../services/history";
+import { clampView, fullView, isFullView, niceTicks, panBy, zoomAt, type Bounds, type View } from "./plotView";
 import "./history.css";
 
 type PlotMetric = "added" | "total" | "reviewed" | "confidence";
@@ -55,6 +70,11 @@ const H_CONFIDENCE = 380;
 const M = { top: 12, right: 12, bottom: 26, left: 36 };
 const PW = W - M.left - M.right;
 
+/** One ± press / one + − key. */
+const ZOOM_STEP = 0.7;
+/** Pointer travel (px) before a press becomes a drag rather than a tap-to-inspect. */
+const DRAG_SLOP = 4;
+
 /** A "nice" axis ceiling ≥ v (1, 2, 5 × 10^k), so gridlines land on round numbers. */
 function niceMax(v: number): number {
   if (v <= 0) return 1;
@@ -68,6 +88,10 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const [metric, setMetric] = useState<PlotMetric>("added");
   const [range, setRange] = useState<HistoryRange>("1m");
   const [hover, setHover] = useState<number | null>(null);
+  /** Confidence lines switched off in the side column (by series id — stable per level). */
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  /** The zoom window; null = everything. Reset whenever what's plotted changes. */
+  const [view, setView] = useState<View | null>(null);
   const today = useMemo(() => new Date(), []);
   const unranked = t("history.unranked");
 
@@ -106,10 +130,50 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const PH = H - M.top - M.bottom;
   const hasData = series.some((s) => s.points.some((p) => p.value != null && (isConf || p.value > 0)));
   const yMax = isConf ? 5 : niceMax(Math.max(0, ...series.flatMap((s) => s.points.map((p) => p.value ?? 0))));
-  const ticks = isConf ? [0, 1, 2, 3, 4, 5] : [0, yMax / 2, yMax];
+  const shown = isConf ? series.filter((s) => !hidden.has(s.id)) : series;
 
-  const x = (i: number) => M.left + (n <= 1 ? PW / 2 : (i * PW) / (n - 1));
-  const y = (v: number) => M.top + PH - (v / yMax) * PH;
+  // Zoom is confidence-only; the activity plots always show the whole range.
+  const bounds: Bounds = { xMax: Math.max(0, n - 1), yMin: 0, yMax, minX: Math.min(2, Math.max(0, n - 1)), minY: 0.5 };
+  /** A stored window resolved against the current data (null = everything). */
+  const resolve = (w: View | null) => (w ? clampView(w, bounds) : fullView(bounds));
+  const v = isConf ? resolve(view) : fullView(bounds);
+  const zoomed = !isFullView(v, bounds);
+  const ticks = isConf ? niceTicks(v.y0, v.y1) : [0, yMax / 2, yMax];
+
+  const x = (i: number) => M.left + (v.x1 - v.x0 <= 0 ? PW / 2 : ((i - v.x0) / (v.x1 - v.x0)) * PW);
+  const y = (val: number) => M.top + PH - ((val - v.y0) / (v.y1 - v.y0)) * PH;
+  // First/last bucket inside the window (all of them when not zoomed).
+  const lo = Math.max(0, Math.ceil(v.x0 - 1e-9));
+  const hi = Math.min(n - 1, Math.floor(v.x1 + 1e-9));
+  const clipId = useId();
+
+  // Anything that changes what is plotted starts from the whole picture again.
+  const resetView = () => {
+    setView(null);
+    setHover(null);
+  };
+  const zoomBy = (factor: number, fx = 0.5, fy = 0.5) => {
+    setHover(null);
+    setView((cur) => zoomAt(resolve(cur), bounds, factor, fx, fy));
+  };
+
+  // Drag and pinch arrive at pointer rate (often 120 Hz), and each view change re-renders
+  // every series. Queue them and apply once per animation frame instead.
+  const queued = useRef<Array<(w: View) => View>>([]);
+  const frame = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+  }, []);
+  const moveView = (step: (w: View) => View) => {
+    queued.current.push(step);
+    if (frame.current !== null) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      const steps = queued.current;
+      queued.current = [];
+      setView((cur) => steps.reduce((w, f) => f(w), resolve(cur)));
+    });
+  };
 
   const fmtKey = (key: string, long = false) => {
     const d = parseDayKey(key);
@@ -117,23 +181,123 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
     if (g === "month") return d.toLocaleDateString(locale, { year: long ? "numeric" : undefined, month: "short" });
     return d.toLocaleDateString(locale, { month: "short", day: "numeric", year: long ? "numeric" : undefined });
   };
-  const fmtVal = (v: number | null) => (v == null ? "—" : isConf ? v.toFixed(1) : String(Math.round(v)));
+  const fmtVal = (val: number | null) => (val == null ? "—" : isConf ? val.toFixed(1) : String(Math.round(val)));
+  // niceTicks already rounds to the step, so the plain number prints right (1, 0.5, 0.25).
+  const fmtTick = (val: number) => String(isConf ? val : Math.round(val));
 
-  const pickIndex = (e: PointerEvent<SVGRectElement>) => {
-    const box = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - box.left) / box.width) * PW; // → plot units
-    setHover(n <= 1 ? 0 : Math.max(0, Math.min(n - 1, Math.round((px / PW) * (n - 1)))));
+  // ── Pointer: hover to inspect; with confidence, drag to pan and pinch to zoom ──
+  const hit = useRef<SVGRectElement>(null);
+  /** Active pointers (touch fingers / a held mouse button), by id → last position. */
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  /** The press in progress: where it started and whether it has become a drag. */
+  const press = useRef<{ x: number; y: number; dragging: boolean } | null>(null);
+
+  const pickIndex = (clientX: number) => {
+    const box = hit.current?.getBoundingClientRect();
+    if (!box || n === 0) return;
+    const frac = (clientX - box.left) / box.width;
+    const i = Math.round(v.x0 + frac * (v.x1 - v.x0));
+    setHover(Math.max(lo, Math.min(hi, i)));
   };
+
+  const onPointerDown = (e: PointerEvent<SVGRectElement>) => {
+    pickIndex(e.clientX);
+    if (!isConf) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 1) press.current = { x: e.clientX, y: e.clientY, dragging: false };
+    else setHover(null); // a second finger: this is a pinch, not an inspection
+  };
+
+  const onPointerMove = (e: PointerEvent<SVGRectElement>) => {
+    const prev = pointers.current.get(e.pointerId);
+    if (!prev) {
+      pickIndex(e.clientX); // plain hover
+      return;
+    }
+    const box = e.currentTarget.getBoundingClientRect();
+    const cur = { x: e.clientX, y: e.clientY };
+
+    if (pointers.current.size >= 2) {
+      // Pinch: scale by the change in finger spread, about the midpoint.
+      const other = [...pointers.current.entries()].find(([id]) => id !== e.pointerId)?.[1];
+      pointers.current.set(e.pointerId, cur);
+      if (!other) return;
+      const before = Math.hypot(prev.x - other.x, prev.y - other.y);
+      const after = Math.hypot(cur.x - other.x, cur.y - other.y);
+      if (before < 1 || after < 1) return;
+      const fx = ((cur.x + other.x) / 2 - box.left) / box.width;
+      const fy = ((cur.y + other.y) / 2 - box.top) / box.height;
+      moveView((w) => zoomAt(w, bounds, before / after, fx, fy));
+      return;
+    }
+
+    pointers.current.set(e.pointerId, cur);
+    const p = press.current;
+    if (!p) return;
+    if (!p.dragging) {
+      if (Math.hypot(cur.x - p.x, cur.y - p.y) < DRAG_SLOP) {
+        pickIndex(e.clientX);
+        return;
+      }
+      p.dragging = true;
+      setHover(null);
+    }
+    moveView((w) =>
+      panBy(w, bounds, (cur.x - prev.x) / box.width, (cur.y - prev.y) / box.height),
+    );
+  };
+
+  const endPointer = (e: PointerEvent<SVGRectElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size === 0) press.current = null;
+  };
+
+  // Ctrl/⌘ + wheel zooms — which is also what a trackpad pinch sends. A plain wheel is
+  // left alone so the page still scrolls past the chart. Native listener: React's
+  // onWheel is passive, so it can't stop the browser zooming the whole page.
+  // Re-attached each render so it always sees the current window — cheap, and simpler
+  // than routing a stale closure through a ref.
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!isConf || !(e.ctrlKey || e.metaKey)) return;
+      const box = hit.current?.getBoundingClientRect();
+      if (!box) return;
+      e.preventDefault();
+      zoomBy(Math.exp(e.deltaY * 0.01), (e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
+
   const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
+    if (isConf && (e.key === "+" || e.key === "=" || e.key === "-" || e.key === "0")) {
+      e.preventDefault();
+      if (e.key === "0") resetView();
+      else zoomBy(e.key === "-" ? 1 / ZOOM_STEP : ZOOM_STEP);
+      return;
+    }
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
     setHover((h) => {
-      const cur = h ?? n - 1;
-      return Math.max(0, Math.min(n - 1, cur + (e.key === "ArrowLeft" ? -1 : 1)));
+      const cur = h ?? hi;
+      return Math.max(lo, Math.min(hi, cur + (e.key === "ArrowLeft" ? -1 : 1)));
     });
   };
 
-  const xLabels = n > 2 ? [0, Math.floor((n - 1) / 2), n - 1] : keys.map((_, i) => i);
+  const toggleLine = (id: string) => {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const xLabels = hi < lo ? [] : hi - lo > 1 ? [lo, Math.floor((lo + hi) / 2), hi] : lo === hi ? [lo] : [lo, hi];
   const todayKey = dayKey(today);
 
   return (
@@ -145,7 +309,7 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
           aria-label={t("history.metricAria")}
           onChange={(e) => {
             setMetric(e.target.value as PlotMetric);
-            setHover(null);
+            resetView();
           }}
         >
           {METRICS.map((m) => (
@@ -154,16 +318,35 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
             </option>
           ))}
         </select>
+        {isConf && hasData && (
+          <div className="hist__seg hist-plot__zoom" role="group" aria-label={t("history.zoomAria")}>
+            <button type="button" className="hist__segbtn" onClick={() => zoomBy(1 / ZOOM_STEP)} disabled={!zoomed} aria-label={t("history.zoomOut")} title={t("history.zoomOut")}>
+              −
+            </button>
+            <button type="button" className="hist__segbtn" onClick={() => zoomBy(ZOOM_STEP)} aria-label={t("history.zoomIn")} title={t("history.zoomIn")}>
+              +
+            </button>
+            <button type="button" className="hist__segbtn" onClick={resetView} disabled={!zoomed}>
+              {t("history.zoomReset")}
+            </button>
+          </div>
+        )}
       </div>
 
-      {isConf && <p className="hist__note">{t("history.confidenceNote")}</p>}
+      {isConf && (
+        <p className="hist__note">
+          {t("history.confidenceNote")} {hasData && t("history.zoomHint")}
+        </p>
+      )}
 
       {!hasData ? (
         <p className="hist__empty">{t(isConf ? "history.noConfidence" : "history.empty")}</p>
       ) : (
+        <div className="hist-plot__body">
         <div className="hist-plot__frame">
           <svg
-            className="hist-plot__svg"
+            ref={svgRef}
+            className={`hist-plot__svg${isConf && zoomed ? " hist-plot__svg--zoomed" : ""}`}
             viewBox={`0 0 ${W} ${H}`}
             role="img"
             aria-label={`${t(METRICS.find((m) => m.value === metric)!.label)} — ${t(
@@ -173,17 +356,25 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
             onKeyDown={onKey}
             onBlur={() => setHover(null)}
           >
+            {/* The plot area — lines and markers are clipped to it while zoomed (padded a
+                marker's radius so an edge point isn't cut in half at rest). */}
+            <defs>
+              <clipPath id={clipId}>
+                <rect x={M.left - 6} y={M.top - 6} width={PW + 12} height={PH + 12} />
+              </clipPath>
+            </defs>
+
             {/* Recessive grid + y labels. */}
-            {ticks.map((v) => (
-              <g key={v}>
-                <line x1={M.left} x2={W - M.right} y1={y(v)} y2={y(v)} className="hist-plot__grid" />
-                <text x={M.left - 6} y={y(v)} className="hist-plot__tick" textAnchor="end" dominantBaseline="middle">
-                  {isConf ? v : Math.round(v)}
+            {ticks.map((tv) => (
+              <g key={tv}>
+                <line x1={M.left} x2={W - M.right} y1={y(tv)} y2={y(tv)} className="hist-plot__grid" />
+                <text x={M.left - 6} y={y(tv)} className="hist-plot__tick" textAnchor="end" dominantBaseline="middle">
+                  {fmtTick(tv)}
                 </text>
               </g>
             ))}
             {xLabels.map((i) => (
-              <text key={keys[i]} x={x(i)} y={H - 8} className="hist-plot__tick" textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}>
+              <text key={keys[i]} x={x(i)} y={H - 8} className="hist-plot__tick" textAnchor={i === lo ? "start" : i === hi ? "end" : "middle"}>
                 {keys[i] <= todayKey ? fmtKey(keys[i]) : ""}
               </text>
             ))}
@@ -194,7 +385,8 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
             )}
 
             {/* Lines (gaps bridged) + markers. */}
-            {series.map((s) => {
+            <g clipPath={`url(#${clipId})`}>
+            {shown.map((s) => {
               const pts = s.points
                 .map((p, i) => (p.value == null ? null : `${x(i)},${y(p.value)}`))
                 .filter(Boolean)
@@ -225,21 +417,28 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
                 </g>
               );
             })}
+            </g>
 
             {/* Hit layer: the whole plot area, so the pointer aims at a date, not a line. */}
             <rect
+              ref={hit}
               x={M.left}
               y={M.top}
               width={PW}
               height={PH}
               fill="transparent"
-              onPointerMove={pickIndex}
-              onPointerDown={pickIndex}
-              onPointerLeave={() => setHover(null)}
+              className={isConf ? "hist-plot__hit--pan" : undefined}
+              onPointerMove={onPointerMove}
+              onPointerDown={onPointerDown}
+              onPointerUp={endPointer}
+              onPointerCancel={endPointer}
+              onPointerLeave={() => {
+                if (pointers.current.size === 0) setHover(null);
+              }}
             />
           </svg>
 
-          {hover != null && (
+          {hover != null && shown.length > 0 && (
             <div
               className="hist-plot__tip"
               style={{ left: `${(x(hover) / W) * 100}%` }}
@@ -247,7 +446,7 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
               role="status"
             >
               <div className="hist-plot__tipdate">{fmtKey(keys[hover], true)}</div>
-              {series
+              {shown
                 .slice()
                 .reverse()
                 .map((s) => (
@@ -259,6 +458,36 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
                 ))}
             </div>
           )}
+        </div>
+
+        {/* The line toggles, beside the plot: the legend, made clickable. Overall on top
+            (it's the one most people keep), then the levels hardest-first. */}
+        {isConf && series.length > 1 && (
+          <ul className="hist-plot__toggles" aria-label={t("history.linesAria")}>
+            {series
+              .slice()
+              .reverse()
+              .map((s) => {
+                const on = !hidden.has(s.id);
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      className={`hist-plot__toggle${on ? "" : " is-off"}`}
+                      aria-pressed={on}
+                      onClick={() => toggleLine(s.id)}
+                    >
+                      <span
+                        className={`hist-plot__key${s.dashed ? " hist-plot__key--dashed" : ""}`}
+                        style={{ background: s.dashed || !on ? undefined : s.color, borderColor: s.color }}
+                      />
+                      <span className="ellipsis">{s.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+          </ul>
+        )}
         </div>
       )}
 
@@ -272,30 +501,13 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
               aria-pressed={range === r.value}
               onClick={() => {
                 setRange(r.value);
-                setHover(null);
+                resetView();
               }}
             >
               {t(r.label)}
             </button>
           ))}
         </div>
-
-      {hasData && series.length > 1 && (
-        <ul className="hist-plot__legend">
-          {series
-            .slice()
-            .reverse()
-            .map((s) => (
-              <li key={s.id}>
-                <span
-                  className={`hist-plot__key${s.dashed ? " hist-plot__key--dashed" : ""}`}
-                  style={{ background: s.dashed ? undefined : s.color, borderColor: s.color }}
-                />
-                {s.label}
-              </li>
-            ))}
-        </ul>
-      )}
 
       {/* Every value, reachable without hovering. */}
       {hasData && (

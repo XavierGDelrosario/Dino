@@ -375,6 +375,18 @@ sync with the App Store Connect privacy labels — Apple compares them**), and `
 Remaining is console work — answers prepared in `docs/checklist/App_Store_Submission.md`;
 left there: signing + TestFlight, screenshots, the app record, Apple credentials.
 
+- **Build blocker:** uploads need **Xcode 26 / iOS 26 SDK** (since 2026-04-28). The dev
+  Mac (2014 MBP, OCLP) is on Sonoma + Xcode 16.2 → OCLP to Sequoia ≥15.6 for Xcode 26
+  (OCLP has no Tahoe), and/or archive in Xcode Cloud.
+- **Enroll as Individual** ($99/yr) — no company or D-U-N-S needed; your legal name is the
+  public seller. Migrate to Organization if/when incorporating. No fee waiver applies
+  (those are nonprofit/edu/gov only).
+- **Free, no IAP → Free Apps agreement only**: no Paid Apps agreement, tax or banking forms
+  until there is revenue.
+- **EU DSA trader status** is asked before EU distribution: free + pre-revenue makes
+  "non-trader" defensible; if unsure, leave EU storefronts off for v1 (not a target
+  market; adding them later is cheap).
+
 - **iPhone-only for v1** — `TARGETED_DEVICE_FAMILY = 1`, so no iPad screenshot set and no
   iPad layout in review. Don't widen it back before launch: adding iPad later is a normal
   update, removing a device family after release is not.
@@ -385,9 +397,23 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
   should keep listening while another app is foreground (needs the `audio` background mode
   and a review justification).
 
-### Legal — Privacy/ToS counsel review `[§10]`
-`/privacy` + `/terms` are drafted and footer-linked. Remaining: **counsel review before
-going truly public**; bump `CURRENT_TERMS_VERSION` when reviewed copy lands.
+### Legal — Privacy/ToS `[§10]`
+`/privacy` + `/terms` are drafted and footer-linked; the processor list matches the stack.
+**Counsel review is NOT a launch gate** while DINO is free, pre-revenue and founder-run
+(decided 2026-09-29) — self-fix the gaps below, pay for counsel at a trigger.
+- **Before launch (self, free):** name the operator in the Privacy Policy — legal name +
+  contact (**APPI applies regardless of size or revenue**; the address may be "on
+  request") · add a governing-law line (Japan) to the Terms · bump `CURRENT_TERMS_VERSION`
+  (`src/lib/terms.ts`) with the copy change.
+- **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
+  特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
+  the EU · ~1k active users.
+
+### Names as data, not an id range `[reader]`
+The reader drops JMnedict names by **entry id ≥ 5,000,000** (`lookup.ts` `isNamedEntitySense`)
+— reader only; Lists "add word", the edge replies and `words/senseOrder.ts` still return
+them. Ingest JMdict's name misc tags (`scripts/ingest-jmdict.ts` already reads `misc`) onto
+`words`, filter there, bump `CURRENT_PROJECTION_VERSION` in both runtimes.
 
 ### Source-language mismatch robustness `[translate UX]`
 A concrete source that mismatches the script (source=JA, Latin input) produces garbage.
@@ -421,7 +447,8 @@ A concrete source that mismatches the script (source=JA, Latin input) produces g
 
 ---
 
-**To publish (non-code):** Privacy/ToS counsel review + Production Rules console hardening.
+**To publish (non-code):** Privacy/ToS self-fixes (operator name + governing law) +
+Production Rules console hardening. Counsel review waits for a trigger (see Legal).
 Admin tooling · Quality ceilings · Features are post-launch.
 
 **🧪 Pre-publish QA gate:** re-run the multi-agent pre-publish review before any published

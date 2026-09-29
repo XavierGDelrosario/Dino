@@ -13,6 +13,8 @@ const state = {
   status: "active" as string,
   flipped: false,
   submitting: false,
+  advancing: false,
+  locked: false,
   position: 1,
   total: 3,
   reviewedCount: 0,
@@ -74,6 +76,8 @@ describe("FlashcardView — swipe to grade", () => {
     vi.useFakeTimers();
     state.flipped = false;
     state.submitting = false;
+    state.advancing = false;
+    state.locked = false;
     grade.mockClear();
     flipCard.mockClear();
   });
@@ -112,8 +116,8 @@ describe("FlashcardView — swipe to grade", () => {
     expect(container.querySelector(".swipecard")).toBeNull();
   });
 
-  it("does not grade again while a grade is already submitting", () => {
-    state.submitting = true;
+  it("does not grade again while locked — saving the session, or between cards", () => {
+    state.locked = true;
     const container = renderView();
     expect(container.querySelector(".swipecard")).toBeNull();
   });

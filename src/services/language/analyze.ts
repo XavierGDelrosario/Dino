@@ -34,12 +34,27 @@ export interface AnalyzedToken extends WordToken {
   pos: string | null;
   /** True for a number+counter token merged into one (三本 → さんぼん, lemma 本). The
    *  `reading` is whole-span group ruby and `lemma` points at the counter for lookup. */
-  composite?: boolean;  /** True when IPADIC tags the token a PROPER NOUN (名詞-固有名詞, any subcategory).
+  composite?: boolean;
+  /** On a `composite` token: the COUNTER's own citation reading (本 → ほん, 条 → じょう),
+   *  since `reading` is the euphonic whole (さんぼん). This is what matches a sense's
+   *  dictionary reading when ordering senses by context (analyze/senseOrder.ts). */
+  lemmaReading?: string | null;
+  /** True when IPADIC tags the token a PROPER NOUN (名詞-固有名詞, any subcategory).
    *  People and organizations are already demoted off content POS (see PERSON_NAME_POS);
    *  this carries the fact for the ones that keep it — places (大東) and IPADIC's
    *  catch-all — so the reader can drop a name the DICTIONARY doesn't know either
    *  (lookup.ts, isUnknownName). Absent on every other token. */
   properNoun?: boolean;
+  /** True when kuromoji had NO dictionary entry for the token (word_type UNKNOWN). A
+   *  lone unknown kanji is almost always a name fragment or a variant glyph — 倖田來未
+   *  lattices as 倖 田 來 未 with 倖 and 來 unknown (quality reports #34/#35) — so the
+   *  reader never pays MT for one and drops it when only MT knows it (lookup.ts). */
+  unknownWord?: boolean;
+  /** True for a bare counter IPADIC tags 名詞-接尾-助数詞 (人組 in 3人組). A counter is
+   *  not a headword on its own, so a dictionary miss must not be bought from MT
+   *  (report #36: 人組 → paid "Group"). Composite number+counter tokens carry
+   *  `composite` instead. */
+  counter?: boolean;
 }
 
 // kuromoji POS tags for INDEPENDENT content words (vs particles 助詞, auxiliaries
@@ -61,8 +76,8 @@ const CONTENT_POS = new Set([
   // So the dictionary is the arbiter of what is vocabulary, and the tagger's PROPN is
   // used for the one decision the dictionary cannot make for itself: whether to SPEND
   // MONEY translating a miss. A name still gets looked up, still misses, and still
-  // greys out — it just never reaches the paid MT fallback. See properNounSurfaces()
-  // below and the edge's skipMt handling.
+  // greys out — it just never reaches the paid MT fallback. See isMtWorthy() in
+  // lookup.ts and the edge's skipMt handling.
   // Everything absent is grammar, punctuation or noise and is excluded by omission:
   // DET · ADP · PRON · AUX · CCONJ · SCONJ · PART · PUNCT · SYM · X. That list is what
   // now replaces the surface-matched English function-word gamble with real tags —
@@ -200,6 +215,16 @@ const HAS_JAPANESE = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
 const PERSON_NAME_POS = "人名";
 const ORGANIZATION_POS = "組織";
 
+// …and a third, for PLACES — but only with a municipal suffix after them. 地域 keeps its
+// content POS on purpose (東京, アメリカ are vocabulary), yet 笛吹市 / 大和村 / 甲斐市
+// are names whose homograph is a real word — "flute player", "(ancient) Japan", "worth"
+// (quality reports #38–#40) — and the reader offered the word. The suffix is the one
+// context signal kuromoji gives: 市/町/村/区/郡 head a municipality. 都/道/府/県 are left
+// out deliberately — 東京都, 山梨県 name prefectures a learner does want. Known gap: the
+// same name with no suffix (大和 alone) still reads as the word.
+const PLACE_NAME_POS = "地名";
+const MUNICIPAL_SUFFIX = new Set(["市", "町", "村", "区", "郡"]);
+
 // …with ONE exemption inside 組織: public institutions. The demotion drops 1.8% of
 // content tokens and ~18% of those are civics vocabulary a news reader needs — 気象庁,
 // 衆議院, 警視庁, 最高裁 — which read as compounds (気象 + 庁) a learner can decode and
@@ -313,15 +338,34 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
       lemma,
       pos,
       ...(t.pos === "名詞" && t.pos_detail_1 === "固有名詞" ? { properNoun: true } : {}),
+      ...(t.word_type === "UNKNOWN" ? { unknownWord: true } : {}),
+      ...(isCounterToken(t) ? { counter: true } : {}),
     });
     kept.push(t);
   }
+  demoteMunicipalNames(out, kept);
   applyCounterReadings(out, kept);
   // Re-merge whole words IPADIC over-segmented (大規模 → 大＋規模) BEFORE lookup — a
   // curated compound pass, since kuromoji.js has no user dictionary.
   return mergeJapaneseCompounds(
     mergeMisparsedPotentials(mergeCounterTokens(out, kept), tokenizer),
   );
+}
+
+/** 固有名詞-地域 directly followed by a 接尾-地域 市/町/村/区/郡 → a place NAME (see
+ *  PLACE_NAME_POS). `kept` is parallel to `out`. */
+function demoteMunicipalNames(out: AnalyzedToken[], kept: IpadicFeatures[]): void {
+  for (let i = 0; i + 1 < kept.length; i++) {
+    const t = kept[i];
+    const next = kept[i + 1];
+    if (
+      t.pos_detail_1 === "固有名詞" && t.pos_detail_2 === "地域" &&
+      next.pos_detail_1 === "接尾" && next.pos_detail_2 === "地域" &&
+      MUNICIPAL_SUFFIX.has(next.surface_form) && out[i].end === out[i + 1].start
+    ) {
+      out[i].pos = PLACE_NAME_POS;
+    }
+  }
 }
 
 /**
@@ -357,21 +401,26 @@ function mergeMisparsedPotentials(
     if (a.pos === "動詞" && b.pos === "助動詞" && b.text === "せる" && a.lemma === `${a.text}る`) {
       base = `${a.text}す`; // A: 活か + せる → 活かす
     } else if (
-      a.pos === "名詞" && b.pos === "動詞" && b.lemma === b.text &&
-      b.text.length > 2 && b.text.endsWith("せる")
+      a.pos === "名詞" && b.pos === "動詞" && b.lemma !== null &&
+      b.lemma.length > 2 && b.lemma.endsWith("せる") &&
+      // Keyed on b's LEMMA, not its surface: the conditional 活かせれば comes out as
+      // 活 + かせれ (lemma かせる) + ば, and a surface test missed it.
+      b.text.startsWith(b.lemma.slice(0, -1))
     ) {
-      base = `${a.text}${b.text.slice(0, -2)}す`; // B: 活 + かせる → 活かす
+      base = `${a.text}${b.lemma.slice(0, -2)}す`; // B: 活 + かせる/かせれ → 活かす
     }
     const reading = base ? singleVerbReading(tokenizer, base) : undefined;
     if (base === null || reading === undefined) {
       out.push(a);
       continue;
     }
+    // Whatever b conjugated after its せ (る, れ, …) rides on the merged reading.
+    const tail = b.text.slice(b.text.lastIndexOf("せ") + 1);
     out.push({
       text: a.text + b.text,
       start: a.start,
       end: b.end,
-      reading: reading === null ? null : `${reading.slice(0, -1)}せる`,
+      reading: reading === null ? null : `${reading.slice(0, -1)}せ${tail}`,
       lemma: base,
       pos: "動詞",
     });
@@ -405,7 +454,7 @@ function mergeCounterTokens(out: AnalyzedToken[], kept: IpadicFeatures[]): Analy
   const numbersByCounter = new Map<number, number[]>(); // counter index → number-token indices
   for (let i = 0; i < kept.length; i++) {
     const c = kept[i];
-    if (!(c.pos === "名詞" && c.pos_detail_1 === "接尾" && c.pos_detail_2 === "助数詞")) continue;
+    if (!isCounterToken(c)) continue;
     const numIdx: number[] = [];
     for (let j = i - 1; j >= 0 && kept[j].pos === "名詞" && kept[j].pos_detail_1 === "数"; j--) {
       numIdx.unshift(j);
@@ -433,11 +482,22 @@ function mergeCounterTokens(out: AnalyzedToken[], kept: IpadicFeatures[]): Analy
       end: out[i].end,
       reading: span.map((k) => out[k].reading ?? "").join("") || null,
       lemma: kept[i].surface_form, // the counter — meaning lookup resolves to it
+      lemmaReading: citationReading(kept[i]),
       pos: out[i].pos,
       composite: true,
     });
   }
   return result;
+}
+
+/** IPADIC's counter (助数詞) tag: 本, 条, 人組 — a suffix after a number. */
+function isCounterToken(t: IpadicFeatures): boolean {
+  return t.pos === "名詞" && t.pos_detail_1 === "接尾" && t.pos_detail_2 === "助数詞";
+}
+
+/** kuromoji's own (citation) reading of a raw token, in hiragana, or null. */
+function citationReading(t: IpadicFeatures): string | null {
+  return t.reading && t.reading !== UNKNOWN ? katakanaToHiragana(t.reading) : null;
 }
 
 // Fix 助数詞 (counter) furigana: kuromoji gives a counter its CITATION reading (三本 →
@@ -450,7 +510,7 @@ function applyCounterReadings(out: AnalyzedToken[], kept: IpadicFeatures[]): voi
   if (!resolver) return;
   for (let i = 0; i < kept.length; i++) {
     const c = kept[i];
-    if (!(c.pos === "名詞" && c.pos_detail_1 === "接尾" && c.pos_detail_2 === "助数詞")) {
+    if (!isCounterToken(c)) {
       continue;
     }
     const numIdx: number[] = [];

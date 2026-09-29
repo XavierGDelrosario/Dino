@@ -33,6 +33,8 @@
 // recognizer, this owns the string.
 // =========================================================
 
+import { endsSentence, splitSentences } from "../language/sentences";
+
 /**
  * Separator between committed utterances.
  *
@@ -95,4 +97,31 @@ export function withPartial(base: string, partial: string): string {
   const moved = reattachLeadingMarks(base, partial.trim());
   if (!moved.text) return moved.base;
   return onBoundary(moved.base) + moved.text;
+}
+
+/** Punctuation and whitespace — everything that isn't what was actually SAID. */
+export const NON_CONTENT = /[\p{P}\s]/u;
+const HAS_CONTENT = /[^\p{P}\s]/u;
+
+/** The utterance stops on a comma — the speaker is mid-sentence, whatever the pause. */
+export const ENDS_ON_COMMA = /[、，,]\s*$/u;
+
+/**
+ * Where a punctuated utterance may be cut into a line: one past the LAST sentence
+ * terminator (。．.！？!?… plus its closers), so each line runs from the previous
+ * terminator to the last one. 0 when `text` has no sentence end yet.
+ *
+ * A bare mark at the very start doesn't count — that is the PREVIOUS line's 。 arriving
+ * late (see reattachLeadingMarks), not the end of anything said in this utterance.
+ * `splitSentences` decides the spans, so a 。 inside 「…」 or a decimal point never cuts.
+ * PURE.
+ */
+export function lastSentenceEnd(text: string): number {
+  const spans = splitSentences(text);
+  for (let i = spans.length - 1; i >= 0; i--) {
+    const s = spans[i];
+    // endsSentence has no comma in it: a comma pauses a sentence, never ends one.
+    if (endsSentence(s.text) && HAS_CONTENT.test(s.text)) return s.end;
+  }
+  return 0;
 }

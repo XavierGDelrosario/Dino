@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Hook spec for useReview — the flashcard session driver. Queue is a snapshot
-// loaded once; grade advances AT ONCE and records the review in the background; the
+// loaded once; grade advances after a CARD_GAP_MS beat (the graded card hidden, further
+// grades ignored) and records the review in the background, never waiting on it; the
 // last card waits ("saving") for every write, then ends the session. A failed write
 // keeps its grade for retryFailed. Services mocked.
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -64,7 +65,7 @@ describe("useReview", () => {
       grade: 4,
       current: { stability: null, confidenceRating: 0, lastReviewedDate: null },
     });
-    expect(result.current.position).toBe(2);
+    await waitFor(() => expect(result.current.position).toBe(2));
     expect(result.current.reviewedCount).toBe(1);
     expect(result.current.status).toBe("reviewing");
   });
@@ -85,7 +86,7 @@ describe("useReview", () => {
 
     expect(result.current.pendingCount).toBe(1);
     expect(result.current.reviewedCount).toBe(1);
-    expect(result.current.position).toBe(2);
+    await waitFor(() => expect(result.current.position).toBe(2));
     expect(result.current.error).toBeNull();
   });
 
@@ -110,7 +111,7 @@ describe("useReview", () => {
     expect(result.current.error).toBeTruthy();
   });
 
-  it("advances to the next card BEFORE the write lands (no wait between cards)", async () => {
+  it("pauses CARD_GAP_MS between cards, ignoring grades in the gap, then advances BEFORE the write lands", async () => {
     mockQueue.mockResolvedValue([item("a"), item("b")]);
     let land!: (v: unknown) => void;
     mockRecord.mockImplementationOnce(() => new Promise((r) => (land = r)) as never);
@@ -120,8 +121,17 @@ describe("useReview", () => {
     act(() => {
       result.current.grade(4);
     });
-    // The write is still in flight, and the next card is already showing.
-    expect(result.current.position).toBe(2);
+    // The gap: the graded card is held (hidden by the view), and a second tap is ignored.
+    expect(result.current.advancing).toBe(true);
+    expect(result.current.position).toBe(1);
+    act(() => {
+      result.current.grade(1);
+    });
+    expect(mockRecord).toHaveBeenCalledTimes(1);
+
+    // The write is still in flight, and after the gap the next card is showing.
+    await waitFor(() => expect(result.current.position).toBe(2));
+    expect(result.current.advancing).toBe(false);
     expect(result.current.status).toBe("reviewing");
 
     await act(async () => {
@@ -210,6 +220,7 @@ describe("useReview", () => {
     await act(async () => {
       await result.current.grade(3);
     });
+    await waitFor(() => expect(result.current.position).toBe(2));
     await act(async () => {
       await result.current.grade(3);
     });

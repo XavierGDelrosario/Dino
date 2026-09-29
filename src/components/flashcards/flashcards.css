@@ -235,6 +235,12 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* The CARD_GAP_MS beat between cards (useReview): the graded card is gone, the next
+   one hasn't landed. `visibility`, not `display`, so the layout doesn't jump. */
+.flashcard--gap {
+  visibility: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .swipecard { transition: none; }
   .swipecard__in { animation: none; }

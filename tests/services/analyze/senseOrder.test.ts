@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { orderSensesByContextReading } from "@/services/analyze/senseOrder";
 
-/** Minimal shape — the helper only ever reads `inputReading`. */
+/** Minimal shape — the helper reads `inputReading` (and `input`, for uk entries). */
 const sense = (id: string, inputReading: string | null) => ({ id, inputReading });
 
 const ids = (list: { id: string }[]) => list.map((s) => s.id);
@@ -29,6 +29,23 @@ describe("orderSensesByContextReading", () => {
     // Without the fold every katakana word would silently fail to match.
     const list = [sense("other", "たま"), sense("coffee", "コーヒー")];
     expect(ids(orderSensesByContextReading(list, "こーひー"))).toEqual(["coffee", "other"]);
+  });
+
+  // 為: the koto-string entry headwords as 為 (reading い), while ため is a `uk` entry —
+  // kana headword, kanji in inputReading. Matching inputReading alone could never pick
+  // ため, whatever the sentence said.
+  it("matches a uk entry by its KANA headword (為 read as ため)", () => {
+    const koto = { id: "koto", input: "為", inputReading: "い" };
+    const tame = { id: "tame", input: "ため", inputReading: "為" };
+    expect(ids(orderSensesByContextReading([koto, tame], "ため"))).toEqual(["tame", "koto"]);
+  });
+
+  // Report: 条 in 第九条 got 筋 すじ's example. The merged token reads きゅうじょう as a
+  // whole; callers pass the counter's OWN reading (lemmaReading じょう), which matches.
+  it("orders a counter by its own reading (九条 → じょう)", () => {
+    const suji = { id: "suji", input: "条", inputReading: "すじ" };
+    const jou = { id: "jou", input: "条", inputReading: "じょう" };
+    expect(ids(orderSensesByContextReading([suji, jou], "じょう"))).toEqual(["jou", "suji"]);
   });
 
   it("is a REORDER — it never drops a sense", () => {

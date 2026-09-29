@@ -31,6 +31,8 @@ vi.mock("@/hooks/useTextQuiz", () => ({
     flip: vi.fn(),
     grade: vi.fn(),
     submitting: false,
+    advancing: false,
+    locked: false,
     error: null,
     position: 1,
     total: 1,

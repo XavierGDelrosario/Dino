@@ -14,7 +14,8 @@ import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
 import { chunkForUrlFilter } from "../../lib/urlFilter";
 import { ServiceError, toServiceError } from "../errors";
-import { displayConfidence } from "../confidence";
+import { displayConfidence, type ConfidenceInputs } from "../confidence";
+import * as vocabulary from "./vocabularyCache";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
@@ -57,6 +58,9 @@ export interface UserWord {
   exampleGloss: string | null;
   definitionSource: string | null;
   exampleReading: string | null;
+  /** The raw inputs `confidenceRating` was derived from, so a CACHED word can re-derive
+   *  it later (it decays with time) — see vocabularyCache.wordsFor. */
+  confidenceInputs?: ConfidenceInputs;
 }
 
 // Flat columns from the generated schema types (so a schema change breaks toUserWord),
@@ -141,22 +145,25 @@ async function readWithDictionary<T>(
  * short-term strength a study session earned (services/confidence.ts, mirroring
  * migration 20260735) — NOT the stored `confidence_rating` snapshot. Every read surface
  * goes through here so they all show the number the review queue does. */
-function rowConfidence(row: {
+/** The raw columns the display confidence is derived from. */
+type ConfidenceRow = {
   stability?: number | null;
   last_reviewed_date: string | null;
   originally_translated_date: string;
   short_stability?: number | null;
   short_stability_at?: string | null;
   peak_confidence?: number | null;
-}): number {
-  return displayConfidence({
+};
+
+export function confidenceInputsOf(row: ConfidenceRow): ConfidenceInputs {
+  return {
     stability: row.stability ?? null,
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
     shortStability: row.short_stability ?? null,
     shortStabilityAt: row.short_stability_at ?? null,
     peakConfidence: row.peak_confidence ?? null,
-  });
+  };
 }
 
 function toUserWord(row: UserWordRow): UserWord {
@@ -178,7 +185,8 @@ function toUserWord(row: UserWordRow): UserWord {
     stability: row.stability ?? null,
     // LIVE, not row.confidence_rating — that snapshot is frozen at the last review and
     // would disagree with the review queue's server-side computation.
-    confidenceRating: rowConfidence(row),
+    confidenceRating: displayConfidence(confidenceInputsOf(row)),
+    confidenceInputs: confidenceInputsOf(row),
     lastReviewedDate: row.last_reviewed_date,
     originallyTranslatedDate: row.originally_translated_date,
     proficiencyBand: row.words?.proficiency_band ?? null,
@@ -203,6 +211,7 @@ async function tagInList(userWordIds: string[], listId: string): Promise<void> {
     { onConflict: "list_id,user_word_id" }
   );
   if (error) throw toServiceError(error);
+  vocabulary.retagInCache("tag", listId, userWordIds);
 }
 
 /**
@@ -232,7 +241,7 @@ export async function saveDictionaryWord(params: {
   // A single row (PostgREST may wrap it in an array), with no embedded dictionary —
   // we already hold the sense, so patch translation/readings from the Word.
   const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
-  return {
+  const saved: UserWord = {
     ...toUserWord(row),
     translation: word.translation,
     inputReading: word.inputReading,
@@ -242,6 +251,8 @@ export async function saveDictionaryWord(params: {
     frequency: word.frequency,
     estimatedBand: word.estimatedBand,
   };
+  vocabulary.writeWords(userId, [saved], listId);
+  return saved;
 }
 
 /**
@@ -273,7 +284,7 @@ export async function saveDictionaryWords(params: {
 
   // No embedded dictionary — patch each row from the in-hand Word, keyed by sense id.
   const byId = new Map(words.map((w) => [w.wordId, w]));
-  return ((data ?? []) as UserWordRow[]).map((row) => {
+  const saved = ((data ?? []) as UserWordRow[]).map((row) => {
     const uw = toUserWord(row);
     const w = row.dictionary_word_id ? byId.get(row.dictionary_word_id) : undefined;
     return w
@@ -289,6 +300,8 @@ export async function saveDictionaryWords(params: {
         }
       : uw;
   });
+  vocabulary.writeWords(userId, saved, listId);
+  return saved;
 }
 
 /** Creates a user's OWN word (no dictionary sense behind it), optionally tagging a
@@ -322,7 +335,9 @@ export async function createCustomWord(params: {
   if (error || !data) throw toServiceError(error, `Failed to create "${input}"`);
 
   const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
-  return toUserWord(row);
+  const created = toUserWord(row);
+  vocabulary.writeWords(userId, [created], listId);
+  return created;
 }
 
 /**
@@ -347,7 +362,9 @@ export async function editUserWord(params: {
     throw toServiceError(e, "Failed to edit word");
   });
   if (!data) throw new ServiceError("Failed to edit word");
-  return toUserWord(data);
+  const edited = toUserWord(data);
+  vocabulary.writeWordById(edited.userWordId, edited);
+  return edited;
 }
 
 /**
@@ -361,6 +378,7 @@ export async function deleteUserWord(params: { userWordId: string }): Promise<vo
     .delete()
     .eq("user_word_id", params.userWordId);
   if (error) throw toServiceError(error);
+  vocabulary.removeWord(params.userWordId);
 }
 
 /** Tags an existing user_word into a sub-list. */
@@ -394,11 +412,37 @@ export async function removeUserWordFromList(params: {
     .eq("list_id", params.listId)
     .eq("user_word_id", params.userWordId);
   if (error) throw toServiceError(error);
+  vocabulary.retagInCache("untag", params.listId, [params.userWordId]);
 }
 
 /** Page size for vocabulary reads — a power user's list is unbounded, so reads are
- *  paged rather than pulling every row. */
+ *  paged rather than pulling every row. This is the FIRST page (it paints the table);
+ *  the rest of a full load comes in USER_WORDS_BULK_PAGE_SIZE pages. */
 export const USER_WORDS_PAGE_SIZE = 100;
+
+/** The pages AFTER the first in a full vocabulary load. 1000 = PostgREST's default
+ *  max-rows, so a larger ask would silently come back short and end the load early. */
+export const USER_WORDS_BULK_PAGE_SIZE = 1000;
+
+/**
+ * Every (list, word) tag the user has — which is what lets the vocabulary cache show
+ * any list as a FILTER over ALL instead of a request per list. Small (one row per tag),
+ * paged at the max-rows cap. RLS-scoped to the caller's own lists.
+ */
+export async function getListMembership(): Promise<Array<{ listId: string; userWordId: string }>> {
+  const out: Array<{ listId: string; userWordId: string }> = [];
+  for (let offset = 0; ; offset += USER_WORDS_BULK_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("list_words")
+      .select("list_id, user_word_id")
+      .order("list_id")
+      .order("user_word_id")
+      .range(offset, offset + USER_WORDS_BULK_PAGE_SIZE - 1);
+    if (error) throw toServiceError(error);
+    for (const r of data ?? []) out.push({ listId: r.list_id, userWordId: r.user_word_id });
+    if ((data ?? []).length < USER_WORDS_BULK_PAGE_SIZE) return out;
+  }
+}
 
 /**
  * One PAGE of the whole vocabulary (= the virtual ALL list), newest first, with resolved
@@ -422,32 +466,6 @@ export async function getAllUserWords(params: {
       .range(offset, offset + limit - 1),
   );
   return (data ?? []).map(toUserWord);
-}
-
-/** One PAGE of the words tagged into a sub-list, ordered by `user_word_id` for stable
- *  ranges. RLS-scoped via the parent list. */
-export async function getUserWordsInList(params: {
-  listId: string;
-  limit?: number;
-  offset?: number;
-}): Promise<UserWord[]> {
-  const limit = params.limit ?? USER_WORDS_PAGE_SIZE;
-  const offset = params.offset ?? 0;
-  const data = await readWithDictionary<{ user_words: UserWordRow | null }[]>((columns) =>
-    supabase
-      .from("list_words")
-      .select<string, { user_words: UserWordRow | null }>(
-        `user_word_id, user_words(*, words(${columns}))`,
-      )
-      .eq("list_id", params.listId)
-      .order("user_word_id", { ascending: false })
-      .range(offset, offset + limit - 1),
-  );
-
-  return (data ?? [])
-    .map((r) => r.user_words)
-    .filter((w): w is UserWordRow => w !== null)
-    .map(toUserWord);
 }
 
 export interface UserWordState {
@@ -509,7 +527,7 @@ export async function getUserWordStates(params: {
       states.set(r.dictionary_word_id, {
         tracked: true,
         userWordId: r.user_word_id,
-        confidenceRating: rowConfidence(r),
+        confidenceRating: displayConfidence(confidenceInputsOf(r)),
         lastReviewedDate: r.last_reviewed_date,
       });
     }

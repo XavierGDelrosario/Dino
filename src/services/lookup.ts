@@ -8,6 +8,7 @@ import {
   analyze,
   splitSentences,
   AUTO_DETECT,
+  isContentPos,
   type LangCode,
   type SourceSelection,
   type AnalyzedToken,
@@ -198,7 +199,52 @@ function isJunkKatakana(surface: string, senses: Word[]): boolean {
  * word left MT-only by the dev `-common-` subset (唐揚げ) is untouched.
  */
 function isUnknownName(token: AnalyzedToken, senses: Word[]): boolean {
-  return token.properNoun === true && senses.length > 0 && senses.every((s) => !s.partOfSpeech?.length);
+  return (
+    (token.properNoun === true || isNameFragment(token)) &&
+    senses.length > 0 &&
+    senses.every((s) => !s.partOfSpeech?.length)
+  );
+}
+
+const HAS_KANJI = /\p{Script=Han}/u;
+
+/** A lone kanji kuromoji had no entry for — a name fragment or variant glyph (倖田來未
+ *  → 倖 田 來 未, reports #34/#35), not a word anyone is studying. */
+function isNameFragment(t: AnalyzedToken): boolean {
+  return t.unknownWord === true && [...t.text].length === 1 && HAS_KANJI.test(t.text);
+}
+
+/**
+ * May a dictionary MISS for this token be bought from paid MT? Only for a content word
+ * that isn't a name. Names (English PROPN, Japanese 固有名詞 incl. the demoted
+ * 人名/組織/地名), grammar, bare counters (人組) and name fragments are still LOOKED UP —
+ * a name the dictionary knows stays — but a miss greys out instead of buying "Kanako".
+ * On prod this rule was English-only, and 33 romanized-name MT rows were bought after
+ * the Japanese name demotions shipped (加奈子, 和雄, 富士吉田, …).
+ */
+function isMtWorthy(t: AnalyzedToken): boolean {
+  return (
+    isContentPos(t.pos) &&
+    t.pos !== "PROPN" &&
+    !t.properNoun &&
+    !t.counter &&
+    !t.composite &&
+    !isNameFragment(t)
+  );
+}
+
+/** JMdict entry ids from 5,000,000 up are the named entities merged in from JMnedict
+ *  (companies, products, works — エールフランス, 読売新聞): 7,287 of 217,538 entries on
+ *  prod, all names in a sample of 20. Not vocabulary for the reader. A no-schema proxy;
+ *  ingesting JMdict's name misc tags would be the precise version. */
+function isNamedEntitySense(s: Word): boolean {
+  return Number(s.jmdictEntryId ?? 0) >= 5_000_000;
+}
+
+/** A sense whose only POS is a prefix — キロ "kilo-". After a number (三キロ) the word is
+ *  a unit, never the prefix (report #31), so such senses sort last for counters. */
+function isPrefixOnly(s: Word): boolean {
+  return (s.partOfSpeech?.length ?? 0) > 0 && s.partOfSpeech!.every((p) => p === "pref");
 }
 
 /** JMdict POS tags for function words — a particle, an auxiliary, the copula. */
@@ -235,7 +281,14 @@ async function mergeDictionaryCompounds(
   sourceLang: LangCode,
   targetLang: LangCode,
 ): Promise<AnalyzedToken[]> {
-  const proposed = dictionaryCompoundCandidates(tokens);
+  const proposed = [
+    ...new Set([
+      ...dictionaryCompoundCandidates(tokens),
+      // A number+counter can be its OWN headword — 三人組 "trio", while its counter half
+      // 人組 is not an entry at all (report #36). Probe the whole surface too.
+      ...tokens.filter((t) => t.composite).map((t) => t.text),
+    ]),
+  ];
   // Drop guesses the dictionary already rejected this session. Re-analyzing the
   // same text otherwise re-asks every wrong guess, and most guesses are wrong.
   const candidates = proposed.filter((c) => !isKnownDictionaryMiss(c, sourceLang, targetLang));
@@ -274,10 +327,13 @@ async function mergeDictionaryCompounds(
   } catch {
     return tokens; // probe failed → leave segmentation as kuromoji had it
   }
-  return mergeConfirmedCompounds(tokens, confirmed);
+  // A confirmed number+counter looks itself up (三人組), not its counter (人組).
+  const promoted = tokens.map((t) =>
+    t.composite && confirmed.has(t.text) ? { ...t, lemma: t.text, lemmaReading: undefined, composite: undefined } : t,
+  );
+  return mergeConfirmedCompounds(promoted, confirmed);
 }
 
-const HAS_KANJI = /\p{Script=Han}/u;
 
 /** A reading we may print as furigana: present, and no kanji in it. */
 function isKanaReading(r: string | null): r is string {
@@ -395,17 +451,15 @@ export async function translateParagraph(params: {
   const keyOf = (t: AnalyzedToken) => nfc(t.lemma ?? t.text);
   const uniqueKeys = [...new Set(tokens.map(keyOf))];
 
-  // Keys the English tagger called PROPN. These still get looked UP — a name the
-  // dictionary knows (Japan, Muslim, Internet) is ordinary vocabulary and must stay
-  // addable — they simply never escalate a MISS to paid MT. That is the whole point of
-  // the tagger: measured on en.wikinews, 23.5% of lookup keys miss the dictionary
-  // against 5.5% for Japanese, and the misses are overwhelmingly names, each one a
-  // billed Google call cached as a verified row the reader then offers to save.
+  // Keys that MAY escalate a miss to paid MT: those used by at least one content,
+  // non-name token (isMtWorthy). Every other key still gets looked UP — a name the
+  // dictionary knows (Japan, 東京) is ordinary vocabulary and must stay addable — it
+  // simply never buys a MISS. Measured on en.wikinews, 23.5% of lookup keys miss the
+  // dictionary against 5.5% for Japanese, and the misses are overwhelmingly names, each
+  // one a billed Google call cached as a verified row the reader then offers to save.
   //
   // Keyed by keyOf, not by surface, because that is what `missing` holds.
-  const properNounKeys = new Set(
-    tokens.filter((t) => t.pos === "PROPN").map(keyOf),
-  );
+  const mtKeys = new Set(tokens.filter(isMtWorthy).map(keyOf));
 
   // All meanings in ONE query (client cache + a single .in() read); the misses take ONE
   // batched edge call below, so a long paragraph costs two round-trips, not hundreds.
@@ -420,10 +474,8 @@ export async function translateParagraph(params: {
     // second DICTIONARY-ONLY batch (see isJunkKatakana). Both fly in parallel, so the
     // split costs no latency. A failure is non-fatal: those words render uncolored.
     const katakana = missing.filter(isKatakanaOnly);
-    const propn = missing.filter((k) => !isKatakanaOnly(k) && properNounKeys.has(k));
-    const rest = missing.filter(
-      (k) => !isKatakanaOnly(k) && !properNounKeys.has(k),
-    );
+    const dictOnly = missing.filter((k) => !isKatakanaOnly(k) && !mtKeys.has(k));
+    const rest = missing.filter((k) => !isKatakanaOnly(k) && mtKeys.has(k));
     try {
       const batches = await Promise.all([
         rest.length > 0
@@ -442,12 +494,12 @@ export async function translateParagraph(params: {
               dictionaryOnly: true, // a katakana miss never reaches paid MT
             })
           : null,
-        propn.length > 0
+        dictOnly.length > 0
           ? translateBatch({
-              inputs: propn,
+              inputs: dictOnly,
               sourceLang: resolvedSource,
               targetLang,
-              dictionaryOnly: true, // nor does a proper-noun miss (see properNounKeys)
+              dictionaryOnly: true, // nor does a name/grammar/counter miss (see mtKeys)
             })
           : null,
       ]);
@@ -490,7 +542,8 @@ export async function translateParagraph(params: {
   for (const token of tokens) {
     const key = wordKey(token);
     if (!meanings.has(key)) {
-      const senses = meaningsByKey.get(keyOf(token)) ?? [];
+      let senses = (meaningsByKey.get(keyOf(token)) ?? []).filter((s) => !isNamedEntitySense(s));
+      if (token.composite) senses = [...senses.filter((s) => !isPrefixOnly(s)), ...senses.filter(isPrefixOnly)];
       const drop = isJunkKatakana(token.text, senses) || isGrammarOnly(senses) || isUnknownName(token, senses);
       meanings.set(key, drop ? [] : senses);
     }

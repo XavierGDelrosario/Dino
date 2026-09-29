@@ -13,6 +13,7 @@ import { ServiceError, toServiceError } from "./errors";
 import type { Database } from "../types/database.types";
 import type { LangCode } from "./language";
 import { FREQ_BIN_THRESHOLDS_ASC } from "./analyze/summarize";
+import { cachedOverview, listCreated, listDeleted, listRenamed, rememberOverview } from "./words/vocabularyCache";
 
 export interface List {
   listId: string;
@@ -75,7 +76,9 @@ export async function createList(params: {
     .select<string, ListRow>("list_id, list_name")
     .single();
   if (error || !data) throw toServiceError(error, "Failed to create list");
-  return toList(data);
+  const list = toList(data);
+  listCreated(userId, list); // write-through (see words/vocabularyCache)
+  return list;
 }
 
 /**
@@ -97,6 +100,7 @@ export async function renameList(params: {
     .update({ list_name: name })
     .eq("list_id", listId);
   if (error) throw toServiceError(error);
+  listRenamed(listId, name);
 }
 
 /**
@@ -109,6 +113,7 @@ export async function renameList(params: {
 export async function deleteList(listId: string): Promise<void> {
   const { error } = await supabase.from("lists").delete().eq("list_id", listId);
   if (error) throw toServiceError(error);
+  listDeleted(listId);
 }
 
 // ── The lists OVERVIEW (the vertical index page) ────────────────────────────
@@ -184,6 +189,10 @@ export function __resetListOverviewProbe(): void {
  */
 export async function getListOverview(): Promise<ListOverview[] | null> {
   if (!overviewAvailable) return null;
+  // Nothing written since the last fetch (any tab's save/grade/tag counts — see
+  // vocabularyCache) → the index is still right; don't ask again.
+  const cached = cachedOverview();
+  if (cached) return cached;
   // The BINS TRAVEL WITH THE CALL. They are defined once, client-side, in
   // services/analyze/summarize.ts; SQL applies them and never owns them, so re-tuning
   // the bar is a one-file change and there is no second copy to drift.
@@ -199,7 +208,7 @@ export async function getListOverview(): Promise<ListOverview[] | null> {
     return null;
   }
   if (error) throw toServiceError(error);
-  return (data ?? []).map((r) => ({
+  const rows: ListOverview[] = (data ?? []).map((r) => ({
     listId: r.list_id,
     listName: r.list_name,
     createdAt: r.created_at,
@@ -217,4 +226,6 @@ export async function getListOverview(): Promise<ListOverview[] | null> {
     band: countMap(r.band_counts),
     mainLang: (r.main_lang as LangCode | null) ?? null,
   }));
+  rememberOverview(rows);
+  return rows;
 }

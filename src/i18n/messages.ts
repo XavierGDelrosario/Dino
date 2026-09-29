@@ -470,6 +470,12 @@ export const en = {
   "history.empty": "No activity yet — save or review some words and it will show up here.",
   "history.noConfidence": "Confidence history is recorded nightly from now on — check back tomorrow.",
   "history.confidenceNote": "Average confidence (0–5) on days you studied.",
+  "history.zoomHint": "Pinch or Ctrl-scroll to zoom, drag to move.",
+  "history.zoomAria": "Zoom",
+  "history.zoomIn": "Zoom in",
+  "history.zoomOut": "Zoom out",
+  "history.zoomReset": "Reset",
+  "history.linesAria": "Lines to show",
 
   // appearance (theme picker in the account menu)
   // The profile-menu theme row CYCLES, so its label has to say what a click does.
@@ -902,6 +908,12 @@ export const ja: Record<MessageKey, string> = {
   "history.empty": "まだ記録がありません。単語を保存したり復習したりするとここに表示されます。",
   "history.noConfidence": "自信度の推移は今夜から毎日記録されます。明日また確認してください。",
   "history.confidenceNote": "学習した日の平均自信度(0〜5)。",
+  "history.zoomHint": "ピンチまたはCtrl+スクロールで拡大、ドラッグで移動。",
+  "history.zoomAria": "拡大・縮小",
+  "history.zoomIn": "拡大",
+  "history.zoomOut": "縮小",
+  "history.zoomReset": "リセット",
+  "history.linesAria": "表示する線",
 
   "theme.item": "テーマ: {mode}",
   "theme.cycleAria": "テーマ: {mode} — {next}に切り替え",
