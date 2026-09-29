@@ -25,11 +25,8 @@ function parseAllowedOrigins(raw: string | undefined | null): string[] {
 }
 
 function corsHeaders(origin: string | null, allowed: string[]): Record<string, string> {
-  const allowOrigin = allowed.length === 0
-    ? "*"
-    : allowed.includes(origin ?? "")
-      ? (origin as string)
-      : "null";
+  // Same rule as translate/_lib.ts: an empty allow-list denies (fails closed).
+  const allowOrigin = allowed.includes(origin ?? "") ? (origin as string) : "null";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
