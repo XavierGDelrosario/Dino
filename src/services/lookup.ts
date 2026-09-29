@@ -234,9 +234,14 @@ function isMtWorthy(t: AnalyzedToken): boolean {
 }
 
 /** JMdict entry ids from 5,000,000 up are the named entities merged in from JMnedict
- *  (companies, products, works — エールフランス, 読売新聞): 7,287 of 217,538 entries on
- *  prod, all names in a sample of 20. Not vocabulary for the reader. A no-schema proxy;
- *  ingesting JMdict's name misc tags would be the precise version. */
+ *  (companies, products, works — エールフランス, 読売新聞). Not vocabulary for the reader.
+ *  Measured against JMdict's own name misc tags (jmdict-eng 3.6.2+20260928): 7,303 of
+ *  the 7,304 entries in the range carry one (the outlier is the ＪＭｄｉｃｔ metadata
+ *  entry, 9999999), and below it only a few dozen do (ガリレオ, シューベルト — famous
+ *  people a learner may want). So the range IS the tag set; ingesting the tags would buy
+ *  nothing. ⚠️ `fem`/`masc` are NOT name tags — they mark feminine/masculine speech
+ *  (あら, かしら). Reader only, deliberately: an explicit lookup of 読売新聞 is a question
+ *  the user asked, and answers it. */
 function isNamedEntitySense(s: Word): boolean {
   return Number(s.jmdictEntryId ?? 0) >= 5_000_000;
 }

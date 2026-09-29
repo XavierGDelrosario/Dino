@@ -77,8 +77,8 @@ const supabase = createClient(SB_URL, SERVICE_KEY);
 
 function json(
   body: unknown,
-  status = 200,
-  cors: Record<string, string> = { "Access-Control-Allow-Origin": "*" },
+  status: number,
+  cors: Record<string, string>,
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -1239,11 +1239,11 @@ async function recordError(
 // sense, kept for back-compat) or { error } + 4xx/5xx. POST only (+ OPTIONS/CORS);
 // requires input/sourceLang/targetLang; rejects source == target; persist=false skips
 // the cache entirely.
+const corsFor = (req: Request) =>
+  corsHeaders(req.headers.get("Origin"), parseAllowedOrigins(Deno.env.get("ALLOWED_ORIGINS")));
+
 async function handleRequest(req: Request): Promise<Response> {
-  const cors = corsHeaders(
-    req.headers.get("Origin"),
-    parseAllowedOrigins(Deno.env.get("ALLOWED_ORIGINS")),
-  );
+  const cors = corsFor(req);
   const reply = (body: unknown, status = 200) => json(body, status, cors);
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -1585,7 +1585,7 @@ Deno.serve(async (req) => {
         detail: e instanceof Error ? `${e.message}\n${e.stack ?? ""}` : String(e),
       });
     } catch (_e) { /* swallow */ }
-    res = json({ error: "Internal error" }, 500);
+    res = json({ error: "Internal error" }, 500, corsFor(req)); // same CORS as a normal reply
   }
   const line = JSON.stringify({
     evt: "request",

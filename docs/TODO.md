@@ -355,7 +355,7 @@ redundancy cleanup — check `users.level`'s consumers before removing it.
 
 ### Proficiency label axis — remaining `[#8]`
 - **Drop the read-time level-estimate pieces** (`language_level_estimate`, `estimated_band()`, `measure_level_estimate()`, `level_estimate_bins()` + its `build:leveling` call) once no installed client calls `level_estimate_bins()` at startup (anything built before PR for 20260779).
-- **Place / country names still get estimated levels** (松山, インド, 台湾 are ordinary JMdict entries): ingest JMdict's `misc` "place"/"person" tags and exclude them in `not_leveled_vocab`.
+- **Place / country names still get estimated levels** (松山, インド, 台湾 are ordinary JMdict entries). JMdict's `place` tag does **not** cover them — only 2 entries below id 5,000,000 carry it (measured 2026-09-30) — so excluding them in `not_leveled_vocab` needs another signal (IPADIC 固有名詞-地域 on the headword, or a curated list).
 - **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
 Pipeline, ingest, projection, resolver, learn and calibration are **DONE + LIVE**.
 `WordInfo.tsx` renders `getProficiency()` in **ListRow**, **FlashcardCard** and
@@ -408,12 +408,6 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 - **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
   特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
   the EU · ~1k active users.
-
-### Names as data, not an id range `[reader]`
-The reader drops JMnedict names by **entry id ≥ 5,000,000** (`lookup.ts` `isNamedEntitySense`)
-— reader only; Lists "add word", the edge replies and `words/senseOrder.ts` still return
-them. Ingest JMdict's name misc tags (`scripts/ingest-jmdict.ts` already reads `misc`) onto
-`words`, filter there, bump `CURRENT_PROJECTION_VERSION` in both runtimes.
 
 ### Source-language mismatch robustness `[translate UX]`
 A concrete source that mismatches the script (source=JA, Latin input) produces garbage.
@@ -470,17 +464,6 @@ Not a to-do — standing rules + hosted toggles. Numbers preserved from `Product
 (spend, 5xx, uptime). Emitted today: `mt_spend` · `request` · `global_cap_reached`. There is
 **no `health` event** — `/health` falls through the generic `request` line.
 
-**8. Confirm pg_cron jobs registered on prod/staging** — the guest sweep (`20260727`) and
-`idempotency_keys` prune (`20260712`). Both silently no-op without pg_cron; `dry_run` first.
-
-</details>
-
-<details>
-<summary><h2>⏳ Awaiting merge</h2></summary>
-
-| PR | What | Note |
-|----|------|------|
-| **#30** | CORS default-to-deny · error-`kind` rendering · recognizer memoization | LOW security cluster. CORS still defaults to `*` in `index.ts`. Confirmed still open 2026-08-09. |
 
 </details>
 
