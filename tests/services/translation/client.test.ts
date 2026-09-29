@@ -61,6 +61,40 @@ describe("translate", () => {
   });
 });
 
+// A quota refusal is a 429 whose body carries a `code`; the user should read what
+// happened and what still works, not "Edge Function returned a non-2xx status code".
+describe("translate — quota refusals", () => {
+  const refused = (body: unknown) => {
+    const err = Object.assign(new Error("Edge Function returned a non-2xx status code"), {
+      name: "FunctionsHttpError",
+      context: new Response(JSON.stringify(body), { status: 429 }),
+    });
+    stub.functions.invoke.mockResolvedValue({ data: null, error: err });
+  };
+  const run = () => translate({ input: "猫が好き", sourceLang: "JA", targetLang: "EN", persist: false });
+
+  it("tells a guest to create an account", async () => {
+    refused({ error: "Monthly translation quota reached", code: "guest_quota", used: 30000, quota: 30000 });
+    await expect(run()).rejects.toThrow(/Create a free account/);
+  });
+
+  it("tells an account holder the limit resets next month", async () => {
+    refused({ error: "Monthly translation quota reached", code: "user_quota" });
+    await expect(run()).rejects.toThrow(/reset next month/);
+  });
+
+  it("the global cap reads as busy, and nothing is retried", async () => {
+    refused({ error: "Service translation quota reached", code: "global_quota" });
+    await expect(run()).rejects.toThrow(/busy right now/);
+    expect(stub.functions.invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("a 429 without a known code keeps the generic error", async () => {
+    refused({ error: "something else" });
+    await expect(run()).rejects.toThrow("non-2xx");
+  });
+});
+
 describe("translateBatch", () => {
   it("sends the inputs in one invoke and returns a term→senses Map", async () => {
     const neko = { wordId: "1", input: "猫", translation: "cat" };

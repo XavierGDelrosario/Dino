@@ -39,6 +39,10 @@ import {
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
+  isGuestAuth,
+  positiveOr,
+  DEFAULT_GUEST_MONTHLY_CHAR_QUOTA,
+  type QuotaCode,
   type ProviderResult,
   chunkForUrlFilter,
   shouldSkipMt,
@@ -639,17 +643,27 @@ const MAX_INPUT_CHARS = 20_000;
 interface ResolvedLimits {
   paragraphCharLimit: number;
   monthlyCharQuota: number;
+  /** The caller is an anonymous guest (drives the guest default + the 429 wording). */
+  guest: boolean;
 }
 
-/** Effective limits for the caller: their `user_limits` override, else env, else
- *  the built-ins. Read with the service role (bypasses RLS). */
-async function resolveLimits(supabase: Supa, userId: string | null): Promise<ResolvedLimits> {
+/** Effective limits for the caller: their `user_limits` override, else env, else the
+ *  built-ins — with a much smaller monthly default for GUESTS (see
+ *  DEFAULT_GUEST_MONTHLY_CHAR_QUOTA). An override row still wins either way, so a guest
+ *  can be granted more. Read with the service role (bypasses RLS). */
+async function resolveLimits(
+  supabase: Supa,
+  userId: string | null,
+  authHeader: string | null,
+): Promise<ResolvedLimits> {
+  const guest = isGuestAuth(authHeader);
   const paragraphFallback =
     Number(Deno.env.get("PARAGRAPH_CHAR_LIMIT")) || DEFAULT_PARAGRAPH_CHAR_LIMIT;
-  const monthlyFallback =
-    Number(Deno.env.get("MONTHLY_CHAR_QUOTA")) || DEFAULT_MONTHLY_CHAR_QUOTA;
+  const monthlyFallback = guest
+    ? positiveOr(Deno.env.get("GUEST_MONTHLY_CHAR_QUOTA"), DEFAULT_GUEST_MONTHLY_CHAR_QUOTA)
+    : Number(Deno.env.get("MONTHLY_CHAR_QUOTA")) || DEFAULT_MONTHLY_CHAR_QUOTA;
   if (!userId) {
-    return { paragraphCharLimit: paragraphFallback, monthlyCharQuota: monthlyFallback };
+    return { paragraphCharLimit: paragraphFallback, monthlyCharQuota: monthlyFallback, guest };
   }
   const { data } = await supabase
     .from("user_limits")
@@ -659,6 +673,24 @@ async function resolveLimits(supabase: Supa, userId: string | null): Promise<Res
   return {
     paragraphCharLimit: data?.paragraph_char_limit ?? paragraphFallback,
     monthlyCharQuota: data?.monthly_char_quota ?? monthlyFallback,
+    guest,
+  };
+}
+
+/** 429 bodies. `code` is what the client words its message on (QuotaCode). */
+function quotaRefusal(guest: boolean, used: number, quota: number) {
+  return {
+    error: "Monthly translation quota reached",
+    code: (guest ? "guest_quota" : "user_quota") satisfies QuotaCode,
+    used,
+    quota,
+  };
+}
+function globalRefusal(quota: number) {
+  return {
+    error: "Service translation quota reached, try again later",
+    code: "global_quota" satisfies QuotaCode,
+    quota,
   };
 }
 
@@ -1086,7 +1118,7 @@ async function resolveBatch(
 
   const needMT = stillMissing.filter((i) => !revived.has(i));
   if (canMT && needMT.length > 0) {
-    const limits = await resolveLimits(supabase, userId!);
+    const limits = await resolveLimits(supabase, userId!, authHeader);
     // The per-request paragraph cap holds on the batch path too, and tokens that can't
     // be words at all are dropped (shouldSkipMt). Both BEFORE the reserve, so free.
     const mtWords = needMT.filter(
@@ -1358,7 +1390,9 @@ async function handleRequest(req: Request): Promise<Response> {
     const prior = await lookupIdempotent(supabase, idempotencyKey);
     if (prior) return reply(prior.response, prior.status);
 
-    const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
+    const { paragraphCharLimit, monthlyCharQuota, guest } = await resolveLimits(
+      supabase, userId, req.headers.get("Authorization"),
+    );
     // The segments ARE one paragraph, so the per-request cap applies to their sum —
     // otherwise splitting a paragraph would be a way around the limit.
     if (prepared.chars > paragraphCharLimit) {
@@ -1376,13 +1410,13 @@ async function handleRequest(req: Request): Promise<Response> {
       supabase, userId, prepared.chars, monthlyCharQuota,
     );
     if (!allowed) {
-      return reply({ error: "Monthly translation quota reached", used, quota: monthlyCharQuota }, 429);
+      return reply(quotaRefusal(guest, used, monthlyCharQuota), 429);
     }
     const gQuota = globalCharQuota();
     if (!(await reserveGlobalQuota(supabase, prepared.chars, gQuota))) {
       if (committed) await refundQuota(supabase, userId, prepared.chars);
       console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
-      return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
+      return reply(globalRefusal(gQuota), 429);
     }
 
     const translated = await callTranslationProviderMany(prepared.unique, sourceLang, targetLang);
@@ -1468,7 +1502,9 @@ async function handleRequest(req: Request): Promise<Response> {
   if (results.length === 0 && mtConfigured() && userId) {
     // MT is the only PAID path → the hard server-side limits gate (the client also
     // pre-checks for UX). Both checks run BEFORE the call, so a rejection costs nothing.
-    const { paragraphCharLimit, monthlyCharQuota } = await resolveLimits(supabase, userId);
+    const { paragraphCharLimit, monthlyCharQuota, guest } = await resolveLimits(
+      supabase, userId, req.headers.get("Authorization"),
+    );
 
     // (a) per-request paragraph cap → 413
     if (input.length > paragraphCharLimit) {
@@ -1487,10 +1523,7 @@ async function handleRequest(req: Request): Promise<Response> {
       supabase, userId, input.length, monthlyCharQuota,
     );
     if (!allowed) {
-      return reply(
-        { error: "Monthly translation quota reached", used, quota: monthlyCharQuota },
-        429,
-      );
+      return reply(quotaRefusal(guest, used, monthlyCharQuota), 429);
     }
 
     // (c) GLOBAL monthly cap across ALL users → 429.
@@ -1501,7 +1534,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // nothing, so refunding it would erase legitimate prior usage.
       if (committed) await refundQuota(supabase, userId, input.length);
       console.error(JSON.stringify({ evt: "global_cap_reached", quota: gQuota }));
-      return reply({ error: "Service translation quota reached, try again later", quota: gQuota }, 429);
+      return reply(globalRefusal(gQuota), 429);
     }
 
     // The paid path ran, so the response is stored under the idempotency key.

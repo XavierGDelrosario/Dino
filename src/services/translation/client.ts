@@ -40,6 +40,32 @@ function isTransient(error: { name?: string; context?: unknown }): boolean {
   return typeof status === "number" && status >= 500;
 }
 
+/** What the user reads when a translate call is refused for quota (the edge's 429
+ *  `code`). App-authored copy on a ServiceError with no provider code, so
+ *  errorMessage() shows it as-is. Dictionary lookups are free, so every message says
+ *  what still works. */
+const QUOTA_COPY: Record<string, string> = {
+  guest_quota:
+    "You've used this month's free guest translations. Create a free account to keep translating — dictionary lookups still work.",
+  user_quota:
+    "You've reached this month's translation limit. Dictionary lookups still work, and full translations reset next month.",
+  global_quota:
+    "Translation is busy right now — please try again later. Dictionary lookups still work.",
+};
+
+/** A quota refusal (429 with a known `code`) as a readable ServiceError, else null. */
+async function quotaError(error: { context?: unknown }): Promise<ServiceError | null> {
+  const res = error?.context as { status?: number; clone?: () => { json: () => Promise<unknown> } } | undefined;
+  if (res?.status !== 429 || typeof res.clone !== "function") return null;
+  try {
+    const body = (await res.clone().json()) as { code?: string } | null;
+    const copy = body?.code ? QUOTA_COPY[body.code] : undefined;
+    return copy ? new ServiceError(copy, "permission", { cause: error }) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Invoke the edge function with the transient-failure retry/backoff, shared by the
  *  single and batch entry points. Throws on a deliberate (4xx) or exhausted failure.
  *
@@ -64,7 +90,7 @@ async function invokeTranslate<T>(body: Record<string, unknown>): Promise<T> {
       await sleep(150 * attempt);
       continue;
     }
-    throw toServiceError(error);
+    throw (await quotaError(error)) ?? toServiceError(error);
   }
   throw toServiceError(lastError);
 }

@@ -26,6 +26,9 @@ import {
   resolveServiceKey,
   toGoogleLang,
   userIdFromAuth,
+  isGuestAuth,
+  positiveOr,
+  DEFAULT_GUEST_MONTHLY_CHAR_QUOTA,
   shouldSkipMt,
   isEchoTranslation,
   isRomanizedName,
@@ -78,6 +81,33 @@ describe("userIdFromAuth", () => {
     expect(userIdFromAuth("Bearer not-a-jwt")).toBeNull();
     expect(userIdFromAuth("garbage")).toBeNull();
     expect(userIdFromAuth("Bearer a.!!!.c")).toBeNull();
+  });
+});
+
+// Guests get a much smaller paid-MT default than accounts (the CAPTCHA stand-in).
+describe("isGuestAuth", () => {
+  it("is true for an anonymous user's token", () => {
+    expect(isGuestAuth(`Bearer ${jwtWith({ sub: "g", is_anonymous: true })}`)).toBe(true);
+  });
+  it("is false for an account, and for a token without the claim", () => {
+    expect(isGuestAuth(`Bearer ${jwtWith({ sub: "u", is_anonymous: false })}`)).toBe(false);
+    expect(isGuestAuth(`Bearer ${jwtWith({ sub: "u" })}`)).toBe(false);
+  });
+  it("is false for a missing or malformed header (doesn't throw)", () => {
+    expect(isGuestAuth(null)).toBe(false);
+    expect(isGuestAuth("Bearer not-a-jwt")).toBe(false);
+  });
+});
+
+describe("guest monthly quota default", () => {
+  it("is well under the member default, and matches the client mirror", async () => {
+    const { DEFAULT_LIMITS, DEFAULT_GUEST_MONTHLY_CHAR_QUOTA: clientGuest } = await import("@/services/entitlements");
+    expect(DEFAULT_GUEST_MONTHLY_CHAR_QUOTA).toBeLessThan(DEFAULT_LIMITS.monthlyCharQuota / 10);
+    expect(clientGuest).toBe(DEFAULT_GUEST_MONTHLY_CHAR_QUOTA);
+  });
+  it("an env override must be a positive number to count", () => {
+    expect(positiveOr("50000", 30_000)).toBe(50_000);
+    for (const bad of [undefined, null, "", "0", "-5", "abc"]) expect(positiveOr(bad, 30_000)).toBe(30_000);
   });
 });
 
