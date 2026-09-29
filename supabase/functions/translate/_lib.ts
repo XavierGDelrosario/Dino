@@ -112,11 +112,8 @@ export function toGoogleLang(lang: string): string {
   }
 }
 
-/**
- * The caller's user id from the request JWT's `sub` (signature verified upstream by the
- * gateway). null for anon/malformed → callers fall back to default limits.
- */
-export function userIdFromAuth(authHeader: string | null): string | null {
+/** The request JWT's claims (signature verified upstream by the gateway), or null. */
+function jwtClaims(authHeader: string | null): Record<string, unknown> | null {
   const token = (authHeader ?? "").replace(/^Bearer\s+/i, "");
   const payload = token.split(".")[1];
   if (!payload) return null;
@@ -124,11 +121,46 @@ export function userIdFromAuth(authHeader: string | null): string | null {
     const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
     const claims = JSON.parse(atob(padded));
-    return typeof claims.sub === "string" ? claims.sub : null;
+    return claims && typeof claims === "object" ? claims : null;
   } catch {
     return null;
   }
 }
+
+/**
+ * The caller's user id from the request JWT's `sub`. null for anon/malformed → callers
+ * fall back to default limits.
+ */
+export function userIdFromAuth(authHeader: string | null): string | null {
+  const sub = jwtClaims(authHeader)?.sub;
+  return typeof sub === "string" ? sub : null;
+}
+
+/** True when the caller is an anonymous GUEST — Supabase stamps `is_anonymous` on
+ *  every JWT it issues. An upgraded account gets `false` on its next token. */
+export function isGuestAuth(authHeader: string | null): boolean {
+  return jwtClaims(authHeader)?.is_anonymous === true;
+}
+
+/**
+ * Paid-MT characters per month for a GUEST with no `user_limits` override. Every visitor
+ * is a real anonymous user minted at page load, so without CAPTCHA a rotating-IP script
+ * can mint guests at will; at the member default (450k) about five of them would drain
+ * the GLOBAL cap and 429 everyone for the month. At 30k it takes ~70 — which the 30/hour
+ * per-IP sign-up limit slows to a crawl — while a real guest still gets ~100 paragraph
+ * translations, and dictionary lookups (JMdict) stay free and unlimited. Mirrored by
+ * DEFAULT_GUEST_MONTHLY_CHAR_QUOTA in src/services/entitlements.ts.
+ */
+export const DEFAULT_GUEST_MONTHLY_CHAR_QUOTA = 30_000;
+
+/** A positive number from an env value, else `fallback`. */
+export function positiveOr(raw: string | undefined | null, fallback: number): number {
+  const v = Number(raw);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+/** Why a translate call was refused for quota — the client words its message on this. */
+export type QuotaCode = "guest_quota" | "user_quota" | "global_quota";
 
 /**
  * CORS headers for an Origin against an allow-list: echo a listed Origin, else "null".

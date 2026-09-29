@@ -37,6 +37,12 @@ export const DEFAULT_LIMITS: UserLimits = {
   monthlyCharQuota: 450_000,
 };
 
+/** The monthly default for an anonymous GUEST (no override row). Much smaller than an
+ *  account's: guests are minted at page load with no CAPTCHA, so this is what bounds a
+ *  script minting them. The edge enforces it (DEFAULT_GUEST_MONTHLY_CHAR_QUOTA in
+ *  supabase/functions/translate/_lib.ts) — keep them in sync. */
+export const DEFAULT_GUEST_MONTHLY_CHAR_QUOTA = 30_000;
+
 type UserLimitsRow = Pick<
   Database["public"]["Tables"]["user_limits"]["Row"],
   "paragraph_char_limit" | "monthly_char_quota"

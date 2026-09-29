@@ -229,7 +229,9 @@ Fix VOLUME first, then price.
   `invoke` had no test. Until justified: a manual device checklist.
 
 ### Security (2026-06-28 audit)
-- **[MED] Enable captcha in prod** — code is on `main` (`services/captcha.ts`), inert
+- **[MED] Enable captcha in prod** — interim mitigation: guests get a 30k/month paid-MT
+  default (vs 450k), so draining the global cap takes ~70 scripted guests, not ~5. What's
+  left is the sign-up flood itself (auth rows / MAU). Code is on `main` (`services/captcha.ts`), inert
   without `VITE_TURNSTILE_SITE_KEY`. **Order matters:** deploy the client with a real
   sitekey *first*, then enable Attack Protection. ⚠️ **Blocked on native** — Turnstile can't
   run under `capacitor://`, and `build-ios.sh --prod` points at prod, so flipping it kills
