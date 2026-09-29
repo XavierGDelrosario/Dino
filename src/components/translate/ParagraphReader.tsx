@@ -23,6 +23,7 @@ import "../common/SenseText.css"; // shared .sense* row/action styles
 // distributions to be meaningful (short outputs read fine as-is).
 const SUMMARY_MIN_WORDS = 12;
 import { Loading } from "../common/Loading";
+import { WordInfoButton } from "../common/WordInfo";
 
 // How long "Forgot" stays visibly spent after a press. Longer than the server's own 2s
 // dedupe window (20260766) on purpose: the guard the USER experiences should be the one
@@ -541,6 +542,10 @@ function ParagraphReaderImpl({
                 {hover.reading ?? displayHeadword(hoveredSenses[0], hover.word).reading}
               </em>
             )}
+            {/* Level · Commonness · Part of speech for the hovered word — the "?" every
+                other word surface carries. Sense 0 speaks for the headword (the level is
+                the headword's), matching the Translate result head. */}
+            {hoveredSenses[0] && <WordInfoButton word={hoveredSenses[0]} align="left" />}
           </div>
           <ul className="hovercard__senses">
             {hoveredSenses.map((s) => (

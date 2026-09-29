@@ -237,10 +237,6 @@ Fix VOLUME first, then price.
   run under `capacitor://`, and `build-ios.sh --prod` points at prod, so flipping it kills
   anonymous sign-in on iOS. Founder call (2026-07-13): account merging lands first. Then:
   point dev devices at staging, or use an `https://` WebView scheme, or swap to hCaptcha.
-- **[LOW] `public.users.email` is client-writable and unverified** — enables squatting, and
-  it's the lookup key in `admin_grant_feature`. Fix: a BEFORE INSERT/UPDATE trigger
-  requiring `email` = verified `auth.users.email` or `<uid>@guest.dino`. On the
-  session-create write path, so it needs an integration pass.
 - **[ops] Rotate the Google Translation key** — hygiene, not urgent (API-restricted +
   globally capped).
 - **[MED · scale-only] Global-quota advisory lock** — contention only bites at huge MT
@@ -344,11 +340,12 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
-### Difficulty axis — is `users.level` redundant? `[#8 · cleanup]`
-Word difficulty is proficiency-preferred (`override ?? proficiency ?? frequency`), so
-`users.level` drifts toward `users.proficiency_band`. No longer a fork: the only thing that
-wanted a separate **dense frequency** axis was #12's domain filter, which is dropped. Now a
-redundancy cleanup — check `users.level`'s consumers before removing it.
+### Difficulty axis — retire `users.level`? `[#8 · design call]`
+Not redundant yet — consumers checked 2026-09-30: **one reader**, the cold-start seed on a
+Translate save / "Add all" (`seedStability(difficulty, users.level)` in `useTranslate`);
+**two writers**, the calibration quiz and the Learn level quiz (`useTextQuiz` calibrate).
+No SQL reads it. Retiring it = seed from `proficiency_band` through the band anchors (as
+the SRS ease already does), then drop the column + its grants (`20260704`).
 - ⚠️ **Keep the frequency ARM of `getDifficulty` regardless.** Only 27.7% of common English
   lemmas are banded, so ~7 in 10 English words reach a level through frequency alone.
 - ⚠️ **Two runtimes compute "how hard is this word"** — client `getDifficulty` and SQL
@@ -357,11 +354,8 @@ redundancy cleanup — check `users.level`'s consumers before removing it.
 
 ### Proficiency label axis — remaining `[#8]`
 - **Drop the read-time level-estimate pieces** (`language_level_estimate`, `estimated_band()`, `measure_level_estimate()`, `level_estimate_bins()` + its `build:leveling` call) once no installed client calls `level_estimate_bins()` at startup (anything built before PR for 20260779).
-- **Place / country names still get estimated levels** (松山, インド, 台湾 are ordinary JMdict entries). JMdict's `place` tag does **not** cover them — only 2 entries below id 5,000,000 carry it (measured 2026-09-30) — so excluding them in `not_leveled_vocab` needs another signal (IPADIC 固有名詞-地域 on the headword, or a curated list).
+- **Run `apply:level-estimates` on staging + prod** — it now leaves place names unestimated (`isPlaceName`, IPADIC 固有名詞-地域, 2+ chars: 455 writings on staging). Not yet run. 松山/広島 stay estimated (IPADIC tags them 組織).
 - **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
-Pipeline, ingest, projection, resolver, learn and calibration are **DONE + LIVE**.
-`WordInfo.tsx` renders `getProficiency()` in **ListRow**, **FlashcardCard** and
-**ArticleWordList**. Remaining: the **translate result head** and the **reader hovercard**.
 
 ### Account-linking edge cases (email ↔ Google) `[#13]`
 **Gates the captcha rollout.** Collision messaging ("this email signs in with Google") ·
@@ -410,9 +404,6 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 - **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
   特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
   the EU · ~1k active users.
-
-### Source-language mismatch robustness `[translate UX]`
-A concrete source that mismatches the script (source=JA, Latin input) produces garbage.
 
 ### Very low priority
 - **Real furigana (#16)** — ruby above kanji.

@@ -23,8 +23,22 @@
 //     npm run apply:level-estimates                 # a hosted project (SSL auto-enabled)
 // =========================================================
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { Client } from "pg";
-import { fitLevelEstimate, type LevelledWord } from "./lib/levelEstimate";
+import { fitLevelEstimate, isPlaceName, type LevelledWord, type TokenTags } from "./lib/levelEstimate";
+
+type Tokenizer = { tokenize: (text: string) => TokenTags[] };
+
+/** kuromoji over its bundled IPADIC — the same analyzer the reader uses. */
+function buildTokenizer(): Promise<Tokenizer> {
+  const require = createRequire(import.meta.url);
+  const kuromoji = require("kuromoji");
+  const dicPath = join(dirname(require.resolve("kuromoji/package.json")), "dict");
+  return new Promise((resolve, reject) =>
+    kuromoji.builder({ dicPath }).build((err: unknown, t: Tokenizer) => (err ? reject(err) : resolve(t))),
+  );
+}
 
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 const TEACHING_VOCAB = new URL("../data/teaching_vocab/ja.tsv", import.meta.url);
@@ -50,6 +64,14 @@ async function main(): Promise<void> {
     console.error("empty data/teaching_vocab/ja.tsv — run scripts/build-teaching-vocab.py first");
     process.exit(1);
   }
+
+  const tokenizer = await buildTokenizer();
+  const nameCache = new Map<string, boolean>();
+  const isName = (text: string) => {
+    let v = nameCache.get(text);
+    if (v === undefined) nameCache.set(text, (v = isPlaceName(text, tokenizer.tokenize(text))));
+    return v;
+  };
 
   const dbUrl = process.env.DATABASE_URL ?? DEFAULT_DB_URL;
   const isLocal = dbUrl.includes("127.0.0.1") || dbUrl.includes("localhost");
@@ -80,11 +102,20 @@ async function main(): Promise<void> {
                 NOT not_leveled_vocab(h.part_of_speech, t.entry_id) AS levelable
            FROM ${table} t JOIN jmdict_entry_headword_mv h USING (entry_id)`,
       );
-    // A writing with no letter at all (○, ※) is a symbol, not vocabulary.
-    const estimate = (r: WritingRow) =>
-      r.proficiency_band == null && r.levelable && /\p{L}/u.test(r.text)
-        ? rule(r.text, r.frequency, teaching.has(r.text))
-        : null;
+    // A writing with no letter at all (○, ※) is a symbol, not vocabulary; a place name
+    // (台湾, インド — isPlaceName) is not vocabulary either. The name test runs last, so
+    // kuromoji only sees writings that would otherwise get an estimate.
+    let namesSkipped = 0;
+    const estimate = (r: WritingRow) => {
+      if (r.proficiency_band != null || !r.levelable || !/\p{L}/u.test(r.text)) return null;
+      const band = rule(r.text, r.frequency, teaching.has(r.text));
+      if (band == null) return null;
+      if (isName(r.text)) {
+        namesSkipped++;
+        return null;
+      }
+      return band;
+    };
 
     type Change = { id: string; text: string; was: number | null; band: number | null };
     const changes: Record<string, Change[]> = {};
@@ -95,6 +126,7 @@ async function main(): Promise<void> {
       const dist = [3, 4, 5].map((b) => `N${6 - b} ${next.filter((r) => r.band === b).length}`).join(", ");
       console.log(`${table}: ${rows.length} writings → estimated ${dist}; ${changes[table].length} change`);
     }
+    console.log(`place names left unestimated: ${namesSkipped}`);
     for (const r of changes.jmdict_kanji.slice(0, 10)) {
       console.log(`  ${r.text} ${r.was ?? "—"} → ${r.band ?? "—"}`);
     }

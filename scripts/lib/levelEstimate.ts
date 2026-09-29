@@ -31,6 +31,38 @@ export const EST_MIN_SUPPORT = 20; // a cell needs this many levelled words to s
 export const EST_N3_SHARE = 0.25;
 export const EST_N2_SHARE = 0.35;
 
+/** kuromoji's tags for one token — only the fields the name test reads. */
+export interface TokenTags {
+  pos: string;
+  pos_detail_1: string;
+  pos_detail_2: string;
+}
+
+/**
+ * Is this writing a PLACE name rather than vocabulary — judged by how the analyzer tags
+ * it ON ITS OWN? True for a writing of 2+ characters that is ONE token tagged
+ * 固有名詞-地域 (台湾, インド, イタリア, アムステルダム, 東京). Places get no ESTIMATED level —
+ * a band on 台湾 reads as "an N3 word". A curated band is untouched either way.
+ *
+ * PLACES ONLY, measured (staging, 2026-09-30, over the 18.7k estimated writings):
+ *   · 地域 2+ chars: 418 — clean (countries, cities, regions).
+ *   · 組織: 960 — mostly real loanwords IPADIC lists as company names (アイコン,
+ *     アスリート, アウトレット). Excluding them would strip real words. (Cost: 松山 and
+ *     広島 tag as 組織 — their sports teams — so they keep an estimate.)
+ *   · 人名: ~400 — many real words (かおり "fragrance", あかり "light", キング, カイト).
+ *   · single characters: ~200 — mostly words in their own right (米 rice, 露 dew).
+ * (JMdict's own `place` tag can't do this: it marks only 2 entries below id 5,000,000.)
+ */
+export function isPlaceName(writing: string, tokens: readonly TokenTags[]): boolean {
+  return (
+    [...writing].length >= 2 &&
+    tokens.length === 1 &&
+    tokens[0].pos === "名詞" &&
+    tokens[0].pos_detail_1 === "固有名詞" &&
+    tokens[0].pos_detail_2 === "地域"
+  );
+}
+
 export type WordShape = "kanji" | "katakana" | "other";
 
 /** A kanji compound (2+ kanji), a katakana word, or anything else. */
