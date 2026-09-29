@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import {
   dictionaryForm,
   resolveSourceLanguage,
+  searchTermFor,
   sourceOptions,
   targetOptions,
   swapLanguages,
@@ -125,7 +126,10 @@ export function AddWordForm({
       // lemmas, so a conjugated 行った matches nothing (and in prod would fall
       // through to paid MT for a word JMdict has under 行く). Same rule Translate
       // and the paragraph reader use. JA only — no engine gives English lemmas.
-      const query = await dictionaryForm(input, resolveSourceLanguage(input, sourceLang));
+      // Romaji → kana first when the source is explicitly Japanese ("neko" → ねこ), exactly
+      // as Translate does — otherwise a romaji query finds nothing (searchTermFor).
+      const term = searchTermFor(input, sourceLang);
+      const query = await dictionaryForm(term, resolveSourceLanguage(term, sourceLang));
       const r = await lookup({ input: query, sourceLang, targetLang });
       if (r.meanings.length === 0) {
         // Not a failure: the word just isn't in the dictionary. Type a meaning and

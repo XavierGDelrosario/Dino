@@ -22,6 +22,8 @@
 import { describe, it, expect } from "vitest";
 import {
   ENABLED,
+  DB_URL,
+  DB_MATCHES_TARGET,
   SERVICE_KEY,
   makeList,
   makeStandaloneWord,
@@ -65,15 +67,44 @@ describe.skipIf(!ENABLED)("DB constraints: UNIQUE", () => {
     expect(error?.code).toBe("23505");
   });
 
-  it("two users cannot share an email (users.email UNIQUE)", async () => {
+  // 20260781: a client-written users.email is FORCED to the caller's own verified
+  // address (else its guest placeholder), so claiming another user's email — the
+  // squatting the 2026-06-28 audit flagged — silently has no effect. (The UNIQUE index
+  // behind it is covered by the owner-connection test below.)
+  it("a client can't claim another user's email — its row keeps its own", async () => {
     const a = await makeUser();
     const b = await makeUser();
-    // b owns its row (RLS passes), but claiming a's email hits the UNIQUE index.
     const { error } = await b.client
       .from("users")
       .update({ email: `${a.userId}@guest.dino` })
       .eq("user_id", b.userId);
-    expect(error?.code).toBe("23505");
+    expect(error).toBeNull();
+    const { data } = await b.client.from("users").select("email").eq("user_id", b.userId).single();
+    expect(data?.email).toBe(`${b.userId}@guest.dino`);
+
+    // Nor an arbitrary address a grant might later be typed against.
+    await b.client.from("users").update({ email: "someone.else@example.com" }).eq("user_id", b.userId);
+    const { data: again } = await b.client.from("users").select("email").eq("user_id", b.userId).single();
+    expect(again?.email).toBe(`${b.userId}@guest.dino`);
+  });
+
+  it.skipIf(!DB_MATCHES_TARGET)("two users cannot share an email (users.email UNIQUE, owner write)", async () => {
+    const a = await makeUser();
+    const b = await makeUser();
+    const { Client } = await import("pg");
+    const pg = new Client({ connectionString: DB_URL });
+    try {
+      await pg.connect();
+    } catch {
+      return; // no direct DB access here
+    }
+    try {
+      await expect(
+        pg.query("UPDATE users SET email = $1 WHERE user_id = $2", [`${a.userId}@guest.dino`, b.userId]),
+      ).rejects.toMatchObject({ code: "23505" });
+    } finally {
+      await pg.end();
+    }
   });
 });
 

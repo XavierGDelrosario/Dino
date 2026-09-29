@@ -15,6 +15,7 @@ import { ConfidenceDots } from "../common/ConfidenceDots";
 import { AddToListButton } from "./AddToListButton";
 import { useI18n } from "../../i18n";
 import "./translate.css";
+import { WordInfoButton } from "../common/WordInfo";
 
 const DEFAULT_SHOWN = 8; // meanings visible before "show more" (incl. the primary)
 
@@ -63,6 +64,10 @@ export function WordResults({
       {/* `headword` is what the user searched: a uk entry found BY ITS KANJI
           headlines as that kanji rather than flipping to kana (displayHeadword). */}
       <SenseText word={word} primary={isPrimary} query={headword} />
+      {/* Level · Commonness · Part of speech — the same "?" panel as Lists, the
+          flashcards and the article table. On the head row only: a word's level is its
+          headword's, so repeating it per sense would say the same thing N times. */}
+      {isPrimary && <WordInfoButton word={word} />}
       {/* Confidence, shown ONLY for senses actually in vocab — and as the shared DOTS,
           which are also the "Forgot" control (press → a "Forgot?" overlay). This was a
           plain "✓ n/5", the one saved-word readout in the app that was still text: the

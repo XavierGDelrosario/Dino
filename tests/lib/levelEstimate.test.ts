@@ -6,6 +6,7 @@ import {
   fitLevelEstimate,
   wordShape,
   type LevelledWord,
+  isPlaceName,
 } from "../../scripts/lib/levelEstimate";
 
 /** `n` curated words of one shape / list status / frequency at `band`. */
@@ -67,5 +68,27 @@ describe("fitLevelEstimate", () => {
     ]);
     expect(rule("給付", 420, false)).toBe(5); // uses the whole bin (3 of 23 easy < 0.25)
     expect(rule("給付", 600, false)).toBeNull(); // nothing measured at this frequency
+  });
+});
+
+// Place names get NO estimated level (台湾 isn't "an N3 word"); other name tags are
+// too noisy to trust — see isPlaceName for the measurement.
+describe("isPlaceName", () => {
+  const tok = (pos_detail_1: string, pos_detail_2: string, pos = "名詞") => ({ pos, pos_detail_1, pos_detail_2 });
+  it("is true for a 2+ character writing that is one 固有名詞-地域 token", () => {
+    expect(isPlaceName("台湾", [tok("固有名詞", "地域")])).toBe(true);
+    expect(isPlaceName("アムステルダム", [tok("固有名詞", "地域")])).toBe(true);
+  });
+  it("is false for a single character — 米 is rice as often as America", () => {
+    expect(isPlaceName("米", [tok("固有名詞", "地域")])).toBe(false);
+  });
+  it("is false for person / organization tags (real words hide there) and for 固有名詞-一般", () => {
+    expect(isPlaceName("かおり", [tok("固有名詞", "人名")])).toBe(false); // "fragrance"
+    expect(isPlaceName("アイコン", [tok("固有名詞", "組織")])).toBe(false);
+    expect(isPlaceName("富士山", [tok("固有名詞", "一般")])).toBe(false);
+  });
+  it("is false for a common noun or a multi-token writing", () => {
+    expect(isPlaceName("都市", [tok("一般", "*")])).toBe(false);
+    expect(isPlaceName("大和村", [tok("固有名詞", "地域"), tok("接尾", "地域")])).toBe(false);
   });
 });
