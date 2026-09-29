@@ -48,6 +48,17 @@ describe("orderSensesByContextReading", () => {
     expect(ids(orderSensesByContextReading([suji, jou], "じょう"))).toEqual(["jou", "suji"]);
   });
 
+  // Report #41: リスク in a pasted text quizzed as ＲＩＳＣ "reduced instruction set
+  // computer". A katakana-only headword has NO inputReading (the kana is the headword),
+  // while JMdict's ＲＩＳＣ entry stores リスク AS its reading — so matching inputReading
+  // alone promoted ＲＩＳＣ over "risk". Matching the headword too makes both match, and
+  // the dictionary's order (risk first) stands.
+  it("does not promote a Latin homophone over a katakana word (リスク vs ＲＩＳＣ)", () => {
+    const risk = { id: "risk", input: "リスク", inputReading: null };
+    const risc = { id: "risc", input: "ＲＩＳＣ", inputReading: "リスク" };
+    expect(ids(orderSensesByContextReading([risk, risc], "りすく"))).toEqual(["risk", "risc"]);
+  });
+
   it("is a REORDER — it never drops a sense", () => {
     const list = [KARAI, TSURAI, sense("third", "からい")];
     const out = orderSensesByContextReading(list, "つらい");
