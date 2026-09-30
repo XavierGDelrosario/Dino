@@ -274,11 +274,17 @@
   text-align: center;
 }
 
-/* "Show in context" — the source sentences a quizzed word came from, under the card.
+/* "Show in context" / "Show example" — hints under the card, toggles on one row, one
+   panel open at a time (QuizHints).
    Collapsed by default (the card stays a cold recall test); the toggle matches the
    reader's disclosure style (.reader-summary__toggle). */
 .quizctx {
   margin-top: 0.75rem;
+}
+.quizctx__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
 }
 .quizctx__toggle {
   background: none;
