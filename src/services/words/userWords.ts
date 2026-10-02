@@ -381,6 +381,26 @@ export async function deleteUserWord(params: { userWordId: string }): Promise<vo
   vocabulary.removeWord(params.userWordId);
 }
 
+// A select-all on a big vocabulary is thousands of ids; cap in-flight statements.
+const BULK_WRITE_CONCURRENCY = 4;
+
+/**
+ * Deletes MANY words from the vocabulary (the Lists multi-select). Same semantics as
+ * deleteUserWord per word. The ids ride in the URL of a DELETE, so they are chunked
+ * (lib/urlFilter) — which makes this several statements, NOT one transaction: if a
+ * chunk fails, the earlier ones stay deleted. The cache is written through per
+ * committed chunk, so the table shows exactly what is gone and the caller can retry
+ * the remainder.
+ */
+export async function deleteUserWords(params: { userWordIds: string[] }): Promise<void> {
+  const chunks = chunkForUrlFilter([...new Set(params.userWordIds)]);
+  await mapLimit(chunks, BULK_WRITE_CONCURRENCY, async (ids) => {
+    const { error } = await supabase.from("user_words").delete().in("user_word_id", ids);
+    if (error) throw toServiceError(error);
+    vocabulary.removeWords(ids);
+  });
+}
+
 /** Tags an existing user_word into a sub-list. */
 export async function addUserWordToList(params: {
   listId: string;
@@ -413,6 +433,27 @@ export async function removeUserWordFromList(params: {
     .eq("user_word_id", params.userWordId);
   if (error) throw toServiceError(error);
   vocabulary.retagInCache("untag", params.listId, [params.userWordId]);
+}
+
+/**
+ * Un-tags MANY words from one sub-list; they all stay in the vocabulary. Chunked like
+ * deleteUserWords, with the same per-chunk write-through. Every statement carries the
+ * list_id filter — by user_word_id alone it would strip the words from EVERY list.
+ */
+export async function removeUserWordsFromList(params: {
+  listId: string;
+  userWordIds: string[];
+}): Promise<void> {
+  const chunks = chunkForUrlFilter([...new Set(params.userWordIds)]);
+  await mapLimit(chunks, BULK_WRITE_CONCURRENCY, async (ids) => {
+    const { error } = await supabase
+      .from("list_words")
+      .delete()
+      .eq("list_id", params.listId)
+      .in("user_word_id", ids);
+    if (error) throw toServiceError(error);
+    vocabulary.retagInCache("untag", params.listId, ids);
+  });
 }
 
 /** Page size for vocabulary reads — a power user's list is unbounded, so reads are

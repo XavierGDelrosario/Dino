@@ -48,24 +48,22 @@ export function WordInfo({ word }: { word: WordInfoTarget }) {
 }
 
 /**
- * The "?" button + its floating panel (Level + POS, plus any `extra` rows the
- * caller appends — e.g. the Lists row's added/reviewed dates). Self-contained:
- * click toggles; hover also reveals on desktop (pure CSS). `onClick` stops
- * propagation so it never flips/swipes an enclosing flashcard.
+ * The "?" button + its floating panel, with whatever rows the caller puts in it.
+ * Self-contained: click toggles; hover also reveals on desktop (pure CSS). `onClick`
+ * stops propagation so it never flips/swipes an enclosing flashcard or opens the row
+ * it sits in.
  */
-export function WordInfoButton({
-  word,
-  extra,
+export function InfoButton({
+  ariaLabel,
   align = "right",
+  children,
 }: {
-  word: WordInfoTarget;
-  /** Extra rows appended below Level + POS (rendered inside the same panel). */
-  extra?: ReactNode;
+  ariaLabel: string;
   /** Which edge the panel aligns to (default right). Use "left" near a right edge. */
   align?: "left" | "right";
+  children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useI18n();
   const wrapRef = useRef<HTMLSpanElement>(null);
 
   // While open, dismiss on a tap/click outside the wrap (button + panel) or on
@@ -92,7 +90,7 @@ export function WordInfoButton({
       <button
         type="button"
         className="wordinfo-btn"
-        aria-label={t("wordinfo.aria")}
+        aria-label={ariaLabel}
         aria-expanded={open}
         onClick={(e) => {
           e.stopPropagation();
@@ -102,9 +100,32 @@ export function WordInfoButton({
         ?
       </button>
       <div className={`wordinfo-panel wordinfo-panel--${align}`} role="note">
-        <WordInfo word={word} />
-        {extra}
+        {children}
       </div>
     </span>
+  );
+}
+
+/**
+ * The word "?" — Level + Commonness + POS, plus any `extra` rows the caller appends
+ * (e.g. the Lists row's added/reviewed dates).
+ */
+export function WordInfoButton({
+  word,
+  extra,
+  align = "right",
+}: {
+  word: WordInfoTarget;
+  /** Extra rows appended below Level + POS (rendered inside the same panel). */
+  extra?: ReactNode;
+  /** Which edge the panel aligns to (default right). Use "left" near a right edge. */
+  align?: "left" | "right";
+}) {
+  const { t } = useI18n();
+  return (
+    <InfoButton ariaLabel={t("wordinfo.aria")} align={align}>
+      <WordInfo word={word} />
+      {extra}
+    </InfoButton>
   );
 }

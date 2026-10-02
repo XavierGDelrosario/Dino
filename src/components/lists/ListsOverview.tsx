@@ -21,8 +21,9 @@ import { SortControls, type SortDir } from "../common/SortControls";
 import { Loading } from "../common/Loading";
 import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { PencilIcon, XIcon } from "../common/icons";
+import { InfoButton } from "../common/WordInfo";
 import { summarizeAggregates } from "../../services/analyze/summarize";
-import { useI18n } from "../../i18n";
+import { useI18n, type Locale } from "../../i18n";
 import type { ListOverview } from "../../services/lists";
 import type { LangCode } from "../../services/language";
 import "./lists.css";
@@ -58,6 +59,11 @@ function sortOverviews(
     return (av - bv) * sign;
   });
   return [...all, ...lists];
+}
+
+/** ISO timestamp → short readable date in the UI locale (the Lists row's own format). */
+function fmtDate(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
 }
 
 /** Inline name field with ✓/✕ — the same shape ListChips uses for "New list", so
@@ -111,7 +117,7 @@ function ListCard({
   onRename: (listId: string, name: string) => void;
   onDelete: (row: ListOverview) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [editing, setEditing] = useState(false);
   const [summary, setSummary] = useState(false);
   const isAll = row.listId === null;
@@ -173,6 +179,22 @@ function ListCard({
               >
                 <PencilIcon size={13} />
               </button>
+            )}
+            {/* The two dates the sort axes above run on, per list. ALL was never
+                created, so it has only its latest word; an empty list has neither and
+                carries no "?" at all rather than a panel of dashes. */}
+            {(row.createdAt || row.lastWordAddedAt) && (
+              <InfoButton ariaLabel={t("lists.infoAria")}>
+                {row.createdAt && (
+                  <span>
+                    {t("lists.infoCreated")}: {fmtDate(row.createdAt, locale)}
+                  </span>
+                )}
+                <span>
+                  {t("lists.infoLatestWord")}:{" "}
+                  {row.lastWordAddedAt ? fmtDate(row.lastWordAddedAt, locale) : t("lists.never")}
+                </span>
+              </InfoButton>
             )}
             <span className="listcard__count">{row.wordCount}</span>
           </>

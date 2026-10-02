@@ -19,8 +19,10 @@ import {
   createCustomWord,
   editUserWord,
   deleteUserWord,
+  deleteUserWords,
   addUserWordsToList,
   removeUserWordFromList,
+  removeUserWordsFromList,
 } from "../services/words/userWords";
 import {
   cachedLists,
@@ -170,6 +172,21 @@ export function useLists(userId: string) {
     [guard, selectedListId]
   );
 
+  // The multi-select flavours of the two above. Chunked, so a failure can land part-way:
+  // the cache already reflects what went, and `false` tells the caller to keep the
+  // rest of the selection for a retry.
+  const deleteWords = useCallback(
+    (userWordIds: string[]) => guard(() => deleteUserWords({ userWordIds })),
+    [guard]
+  );
+  const untagWords = useCallback(
+    (userWordIds: string[]) => {
+      if (selectedListId === null) return Promise.resolve(false);
+      return guard(() => removeUserWordsFromList({ listId: selectedListId, userWordIds }));
+    },
+    [guard, selectedListId]
+  );
+
   // Tag a selection into an existing sub-list (one round trip); the service records
   // the new membership in the cache. The single-word row action is just the 1-element case (below),
   // so the two paths can't drift.
@@ -252,7 +269,9 @@ export function useLists(userId: string) {
     editWord,
     softenWord,
     deleteWord,
+    deleteWords,
     untagWord,
+    untagWords,
     tagWord,
     tagWords,
     createListForWord,

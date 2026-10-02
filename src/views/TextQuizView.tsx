@@ -184,7 +184,7 @@ export function TextQuizView({
           flipped={q.flipped}
           onFlip={q.flip}
           reversed={flip.reversed}
-          // Bottom-left of the card. Reports the exact SENSE being shown — the meaning
+          // Top-right of the card, beside the ＋. Reports the exact SENSE being shown — the meaning
           // is what a quiz card is about, so a wrong one is the likeliest thing to flag.
           flag={<ReportFlagButton input={card.input} wordId={card.wordId} size={15} />}
           // Swipe to cycle meanings — same gate as the arrows (revealed + >1 sense).

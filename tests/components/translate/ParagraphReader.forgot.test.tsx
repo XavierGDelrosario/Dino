@@ -155,8 +155,10 @@ describe("ParagraphReader — Forgot", () => {
     expect(forgotBtn()).toHaveProperty("disabled", true);
 
     // A different word is a different question: 犬 is armed even though 猫 is spent.
+    // (Resting on it past the hover-intent delay — see ParagraphReader.hover.test.)
     await act(async () => {
       hover("犬");
+      await new Promise((r) => setTimeout(r, 200));
     });
     expect(forgotBtn()).toHaveProperty("disabled", false);
   });

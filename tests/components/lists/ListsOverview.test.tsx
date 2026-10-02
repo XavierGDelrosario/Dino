@@ -149,4 +149,31 @@ describe("ListsOverview — rendering", () => {
     const filled = cards.find((c) => c.querySelector(".listcard__name")?.textContent === "Newest");
     expect(filled?.querySelector(".listcard__summary")).not.toBeNull();
   });
+
+  // The "?" carries the two dates the sort axes run on. ALL was never created, and an
+  // empty list has no latest word — each shows only what it has.
+  it("the ? shows when a list was created and when its latest word was added", () => {
+    const { container } = view("name", "least", [
+      ...rows.filter((r) => r.listId !== null),
+      row({ listId: null, listName: null, wordCount: 100, createdAt: null, lastWordAddedAt: "2026-09-01T00:00:00Z" }),
+    ]);
+    const card = (name: string) =>
+      [...container.querySelectorAll(".listcard")].find(
+        (c) => c.querySelector(".listcard__name")?.textContent === name,
+      )!;
+    const info = (name: string) => card(name).querySelector(".wordinfo-panel")?.textContent ?? "";
+
+    expect(card("Newest").querySelector(".wordinfo-btn")?.getAttribute("aria-label")).toBe("List details");
+    expect(info("Newest")).toMatch(/Created: .*2026/);
+    expect(info("Newest")).toMatch(/Latest word: .*2026/);
+    expect(info("Never used")).toMatch(/Created: .*2026/);
+    expect(info("Never used")).toContain("Latest word: never");
+    expect(info("All words")).not.toContain("Created");
+    expect(info("All words")).toMatch(/Latest word: .*2026/);
+  });
+
+  it("an ALL with no words has nothing to say, so it carries no ?", () => {
+    const { container } = view("name", "least", [ALL]);
+    expect(container.querySelector(".wordinfo-btn")).toBeNull();
+  });
 });

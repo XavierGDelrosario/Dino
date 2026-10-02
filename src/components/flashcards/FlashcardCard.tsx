@@ -98,9 +98,9 @@ export function FlashcardCard({
   reversed?: boolean;
   /** Optional node pinned to the card's top-right (e.g. an add-to-list button). */
   action?: ReactNode;
-  /** Bottom-left corner — the report flag. A slot rather than a hardcoded button so
-   *  the card stays a pure presentation component and the quiz views keep deciding
-   *  WHAT is being reported (the shown sense). */
+  /** The report flag — top-right, beside `action`. A slot rather than a hardcoded
+   *  button so the card stays a pure presentation component and the quiz views keep
+   *  deciding WHAT is being reported (the shown sense). */
   flag?: ReactNode;
 }) {
   const { t } = useI18n();
@@ -148,36 +148,33 @@ export function FlashcardCard({
         <WordInfoButton word={word} align="left" />
       </span>
 
-      {/* Top-right tools — INSIDE the card: read-aloud, then the optional caller
-          action (e.g. add-to-list). Stops propagation so using either never flips
-          the card.
-
-          The listen button speaks the TERM, and only while the term is on screen:
-          on a `reversed` card the term IS the answer, so pronouncing it before the
-          flip would give it away — the same rule that keeps readings off the front
-          face. It speaks the sense's reading rather than the kanji where we have
-          one (pronounceableText), so a homograph is never mispronounced. */}
-      {(termVisible || action) && (
+      {/* Top-right tools — INSIDE the card: the report flag, then the optional caller
+          action (e.g. add-to-list), which keeps the corner itself. Stops propagation
+          so using either never flips the card. */}
+      {(flag || action) && (
         <span className="flashcard__action" onClick={(e) => e.stopPropagation()}>
-          {termVisible && (
-            <SpeakButton
-              className="card-tool"
-              text={pronounceableText(word)}
-              lang={word.sourceLang}
-              size={18}
-            />
-          )}
+          {flag}
           {action}
         </span>
       )}
 
-      {/* Bottom-left: report this card. Its own corner, away from the three tools at
-          the top — reporting is not part of studying, and it must not sit under a
-          thumb that is reaching for reveal/grade. Stops propagation so it never flips
-          the card (the ＋ and listen buttons above do the same). */}
-      {flag && (
-        <span className="flashcard__flag" onClick={(e) => e.stopPropagation()}>
-          {flag}
+      {/* Bottom-right: read-aloud, in its own corner — the one tool used on nearly
+          every card, so it sits where a thumb already is rather than in the cluster
+          at the top. Stops propagation so it never flips the card.
+
+          It speaks the TERM, and only while the term is on screen: on a `reversed`
+          card the term IS the answer, so pronouncing it before the flip would give
+          it away — the same rule that keeps readings off the front face. It speaks
+          the sense's reading rather than the kanji where we have one
+          (pronounceableText), so a homograph is never mispronounced. */}
+      {termVisible && (
+        <span className="flashcard__speak" onClick={(e) => e.stopPropagation()}>
+          <SpeakButton
+            className="card-tool"
+            text={pronounceableText(word)}
+            lang={word.sourceLang}
+            size={18}
+          />
         </span>
       )}
 

@@ -241,6 +241,12 @@ export const en = {
   "lists.selectedCount": "{n} selected",
   "lists.addSelectedToList": "Add to list",
   "lists.addSelectedTitle": "Add {n} selected to a list",
+  "lists.deleteSelected": "Delete",
+  "lists.deleteSelectedTitle": "Delete {n} selected from your vocabulary",
+  "lists.deleteSelectedConfirm": "Delete {n} selected from your vocabulary? This removes them from all lists and erases their review history.",
+  "lists.removeSelected": "Remove from list",
+  "lists.removeSelectedTitle": "Remove {n} selected from this list",
+  "lists.removeSelectedConfirm": "Remove {n} selected from \"{list}\"? They stay in your vocabulary.",
   "lists.removeFromList": "Remove from this list (keeps it in your vocabulary)",
   "lists.deleteFromVocab": "Delete from vocabulary",
   "lists.confidenceOf": "confidence {n} of 5",
@@ -257,7 +263,7 @@ export const en = {
   // period filter
   "lists.added": "Added",
   "lists.addedAria": "Filter by date added",
-  "lists.reviewed": "Reviewed",
+  "lists.reviewed": "Last reviewed",
   "lists.reviewedAria": "Filter by date last reviewed",
   "period.allTime": "all time",
   "period.today": "today",
@@ -297,6 +303,9 @@ export const en = {
 
   // word-info "?" panel (Level + Part of Speech), shared by Lists + flashcard
   "wordinfo.aria": "Word details",
+  "lists.infoAria": "List details",
+  "lists.infoCreated": "Created",
+  "lists.infoLatestWord": "Latest word",
   "wordinfo.level": "Level",
   "wordinfo.usage": "Usage",
   "wordinfo.pos": "Part of Speech",
@@ -365,7 +374,6 @@ export const en = {
   "learn.noLevel": "Level not set yet.",
   "learn.findLevel": "Find my level",
   "learn.recalibrate": "Retake level check",
-  "learn.language": "Language",
   // Heading over the Wikinews browse embedded under the level bands (the former
   // Media tab, and before that a button that opened it).
   "learn.articles": "Articles",
@@ -698,6 +706,12 @@ export const ja: Record<MessageKey, string> = {
   "lists.selectedCount": "{n}件選択中",
   "lists.addSelectedToList": "リストに追加",
   "lists.addSelectedTitle": "選択した{n}件をリストに追加",
+  "lists.deleteSelected": "削除",
+  "lists.deleteSelectedTitle": "選択した{n}件を語彙から削除",
+  "lists.deleteSelectedConfirm": "選択した{n}件を語彙から削除しますか？すべてのリストと復習履歴からも削除されます。",
+  "lists.removeSelected": "リストから外す",
+  "lists.removeSelectedTitle": "選択した{n}件をこのリストから外す",
+  "lists.removeSelectedConfirm": "選択した{n}件を「{list}」から外しますか？語彙には残ります。",
   "lists.removeFromList": "このリストから削除（語彙には残ります）",
   "lists.deleteFromVocab": "語彙から削除",
   "lists.confidenceOf": "自信度 5段階中{n}",
@@ -709,7 +723,7 @@ export const ja: Record<MessageKey, string> = {
   "sense.definition": "国語辞典の語釈",
   "lists.added": "追加",
   "lists.addedAria": "追加日でフィルター",
-  "lists.reviewed": "復習",
+  "lists.reviewed": "最終復習",
   "lists.reviewedAria": "最終復習日でフィルター",
   "period.allTime": "全期間",
   "period.today": "今日",
@@ -746,6 +760,9 @@ export const ja: Record<MessageKey, string> = {
   "flashcard.tapToReveal": "タップして表示",
 
   "wordinfo.aria": "単語の詳細",
+  "lists.infoAria": "リストの詳細",
+  "lists.infoCreated": "作成日",
+  "lists.infoLatestWord": "最新の単語",
   "wordinfo.level": "レベル",
   "wordinfo.usage": "使用頻度",
   "wordinfo.pos": "品詞",
@@ -810,7 +827,6 @@ export const ja: Record<MessageKey, string> = {
   "learn.noLevel": "レベルは未設定です。",
   "learn.findLevel": "レベルを診断",
   "learn.recalibrate": "レベル診断をやり直す",
-  "learn.language": "言語",
   "learn.articles": "記事",
 
   // calibration ("Find my level" placement quiz)

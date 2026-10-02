@@ -8,9 +8,10 @@
 // with no curated scale (or none ingested) shows nothing to pick. source = the
 // language being learned, target = the language it is explained in (see explainIn).
 //
-// This tab's language picker is LOCAL: it seeds from the profile but never writes
-// back, so studying something else here for one session leaves your saved languages
-// alone. The placement quiz launched from here is handed the same on-screen value.
+// The tab has NO language picker of its own: it studies the profile's learning
+// language, set in one place (the profile page). A second, local picker here meant two
+// answers to "what am I learning", and the placement quiz, the bands and Articles had
+// to be kept agreeing with whichever one the user had last touched.
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { listUserLists, createList, type List } from "../services/lists";
 import {
@@ -31,7 +32,6 @@ const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.Med
 import {
   DEFAULT_LEARNING_LANGUAGE,
   DEFAULT_NATIVE_LANGUAGE,
-  targetOptions,
   type LangCode,
 } from "../services/language";
 import { TextQuizView } from "./TextQuizView";
@@ -52,10 +52,7 @@ export function LearnView({ userId }: { userId: string }) {
   // embedded Articles browse waits on it so it doesn't fetch the DEFAULT language's
   // wiki and immediately refetch the real one. It is set on a FAILED read too.
   const prefs = useLanguagePrefs(userId);
-  // OVERRIDDEN by this tab's own picker (see below). Null = follow the profile, so a
-  // profile that lands late can never overwrite a choice the user already made.
-  const [picked, setPicked] = useState<LangCode | null>(null);
-  const learning = picked ?? prefs.learning;
+  const learning = prefs.learning;
   const native = prefs.native;
   const [lists, setLists] = useState<List[]>([]);
   useEffect(() => {
@@ -66,17 +63,13 @@ export function LearnView({ userId }: { userId: string }) {
 
   /**
    * The language the drawn words are EXPLAINED in — the profile's native one, EXCEPT
-   * when the tab's own picker has landed on that same language.
+   * when the profile pair is the same language twice.
    *
    * A pair needs two different languages, and the edge rejects `source === target` with
    * a 400 raised before the learn branch — reported only as "Edge Function returned a
    * non-2xx status code", with nothing in error_log because the request never reaches
-   * the part that logs. The defaults make it the first thing an EN-native tester hits:
-   * learning JA + native EN, pick English here, and the pair collapses to EN→EN.
-   *
-   * Resolved LOCALLY and at read time, so the picker stays independent — nothing in
-   * settings changes, and leaving the tab leaves no trace. Falls back to the registry
-   * defaults (the other one of the pair) rather than scanning the registry by position.
+   * the part that logs. Falls back to the registry defaults (the other one of the pair)
+   * rather than scanning the registry by position.
    */
   const explainIn: LangCode =
     native !== learning
@@ -242,31 +235,6 @@ export function LearnView({ userId }: { userId: string }) {
           "promote" it would remount it and lose the open article. */}
       {!articleOpen && (
         <>
-          <label className="learn__lang">
-            <span className="learn__langlabel">{t("learn.language")}</span>
-            <select
-              className="learn__langselect"
-              value={learning}
-              // LOCAL ONLY — this picker changes what THIS tab studies and nothing else.
-              // It deliberately does not write to the profile: your saved languages are a
-              // settings decision, and trying a different language here for one session
-              // shouldn't rewrite them behind your back (an earlier version swapped the
-              // native language to keep the pair valid, which is exactly the surprise this
-              // avoids). The placement quiz reads this same value via `langs`, so the tab
-              // stays self-consistent without touching anything outside it.
-              onChange={(e) => {
-                setPicked(e.target.value as LangCode);
-                reset();
-              }}
-            >
-              {targetOptions().map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
           {/* Placement-quiz launcher + the current calibrated level (if any). */}
           <div className="learn__level">
             <span className="learn__levelnote">

@@ -107,9 +107,17 @@ describe("LearnView — Articles", () => {
 
   it("hands the browse the tab's own pair, once the profile has settled", async () => {
     view();
-    // The picker here is the only one — the embedded view has none of its own, so a
-    // wrong pair would silently browse the wrong wiki with nothing to correct it.
+    // The pair is the PROFILE's — neither this tab nor the embedded view has a picker
+    // of its own, so a wrong pair would silently browse the wrong wiki with nothing to
+    // correct it.
     expect(await screen.findByText("pair:JA->EN ready:true")).toBeTruthy();
+  });
+
+  it("offers no language picker of its own — the learning language is a profile setting", async () => {
+    view();
+    await screen.findByText("ARTICLES SURFACE");
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByText("Language")).toBeNull();
   });
 
   it("stays on screen for a language with no proficiency framework", async () => {

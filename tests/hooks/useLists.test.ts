@@ -27,8 +27,10 @@ vi.mock("@/services/words/userWords", () => ({
   createCustomWord: vi.fn(),
   editUserWord: vi.fn(),
   deleteUserWord: vi.fn(),
+  deleteUserWords: vi.fn(),
   addUserWordsToList: vi.fn(),
   removeUserWordFromList: vi.fn(),
+  removeUserWordsFromList: vi.fn(),
 }));
 
 import { useLists } from "@/hooks/useLists";
@@ -39,7 +41,9 @@ import {
   createCustomWord,
   editUserWord,
   deleteUserWord,
+  deleteUserWords,
   removeUserWordFromList,
+  removeUserWordsFromList,
 } from "@/services/words/userWords";
 import * as vocab from "@/services/words/vocabularyCache";
 
@@ -50,6 +54,8 @@ const mockCreateCustom = vi.mocked(createCustomWord);
 const mockEdit = vi.mocked(editUserWord);
 const mockDelete = vi.mocked(deleteUserWord);
 const mockUntag = vi.mocked(removeUserWordFromList);
+const mockDeleteMany = vi.mocked(deleteUserWords);
+const mockUntagMany = vi.mocked(removeUserWordsFromList);
 
 const uw1 = makeUserWord({ userWordId: "u1", input: "一", translation: "one" });
 const uw2 = makeUserWord({ userWordId: "u2", input: "二", translation: "two" });
@@ -68,6 +74,8 @@ beforeEach(() => {
   // The real services write their result through to the cache; so do these.
   mockDelete.mockImplementation(async ({ userWordId }) => vocab.removeWord(userWordId));
   mockUntag.mockImplementation(async ({ listId, userWordId }) => vocab.retagInCache("untag", listId, [userWordId]));
+  mockDeleteMany.mockImplementation(async ({ userWordIds }) => vocab.removeWords(userWordIds));
+  mockUntagMany.mockImplementation(async ({ listId, userWordIds }) => vocab.retagInCache("untag", listId, userWordIds));
 });
 
 async function loadedHook() {
@@ -212,6 +220,52 @@ describe("useLists — mutations reach the view through the cache (no re-pull)",
 
     expect(result.current.words.map((w) => w.userWordId)).toEqual(["u2"]);
     act(() => result.current.setSelectedListId(null));
+    expect(result.current.words).toHaveLength(2);
+  });
+});
+
+describe("useLists — multi-select delete / remove", () => {
+  it("deleteWords drops the whole selection from the vocabulary and reports success", async () => {
+    const { result } = await loadedHook();
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.deleteWords(["u1", "u2"]);
+    });
+    expect(ok).toBe(true);
+    expect(result.current.words).toEqual([]);
+  });
+
+  it("untagWords removes the selection from the open list only", async () => {
+    const { result } = await loadedHook();
+    act(() => result.current.setSelectedListId("list-A"));
+    await act(async () => {
+      await result.current.untagWords(["u1", "u2"]);
+    });
+    expect(mockUntagMany).toHaveBeenCalledWith({ listId: "list-A", userWordIds: ["u1", "u2"] });
+    expect(result.current.words).toEqual([]);
+    act(() => result.current.setSelectedListId(null));
+    expect(result.current.words).toHaveLength(2);
+  });
+
+  it("untagWords on ALL is a no-op (there is no list to remove from)", async () => {
+    const { result } = await loadedHook();
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.untagWords(["u1"]);
+    });
+    expect(ok).toBe(false);
+    expect(mockUntagMany).not.toHaveBeenCalled();
+  });
+
+  it("a failed delete reports false and surfaces the error, so the caller keeps the selection", async () => {
+    const { result } = await loadedHook();
+    mockDeleteMany.mockRejectedValueOnce(new Error("boom"));
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.deleteWords(["u1"]);
+    });
+    expect(ok).toBe(false);
+    expect(result.current.error).toBe("boom");
     expect(result.current.words).toHaveLength(2);
   });
 });

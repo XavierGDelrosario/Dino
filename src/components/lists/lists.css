@@ -218,6 +218,11 @@
   margin-left: auto;
   flex: 0 0 auto;
   white-space: nowrap;
+  /* The same box as .lists__addtoggle (Add word / Select / Filter). A bare .btn is
+     1rem / 0.7rem 1.4rem, so without these it stood a size larger than the row of
+     buttons it is meant to match. Keep the two in step. */
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
 }
 
 /* Its own row now, under the summary panel rather than beside the sort control — so

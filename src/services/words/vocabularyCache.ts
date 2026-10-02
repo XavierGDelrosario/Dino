@@ -349,12 +349,21 @@ export function writeWordById(userWordId: string, patch: Partial<UserWord>): voi
 }
 
 export function removeWord(userWordId: string): void {
+  removeWords([userWordId]);
+}
+
+/** The bulk delete's write-through: ONE pass and ONE emit for the whole set, so a
+ *  select-all delete doesn't re-render the table once per word. */
+export function removeWords(userWordIds: string[]): void {
   const s = current();
-  if (!s) return;
-  s.deleted.add(userWordId);
-  s.entries.delete(userWordId);
-  s.order = s.order.filter((id) => id !== userWordId);
-  s.membership?.forEach((set) => set.delete(userWordId)); // list_words cascades
+  if (!s || userWordIds.length === 0) return;
+  const gone = new Set(userWordIds);
+  for (const id of gone) {
+    s.deleted.add(id);
+    s.entries.delete(id);
+  }
+  s.order = s.order.filter((id) => !gone.has(id));
+  s.membership?.forEach((set) => gone.forEach((id) => set.delete(id))); // list_words cascades
   emit(s, true);
 }
 

@@ -333,9 +333,10 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   /* 220px + ~one reveal-button's worth of height (a .btn is ~2.75rem tall). The card
-     had to grow anyway once the flag took the bottom-left corner: at 220px a long
-     meaning on the back reached the corners, and the term is vertically centred, so
-     extra height buys clearance at BOTH ends rather than just the bottom. */
+     had to grow anyway once a button took a bottom corner (the listen button, bottom
+     right): at 220px a long meaning on the back reached the corners, and the term is
+     vertically centred, so extra height buys clearance at BOTH ends rather than just
+     the bottom. */
   min-height: 264px;
   padding: 2rem 1.5rem;
   display: flex;
@@ -353,17 +354,16 @@
   left: 0.6rem;
 }
 
-/* Bottom-left: the report flag (see FlashcardCard's `flag` slot). Diagonally
-   opposite the add-to-list cluster so the two never crowd, and low enough that the
-   card's text — which is centred — never reaches it. */
-.flashcard__flag {
+/* Bottom-right: read-aloud. Its own corner, low enough that the card's text — which
+   is centred — never reaches it. */
+.flashcard__speak {
   position: absolute;
   bottom: 0.6rem;
-  left: 0.6rem;
+  right: 0.6rem;
 }
 
-/* Top-right tool cluster: read-aloud + the caller's action (add-to-list), in a row
-   so a card carrying both keeps one tidy corner. */
+/* Top-right tool cluster: the report flag (FlashcardCard's `flag` slot) + the caller's
+   action (add-to-list), in a row so a card carrying both keeps one tidy corner. */
 .flashcard__action {
   position: absolute;
   top: 0.6rem;
