@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useReview } from "../hooks/useReview";
 import { useQuizFlip } from "../hooks/useQuizFlip";
 import { FlashcardCard } from "../components/flashcards/FlashcardCard";
-import { QuizExample } from "../components/flashcards/QuizExample";
+import { QuizHints } from "../components/flashcards/QuizHints";
 import { ReportFlagButton } from "../components/common/ReportFlagButton";
 import { useSwipeCard } from "../components/flashcards/useSwipeCard";
 import { FlipButton } from "../components/flashcards/FlipButton";
@@ -169,7 +169,7 @@ export function FlashcardView({
 
       {/* "Show example" — same disclosure as the text/level quiz. Keyed on the card so
           it re-collapses on every card. */}
-      <QuizExample key={card.userWordId} word={card} flipped={r.flipped} />
+      <QuizHints key={card.userWordId} word={card} flipped={r.flipped} />
 
       <ErrorText message={r.error} />
 
