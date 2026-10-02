@@ -358,16 +358,15 @@ the SRS ease already does), then drop the column + its grants (`20260704`).
 
 ### Account-linking collisions — rollout `[#13]`
 **Gates the captcha rollout.** `20260782` is live on staging + prod; left:
-- Enable **manual linking** on staging + prod (Auth → Sign In / Providers) — sign-up's
-  "Continue with Google/Apple" is `linkIdentity`, which fails with `manual_linking_disabled` without it.
+- Enable **manual linking** on staging (Auth → Sign In / Providers; prod already has it) —
+  sign-up's "Continue with Google/Apple" is `linkIdentity`, which fails with
+  `manual_linking_disabled` without it.
 - Live-verify with real Google (local can't), web + iOS: password account → "Continue with
   Google" is denied with the funnel copy; sign-up link on an already-registered Google
   account falls back to sign-in and merges the guest.
 
 ### Placement + review-log — after `20260783` / `20260784`
 - Finish "Find my level" once on each real account — the stored band predates the fix.
-- Ship the client: web deploy + iOS rebuild from `main` (card direction and the sign-in
-  funnel are in `main`, not in any deployed build).
 
 ### App Store submission `[iOS release]`
 Code is done: Sign in with Apple (needs a Services ID + a .p8-signed secret that **expires
