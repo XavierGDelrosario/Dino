@@ -357,22 +357,17 @@ the SRS ease already does), then drop the column + its grants (`20260704`).
 - **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
 
 ### Account-linking collisions — rollout `[#13]`
-**Gates the captcha rollout.** Code + migration `20260782` are on the branch; left:
-- Apply `20260782` to staging + prod (check the number on both hosted DBs first).
+**Gates the captcha rollout.** `20260782` is live on staging + prod; left:
 - Enable **manual linking** on staging + prod (Auth → Sign In / Providers) — sign-up's
   "Continue with Google/Apple" is `linkIdentity`, which fails with `manual_linking_disabled` without it.
 - Live-verify with real Google (local can't), web + iOS: password account → "Continue with
   Google" is denied with the funnel copy; sign-up link on an already-registered Google
   account falls back to sign-in and merges the guest.
 
-### Placement + review-log migrations — rollout
-- Apply `20260783` (placement evidence = swipe only, newest 40 per band) and `20260784`
-  (review_log: drop `user_id`, add `reversed`, two index drops) to staging + prod.
-- **Prod backup immediately before AND after `20260784`** (`npm run db:backup`): the dump
-  is data-only, so a pre-migration one restores only into the old schema.
-- After `20260784` on each DB: one-off `VACUUM FULL review_log;` — the dropped column's
-  bytes stay in existing rows until the table is rewritten.
-- After `20260783`: finish "Find my level" once — the stored band predates the fix.
+### Placement + review-log — after `20260783` / `20260784`
+- Finish "Find my level" once on each real account — the stored band predates the fix.
+- Ship the client: web deploy + iOS rebuild from `main` (card direction and the sign-in
+  funnel are in `main`, not in any deployed build).
 
 ### App Store submission `[iOS release]`
 Code is done: Sign in with Apple (needs a Services ID + a .p8-signed secret that **expires
