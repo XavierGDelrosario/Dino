@@ -31,6 +31,10 @@ import { WordInfoButton } from "../common/WordInfo";
 // well over a second. Raise it and a deliberate second notch feels blocked; drop it below
 // the server window and a legitimate press gets silently swallowed.
 const FORGET_HOLD_MS = 2500;
+// How long the pointer must rest on ANOTHER word before it takes an open card over (see
+// `show`). Long enough to cross a neighbouring word on the way into the card, short
+// enough that deliberately moving to the next word still feels immediate.
+const SWITCH_DELAY_MS = 150;
 
 // The marks that can BE a per-sentence control. Deliberately NOT `splitSentences`' full
 // set: ASCII "." is also a decimal point, and a button mid-number reads as a typo.
@@ -149,21 +153,51 @@ function ParagraphReaderImpl({
   // The word element the card is anchored to — kept so we can re-measure it while
   // the page scrolls/resizes (below), keeping the card glued to its word.
   const anchorEl = useRef<HTMLElement | null>(null);
+  const openRef = useRef(false);
+  openRef.current = hover !== null;
   // Stable handlers, so memoizing the token spans below isn't invalidated by hover.
   // `reading` is the TOKEN's reading — the right furigana for THIS occurrence of a
   // homograph (君 → きみ here), not an arbitrary sense's reading.
-  const show = useCallback(
+  const showNow = useCallback(
     (word: string, key: string, reading: string | null, el: HTMLElement) => {
       clearTimeout(hideTimer.current);
+      clearTimeout(switchTimer.current);
       anchorEl.current = el;
       setHover({ word, key, reading, rect: el.getBoundingClientRect() });
     },
     [],
   );
+  // HOVER INTENT. The card sits beside its word, usually up/down AND to the right of
+  // it, so the diagonal path from word to card crosses the neighbouring words on the
+  // same line. Switching on mere contact swapped the card out from under the pointer
+  // — it read as the card vanishing (worst when it opens above). So while a card is
+  // open, another word only takes over if the pointer RESTS on it; passing through on
+  // the way into the card (whose mouseenter cancels the switch) keeps the card.
+  const switchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const show = useCallback(
+    (word: string, key: string, reading: string | null, el: HTMLElement) => {
+      if (!openRef.current || anchorEl.current === el) return showNow(word, key, reading, el);
+      clearTimeout(hideTimer.current); // keep the open card while deciding
+      clearTimeout(switchTimer.current);
+      switchTimer.current = setTimeout(() => showNow(word, key, reading, el), SWITCH_DELAY_MS);
+    },
+    [showNow],
+  );
   const scheduleHide = useCallback(() => {
+    clearTimeout(switchTimer.current);
     hideTimer.current = setTimeout(() => setHover(null), 120);
   }, []);
-  const cancelHide = useCallback(() => clearTimeout(hideTimer.current), []);
+  const cancelHide = useCallback(() => {
+    clearTimeout(hideTimer.current);
+    clearTimeout(switchTimer.current);
+  }, []);
+  useEffect(
+    () => () => {
+      clearTimeout(hideTimer.current);
+      clearTimeout(switchTimer.current);
+    },
+    [],
+  );
 
   // ── Tap the same word again to put the card away ────────────────────────────
   // The card opens on mouseenter, which a touch tap SYNTHESIZES: on iOS the sequence
@@ -178,8 +212,6 @@ function ParagraphReaderImpl({
   // unchanged with a mouse (hover opens, a click on the same word closes, moving away
   // and back re-opens) and is per-ELEMENT, not per-word, so two occurrences of the
   // same word in the paragraph are two independent targets.
-  const openRef = useRef(false);
-  openRef.current = hover !== null;
   const armed = useRef(false);
   const armToggle = useCallback((el: HTMLElement) => {
     armed.current = openRef.current && anchorEl.current === el;
@@ -197,10 +229,11 @@ function ParagraphReaderImpl({
       // the synthetic mouseenter, but once a touch browser considers the element
       // hovered it may not fire mouseenter again — so the tap after a close would do
       // nothing and the word would read as dead. `show` is idempotent, so calling it
-      // here costs nothing on the taps where mouseenter did fire.
-      show(word, key, reading, el);
+      // here costs nothing on the taps where mouseenter did fire. `showNow`, not the
+      // hover-intent `show`: a tap is a decision, never a pass-through.
+      showNow(word, key, reading, el);
     },
-    [show],
+    [showNow],
   );
 
   // The card is position:fixed (to escape the reader's overflow), so on its own it

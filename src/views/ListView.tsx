@@ -439,11 +439,9 @@ export function ListView({
           <SelectionBar
             count={selected.length}
             visibleCount={visible.length}
-            allVisibleSelected={
-              visible.length > 0 && visible.every((w) => picked.has(w.userWordId))
-            }
             lists={L.lists}
-            // Adds the filtered set to the picks (union, not replace) — see SelectionBar.
+            // Only offered with nothing picked (see SelectionBar), so the union is just
+            // the filtered set; it stays a union so it can never drop a pick.
             onSelectAll={() =>
               setPicked((prev) => new Set([...prev, ...visible.map((w) => w.userWordId)]))
             }
@@ -457,6 +455,38 @@ export function ListView({
               L.createListForWords(selected, name).then((ok) => {
                 if (ok) exitSelect();
               })
+            }
+            // The row's own ✕ at selection scale: delete-from-vocabulary on ALL, un-tag
+            // inside a list. A failed (possibly part-way) write keeps select mode on —
+            // `selected` has already dropped whatever did go.
+            remove={
+              selectedList
+                ? {
+                    label: t("lists.removeSelected"),
+                    title: t("lists.removeSelectedTitle", { n: selected.length }),
+                    danger: false,
+                    onClick: () => {
+                      if (
+                        !confirm(
+                          t("lists.removeSelectedConfirm", {
+                            n: selected.length,
+                            list: selectedList.listName,
+                          }),
+                        )
+                      )
+                        return;
+                      void L.untagWords(selected).then((ok) => ok && exitSelect());
+                    },
+                  }
+                : {
+                    label: t("lists.deleteSelected"),
+                    title: t("lists.deleteSelectedTitle", { n: selected.length }),
+                    danger: true,
+                    onClick: () => {
+                      if (!confirm(t("lists.deleteSelectedConfirm", { n: selected.length }))) return;
+                      void L.deleteWords(selected).then((ok) => ok && exitSelect());
+                    },
+                  }
             }
           />
       )}

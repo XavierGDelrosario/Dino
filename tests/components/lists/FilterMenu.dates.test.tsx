@@ -202,7 +202,7 @@ describe("the date axes — dropdown + custom calendar", () => {
 
   it("opens ON the selected span, not on today's month", () => {
     panel({ ...NO_FILTERS, reviewed: { from: "2025-11-02", to: "2025-11-08" } });
-    fireEvent.click(screen.getByRole("button", { name: /Reviewed: edit custom range/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Last reviewed: edit custom range/ }));
     expect(screen.getByText("November 2025")).toBeTruthy();
   });
 
@@ -213,7 +213,7 @@ describe("the date axes — dropdown + custom calendar", () => {
 
     choose(reviewedSelect(), "custom");
     expect(screen.getAllByText(/March 2026/).length).toBe(1);
-    expect(screen.getByRole("group", { name: /Reviewed: pick a date range/ })).toBeTruthy();
+    expect(screen.getByRole("group", { name: /Last reviewed: pick a date range/ })).toBeTruthy();
   });
 
   it("picking a named span closes an open custom calendar", () => {

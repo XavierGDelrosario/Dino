@@ -13,8 +13,10 @@ import {
   createCustomWord,
   editUserWord,
   deleteUserWord,
+  deleteUserWords,
   addUserWordToList,
   removeUserWordFromList,
+  removeUserWordsFromList,
   getAllUserWords,
   getUserWordStates,
   __resetDictionaryColumnProbe,
@@ -261,6 +263,47 @@ describe("deleteUserWord", () => {
     await expect(deleteUserWord({ userWordId: "uw1" })).resolves.toBeUndefined();
     expect(stub.callsFor("user_words", "delete")).toHaveLength(1);
     expect(stub.fromCalls).toEqual(["user_words"]); // no manual list_words cleanup
+  });
+});
+
+describe("deleteUserWords / removeUserWordsFromList (the Lists multi-select)", () => {
+  const uuid = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+
+  it("deletes a selection by id and never touches list_words (tags cascade)", async () => {
+    stub.queueFrom("user_words", { data: null, error: null });
+    await deleteUserWords({ userWordIds: ["uw1", "uw2", "uw1"] });
+    expect(stub.callsFor("user_words", "delete")).toHaveLength(1);
+    expect(stub.callsFor("user_words", "in").map((c) => c.args)).toEqual([
+      ["user_word_id", ["uw1", "uw2"]],
+    ]);
+    expect(stub.fromCalls).toEqual(["user_words"]);
+  });
+
+  // The ids ride in a DELETE's URL: a select-all on a real vocabulary (thousands of
+  // UUIDs) in ONE statement is a 414, not a delete.
+  it("chunks a large selection, with every id in exactly one statement", async () => {
+    const ids = Array.from({ length: 400 }, (_, i) => uuid(i));
+    stub.queueFrom("user_words", ...Array.from({ length: 20 }, () => ({ data: null, error: null })));
+    await deleteUserWords({ userWordIds: ids });
+    const sent = stub.callsFor("user_words", "in").map((c) => c.args[1] as string[]);
+    expect(sent.length).toBeGreaterThan(1);
+    expect(sent.flat().sort()).toEqual([...ids].sort());
+  });
+
+  it("does nothing for an empty selection", async () => {
+    await deleteUserWords({ userWordIds: [] });
+    expect(stub.fromCalls).toEqual([]);
+  });
+
+  it("un-tags a selection from ONE list (list_id on every statement), leaving the vocabulary alone", async () => {
+    stub.queueFrom("list_words", { data: null, error: null });
+    await removeUserWordsFromList({ listId: "verbs", userWordIds: ["uw1", "uw2"] });
+    expect(stub.callsFor("list_words", "delete")).toHaveLength(1);
+    expect(stub.callsFor("list_words", "eq").map((c) => c.args)).toContainEqual(["list_id", "verbs"]);
+    expect(stub.callsFor("list_words", "in").map((c) => c.args)).toEqual([
+      ["user_word_id", ["uw1", "uw2"]],
+    ]);
+    expect(stub.fromCalls).toEqual(["list_words"]);
   });
 });
 
