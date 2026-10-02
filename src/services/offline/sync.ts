@@ -58,7 +58,12 @@ async function runDrain(): Promise<DrainResult> {
   await mapLimit([...byCard.values()], REPLAY_CONCURRENCY, async (entries) => {
     for (const e of entries) {
       try {
-        await sendReview({ userWordId: e.userWordId, grade: e.grade, reviewedAt: e.reviewedAt });
+        await sendReview({
+          userWordId: e.userWordId,
+          grade: e.grade,
+          reviewedAt: e.reviewedAt,
+          reversed: e.reversed,
+        });
         ok.push(e.id);
       } catch {
         // Stop this CARD at its first failure so a later grade can't overtake an

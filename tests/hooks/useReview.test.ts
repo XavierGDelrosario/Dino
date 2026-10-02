@@ -63,6 +63,8 @@ describe("useReview", () => {
     expect(mockRecord).toHaveBeenCalledWith({
       userWordId: firstId,
       grade: 4,
+      // Word-first unless the view says the card was flipped (see the test below).
+      reversed: false,
       current: { stability: null, confidenceRating: 0, lastReviewedDate: null },
     });
     await waitFor(() => expect(result.current.position).toBe(2));
@@ -170,7 +172,7 @@ describe("useReview", () => {
       result.current.grade(2);
     });
     await waitFor(() => expect(result.current.status).toBe("done"));
-    expect(result.current.failed).toEqual([{ card: a, grade: 2 }]);
+    expect(result.current.failed).toEqual([{ card: a, grade: 2, reversed: false }]);
     expect(result.current.error).toBeTruthy();
 
     await act(async () => {
@@ -180,6 +182,28 @@ describe("useReview", () => {
     expect(result.current.failed).toEqual([]);
     expect(mockRecord).toHaveBeenCalledTimes(2);
     expect(mockRecord.mock.calls[1][0]).toMatchObject({ userWordId: "a", grade: 2 });
+  });
+
+  // The direction is a fact about the moment of grading, so a retry must re-send the
+  // one it was graded in — not whatever the quiz is flipped to by then.
+  it("a grade given on a flipped card carries reversed, through a retry too", async () => {
+    const a = item("a");
+    mockQueue.mockResolvedValue([a]);
+    mockRecord.mockRejectedValueOnce(new Error("record failed"));
+    const { result } = renderHook(() => useReview("user-1"));
+    await waitFor(() => expect(result.current.status).toBe("reviewing"));
+
+    await act(async () => {
+      result.current.grade(4, true);
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(mockRecord.mock.calls[0][0]).toMatchObject({ userWordId: "a", grade: 4, reversed: true });
+
+    await act(async () => {
+      result.current.retryFailed();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(mockRecord.mock.calls[1][0]).toMatchObject({ userWordId: "a", grade: 4, reversed: true });
   });
 
   it("restart reloads the queue", async () => {

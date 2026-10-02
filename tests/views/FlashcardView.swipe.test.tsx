@@ -89,13 +89,26 @@ describe("FlashcardView — swipe to grade", () => {
   it("swiping right on a face-down card grades 5", () => {
     const stage = renderView().querySelector(".swipecard")!;
     swipe(stage, 90);
-    expect(grade).toHaveBeenCalledWith(5);
+    expect(grade).toHaveBeenCalledWith(5, false); // word-first: the default direction
+  });
+
+  // The grade carries the face that was up, so review_log can tell recognition from
+  // production (migration 20260784). Flipped = the quiz's meaning-first toggle.
+  it("a grade on a FLIPPED quiz says so", () => {
+    sessionStorage.setItem("dino.quiz.reversed", "1");
+    try {
+      const stage = renderView().querySelector(".swipecard")!;
+      swipe(stage, 90);
+      expect(grade).toHaveBeenCalledWith(5, true);
+    } finally {
+      sessionStorage.removeItem("dino.quiz.reversed");
+    }
   });
 
   it("swiping left on a face-down card grades 1", () => {
     const stage = renderView().querySelector(".swipecard")!;
     swipe(stage, -90);
-    expect(grade).toHaveBeenCalledWith(1);
+    expect(grade).toHaveBeenCalledWith(1, false);
   });
 
   it("swiping UP on a face-down card reveals it, without grading", () => {

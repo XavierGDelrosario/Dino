@@ -2,7 +2,13 @@
 // auth identity (guest vs permanent account) so the UI updates when the user
 // upgrades / signs in / signs out (see services/session).
 import { useEffect, useState } from "react";
-import { ensureSession, getAuthStatus, type AuthStatus } from "../services/session";
+import {
+  claimGuestMerge,
+  ensureSession,
+  getAuthStatus,
+  hasPendingGuestMerge,
+  type AuthStatus,
+} from "../services/session";
 import { registerNativeAuthListener } from "../services/nativeAuth";
 import { supabase } from "../config/supabaseClient";
 
@@ -69,8 +75,14 @@ export function useSession(): SessionState {
     });
 
     // 1. Bootstrap: sign in anonymously if needed + ensure the public.users row.
+    //    An OAuth sign-in lands HERE on web (a fresh page load), so a guest merge
+    //    started before the redirect is claimed before the first status goes out.
     ensureSession()
       .then(() => getAuthStatus())
+      .then(async (s) => {
+        if (s && !s.isAnonymous && hasPendingGuestMerge()) await claimGuestMerge();
+        return s;
+      })
       .then((s) => active && s && setStatus(s))
       .catch((e) => {
         console.error("ensureSession failed:", e); // full object in DevTools
@@ -85,7 +97,18 @@ export function useSession(): SessionState {
       const u = session?.user;
       if (u) {
         const isAnonymous = (u as { is_anonymous?: boolean }).is_anonymous === true;
-        setStatus({ userId: u.id, email: isAnonymous ? null : u.email || null, isAnonymous });
+        const next = { userId: u.id, email: isAnonymous ? null : u.email || null, isAnonymous };
+        if (!isAnonymous && hasPendingGuestMerge()) {
+          // Signed in to an account with the guest's words still to carry: hold the
+          // switch until they've landed, so the views (keyed on userId) mount on the
+          // merged vocabulary rather than loading once without it. Deferred out of
+          // the callback — supabase-js deadlocks if one awaits its own calls here.
+          setTimeout(() => {
+            claimGuestMerge().finally(() => active && setStatus(next));
+          }, 0);
+          return;
+        }
+        setStatus(next);
       } else if (event === "SIGNED_OUT") {
         // No session (explicit sign-out, token expiry, or another-tab sign-out).
         // Self-heal into a fresh guest so the UI never sits on a dead identity that

@@ -1,7 +1,13 @@
 // Sign-in / Create-account page (separate routes). Reuses the session service +
 // the password policy. On success → home. "Create account" upgrades the current
-// guest in place (keeps their words); "Sign in" switches to an existing account.
-import { useState } from "react";
+// guest in place (keeps their words); "Sign in" switches to an existing account and
+// merges the guest's words into it (services/session claimGuestMerge).
+//
+// COLLISIONS — one email, several ways in. Sign-up on a taken email, or a password
+// sign-in on an OAuth-only account, names how that account actually signs in
+// (getSignInMethods). A sign-up that LINKS a Google/Apple account which is already a
+// DINO user is answered by signing in to it instead — the guest's words follow.
+import { useEffect, useState } from "react";
 import {
   upgradeToAccount,
   signIn,
@@ -10,10 +16,15 @@ import {
   signInWithGoogle,
   linkApple,
   signInWithApple,
+  signInWithProvider,
   recordTermsAgreement,
+  collisionKind,
+  getSignInMethods,
 } from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
+import { onOAuthError, takeOAuthError, type OAuthReturnError } from "../services/oauthReturn";
 import { errorMessage } from "../lib/errorMessage";
+import { formatMethods, oauthErrorCopy, PROVIDER } from "../lib/authCopy";
 import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
@@ -34,8 +45,60 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [confirmSent, setConfirmSent] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
+  const [note, setNote] = useState<string | null>(null);
+
   // Signup requires accepting the Terms/Privacy; sign-in doesn't.
   const needsAgreement = mode === "signup" && !agreed;
+
+  // A failed OAuth round-trip comes back here: on web as a pending error read once
+  // on mount (the page load IS the return), on native as an event while this page
+  // sits under the in-app browser.
+  useEffect(() => {
+    const handle = (e: OAuthReturnError) => {
+      const provider = e.intent?.provider;
+      if (e.code === "identity_already_exists" && e.intent?.mode === "signup" && !e.intent.fallback && provider) {
+        // The provider account is already a DINO user, so linking it to this guest
+        // can't work — sign in to it instead; the guest's words are merged across.
+        setErr(null);
+        setNote(t("auth.linkTaken", { provider: PROVIDER[provider] }));
+        setBusy(true);
+        // Native: cancelling this second sheet fires no callback, so re-enable on close.
+        void onOAuthBrowserDismissed(() => { setBusy(false); setNote(null); }).then((stopWatch) =>
+          signInWithProvider(provider, { fallback: true }).catch((x) => {
+            stopWatch();
+            setNote(null);
+            setErr(errorMessage(x));
+            setBusy(false);
+          }),
+        );
+        return;
+      }
+      setBusy(false);
+      setNote(null);
+      setErr(oauthErrorCopy(t, e));
+    };
+    const pending = takeOAuthError();
+    if (pending) handle(pending);
+    return onOAuthError(handle);
+  }, [t]);
+
+  /** Explain a collision by naming how the existing account signs in; anything that
+   *  isn't a collision keeps the generic message. */
+  const explain = async (e: unknown): Promise<string> => {
+    const kind = collisionKind(e);
+    if (!kind) return errorMessage(e);
+    const methods = await getSignInMethods(email);
+    if (kind === "account_exists") {
+      return methods.length
+        ? t("auth.existsWith", { methods: formatMethods(t, methods) })
+        : t("auth.existsGeneric");
+    }
+    // A failed password sign-in on an account with no password at all.
+    if (methods.length && !methods.includes("email")) {
+      return t("auth.usesOther", { methods: formatMethods(t, methods) });
+    }
+    return t("auth.badCredentials");
+  };
 
   const submit = async () => {
     if (busy || !email.trim() || password === "" || needsAgreement) return;
@@ -59,7 +122,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       }
       navigate("/");
     } catch (e) {
-      setErr(errorMessage(e));
+      setErr(await explain(e));
     } finally {
       setBusy(false);
     }
@@ -94,6 +157,13 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     setBusy(true);
     setErr(null);
     try {
+      // A reset would try to give a Google/Apple account a password — which the
+      // one-method rule refuses anyway — so send them to their method instead.
+      const methods = await getSignInMethods(email);
+      if (methods.length && !methods.includes("email")) {
+        setErr(t("auth.usesOther", { methods: formatMethods(t, methods) }));
+        return;
+      }
       await requestPasswordReset(email);
       setSent(true);
     } catch (e) {
@@ -170,6 +240,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           </span>
         </label>
       )}
+      {note && <p className="review__msg">{note}</p>}
       <ErrorText message={err} />
       <button className="btn"
         disabled={busy || !email.trim() || password === "" || needsAgreement || (mode === "signup" && confirm === "")}

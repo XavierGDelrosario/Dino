@@ -35,6 +35,8 @@ export interface FailedTextGrade {
   index: number;
   word: Word;
   grade: ReviewGrade;
+  /** The face that was up when it was graded — a retry re-sends the same fact. */
+  reversed: boolean;
 }
 
 /** One card of a finished session: the sense graded, its saved row, its confidence. */
@@ -145,7 +147,7 @@ export function useTextQuiz(
 
   /** Save + record one grade in the background. Resolves either way; never throws. */
   const write = useCallback(
-    (at: number, word: Word, g: ReviewGrade) => {
+    (at: number, word: Word, g: ReviewGrade, reversed: boolean) => {
       const token = session.current;
       setSaving((n) => n + 1);
       // Add the selected sense, then record the first review with the grade (the review
@@ -153,7 +155,7 @@ export function useTextQuiz(
       // idempotent, so a retry — or re-grading a word — is safe.
       return (async () => {
         const uw = await saveDictionaryWord({ userId, word });
-        const res = await recordReview({ userWordId: uw.userWordId, grade: g });
+        const res = await recordReview({ userWordId: uw.userWordId, grade: g, reversed });
         return { uw, res };
       })()
         .then(
@@ -179,7 +181,7 @@ export function useTextQuiz(
           },
           (e) => {
             if (session.current !== token) return;
-            setFailed((f) => [...f, { index: at, word, grade: g }]);
+            setFailed((f) => [...f, { index: at, word, grade: g, reversed }]);
             setError(message(e));
           },
         )
@@ -188,11 +190,13 @@ export function useTextQuiz(
     [userId, markSaved, onGraded],
   );
 
+  // `reversed` = the card was showing its MEANING first (the view's quiz flip). It is
+  // logged with the grade and changes nothing about the schedule.
   const grade = useCallback(
-    (g: ReviewGrade) => {
+    (g: ReviewGrade, reversed = false) => {
       const word = sense;
       if (!word || status !== "reviewing" || advancing) return;
-      void write(index, word, g);
+      void write(index, word, g, reversed);
       if (calibrate) {
         const difficulty = getDifficulty(word).level;
         if (difficulty != null) samples.current.push({ difficulty, grade: g });
@@ -236,7 +240,7 @@ export function useTextQuiz(
     setFailed([]);
     setError(null);
     setStatus("saving");
-    for (const f of toSend) void write(f.index, f.word, f.grade);
+    for (const f of toSend) void write(f.index, f.word, f.grade, f.reversed);
   }, [failed, write]);
 
   return {

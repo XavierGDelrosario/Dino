@@ -12,7 +12,7 @@ import { FlipButton } from "../components/flashcards/FlipButton";
 import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
-import { softenConfidence } from "../services/review";
+import { softenConfidence, type ReviewGrade } from "../services/review";
 import { createList, listUserLists, type List } from "../services/lists";
 import { addUserWordToList } from "../services/words/userWords";
 import { useI18n } from "../i18n";
@@ -63,7 +63,11 @@ export function FlashcardView({
   // GradeBar is the affordance, and a swipe there would silently pick 1 or 5 for a
   // user who was reaching for a 3.
   // Swipe UP reveals the meaning — the same as tapping the card.
-  const { grade, flip: reveal } = r;
+  // Every grade carries the face that is up on THIS card (flip.reversed is what the
+  // card renders, not the pending toggle), so the log knows which way it was asked.
+  const { grade: gradeCard, flip: reveal } = r;
+  const reversed = flip.reversed;
+  const grade = useCallback((g: ReviewGrade) => gradeCard(g, reversed), [gradeCard, reversed]);
   const swipe = useSwipeCard({
     onLeft: useCallback(() => grade(1), [grade]),
     onRight: useCallback(() => grade(5), [grade]),
@@ -173,7 +177,7 @@ export function FlashcardView({
 
       <ErrorText message={r.error} />
 
-      <GradeBar flipped={r.flipped} submitting={r.locked} onReveal={r.flip} onGrade={r.grade} />
+      <GradeBar flipped={r.flipped} submitting={r.locked} onReveal={r.flip} onGrade={grade} />
     </section>
   );
 }

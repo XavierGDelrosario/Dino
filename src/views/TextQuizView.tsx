@@ -16,7 +16,7 @@ import { ProgressBar } from "../components/flashcards/ProgressBar";
 import { GradeBar } from "../components/flashcards/GradeBar";
 import { QuizWordList } from "../components/flashcards/QuizWordList";
 import { QuizHints } from "../components/flashcards/QuizHints";
-import { softenConfidence } from "../services/review";
+import { softenConfidence, type ReviewGrade } from "../services/review";
 import { addUserWordToList } from "../services/words/userWords";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
@@ -85,7 +85,11 @@ export function TextQuizView({
   // — the two never both apply, because this wrapper's handlers are only attached
   // while `!q.flipped` and the card's own only while `q.flipped`.
   // Swipe UP reveals the meaning — the same as tapping the card.
-  const { grade, flip: reveal } = q;
+  // Every grade carries the face that is up on THIS card (flip.reversed is what the
+  // card renders, not the pending toggle), so the log knows which way it was asked.
+  const { grade: gradeCard, flip: reveal } = q;
+  const reversed = flip.reversed;
+  const grade = useCallback((g: ReviewGrade) => gradeCard(g, reversed), [gradeCard, reversed]);
   const swipe = useSwipeCard({
     onLeft: useCallback(() => grade(1), [grade]),
     onRight: useCallback(() => grade(5), [grade]),
@@ -238,7 +242,7 @@ export function TextQuizView({
 
       <ErrorText message={q.error} />
 
-      <GradeBar flipped={q.flipped} submitting={q.locked} onReveal={q.flip} onGrade={q.grade} />
+      <GradeBar flipped={q.flipped} submitting={q.locked} onReveal={q.flip} onGrade={grade} />
 
       <div className="review__foot">{close}</div>
     </section>
