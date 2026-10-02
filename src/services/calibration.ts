@@ -212,17 +212,20 @@ export async function setUserProficiencyBand(userId: string, band: number | null
 }
 
 // ── Placement level (the "Find my level" swipe quiz) ──────────────────────────
-// Derives the band from the user's PLACEMENT ANSWERS — every know / don't-know swipe
-// they have ever given (migration 20260770) — accumulated across sessions, so the
-// denominator grows and a handful of misses can't swing the result.
+// Derives the band from the user's PLACEMENT ANSWERS — their know / don't-know swipes
+// (migration 20260770), carried across sessions so a handful of misses can't swing the
+// result. placement_evidence serves the NEWEST 40 per band (migration 20260783): enough
+// to be stable, few enough that a new sitting moves the band.
 //
 // It used to read the WHOLE vocabulary instead, which put real N2/N3 learners at N5:
 // most saved words were saved BECAUSE the user didn't know them (studying twenty N4
 // words added twenty shaky N4 words to the N4 tally), and "known" was the live display
 // confidence, which fades on purpose. The quiz's own answers are the only unbiased
-// sample, and a word counts as known if it was swiped know OR has since reached a
-// long-term confidence of 3 (the migration's placement_evidence). A level is only
-// DETERMINED once there is enough coverage; before that the caller shows "keep rating".
+// sample — and ONLY as swiped. A word the user learned after swiping don't-know does
+// NOT flip to known: the quiz saves every word it deals, so the sampled words get
+// studied and the rest of the band doesn't, and counting them walked every quizzed band
+// to 100% (a learner at ~50% of N2 and N1 was stored as N1). A level is only DETERMINED
+// once there is enough coverage; before that the caller shows "keep rating".
 
 /**
  * Answers needed to TRUST a band. Harder bands still need more evidence, but this is a
@@ -384,7 +387,8 @@ const isMissingPlacementSchema = (error: { code?: string } | null): boolean =>
   ["PGRST202", "PGRST205", "42883", "42P01"].includes(error?.code ?? "");
 
 /**
- * The user's placement answers for `learning`, reduced to level-calc inputs, or null
+ * The user's placement answers for `learning` (the newest 40 per band, oldest first),
+ * reduced to level-calc inputs, or null
  * when the language has no proficiency framework. The swipe quiz fetches this ONCE as a
  * baseline, then appends each swipe locally and re-runs levelFromRatings in memory.
  *

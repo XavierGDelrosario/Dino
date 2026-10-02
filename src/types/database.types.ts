@@ -389,9 +389,9 @@ export type Database = {
           new_stability: number
           prev_stability: number | null
           repeats: number
+          reversed: boolean | null
           reviewed_at: string
           reviewed_on: string
-          user_id: string
           user_word_id: string
         }
         Insert: {
@@ -401,7 +401,6 @@ export type Database = {
           prev_stability?: number | null
           repeats?: number
           reviewed_at?: string
-          user_id: string
           user_word_id: string
         }
         Update: {
@@ -411,17 +410,9 @@ export type Database = {
           prev_stability?: number | null
           repeats?: number
           reviewed_at?: string
-          user_id?: string
           user_word_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "review_log_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["user_id"]
-          },
           {
             foreignKeyName: "review_log_user_word_id_fkey"
             columns: ["user_word_id"]
@@ -852,6 +843,10 @@ export type Database = {
           used: number
         }[]
       }
+      claim_guest_merge: {
+        Args: { p_token: string }
+        Returns: number
+      }
       consume_translation_quota: {
         Args: { p_chars: number; p_quota: number; p_user_id: string }
         Returns: {
@@ -888,6 +883,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_guest_merge_ticket: {
+        Args: Record<PropertyKey, never>
+        Returns: string | null
+      }
       delete_account: { Args: never; Returns: undefined }
       jmdict_lookup: {
         Args: { p_input: string; p_source: string; p_target: string }
@@ -901,6 +900,10 @@ export type Database = {
           translation_reading: string
           writing: string
         }[]
+      }
+      sign_in_methods: {
+        Args: { p_email: string }
+        Returns: string[]
       }
       server_now: {
         Args: Record<PropertyKey, never>
@@ -933,7 +936,12 @@ export type Database = {
         Returns: Json
       }
       record_review: {
-        Args: { p_grade: number; p_user_word_id: string; p_reviewed_at?: string }
+        Args: {
+          p_grade: number
+          p_user_word_id: string
+          p_reviewed_at?: string
+          p_reversed?: boolean
+        }
         Returns: {
           confidence_rating: number
           custom_translation: string | null

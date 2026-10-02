@@ -1,7 +1,9 @@
 // The quiz "flip" preference: which side of a card faces up — the word (default)
 // or its meaning. DISPLAY ONLY: it swaps what the front/back show, never what is
-// asked of the SRS (the grade still records against the same user_word), and the
-// readings stay on the revealed side either way (see FlashcardCard).
+// asked of the SRS (the grade still records against the same user_word and moves the
+// same one schedule), and the readings stay on the revealed side either way (see
+// FlashcardCard). The views do pass `reversed` along with each grade so review_log
+// records which way the card faced (migration 20260784) — logged, never scheduled on.
 //
 // Two pieces of state on purpose. `pending` is what the user has toggled; `applied`
 // is what the CURRENT card renders. Toggling mid-card must not rewrite the card the

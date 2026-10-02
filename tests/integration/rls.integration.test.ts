@@ -121,6 +121,26 @@ describe.skipIf(!ENABLED)("RLS: cross-user isolation", () => {
     expect(data ?? []).toHaveLength(0);
   });
 
+  // review_log carries no owner column (migration 20260784): the read-own policy
+  // reaches the owner THROUGH the card. This is the only thing standing between one
+  // user's review history and another's, so both directions are pinned.
+  it("Bob cannot read Alice's review history; Alice can read her own", async () => {
+    const wordId = await createUserWord(alice, "alice-reviewed-meaning");
+    const graded = await alice.client.rpc("record_review", { p_user_word_id: wordId, p_grade: 4 });
+    expect(graded.error).toBeNull();
+
+    const own = await alice.client.from("review_log").select("grade").eq("user_word_id", wordId);
+    expect(own.error).toBeNull();
+    expect(own.data ?? []).toEqual([{ grade: 4 }]);
+
+    const byId = await bob.client.from("review_log").select("grade").eq("user_word_id", wordId);
+    expect(byId.error).toBeNull();
+    expect(byId.data ?? []).toHaveLength(0);
+    // …and not by scanning either: Bob has no reviews, so an unfiltered read is empty.
+    const all = await bob.client.from("review_log").select("grade");
+    expect(all.data ?? []).toHaveLength(0);
+  });
+
   it("Bob cannot tag his word into Alice's list", async () => {
     const bobWordId = await createUserWord(bob, "bobs-word");
 

@@ -35,6 +35,14 @@ describe("drainPendingReviews", () => {
     expect(await pending(store)).toEqual([]);
   });
 
+  it("replays a grade with the direction it was given in", async () => {
+    await enqueue(store, { ...g("e1", "a"), reversed: true });
+    await drainPendingReviews();
+    expect(mockSend).toHaveBeenCalledWith({
+      userWordId: "a", grade: 4, reviewedAt: g("e1", "a").reviewedAt, reversed: true,
+    });
+  });
+
   it("is a no-op with nothing queued", async () => {
     expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 0, remaining: 0 });
     expect(mockSend).not.toHaveBeenCalled();

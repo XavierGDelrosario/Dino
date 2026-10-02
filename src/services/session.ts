@@ -12,6 +12,7 @@ import { CURRENT_TERMS_VERSION } from "../lib/terms";
 import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 import { resetVocabulary } from "./words/vocabularyCache";
+import { rememberOAuthIntent, type OAuthProvider } from "./oauthReturn";
 
 export interface UserProfile {
   userId: string;
@@ -76,12 +77,14 @@ export async function upgradeToAccount(
 }
 
 /**
- * Sign in to an EXISTING account, switching the session to that account's uid — words
- * saved as the current guest stay with the guest (use upgradeToAccount to keep them).
+ * Sign in to an EXISTING account, switching the session to that account's uid. Words
+ * saved as the current guest are merged into the account once the switch lands
+ * (prepareGuestMerge → claimGuestMerge, run by useSession).
  */
 export async function signIn(params: { email: string; password: string }): Promise<AuthStatus> {
   const email = params.email.trim().toLowerCase();
   const captchaToken = await getCaptchaToken();
+  await prepareGuestMerge(); // while we are still the guest — see claimGuestMerge
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password: params.password,
@@ -124,18 +127,39 @@ async function startOAuth(
   if (native && data?.url) await Browser.open({ url: data.url });
 }
 
-export async function linkGoogle(): Promise<void> {
+/**
+ * Sign-up: LINK the provider to the current GUEST (same uid, so its words carry
+ * over). A failed return is explained on /signup (services/oauthReturn).
+ */
+export async function linkProvider(provider: OAuthProvider): Promise<void> {
+  rememberOAuthIntent({ mode: "signup", provider });
   await startOAuth(
-    (options) => supabase.auth.linkIdentity({ provider: "google", options }),
-    "Could not link Google",
+    (options) => supabase.auth.linkIdentity({ provider, options }),
+    `Could not link ${PROVIDER_NAME[provider]}`,
   );
 }
-export async function signInWithGoogle(): Promise<void> {
+
+/**
+ * Sign in AS the provider's account (switching uid). A guest's words follow it via the
+ * merge ticket. `fallback` marks the automatic retry after a sign-up link found the
+ * provider account already registered, so a second failure can't loop.
+ */
+export async function signInWithProvider(
+  provider: OAuthProvider,
+  opts: { fallback?: boolean } = {},
+): Promise<void> {
+  rememberOAuthIntent({ mode: opts.fallback ? "signup" : "signin", provider, fallback: opts.fallback });
+  await prepareGuestMerge();
   await startOAuth(
-    (options) => supabase.auth.signInWithOAuth({ provider: "google", options }),
-    "Google sign-in failed",
+    (options) => supabase.auth.signInWithOAuth({ provider, options }),
+    `${PROVIDER_NAME[provider]} sign-in failed`,
   );
 }
+
+const PROVIDER_NAME: Record<OAuthProvider, string> = { google: "Google", apple: "Apple" };
+
+export const linkGoogle = () => linkProvider("google");
+export const signInWithGoogle = () => signInWithProvider("google");
 
 /**
  * Sign in with Apple — same flow as Google, and REQUIRED rather than optional: App
@@ -147,17 +171,126 @@ export async function signInWithGoogle(): Promise<void> {
  * private relay address — so an account may have no reachable email, and password
  * reset simply doesn't apply to an Apple-only account.
  */
-export async function linkApple(): Promise<void> {
-  await startOAuth(
-    (options) => supabase.auth.linkIdentity({ provider: "apple", options }),
-    "Could not link Apple",
+export const linkApple = () => linkProvider("apple");
+export const signInWithApple = () => signInWithProvider("apple");
+
+// ---------------------------------------------------------------------------
+// Collisions. ONE email = one account = one method (password · Google · Apple),
+// enforced on auth.* by migration 20260782; the app's job is to send people to the
+// method their account actually uses.
+// ---------------------------------------------------------------------------
+
+/** How an existing account signs in, as sign_in_methods reports it. */
+export type SignInMethod = "google" | "apple" | "email";
+
+/**
+ * What kind of collision a thrown auth error is, or null when it isn't one:
+ * - "account_exists" — sign-up used an email another account already holds.
+ * - "bad_credentials" — a password sign-in failed; the address may belong to an
+ *   OAuth-only account, which is worth checking before showing the generic error.
+ * GoTrue's codes, not its messages, which change between versions.
+ */
+export function collisionKind(e: unknown): "account_exists" | "bad_credentials" | null {
+  const code = (e as { code?: unknown } | null)?.code;
+  if (code === "email_exists" || code === "user_already_exists") return "account_exists";
+  if (code === "invalid_credentials") return "bad_credentials";
+  return null;
+}
+
+/**
+ * The ways the account holding `email` signs in (google, apple, email — in that
+ * order), or [] if none does. Only ever called AFTER a collision; the RPC is
+ * rate-limited per caller and a throttled call also reads [], so treat [] as "don't
+ * know", never as "no such account". An Apple "Hide My Email" account holds a relay
+ * address, so a real address can't find it.
+ */
+export async function getSignInMethods(email: string): Promise<SignInMethod[]> {
+  const { data, error } = await supabase.rpc("sign_in_methods", {
+    p_email: email.trim().toLowerCase(),
+  });
+  if (error) return []; // a naming nicety — never let it mask the real error
+  return toMethods(data);
+}
+
+function toMethods(data: unknown): SignInMethod[] {
+  return ((data as string[] | null) ?? []).filter(
+    (m): m is SignInMethod => m === "google" || m === "apple" || m === "email",
   );
 }
-export async function signInWithApple(): Promise<void> {
-  await startOAuth(
-    (options) => supabase.auth.signInWithOAuth({ provider: "apple", options }),
-    "Apple sign-in failed",
-  );
+
+// ---------------------------------------------------------------------------
+// Guest → account merge (migration 20260782). Signing in to an EXISTING account
+// switches uid, which used to strand the guest's words. The guest can't prove
+// ownership after the switch, so it mints a single-use ticket FIRST; the account
+// claims it once signed in. Silent by design — no prompt.
+// ---------------------------------------------------------------------------
+
+const MERGE_KEY = "dino.guestMerge";
+const MERGE_TTL_MS = 60 * 60 * 1000; // mirrors the server's 1-hour ticket
+
+/** Mint a merge ticket if the current user is a guest with something to carry.
+ *  Best-effort: a failure here must never block the sign-in itself. */
+async function prepareGuestMerge(): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if ((data.session?.user as SupaUser | undefined)?.is_anonymous !== true) return;
+    const { data: token, error } = await supabase.rpc("create_guest_merge_ticket");
+    if (error || !token) return;
+    localStorage.setItem(MERGE_KEY, JSON.stringify({ token, at: Date.now() }));
+  } catch (e) {
+    console.warn("Could not prepare the guest merge:", e);
+  }
+}
+
+function readMergeTicket(): string | null {
+  try {
+    const raw = localStorage.getItem(MERGE_KEY);
+    if (!raw) return null;
+    const { token, at } = JSON.parse(raw) as { token: string; at: number };
+    if (Date.now() - at > MERGE_TTL_MS) {
+      localStorage.removeItem(MERGE_KEY);
+      return null;
+    }
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+/** Is a merge waiting to be claimed? (useSession holds the user switch until it's done.) */
+export function hasPendingGuestMerge(): boolean {
+  return readMergeTicket() !== null;
+}
+
+let inflightMerge: Promise<number> | null = null;
+/**
+ * Claim a pending merge into the CURRENT (non-guest) user. Returns how many guest
+ * words were carried (0 when there was nothing to claim). Shared in-flight, because
+ * both the bootstrap and the SIGNED_IN event can reach it on one sign-in. Never
+ * throws — a failed merge leaves the words on the guest, which is where they were.
+ */
+export function claimGuestMerge(): Promise<number> {
+  return (inflightMerge ??= runClaim().finally(() => {
+    inflightMerge = null;
+  }));
+}
+
+async function runClaim(): Promise<number> {
+  const token = readMergeTicket();
+  if (!token) return 0;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user as SupaUser | undefined;
+    if (!user || user.is_anonymous === true) return 0; // still the guest: keep the ticket
+    localStorage.removeItem(MERGE_KEY); // single-use either way
+    const { data: moved, error } = await supabase.rpc("claim_guest_merge", { p_token: token });
+    if (error) throw error;
+    resetVocabulary(); // the account's vocabulary just changed under the cache
+    return (moved as number | null) ?? 0;
+  } catch (e) {
+    console.warn("Guest merge failed:", e);
+    return 0;
+  }
 }
 
 /**

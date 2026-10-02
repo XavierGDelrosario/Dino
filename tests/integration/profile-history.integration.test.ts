@@ -44,9 +44,9 @@ async function seedWord(user: TestUser, input: string, addedAt: string, reviews:
   await pg!.query(`UPDATE user_words SET originally_translated_date = $2 WHERE user_word_id = $1`, [id, addedAt]);
   for (const r of reviews) {
     await pg!.query(
-      `INSERT INTO review_log (user_word_id, user_id, grade, reviewed_at, repeats, new_stability)
-       VALUES ($1, $2, 3, $3, $4, 1)`,
-      [id, user.userId, r.at, r.repeats ?? 1],
+      `INSERT INTO review_log (user_word_id, grade, reviewed_at, repeats, new_stability)
+       VALUES ($1, 3, $2, $3, 1)`,
+      [id, r.at, r.repeats ?? 1],
     );
   }
   return id;

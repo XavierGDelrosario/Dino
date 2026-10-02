@@ -12,6 +12,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import type { Database } from "../types/database.types";
+import { captureOAuthReturnFromUrl } from "../services/oauthReturn";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -37,6 +38,9 @@ if (!url || !anonKey) {
 // session in the page URL to auto-parse. The browser build keeps the library
 // defaults (its redirect lands on a real origin the client reads automatically).
 const native = Capacitor.isNativePlatform();
+// A failed OAuth return reports its error only in the URL; read it BEFORE the client
+// exists, or its own URL handling can consume the fragment first (services/oauthReturn).
+if (!native) captureOAuthReturnFromUrl();
 export const supabase = createClient<Database>(
   url,
   anonKey,

@@ -68,7 +68,7 @@ describe("useTextQuiz", () => {
     });
 
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", word: wordA }));
-    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-wa", grade: 5 });
+    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-wa", grade: 5, reversed: false });
     expect(onGraded).toHaveBeenCalledWith("wa", "uw-wa", 4);
     await waitFor(() => expect(result.current.position).toBe(2));
     expect(result.current.reviewedCount).toBe(1);
@@ -100,7 +100,7 @@ describe("useTextQuiz", () => {
     });
 
     expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ word: s2 }));
-    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-s2", grade: 4 });
+    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-s2", grade: 4, reversed: false });
   });
 
   it("graded lists the GRADED sense of each card in order, with its saved row + confidence, and restart clears it", async () => {
@@ -195,7 +195,7 @@ describe("useTextQuiz", () => {
       result.current.grade(3);
     });
     await waitFor(() => expect(result.current.status).toBe("done"));
-    expect(result.current.failed).toEqual([{ index: 0, word: wordA, grade: 3 }]);
+    expect(result.current.failed).toEqual([{ index: 0, word: wordA, grade: 3, reversed: false }]);
     expect(result.current.graded).toEqual([]);
     expect(result.current.error).toBeTruthy();
 
@@ -205,6 +205,6 @@ describe("useTextQuiz", () => {
     await waitFor(() => expect(result.current.status).toBe("done"));
     expect(result.current.failed).toEqual([]);
     expect(result.current.graded.map((g) => g.word.wordId)).toEqual(["wa"]);
-    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-wa", grade: 3 });
+    expect(mockRecord).toHaveBeenCalledWith({ userWordId: "uw-wa", grade: 3, reversed: false });
   });
 });

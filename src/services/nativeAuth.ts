@@ -25,6 +25,7 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "../config/supabaseClient";
+import { parseOAuthError, recordOAuthError } from "./oauthReturn";
 
 /** The custom-scheme URL Google/Supabase redirects to after a native OAuth login.
  *  The scheme MUST match the app bundle id registered in Info.plist. */
@@ -46,13 +47,12 @@ export async function registerNativeAuthListener(): Promise<() => void> {
   const handle = await App.addListener("appUrlOpen", async ({ url }) => {
     // e.g. com.xaviergdelrosario.dino://auth-callback?code=<pkce-code>
     //  (or ...?error=access_denied&error_description=... on a cancel/failure)
+    let failure: { code: string; description: string | null } | null = null;
     try {
       const parsed = new URL(url);
       const code = parsed.searchParams.get("code");
-      const errorDescription = parsed.searchParams.get("error_description");
-      if (errorDescription) {
-        console.error("Native OAuth returned an error:", errorDescription);
-      } else if (code) {
+      failure = parseOAuthError(url);
+      if (!failure && code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) console.error("exchangeCodeForSession failed:", error);
       }
@@ -62,6 +62,10 @@ export async function registerNativeAuthListener(): Promise<() => void> {
       // Close the in-app browser whether we succeeded or not.
       await Browser.close().catch(() => {});
     }
+    // Reported only AFTER the sheet is closed: the auth page may answer a link
+    // collision by opening a second sign-in sheet, which the close above would
+    // otherwise dismiss.
+    if (failure) recordOAuthError(failure.code, failure.description);
   });
 
   return () => {

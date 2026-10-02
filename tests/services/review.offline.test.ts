@@ -10,7 +10,7 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import { recordReview, sendReview } from "@/services/review";
+import { recordReview, sendReview, __resetDirectionProbe } from "@/services/review";
 import { __setOfflineStore, __resetOfflineStore, type OfflineStore } from "@/services/offline/store";
 import { pending } from "@/services/offline/queue";
 import { setAnchor } from "@/services/offline/clock";
@@ -25,6 +25,7 @@ beforeEach(() => {
   store = memStore();
   __setOfflineStore(store);
   setAnchor(null);
+  __resetDirectionProbe(); // module-global latch — reset between cases
 });
 
 const CARD = { userWordId: "uw1", grade: 4 as const };
@@ -113,6 +114,46 @@ describe("sendReview", () => {
       p_grade: 3,
       p_reviewed_at: "2026-08-08T09:00:00.000Z",
     });
+  });
+
+  const ROW = { user_word_id: "uw1", stability: 1, confidence_rating: 1, last_reviewed_date: "x" };
+
+  it("sends the card's direction when it has one, and nothing when it doesn't", async () => {
+    stub.rpc.mockResolvedValue({ data: ROW, error: null });
+
+    await sendReview({ userWordId: "uw1", grade: 3, reversed: true });
+    expect(stub.rpc.mock.calls[0][1]).toMatchObject({ p_reversed: true });
+    await sendReview({ userWordId: "uw1", grade: 3, reversed: false });
+    expect(stub.rpc.mock.calls[1][1]).toMatchObject({ p_reversed: false });
+    // An old queued grade has no direction: it must stay "not recorded", not become false.
+    await sendReview({ userWordId: "uw1", grade: 3 });
+    expect(stub.rpc.mock.calls[2][1].p_reversed).toBeUndefined();
+  });
+
+  // The client and the database deploy separately. A build that knows about direction
+  // against a database that doesn't must still record the GRADE.
+  it("a database without p_reversed still gets the grade — once, then stops asking", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    stub.rpc
+      .mockResolvedValueOnce({ data: null, error: { code: "PGRST202", message: "no function" } })
+      .mockResolvedValue({ data: ROW, error: null });
+
+    const res = await sendReview({ userWordId: "uw1", grade: 3, reversed: true });
+    expect(res.userWordId).toBe("uw1");
+    expect(stub.rpc).toHaveBeenCalledTimes(2);
+    expect(stub.rpc.mock.calls[1][1].p_reversed).toBeUndefined();
+
+    // Latched: the next review goes straight to the form the database has.
+    await sendReview({ userWordId: "uw1", grade: 4, reversed: true });
+    expect(stub.rpc).toHaveBeenCalledTimes(3);
+    expect(stub.rpc.mock.calls[2][1].p_reversed).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("a queued grade keeps its direction for the replay", async () => {
+    stub.rpc.mockRejectedValue(new TypeError("Failed to fetch"));
+    await recordReview({ ...CARD, reversed: true });
+    expect((await pending(store))[0]).toMatchObject({ userWordId: "uw1", grade: 4, reversed: true });
   });
 
   it("NEVER queues — the drain uses it, and re-queueing would loop", async () => {

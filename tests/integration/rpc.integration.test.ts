@@ -254,6 +254,37 @@ describe.skipIf(!ENABLED)("rpc: record_review", () => {
     expect(rows[0].repeats).toBe(3);
   });
 
+  // Card direction (migration 20260784): logged with the grade, never scheduled on.
+  it("records which face of the card was up — NULL when the caller doesn't say", async () => {
+    const u = await makeUser();
+    const flipped = await makeStandaloneWord(u, { input: "裏", meaning: "reverse side" });
+    const forward = await makeStandaloneWord(u, { input: "表", meaning: "front side" });
+    const legacy = await makeStandaloneWord(u, { input: "昔", meaning: "the old days" });
+
+    const a = await u.client.rpc("record_review", { p_user_word_id: flipped, p_grade: 4, p_reversed: true });
+    const b = await u.client.rpc("record_review", { p_user_word_id: forward, p_grade: 4, p_reversed: false });
+    // An installed build that predates the column calls with two named arguments.
+    const c = await u.client.rpc("record_review", { p_user_word_id: legacy, p_grade: 4 });
+    expect([a.error, b.error, c.error]).toEqual([null, null, null]);
+
+    const dir = async (w: string) =>
+      ((await u.client.from("review_log").select("reversed").eq("user_word_id", w)).data ?? []) as unknown as {
+        reversed: boolean | null;
+      }[];
+    expect(await dir(flipped)).toEqual([{ reversed: true }]);
+    expect(await dir(forward)).toEqual([{ reversed: false }]);
+    expect(await dir(legacy)).toEqual([{ reversed: null }]);
+
+    // ONE schedule per word: the same grade lands the same displayed confidence
+    // whichever way the card faced (stability itself is fuzzed, so compare the bucket).
+    const conf = (r: typeof a) => (r.data as { confidence_rating: number }).confidence_rating;
+    expect(conf(a)).toBe(conf(b));
+
+    // A same-day repeat keeps the day's FIRST direction, like its first grade.
+    await u.client.rpc("record_review", { p_user_word_id: flipped, p_grade: 5, p_reversed: false });
+    expect(await dir(flipped)).toEqual([{ reversed: true }]);
+  });
+
   it("the collapse cannot be used to forge history — no client write grant", async () => {
     // The only way a same-day repeat could overwrite the day's first grade is a direct
     // client write. review_log is read-own SELECT only (no INSERT/UPDATE grant), which
@@ -537,9 +568,9 @@ describe.skipIf(!ENABLED)("rpc: server_now", () => {
   });
 });
 
-// ── placement_evidence (migration 20260770; needs service-role-seeded `words`) ──
+// ── placement_evidence (migrations 20260770 + 20260783; needs service-role-seeded `words`) ──
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_evidence", () => {
-  it("returns only the caller's answers, and a later-learned word counts as known", async () => {
+  it("returns only the caller's answers, and a later-learned word stays as swiped", async () => {
     const svc = serviceClient();
     if (!svc) return;
     const stamp = Date.now();
@@ -570,14 +601,16 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_evidence", () => {
         .upsert({ user_id: u.userId, word_id: wordId, known }, { onConflict: "user_id,word_id" });
       expect(w.error).toBeNull();
     }
-    // Swiped don't-know, then learned: its saved word reaches a long-term confidence of 3.
+    // Swiped don't-know, then learned: its saved word reaches a long-term confidence of 5.
+    // The evidence must NOT follow it — the quiz saves what it deals, so counting studied
+    // words walks every quizzed band to 100% (migration 20260783).
     const saved = await u.client.rpc("save_dictionary_word", {
       p_user_id: u.userId,
       p_dictionary_word_id: learnedWord,
     });
     expect(saved.error).toBeNull();
     const uwId = (saved.data as { user_word_id: string }).user_word_id;
-    const peak = await svc.from("user_words").update({ peak_confidence: 3 }).eq("user_word_id", uwId);
+    const peak = await svc.from("user_words").update({ peak_confidence: 5 }).eq("user_word_id", uwId);
     expect(peak.error).toBeNull();
 
     const mine = await u.client.rpc("placement_evidence", { p_source_lang: "JA" });
@@ -585,7 +618,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_evidence", () => {
     const rows = (mine.data as { band: number; known: boolean }[]).sort((a, b) => a.band - b.band);
     expect(rows).toEqual([
       { band: 3, frequency: null, known: true },
-      { band: 4, frequency: null, known: true },
+      { band: 4, frequency: null, known: false },
     ]);
 
     // RLS: another user sees none of it, and can't write an answer as someone else.
@@ -595,6 +628,51 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_evidence", () => {
       .from("placement_answers")
       .insert({ user_id: u.userId, word_id: knownWord, known: false });
     expect(forged.error).not.toBeNull();
+  });
+
+  it("serves only the newest 40 answers of a band, oldest first", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const stamp = Date.now();
+    const TOTAL = 42;
+    const seeded = await svc
+      .from("words")
+      .insert(
+        Array.from({ length: TOTAL }, (_, i) => ({
+          input: `__placement_window_${i}_${stamp}__`,
+          translation: `window ${i}`,
+          source_lang: "JA",
+          target_lang: "EN",
+          is_verified: true,
+          proficiency_band: 2,
+        })),
+      )
+      .select("word_id, input");
+    expect(seeded.error).toBeNull();
+    const ids = (seeded.data as { word_id: string; input: string }[])
+      .sort((a, b) => Number(a.input.split("_")[4]) - Number(b.input.split("_")[4]))
+      .map((r) => r.word_id);
+
+    // Answer i is one minute newer than answer i − 1. The two OLDEST and the NEWEST are
+    // "know"; everything between is "don't know".
+    const u = await makeUser();
+    const answers = await u.client.from("placement_answers").insert(
+      ids.map((wordId, i) => ({
+        user_id: u.userId,
+        word_id: wordId,
+        known: i < 2 || i === TOTAL - 1,
+        answered_at: new Date(stamp - (TOTAL - i) * 60_000).toISOString(),
+      })),
+    );
+    expect(answers.error).toBeNull();
+
+    const mine = await u.client.rpc("placement_evidence", { p_source_lang: "JA" });
+    expect(mine.error).toBeNull();
+    const rows = mine.data as { band: number; known: boolean }[];
+    expect(rows).toHaveLength(40);
+    // The two oldest knows fell out of the window; the newest is the LAST row.
+    expect(rows.filter((r) => r.known)).toHaveLength(1);
+    expect(rows[rows.length - 1].known).toBe(true);
   });
 });
 
@@ -1947,12 +2025,22 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("privilege lockdown", () => {
     if (!svc) return;
     const a = await makeUser();
     const b = await makeUser();
-    await makeStandaloneWord(a, { input: "消す", meaning: "to erase" });
+    const aWord = await makeStandaloneWord(a, { input: "消す", meaning: "to erase" });
     await makeList(a, "DoomedList");
     const bWord = await makeStandaloneWord(b, { input: "残る", meaning: "to remain" });
+    // Review history must go too. It has no owner column of its own (20260784), so it
+    // leaves by cascading through the card: users -> user_words -> review_log.
+    expect((await a.client.rpc("record_review", { p_user_word_id: aWord, p_grade: 4 })).error).toBeNull();
+    expect((await b.client.rpc("record_review", { p_user_word_id: bWord, p_grade: 4 })).error).toBeNull();
 
     const { error } = await a.client.rpc("delete_account");
     expect(error).toBeNull();
+    expect(
+      (await svc.from("review_log").select("grade").eq("user_word_id", aWord)).data ?? [],
+    ).toHaveLength(0);
+    expect(
+      (await svc.from("review_log").select("grade").eq("user_word_id", bWord)).data ?? [],
+    ).toHaveLength(1);
 
     // A's data is gone (queried as A — same uid, now no rows)
     expect((await a.client.from("user_words").select("user_word_id")).data ?? []).toHaveLength(0);

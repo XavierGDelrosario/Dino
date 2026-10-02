@@ -263,6 +263,17 @@ function cacheReviewed(row: ReturnedRow): void {
   });
 }
 
+/** False once the database has said it has no record_review(…, p_reversed) — migration
+ *  20260784 not applied there yet. The client and the DB deploy separately, so that gap
+ *  is reachable in production; the grade matters more than its direction, so it is sent
+ *  again without one and the rest of the session stops offering it. */
+let directionSupported = true;
+
+/** Test hook: the latch above is module-global. */
+export function __resetDirectionProbe(): void {
+  directionSupported = true;
+}
+
 /**
  * Send a review to the server. ALWAYS hits the network and never queues — this is the
  * raw write, used by `recordReview` below and by the offline drain (offline/sync.ts),
@@ -270,17 +281,32 @@ function cacheReviewed(row: ReturnedRow): void {
  *
  * `reviewedAt` names the instant the grade was given, for a replay. The server clamps
  * it to [last_reviewed_date, now()] — see migration 20260759.
+ *
+ * `reversed` is which face of the card was up (true = meaning-first, the quiz flip).
+ * It is LOGGED, never scheduled on: one grade moves the word's one schedule whichever
+ * way the card faced (migration 20260784). Omitted = not recorded.
  */
 export async function sendReview(params: {
   userWordId: string;
   grade: ReviewGrade;
   reviewedAt?: string;
+  reversed?: boolean;
 }): Promise<ReviewResult> {
-  const { data, error } = await supabase.rpc("record_review", {
-    p_user_word_id: params.userWordId,
-    p_grade: params.grade,
-    p_reviewed_at: params.reviewedAt ?? undefined,
-  });
+  const send = (withDirection: boolean) =>
+    supabase.rpc("record_review", {
+      p_user_word_id: params.userWordId,
+      p_grade: params.grade,
+      p_reviewed_at: params.reviewedAt ?? undefined,
+      p_reversed: withDirection ? params.reversed : undefined,
+    });
+  const hasDirection = directionSupported && params.reversed !== undefined;
+  let { data, error } = await send(hasDirection);
+  // PGRST202 = no function with these argument names. Only the direction is new.
+  if (error?.code === "PGRST202" && hasDirection) {
+    directionSupported = false;
+    console.warn("review: record_review has no p_reversed (migration 20260784 not applied)");
+    ({ data, error } = await send(false));
+  }
   if (error || !data) throw toServiceError(error, "Failed to record review");
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array).
@@ -312,6 +338,8 @@ export async function sendReview(params: {
 export async function recordReview(params: {
   userWordId: string;
   grade: ReviewGrade;
+  /** Which face was up when the grade was given (true = meaning-first). See sendReview. */
+  reversed?: boolean;
   /** The card as displayed, so a queued grade can echo its current state back. */
   current?: { stability: number | null; confidenceRating: number; lastReviewedDate: string | null };
 }): Promise<ReviewResult> {
@@ -326,6 +354,7 @@ export async function recordReview(params: {
       id: newId(),
       userWordId: params.userWordId,
       grade: params.grade,
+      reversed: params.reversed,
       reviewedAt: stamp.reviewedAt,
       approx: stamp.approx,
     });

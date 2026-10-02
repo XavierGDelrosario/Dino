@@ -25,6 +25,8 @@ export type ReviewStatus = "loading" | "reviewing" | "saving" | "empty" | "done"
 export interface FailedGrade {
   card: ReviewQueueItem;
   grade: ReviewGrade;
+  /** The face that was up when it was graded — a retry re-sends the same fact. */
+  reversed: boolean;
 }
 
 const DEFAULT_LIMIT = 20;
@@ -124,7 +126,7 @@ export function useReview(
   const flip = useCallback(() => setFlipped(true), []);
 
   /** Record one grade in the background. Resolves either way; never throws. */
-  const write = useCallback((card: ReviewQueueItem, g: ReviewGrade) => {
+  const write = useCallback((card: ReviewQueueItem, g: ReviewGrade, reversed: boolean) => {
     const token = session.current;
     setSaving((n) => n + 1);
     // The only call that hits record_review(). With no network the grade is QUEUED and
@@ -133,6 +135,7 @@ export function useReview(
     return recordReview({
       userWordId: card.userWordId,
       grade: g,
+      reversed,
       current: {
         stability: card.stability,
         confidenceRating: card.confidenceRating,
@@ -147,18 +150,20 @@ export function useReview(
         },
         (e) => {
           if (session.current !== token) return;
-          setFailed((f) => [...f, { card, grade: g }]);
+          setFailed((f) => [...f, { card, grade: g, reversed }]);
           setError(message(e));
         },
       )
       .finally(() => setSaving((n) => n - 1));
   }, []);
 
+  // `reversed` = the card was showing its MEANING first (the view's quiz flip). It is
+  // logged with the grade and changes nothing about the schedule.
   const grade = useCallback(
-    (g: ReviewGrade) => {
+    (g: ReviewGrade, reversed = false) => {
       const card = queue[index];
       if (!card || status !== "reviewing" || advancing) return;
-      void write(card, g);
+      void write(card, g, reversed);
       setReviewedCount((n) => n + 1);
       const next = index + 1;
       if (next >= queue.length) {
@@ -185,7 +190,7 @@ export function useReview(
     setFailed([]);
     setError(null);
     setStatus("saving");
-    for (const f of toSend) void write(f.card, f.grade);
+    for (const f of toSend) void write(f.card, f.grade, f.reversed);
   }, [failed, write]);
 
   return {

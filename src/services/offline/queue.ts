@@ -22,6 +22,9 @@ export interface PendingGrade {
   id: string;
   userWordId: string;
   grade: ReviewGrade;
+  /** Which face of the card was up (true = meaning-first). Absent on grades queued by
+   *  a build that didn't record it — replayed as "not recorded", never guessed. */
+  reversed?: boolean;
   /** Server-anchored ISO instant — see clock.ts. */
   reviewedAt: string;
   /** True when no anchor was available and the local clock was used. */
