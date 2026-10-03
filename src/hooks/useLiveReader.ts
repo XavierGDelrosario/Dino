@@ -43,11 +43,9 @@ export function completedPrefix(text: string): string {
   // A final span running to the end of the input with no terminator after it is the
   // sentence currently being typed — drop it.
   //
-  // A HARD LINE BREAK counts as a terminator, as it does in `splitSentences`: dictation
-  // commits an utterance the recognizer left unpunctuated with a trailing "\n" and never
-  // an invented 。, so a punctuation-only
-  // test left the reader one utterance behind and showed nothing for a single spoken
-  // line. The span text is trimmed, so the break lives in the source AFTER the span.
+  // A HARD LINE BREAK counts as finished too: a line the user ended with Enter (a
+  // headline, a list item) has no terminator and is still done. The span text is
+  // trimmed, so the break lives in the source AFTER the span.
   const terminated =
     /[。．！？!?…]\s*$/u.test(text.slice(last.start, last.end)) || text.slice(last.end).includes("\n");
   const end = terminated ? last.end : spans.length > 1 ? spans[spans.length - 2].end : 0;
@@ -59,6 +57,7 @@ export function useLiveReader({
   source,
   learning,
   enabled = true,
+  settled = "",
 }: {
   text: string;
   /** The input box's source selection (may be auto-detect). */
@@ -66,6 +65,10 @@ export function useLiveReader({
   /** The language being STUDIED — what the reader colours. */
   learning: LangCode;
   enabled?: boolean;
+  /** Text known to be FINISHED whatever it ends on — what dictation has committed.
+   *  Speech often arrives with no terminator, so waiting for one would show nothing;
+   *  ignored once the box no longer starts with it (the user edited it). */
+  settled?: string;
 }): {
   /** The live analysis, or null when there is nothing complete to show yet. */
   para: ParagraphTranslation | null;
@@ -98,7 +101,9 @@ export function useLiveReader({
   // ONLY when typing the language being studied. The other direction would need an MT
   // call to reach the learning language first, and this path exists because it never
   // spends — so it stays quiet and the Translate button handles that.
-  const target = enabled && typedLearning && !composing ? nfc(completedPrefix(text)) : "";
+  const prefix = completedPrefix(text);
+  const finished = settled.length > prefix.length && text.startsWith(settled) ? settled.trimEnd() : prefix;
+  const target = enabled && typedLearning && !composing ? nfc(finished) : "";
 
   useEffect(() => {
     // Below the floor nothing is analyzed, but whatever is rendered STAYS — clearing

@@ -14,8 +14,7 @@ import type { InkInput, RecognitionCandidate } from "./types";
 import { resolveRecognizer } from "./registry";
 import { rankCandidates } from "./rank";
 
-/** Recognize a drawing into ranked candidates (letters/kanji first, punctuation
- *  last). Empty strokes or no available backend → [] (graceful: the UI just shows
+/** Recognize a drawing into ranked candidates (punctuation ignored). Empty strokes or no available backend → [] (graceful: the UI just shows
  *  "no match" / hides the feature). */
 export async function recognizeHandwriting(ink: InkInput): Promise<RecognitionCandidate[]> {
   if (ink.strokes.length === 0) return [];

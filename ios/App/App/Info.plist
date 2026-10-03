@@ -41,6 +41,12 @@
 	<string>DINO can save photos you take when scanning text.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>DINO scans text from photos you choose so you can look it up.</string>
+	<!-- Under LIMITED photo access iOS re-asks "Select More Photos… / Keep Current
+	     Selection" on the first library read of every launch. The app has its own
+	     Manage control for widening the selection (services/photos/access.ts), so the
+	     automatic alert is switched off. -->
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DINO uses the microphone to capture your speech for voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

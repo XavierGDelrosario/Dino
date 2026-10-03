@@ -42,17 +42,14 @@ describe("completedPrefix", () => {
     expect(completedPrefix("")).toBe("");
   });
 
-  // Dictation commits every utterance with a trailing "\n" and never a 。, so if a
-  // line break didn't count as finished, the reader lagged one utterance behind and
-  // a single spoken line rendered nothing.
   // The prefix ends at the last span's end, so the terminating break itself is
   // trimmed off — what matters is that the LINE is included at all.
-  it("treats a hard line break as finished — one dictated line is enough", () => {
+  it("treats a hard line break as finished — a line ended with Enter is done", () => {
     expect(completedPrefix("猫が好き\n")).toBe("猫が好き");
     expect(completedPrefix("猫が好き\n犬も好き\n")).toBe("猫が好き\n犬も好き");
   });
 
-  it("still excludes the utterance currently forming after a line break", () => {
+  it("still excludes the line currently forming after a line break", () => {
     expect(completedPrefix("猫が好き\n犬も")).toBe("猫が好き");
   });
 });
@@ -81,6 +78,24 @@ describe("useLiveReader", () => {
 
   it("does not analyze while a sentence is still being typed", async () => {
     render("猫が好きです"); // no terminator yet
+    await act(async () => void vi.advanceTimersByTime(600));
+    expect(mockAnalyze).not.toHaveBeenCalled();
+  });
+
+  it("analyzes committed dictation even with no terminator", async () => {
+    // Dictation never adds a line break and the recognizer often adds no 。, so text
+    // it has committed is finished by definition.
+    const text = "猫が好きです犬も";
+    renderHook(() => useLiveReader({ text, source: "JA", learning: "JA", settled: "猫が好きです" }));
+    await act(async () => void vi.advanceTimersByTime(600));
+    expect(mockAnalyze).toHaveBeenCalledTimes(1);
+    expect(mockAnalyze.mock.calls[0][0].input).toBe("猫が好きです");
+  });
+
+  it("ignores committed dictation once the box has been edited away from it", async () => {
+    renderHook(() =>
+      useLiveReader({ text: "犬が好きです", source: "JA", learning: "JA", settled: "猫が好きです" }),
+    );
     await act(async () => void vi.advanceTimersByTime(600));
     expect(mockAnalyze).not.toHaveBeenCalled();
   });

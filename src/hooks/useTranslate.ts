@@ -456,6 +456,29 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     }
   }, [input, source, target, status, readerLoading, userId, limits, learning]);
 
+  // EMPTYING the box drops the result it produced. Without this a submitted paragraph
+  // outlived its text: status stayed "done", so the stale reader kept its place and
+  // the live reader — which yields to a submitted result — never came back for
+  // whatever was typed or dictated next.
+  //
+  // Keyed on the TRANSITION to empty, not on "box is empty": the article analysis
+  // submits a text it never puts in the box, and must keep its result.
+  const hadInput = useRef(input.trim() !== "");
+  useEffect(() => {
+    const has = input.trim() !== "";
+    const emptied = hadInput.current && !has;
+    hadInput.current = has;
+    if (!emptied) return;
+    pendingEntry.current = null;
+    setStatus((s) => (s === "loading" ? s : "idle"));
+    setError(null);
+    setOutput("");
+    setHeadword("");
+    setMeanings([]);
+    setPara(null);
+    setAnalyzedInput("");
+  }, [input]);
+
   // Commit the pending entry once a submit succeeds. Keyed on the status transition
   // rather than called inside submit, because submit has several success exits and only
   // ONE failure path — this records all of the former and none of the latter. Clearing

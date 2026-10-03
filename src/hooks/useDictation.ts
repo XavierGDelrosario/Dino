@@ -30,6 +30,9 @@ export interface UseDictation {
   listening: boolean;
   /** Set when a session ends badly; cleared on the next start. */
   error: string | null;
+  /** Everything dictation has committed to the box — finished text, whether or not
+   *  the recognizer punctuated it. "" until the first utterance lands. */
+  committed: string;
   /** Start if idle, stop if listening. */
   toggle: () => void;
   /** DEV ONLY — drive the same callbacks from a scripted conversation. */
@@ -49,6 +52,7 @@ export function useDictation({
   const [available, setAvailable] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [committed, setCommitted] = useState("");
 
   const handle = useRef<SpeechStreamHandle | null>(null);
   /** A start is awaiting permission//the backend — see `start`. */
@@ -75,6 +79,7 @@ export function useDictation({
       onPartial: (text: string) => onChangeRef.current(withPartial(base.current, text)),
       onFinal: (text: string) => {
         base.current = commitUtterance(base.current, text);
+        setCommitted(base.current);
         onChangeRef.current(base.current);
       },
     }),
@@ -151,5 +156,5 @@ export function useDictation({
   // A session must not outlive the screen — the mic would stay open behind a tab.
   useEffect(() => () => handle.current?.stop(), []);
 
-  return { available, listening, error, toggle, startMock };
+  return { available, listening, error, committed, toggle, startMock };
 }

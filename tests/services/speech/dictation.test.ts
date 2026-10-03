@@ -1,22 +1,19 @@
 // Assembling dictated utterances into the input box.
 //
-// The point of these is the SEPARATOR CONTRACT, so most of them assert against
-// `splitSentences` — the real consumer — rather than against the string. A test
-// that only checked for "\n" would keep passing if someone swapped the separator
-// for a space, which is exactly the change that silently collapses an hour of
-// speech back into one sentence and stops any translation ever appearing.
+// The contract: dictation writes PROSE. Utterances are appended on the same line and
+// dictation never inserts a line break or invents punctuation; sentence boundaries
+// come only from marks the recognizer supplies.
 import { describe, it, expect } from "vitest";
 import { commitUtterance, lastSentenceEnd, withPartial } from "@/services/speech/dictation";
 import { splitSentences } from "@/services/language/sentences";
 
 describe("commitUtterance", () => {
-  it("makes each utterance its OWN sentence, without inventing punctuation", () => {
+  it("appends each utterance on the same line — never a line break", () => {
     let box = "";
     box = commitUtterance(box, "今日は暑いですね");
     box = commitUtterance(box, "そうですね");
-
-    // The speaker's pause is the boundary — note neither line has a 。
-    expect(splitSentences(box).map((s) => s.text)).toEqual(["今日は暑いですね", "そうですね"]);
+    expect(box).toBe("今日は暑いですねそうですね");
+    expect(box).not.toContain("\n");
   });
 
   it("does not put a 。 (or any mark) into the text", () => {
@@ -26,89 +23,76 @@ describe("commitUtterance", () => {
   });
 
   it("continues from text that was already in the box", () => {
-    // Typed first, then dictated: the typed line must not merge into the utterance.
-    const box = commitUtterance("先に書いた文", "話した文");
-    expect(splitSentences(box).map((s) => s.text)).toEqual(["先に書いた文", "話した文"]);
+    expect(commitUtterance("先に書いた文。", "話した文")).toBe("先に書いた文。話した文");
   });
 
-  it("drops an empty utterance instead of opening a blank line", () => {
+  it("keeps a line break the USER typed", () => {
+    expect(commitUtterance("見出し\n", "話した文")).toBe("見出し\n話した文");
+  });
+
+  it("drops an empty utterance", () => {
     // Recognizers emit one when a pause brought no speech.
     const box = commitUtterance("猫が好き", "");
     expect(commitUtterance(box, "   ")).toBe(box);
-    expect(splitSentences(box)).toHaveLength(1);
   });
 
-  it("keeps real punctuation when the speaker's recognizer supplies it", () => {
-    const box = commitUtterance("", "本当ですか？");
-    expect(splitSentences(box).map((s) => s.text)).toEqual(["本当ですか？"]);
+  it("separates Latin-script utterances with a space", () => {
+    const box = commitUtterance("", "It rained.");
+    expect(commitUtterance(box, "Then it stopped.")).toBe("It rained. Then it stopped.");
+    expect(commitUtterance("well", "maybe")).toBe("well maybe");
   });
-});
 
-describe("punctuated utterances flow on as prose", () => {
-  // A line break after a sentence that already has its 。 says nothing — it only
-  // chops the box into one line per breath.
-  it("puts no line break after an utterance that ends on its own mark", () => {
+  it("splits into sentences on the recognizer's own punctuation", () => {
     let box = commitUtterance("", "今日は雨です。");
     box = commitUtterance(box, "明日は晴れます。");
     expect(box).toBe("今日は雨です。明日は晴れます。");
     expect(splitSentences(box).map((s) => s.text)).toEqual(["今日は雨です。", "明日は晴れます。"]);
   });
-
-  it("separates Latin-script sentences with a space", () => {
-    const box = commitUtterance("", "It rained.");
-    expect(commitUtterance(box, "Then it stopped.")).toBe("It rained. Then it stopped.");
-  });
-
-  it("keeps the line break only where the utterance brought no mark", () => {
-    let box = commitUtterance("", "今日は雨です。");
-    box = commitUtterance(box, "そうですね");
-    expect(box).toBe("今日は雨です。そうですね\n");
-  });
-
-  it("continues a line that paused on a comma", () => {
-    expect(withPartial("明日は、", "晴れ")).toBe("明日は、晴れ");
-  });
 });
 
 describe("recognizer punctuation (iOS addsPunctuation)", () => {
-  // iOS often adds the mark that closes a line only once the NEXT words arrive, so it
-  // lands at the head of the next utterance. It belongs to the line it closes.
-  it("moves a leading 。 back onto the end of the previous line, replacing its line break", () => {
+  // iOS often adds the mark that closes an utterance only once the NEXT words arrive,
+  // so it lands at the head of the next utterance. It belongs to the text it closes.
+  it("moves a leading 。 back onto the end of the previous utterance", () => {
     let box = commitUtterance("", "今日は雨です");
     box = commitUtterance(box, "。明日は晴れます。");
     expect(box).toBe("今日は雨です。明日は晴れます。");
     expect(splitSentences(box).map((s) => s.text)).toEqual(["今日は雨です。", "明日は晴れます。"]);
   });
 
-  it("does the same while the next line is still forming", () => {
+  it("does the same while the next utterance is still forming", () => {
     const box = commitUtterance("", "本当");
     expect(withPartial(box, "？そうか")).toBe("本当？そうか");
   });
 
-  it("an utterance that is ONLY the late mark closes the line and adds nothing", () => {
+  it("an utterance that is ONLY the late mark closes the text and adds nothing", () => {
     const box = commitUtterance("", "行きました");
     expect(commitUtterance(box, "。")).toBe("行きました。");
   });
 
-  it("does not double a mark the line already has", () => {
+  it("does not double a mark the text already has", () => {
     const box = commitUtterance("", "行きました。");
-    expect(commitUtterance(box, "。次")).toBe("行きました。次\n");
+    expect(commitUtterance(box, "。次")).toBe("行きました。次");
   });
 
-  it("drops a leading mark when there is no line for it to close", () => {
-    expect(commitUtterance("", "。こんにちは")).toBe("こんにちは\n");
+  it("drops a leading mark when there is nothing for it to close", () => {
+    expect(commitUtterance("", "。こんにちは")).toBe("こんにちは");
   });
 
-  it("leaves an OPENING bracket at the start of its own line", () => {
+  it("puts a late mark BEFORE a line break the user typed", () => {
+    expect(commitUtterance("行きました\n", "。次")).toBe("行きました。\n次");
+  });
+
+  it("leaves an OPENING bracket on the utterance it opens", () => {
     const box = commitUtterance("", "彼は言った");
-    expect(commitUtterance(box, "「行こう」")).toBe("彼は言った\n「行こう」\n");
+    expect(commitUtterance(box, "「行こう」")).toBe("彼は言った「行こう」");
   });
 });
 
 describe("withPartial", () => {
   it("shows the forming utterance after everything committed", () => {
     const box = commitUtterance("", "こんにちは");
-    expect(withPartial(box, "げん")).toBe("こんにちは\nげん");
+    expect(withPartial(box, "げん")).toBe("こんにちはげん");
   });
 
   it("REPLACES the previous partial rather than appending to it", () => {
@@ -117,13 +101,12 @@ describe("withPartial", () => {
     const box = commitUtterance("", "こんにちは");
     const a = withPartial(box, "げん");
     const b = withPartial(box, "げんき");
-    expect(b).toBe("こんにちは\nげんき");
+    expect(b).toBe("こんにちはげんき");
     expect(b.startsWith(a)).toBe(true); // grew, not concatenated twice
   });
 
-  it("is not itself committed — it carries no trailing boundary", () => {
-    // Only commitUtterance ends a sentence; a half-said line is not finished.
-    expect(withPartial("", "まだ途中")).toBe("まだ途中");
+  it("continues a line that paused on a comma", () => {
+    expect(withPartial("明日は、", "晴れ")).toBe("明日は、晴れ");
   });
 
   it("leaves the box alone when the partial is empty", () => {

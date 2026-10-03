@@ -46,19 +46,6 @@ export function TranslateView({
 }) {
   const t = useTranslate(userId);
 
-  // The reader, live under the input: free by construction and limited to finished
-  // sentences (see useLiveReader). It YIELDS to a submitted result — that paragraph is
-  // authoritative and may carry a gloss the live one never buys, so a second reader
-  // under it would be a stale duplicate.
-  const live = useLiveReader({
-    text: t.input,
-    source: t.source,
-    learning: t.learning,
-    enabled:
-      t.status !== "loading" &&
-      !(t.status === "done" && t.mode === "paragraph" && t.para !== null),
-  });
-
   const { t: tr } = useI18n();
   const noun = (n: number) => tr(n === 1 ? "common.word" : "common.words");
   const [quiz, setQuiz] = useState<{ cards: Word[][]; mode: QuizMode } | null>(null);
@@ -117,6 +104,22 @@ export function TranslateView({
       t.setInput(next);
       if (credit) setCredit(null);
     },
+  });
+
+  // The reader, live under the input: free by construction and limited to finished
+  // sentences (see useLiveReader). It YIELDS to a submitted result — that paragraph is
+  // authoritative and may carry a gloss the live one never buys, so a second reader
+  // under it would be a stale duplicate.
+  const live = useLiveReader({
+    text: t.input,
+    source: t.source,
+    learning: t.learning,
+    enabled:
+      t.status !== "loading" &&
+      !(t.status === "done" && t.mode === "paragraph" && t.para !== null),
+    // Dictation never ends an utterance with a line break and often gets no 。 from
+    // the recognizer, so what it has committed counts as finished text.
+    settled: dictation.committed,
   });
 
   // Camera OCR (Mode A): photo → recognized text in reading order → translate it
