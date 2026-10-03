@@ -8,7 +8,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
-vi.mock("@/services/lookup", () => ({
+vi.mock("@/services/lookup", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/lookup")>()),
   lookupWord: vi.fn(),
   lookupWordsBatch: vi.fn(),
   translateParagraph: vi.fn(),
@@ -41,7 +42,8 @@ import { listUserLists } from "@/services/lists";
 import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
 import { getUserProfile, updateUserLanguages } from "@/services/session";
-import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE } from "@/services/language";
+import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE, analyze } from "@/services/language";
+import { translateParagraph } from "@/services/lookup";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -124,6 +126,54 @@ describe("useTranslate — setLearning persists to the profile", () => {
     act(() => result.current.setLearning("EN"));
 
     expect(result.current.learning).toBe("EN");
+  });
+});
+
+describe("useTranslate — emptying the box drops its result", () => {
+  const TEXT = "猫が走った。犬が寝た。";
+  const TOKENS = [
+    { text: "猫", start: 0, end: 1, reading: null, lemma: "猫", pos: "名詞" },
+    { text: "走っ", start: 2, end: 4, reading: null, lemma: "走る", pos: "動詞" },
+    { text: "犬", start: 6, end: 7, reading: null, lemma: "犬", pos: "名詞" },
+    { text: "寝", start: 8, end: 9, reading: null, lemma: "寝る", pos: "動詞" },
+  ];
+
+  beforeEach(() => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    vi.mocked(analyze).mockResolvedValue(TOKENS as never);
+    vi.mocked(translateParagraph).mockResolvedValue({
+      input: TEXT,
+      tokens: TOKENS,
+      meanings: new Map(),
+      sentences: [],
+    } as never);
+  });
+
+  // A submitted paragraph used to outlive its text, and the live reader yields to a
+  // submitted result — so after clearing the box, new dictation never showed.
+  it("returns to idle with no paragraph once the box is cleared", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput(TEXT));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.para).not.toBeNull());
+    expect(result.current.status).toBe("done");
+
+    act(() => result.current.setInput(""));
+    expect(result.current.status).toBe("idle");
+    expect(result.current.para).toBeNull();
+    expect(result.current.analyzedInput).toBe("");
+  });
+
+  it("keeps a result that was submitted without ever filling the box", async () => {
+    // The article analysis submits its text by override and leaves the box alone.
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.submit({ text: TEXT, skipGloss: true });
+    });
+    await waitFor(() => expect(result.current.para).not.toBeNull());
+    expect(result.current.status).toBe("done");
   });
 });
 

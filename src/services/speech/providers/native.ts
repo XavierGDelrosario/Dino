@@ -29,7 +29,7 @@ const RESTART_DELAY_MS = 400;
  * pauses and question intonation included — which is the only honest source of
  * punctuation for speech (the English gloss can't be mapped back: one spoken line may
  * become several English sentences, in a different order). Earlier iOS ignores it and
- * the pause-as-newline boundary (services/speech/dictation) carries on alone.
+ * the speech arrives as one unpunctuated run (services/speech/dictation).
  *
  * Not a stock plugin option: `patches/@capacitor-community+speech-recognition+*.patch`
  * adds it, applied on install by patch-package.

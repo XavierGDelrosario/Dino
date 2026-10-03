@@ -76,7 +76,7 @@ describe("useDictation", () => {
     expect(read()).toBe("こんにちは");
   });
 
-  it("commits a finalized utterance and starts the next one on its own line", async () => {
+  it("commits a finalized utterance and continues the next one on the same line", async () => {
     const mic = fakeRecognizer();
     const { view, read } = box();
     await act(async () => view.result.current.toggle());
@@ -86,7 +86,7 @@ describe("useDictation", () => {
     mic.partial("げんき");
 
     // The committed line is fixed; the new partial forms after it, not inside it.
-    expect(read()).toBe("こんにちは\nげんき");
+    expect(read()).toBe("こんにちはげんき");
   });
 
   it("DROPS a partial that never finalized when the session stops", async () => {
@@ -100,7 +100,7 @@ describe("useDictation", () => {
     mic.partial("まだ途中");
     act(() => view.result.current.toggle()); // stop
 
-    expect(read()).toBe("こんにちは\n");
+    expect(read()).toBe("こんにちは");
     expect(mic.stop).toHaveBeenCalled();
   });
 
@@ -115,7 +115,7 @@ describe("useDictation", () => {
     mic.partial("途中まで");
     act(() => view.result.current.toggle());
 
-    expect(read()).toBe("途中まで\n");
+    expect(read()).toBe("途中まで");
   });
 
   it("continues from text ALREADY in the box instead of replacing it", async () => {
@@ -125,7 +125,7 @@ describe("useDictation", () => {
 
     mic.final("話した文");
 
-    expect(read()).toBe("先に書いた文\n話した文\n");
+    expect(read()).toBe("先に書いた文話した文");
   });
 
   it("reports a recognizer failure and stops listening", async () => {

@@ -144,31 +144,38 @@ export function HandwritingCanvas({
     }
   };
 
-  const clear = () => {
-    setStrokes([]);
-    setCandidates([]);
-    setError(null);
-  };
+  const clear = () => setStrokes([]);
+  const undo = () => setStrokes((prev) => prev.slice(0, -1));
 
-  const undo = () => {
-    setStrokes((prev) => prev.slice(0, -1));
-    setCandidates([]);
-  };
-
-  const recognize = async () => {
-    if (strokes.length === 0) return;
-    setBusy(true);
+  // Recognize after EVERY stroke, so the candidates narrow as the character takes
+  // shape and the one you want can be picked the moment it appears — often strokes
+  // before the drawing is finished. It is on-device and free, so there is nothing to
+  // save by waiting for a button. A newer stroke supersedes a recognition still in
+  // flight; its late answer describes a drawing that no longer exists.
+  const latest = useRef(0);
+  useEffect(() => {
+    const seq = ++latest.current;
     setError(null);
-    try {
-      const out = await recognizeHandwriting({ strokes, width: PAD_SIZE, height: PAD_SIZE, lang });
-      setCandidates(out);
-      if (out.length === 0) setError(tr("handwriting.noMatch"));
-    } catch {
-      setError(tr("handwriting.error"));
-    } finally {
+    if (strokes.length === 0) {
+      setCandidates([]);
       setBusy(false);
+      return;
     }
-  };
+    setBusy(true);
+    recognizeHandwriting({ strokes, width: PAD_SIZE, height: PAD_SIZE, lang })
+      .then((out) => {
+        if (seq !== latest.current) return;
+        setCandidates(out);
+        if (out.length === 0) setError(tr("handwriting.noMatch"));
+      })
+      .catch(() => {
+        if (seq === latest.current) setError(tr("handwriting.error"));
+      })
+      .finally(() => {
+        if (seq === latest.current) setBusy(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `tr` is not part of what was drawn
+  }, [strokes, lang]);
 
   return (
     <div className="hw">
@@ -203,9 +210,7 @@ export function HandwritingCanvas({
         <button className="btn btn--ghost btn--sm" onClick={clear} disabled={strokes.length === 0}>
           {tr("handwriting.clear")}
         </button>
-        <button className="btn btn--sm" onClick={recognize} disabled={busy || strokes.length === 0}>
-          {busy ? <LoadingDots /> : tr("handwriting.recognize")}
-        </button>
+        {busy && <LoadingDots />}
       </div>
 
       {error && <p className="hw__error">{error}</p>}
