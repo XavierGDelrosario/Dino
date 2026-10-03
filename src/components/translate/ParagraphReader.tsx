@@ -323,7 +323,8 @@ function ParagraphReaderImpl({
               ),
             );
           }
-          const gloss = visibleGloss(idx);
+          // An unterminated sentence's English is drawn by `flat`, after its last word.
+          const gloss = isTerminator ? visibleGloss(idx) : null;
           if (gloss)
             parts.push(
               <span className="reader__gloss" key={`${key}-gloss-${idx}`}>
@@ -381,8 +382,23 @@ function ParagraphReaderImpl({
     sentences.forEach((s, i) => {
       // Whatever sits between sentences stays in the flow rather than being absorbed
       // into either neighbour.
-      if (s.start > cursor) out.push(<span key={`between-${i}`}>{text.slice(cursor, s.start)}</span>);
+      if (s.start > cursor) {
+        let between = text.slice(cursor, s.start);
+        // The previous sentence is showing its English as a block, which already ends
+        // its line — the source's own break after it would add an empty row.
+        if (i > 0 && visibleGloss(i - 1)) between = between.replace(/^[^\S\n]*\n/, "");
+        out.push(<span key={`between-${i}`}>{between}</span>);
+      }
       const parts = spans(s.start, s.end, `s${i}`);
+      // A sentence that ends at a line break has no mark for `gap` to hang its English
+      // on (a trailing line, a headline above a blank line), so it goes after the text.
+      const ownGloss = ENDS_TERMINATED.test(s.text) ? null : visibleGloss(i);
+      if (ownGloss)
+        parts.push(
+          <span className="reader__gloss" key={`s${i}-gloss-own`}>
+            {ownGloss}
+          </span>,
+        );
       out.push(
         visibleGloss(i) ? (
           <span className="reader__sentence" key={`sent-${i}`}>

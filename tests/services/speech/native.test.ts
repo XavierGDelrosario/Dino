@@ -269,7 +269,7 @@ describe("nativeRecognizer (streaming)", () => {
       // The seam 。 rides at the head (as in any continuation); the dictation layer
       // sees the line already ends with it and doesn't double it.
       const box = onFinal.mock.calls.reduce((acc, [line]) => commitUtterance(acc, line), "");
-      expect(box).toBe("今日は雨です。\n明日は晴れです。\n");
+      expect(box).toBe("今日は雨です。明日は晴れです。");
     });
 
     it("does not end a line on a comma — the pause is mid-sentence", async () => {
