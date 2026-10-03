@@ -371,6 +371,43 @@ describe("ParagraphReader — tapping a sentence's punctuation", () => {
     );
   });
 
+  it("shows the English of a line that ends at a line break, in punctuated text", () => {
+    // Mixed text uses the inline layout, which draws each English at its sentence's
+    // terminator. A trailing line with no mark was translated, billed and never drawn.
+    const MIXED = "猫が走った。\n犬が寝た";
+    const { container } = render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={MIXED}
+          tokens={[
+            { text: "猫", start: 0, end: 1, reading: null, lemma: null, pos: "名詞" },
+            { text: "走っ", start: 2, end: 4, reading: null, lemma: null, pos: "動詞" },
+            { text: "犬", start: 7, end: 8, reading: null, lemma: null, pos: "名詞" },
+            { text: "寝た", start: 9, end: 11, reading: null, lemma: null, pos: "動詞" },
+          ]}
+          meaningsByWord={MEANINGS}
+          sentences={[
+            { text: "猫が走った。", start: 0, end: 6, gloss: "The cat ran." },
+            { text: "犬が寝た", start: 7, end: 11, gloss: "The dog slept." },
+          ]}
+          onTranslateSentence={vi.fn()}
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+        />
+      </LocaleProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
+    // Each English directly after its own sentence, and the source's line break not
+    // doubled into an empty row after the first block.
+    expect((container.querySelector(".reader") as HTMLElement).textContent).toBe(
+      "猫が走った。The cat ran.犬が寝たThe dog slept.",
+    );
+  });
+
   it("keeps the per-sentence layout as soon as ONE sentence is punctuated", () => {
     // Mixed text still hangs its English off the marks it does have; only the
     // wholly-unpunctuated case falls back to the block.

@@ -44,7 +44,8 @@ export function completedPrefix(text: string): string {
   // sentence currently being typed — drop it.
   //
   // A HARD LINE BREAK counts as a terminator, as it does in `splitSentences`: dictation
-  // commits each utterance with a trailing "\n" and never a 。, so a punctuation-only
+  // commits an utterance the recognizer left unpunctuated with a trailing "\n" and never
+  // an invented 。, so a punctuation-only
   // test left the reader one utterance behind and showed nothing for a single spoken
   // line. The span text is trimmed, so the break lives in the source AFTER the span.
   const terminated =

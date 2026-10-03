@@ -56,8 +56,11 @@ export function endsSentence(span: string): boolean {
 /**
  * Split `text` into sentences, keeping each one's offsets in the source.
  *
- * Terminators: 。！？!?… , a `.` that is not a decimal point, and a hard line
- * break (a headline or list item has no terminator but is its own sentence).
+ * Terminators: 。！？!?… , a `.` that is not a decimal point, and — conditionally —
+ * a hard line break. A line break is a boundary only when nothing better follows:
+ * a line with no terminator of its own MERGES FORWARD into the next punctuated
+ * sentence of its paragraph (see `mergeUnterminated`), and stays its own sentence
+ * only when no such sentence exists (lyrics, a headline, unpunctuated dictation).
  * Whitespace-only runs are dropped, so the returned spans need not be
  * contiguous — the reader renders the gaps from the source text.
  *
@@ -65,13 +68,18 @@ export function endsSentence(span: string): boolean {
  */
 export function splitSentences(text: string): Sentence[] {
   const out: Sentence[] = [];
+  // Parallel to `out`: did the span close on a terminator, or just run out of line?
+  const terminated: boolean[] = [];
   let cursor = 0; // start of the sentence being accumulated
 
-  const push = (end: number) => {
+  const push = (end: number, closed: boolean) => {
     const raw = text.slice(cursor, end);
     const lead = raw.length - raw.trimStart().length;
     const trimmed = raw.trim();
-    if (trimmed) out.push({ text: trimmed, start: cursor + lead, end: cursor + lead + trimmed.length });
+    if (trimmed) {
+      out.push({ text: trimmed, start: cursor + lead, end: cursor + lead + trimmed.length });
+      terminated.push(closed);
+    }
     cursor = end;
   };
 
@@ -83,7 +91,7 @@ export function splitSentences(text: string): Sentence[] {
     // Hard line break: closes whatever came before it, terminator or not. An
     // unclosed bracket can't span a line break, so the depth resets with it.
     if (c === "\n") {
-      push(i);
+      push(i, false);
       cursor = i + 1;
       depth = 0;
       continue;
@@ -106,10 +114,58 @@ export function splitSentences(text: string): Sentence[] {
     let j = i + 1;
     while (j < text.length && (TERMINATORS.has(text[j]) || text[j] === ".")) j++;
     while (j < text.length && CLOSERS.has(text[j])) j++;
-    push(j);
+    push(j, true);
     i = j - 1;
   }
 
-  push(text.length);
+  push(text.length, false);
+  return mergeUnterminated(text, out, terminated);
+}
+
+// A blank line: a paragraph break, which a sentence never spans.
+const PARAGRAPH_BREAK = /\n[^\S\n]*\n/;
+
+/**
+ * Fold each line that has no terminator into the next sentence that does.
+ *
+ * WHY: the reader hangs a sentence's translate control — and its English — on the
+ * terminator that ends it. A line that ends only at a line break has no mark, so in
+ * text that mixes the two (dictation the recognizer punctuated only in places, a
+ * hard-wrapped paste) that line was translated, billed and never shown. Merged
+ * forward it is read together with the sentence it runs into, and answered at that
+ * sentence's mark.
+ *
+ * NOT merged, so the line break stays the boundary:
+ *  - a line with no punctuated sentence after it — text with no punctuation anywhere
+ *    still splits per line, which is the only boundary such text has;
+ *  - across a blank line — a headline stays out of the body's first sentence, and a
+ *    stanza out of the next one.
+ */
+function mergeUnterminated(text: string, spans: Sentence[], terminated: boolean[]): Sentence[] {
+  const out: Sentence[] = [];
+  let pending = -1; // index in `spans` of the first unterminated line being carried
+
+  const flush = (upTo: number) => {
+    // Nothing punctuated arrived to absorb them: each stays its own sentence.
+    if (pending >= 0) for (let k = pending; k < upTo; k++) out.push(spans[k]);
+    pending = -1;
+  };
+
+  for (let i = 0; i < spans.length; i++) {
+    if (i > 0 && PARAGRAPH_BREAK.test(text.slice(spans[i - 1].end, spans[i].start))) flush(i);
+    if (!terminated[i]) {
+      if (pending < 0) pending = i;
+      continue;
+    }
+    if (pending < 0) {
+      out.push(spans[i]);
+      continue;
+    }
+    const start = spans[pending].start;
+    const end = spans[i].end;
+    out.push({ text: text.slice(start, end), start, end });
+    pending = -1;
+  }
+  flush(spans.length);
   return out;
 }

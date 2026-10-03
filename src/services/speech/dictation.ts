@@ -9,14 +9,16 @@
 // exactly how the live listener failed: it never stopped, so nothing was ever a
 // finished sentence.
 //
-// THE FIX IS A NEWLINE, NOT GUESSED PUNCTUATION. `splitSentences` treats a hard
-// line break as a terminator in its own right ("a headline or list item has no
-// terminator but is its own sentence"). So committing each utterance with a
-// trailing "\n" turns the SPEAKER'S PAUSE into the sentence boundary — which is
-// what a pause usually means anyway — without inventing a 。 that may be wrong.
-// The reader renders a boundary with no terminator plainly: it hangs no per-sentence
-// control off it, and glosses the text as one block instead (see `inlineGloss` in
-// ParagraphReader).
+// AN UNPUNCTUATED PAUSE IS A NEWLINE, NOT GUESSED PUNCTUATION. `splitSentences`
+// treats a hard line break as a boundary when the text offers nothing better. So an
+// utterance the recognizer gave NO closing mark is committed with a trailing "\n":
+// the speaker's pause becomes the sentence boundary — which is what a pause usually
+// means anyway — without inventing a 。 that may be wrong.
+//
+// A PUNCTUATED UTTERANCE GETS NO NEWLINE. Its own mark already ends the sentence, so
+// a break after it says nothing and only chops the box into one line per breath;
+// dictated speech that the recognizer punctuates reads as continuous prose, the way
+// it would have been typed. The newline is the FALLBACK boundary, not the format.
 //
 // Deliberately NOT inserting 。: a pause is evidence of a boundary, not evidence of
 // which mark belongs there, and a wrong 。 is baked into text the user then saves.
@@ -36,12 +38,16 @@
 import { endsSentence, splitSentences } from "../language/sentences";
 
 /**
- * Separator between committed utterances.
+ * Boundary after an utterance that carries no closing mark of its own.
  *
- * Load-bearing: this is a sentence terminator to `splitSentences`. Changing it to
- * a space would silently collapse an entire conversation into one sentence again.
+ * Load-bearing: this is the only sentence boundary `splitSentences` has for
+ * unpunctuated speech. Changing it to a space would silently collapse an entire
+ * unpunctuated conversation into one sentence again.
  */
 const SEPARATOR = "\n";
+
+/** The utterance stops on a comma — the speaker is mid-sentence, whatever the pause. */
+export const ENDS_ON_COMMA = /[、，,]\s*$/u;
 
 /** Closing marks at the very start of an utterance — punctuation that belongs to the
  *  line before it. Opening brackets (「) are not in the set: they start the new line;
@@ -58,16 +64,22 @@ function reattachLeadingMarks(base: string, text: string): { base: string; text:
   if (!marks) return { base, text };
   const rest = text.slice(marks.length).trim();
   if (base === "") return { base, text: rest };
-  const hadBoundary = base.endsWith(SEPARATOR);
-  const line = hadBoundary ? base.slice(0, -SEPARATOR.length) : base;
-  const closed = line.endsWith(marks) ? line : line + marks;
-  return { base: closed + (hadBoundary ? SEPARATOR : ""), text: rest };
+  const line = base.endsWith(SEPARATOR) ? base.slice(0, -SEPARATOR.length) : base;
+  // The line now carries its own mark, so the pause-newline that stood in for one goes.
+  return { base: line.endsWith(marks) ? line : line + marks, text: rest };
 }
 
-/** Ensure `base` ends on a boundary, so whatever comes next starts its own sentence. */
-function onBoundary(base: string): string {
-  if (base === "") return "";
-  return base.endsWith(SEPARATOR) ? base : base + SEPARATOR;
+/**
+ * `base` followed by `text`, with the right thing between them: nothing but spacing
+ * after a line that ends on its own punctuation (it flows on as prose), a line break
+ * after one that doesn't (the break is the only boundary it has).
+ */
+function join(base: string, text: string): string {
+  if (base === "" || base.endsWith(SEPARATOR)) return base + text;
+  if (!endsSentence(base) && !ENDS_ON_COMMA.test(base)) return base + SEPARATOR + text;
+  // 「雨です。明日は」 needs nothing between; "It rained. Tomorrow" needs a space.
+  const last = base[base.length - 1];
+  return base + (last.charCodeAt(0) < 0x80 && last !== " " ? " " : "") + text;
 }
 
 /**
@@ -75,7 +87,8 @@ function onBoundary(base: string): string {
  *
  * INPUT: `base` — everything committed so far (may be text the user typed before
  * ever pressing the mic); `utterance` — one finalized recognition result.
- * OUTPUT: the new box contents, ending on a boundary and ready for the next one.
+ * OUTPUT: the new box contents, ready for the next one — ending on a line break only
+ * if the utterance brought no closing mark of its own.
  *
  * An empty/whitespace utterance is dropped rather than committed: recognizers emit
  * one when a pause brought no speech, and it would otherwise open a blank line.
@@ -83,7 +96,8 @@ function onBoundary(base: string): string {
 export function commitUtterance(base: string, utterance: string): string {
   const moved = reattachLeadingMarks(base, utterance.trim());
   if (!moved.text) return moved.base;
-  return onBoundary(moved.base) + moved.text + SEPARATOR;
+  const joined = join(moved.base, moved.text);
+  return endsSentence(moved.text) ? joined : joined + SEPARATOR;
 }
 
 /**
@@ -96,15 +110,12 @@ export function commitUtterance(base: string, utterance: string): string {
 export function withPartial(base: string, partial: string): string {
   const moved = reattachLeadingMarks(base, partial.trim());
   if (!moved.text) return moved.base;
-  return onBoundary(moved.base) + moved.text;
+  return join(moved.base, moved.text);
 }
 
 /** Punctuation and whitespace — everything that isn't what was actually SAID. */
 export const NON_CONTENT = /[\p{P}\s]/u;
 const HAS_CONTENT = /[^\p{P}\s]/u;
-
-/** The utterance stops on a comma — the speaker is mid-sentence, whatever the pause. */
-export const ENDS_ON_COMMA = /[、，,]\s*$/u;
 
 /**
  * Where a punctuated utterance may be cut into a line: one past the LAST sentence

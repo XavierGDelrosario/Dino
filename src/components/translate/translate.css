@@ -44,6 +44,9 @@
   line-height: 2.1;
   margin: 0;
   word-break: break-word;
+  /* Line breaks land where the input box has them, so the reader and the box above
+     it show the same lines. */
+  white-space: pre-wrap;
 }
 
 /* INLINE TRANSLATION: each sentence followed by its own English, so reading a

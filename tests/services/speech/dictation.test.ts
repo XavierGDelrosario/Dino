@@ -44,29 +44,55 @@ describe("commitUtterance", () => {
   });
 });
 
+describe("punctuated utterances flow on as prose", () => {
+  // A line break after a sentence that already has its 。 says nothing — it only
+  // chops the box into one line per breath.
+  it("puts no line break after an utterance that ends on its own mark", () => {
+    let box = commitUtterance("", "今日は雨です。");
+    box = commitUtterance(box, "明日は晴れます。");
+    expect(box).toBe("今日は雨です。明日は晴れます。");
+    expect(splitSentences(box).map((s) => s.text)).toEqual(["今日は雨です。", "明日は晴れます。"]);
+  });
+
+  it("separates Latin-script sentences with a space", () => {
+    const box = commitUtterance("", "It rained.");
+    expect(commitUtterance(box, "Then it stopped.")).toBe("It rained. Then it stopped.");
+  });
+
+  it("keeps the line break only where the utterance brought no mark", () => {
+    let box = commitUtterance("", "今日は雨です。");
+    box = commitUtterance(box, "そうですね");
+    expect(box).toBe("今日は雨です。そうですね\n");
+  });
+
+  it("continues a line that paused on a comma", () => {
+    expect(withPartial("明日は、", "晴れ")).toBe("明日は、晴れ");
+  });
+});
+
 describe("recognizer punctuation (iOS addsPunctuation)", () => {
   // iOS often adds the mark that closes a line only once the NEXT words arrive, so it
   // lands at the head of the next utterance. It belongs to the line it closes.
-  it("moves a leading 。 back onto the end of the previous line", () => {
+  it("moves a leading 。 back onto the end of the previous line, replacing its line break", () => {
     let box = commitUtterance("", "今日は雨です");
     box = commitUtterance(box, "。明日は晴れます。");
-    expect(box).toBe("今日は雨です。\n明日は晴れます。\n");
+    expect(box).toBe("今日は雨です。明日は晴れます。");
     expect(splitSentences(box).map((s) => s.text)).toEqual(["今日は雨です。", "明日は晴れます。"]);
   });
 
   it("does the same while the next line is still forming", () => {
     const box = commitUtterance("", "本当");
-    expect(withPartial(box, "？そうか")).toBe("本当？\nそうか");
+    expect(withPartial(box, "？そうか")).toBe("本当？そうか");
   });
 
   it("an utterance that is ONLY the late mark closes the line and adds nothing", () => {
     const box = commitUtterance("", "行きました");
-    expect(commitUtterance(box, "。")).toBe("行きました。\n");
+    expect(commitUtterance(box, "。")).toBe("行きました。");
   });
 
   it("does not double a mark the line already has", () => {
     const box = commitUtterance("", "行きました。");
-    expect(commitUtterance(box, "。次")).toBe("行きました。\n次\n");
+    expect(commitUtterance(box, "。次")).toBe("行きました。次\n");
   });
 
   it("drops a leading mark when there is no line for it to close", () => {

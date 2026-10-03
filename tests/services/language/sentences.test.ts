@@ -36,13 +36,38 @@ describe("splitSentences", () => {
     expect(splitSentences("本当に!?　そうか。").map((s) => s.text)).toEqual(["本当に!?", "そうか。"]);
   });
 
-  it("treats a hard line break as a boundary (headlines carry no terminator)", () => {
-    const text = "横浜の銀行で強盗未遂\n警官が発砲した。";
+  it("treats a hard line break as the boundary when the text has no punctuation", () => {
+    const text = "今日は暑いですね\nそうですね\n";
+    expect(splitSentences(text).map((s) => s.text)).toEqual(["今日は暑いですね", "そうですね"]);
+    assertSpansMatch(text);
+  });
+
+  it("merges an unterminated line into the punctuated sentence it runs into", () => {
+    // The reader hangs a sentence's English on its terminator; a line that ends only
+    // at a break has none, so it is read with the sentence that follows it.
+    const text = "横浜の銀行で\n強盗未遂があった。警官が発砲した。";
+    expect(splitSentences(text).map((s) => s.text)).toEqual([
+      "横浜の銀行で\n強盗未遂があった。",
+      "警官が発砲した。",
+    ]);
+    assertSpansMatch(text);
+  });
+
+  it("carries several unterminated lines into the same sentence", () => {
+    expect(splitSentences("一\n二\n三。").map((s) => s.text)).toEqual(["一\n二\n三。"]);
+  });
+
+  it("does not merge across a blank line (a headline stays out of the body)", () => {
+    const text = "横浜の銀行で強盗未遂\n\n警官が発砲した。";
     expect(splitSentences(text).map((s) => s.text)).toEqual([
       "横浜の銀行で強盗未遂",
       "警官が発砲した。",
     ]);
     assertSpansMatch(text);
+  });
+
+  it("leaves a trailing unterminated line as its own sentence", () => {
+    expect(splitSentences("一つ目。\n二つ目").map((s) => s.text)).toEqual(["一つ目。", "二つ目"]);
   });
 
   it("drops whitespace-only runs and never returns an empty sentence", () => {
