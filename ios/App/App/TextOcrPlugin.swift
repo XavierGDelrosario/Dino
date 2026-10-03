@@ -11,11 +11,21 @@
 // convert), matching the OcrBlock type. The photo comes from @capacitor/camera;
 // only the recognition lives here. Registered in MainViewController.capacitorDidLoad.
 //
+//   transcribe({ image: <base64 jpeg>, lang: <bcp47> })
+//     -> { text, supported }
+//
+// `transcribe` is the VERTICAL-text path (縦書き). VNRecognizeText is a horizontal-line
+// recognizer and returns nothing for a vertical page, so this goes through VisionKit's
+// ImageAnalyzer — the Live Text engine — which reads vertical Japanese and hands back
+// one transcript already in reading order. No geometry: the public API exposes only
+// the text. iOS 16+; `supported: false` elsewhere, and the JS side falls back.
+//
 // NOTE: needs a device/simulator build; add this file to the App target in Xcode.
 // =========================================================
 import Foundation
 import Capacitor
 import Vision
+import VisionKit
 import UIKit
 
 @objc(TextOcrPlugin)
@@ -24,6 +34,7 @@ public class TextOcrPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "TextOcr"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "recognize", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "transcribe", returnType: CAPPluginReturnPromise),
     ]
 
     @objc func recognize(_ call: CAPPluginCall) {
@@ -82,6 +93,30 @@ public class TextOcrPlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 try handler.perform([request])
+            } catch {
+                call.reject("Recognition failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @objc func transcribe(_ call: CAPPluginCall) {
+        guard let b64 = call.getString("image"),
+              let data = Data(base64Encoded: b64),
+              let image = UIImage(data: data) else {
+            call.reject("Invalid image")
+            return
+        }
+        let lang = call.getString("lang") ?? "ja"
+        guard #available(iOS 16.0, *), ImageAnalyzer.isSupported else {
+            call.resolve(["text": "", "supported": false])
+            return
+        }
+        Task { @MainActor in
+            do {
+                var configuration = ImageAnalyzer.Configuration([.text])
+                configuration.locales = [lang]
+                let analysis = try await ImageAnalyzer().analyze(image, configuration: configuration)
+                call.resolve(["text": analysis.transcript, "supported": true])
             } catch {
                 call.reject("Recognition failed: \(error.localizedDescription)")
             }
