@@ -16121,3 +16121,427 @@
 1385360:0	店で接客する。	I serve customers at the shop.	客の相手をすること。
 1386110:0	窃盗の罪で捕まる。	He's arrested for theft.	他人の物を盗むこと。
 1386970:0	絶妙な味だ。	It's an exquisite flavor.	この上なく優れていること。
+
+# ── BATCH 320 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1419440:0	兵士が弾丸を込める。	The soldier loads a bullet.	銃から撃ち出す弾。
+1445280:0	彼は土下座して謝った。	He knelt on the ground and apologized.	地面にひざをついて頭を下げること。
+1512530:0	人気に便乗して商品を売る。	They sell goods by riding on its popularity.	都合のよい機会をうまく利用すること。
+1512530:1	友人の車に便乗する。	I get a ride in my friend's car.	他人の乗り物に一緒に乗せてもらうこと。
+1515190:0	赤ん坊に母乳を与える。	She gives the baby breast milk.	母親の乳。
+1524220:0	森に魔物がすむという。	They say a demon lives in the forest.	人に害を与える怪しい存在。
+1531850:0	彼は名目だけの社長だ。	He's president in name only.	表向きの名前。
+1531850:1	調査の名目で来た。	He came under the pretext of an investigation.	表向きの理由。
+1545090:0	王が傭兵を雇う。	The king hires mercenaries.	お金で雇われて戦う兵士。
+1586290:0	悩んだ挙句、やめた。	After agonizing, I quit.	いろいろした後の結果。
+1600100:0	商品を値下げする。	We cut the price of goods.	値段を下げること。
+1609470:0	母さんが呼んでいる。	Mom is calling.	母を親しんで呼ぶ言葉。
+1610240:0	囚人が脱走した。	The prisoner escaped.	逃げ出すこと。
+1770030:0	持ち帰りで弁当を買う。	I buy a boxed lunch to go.	買った食べ物を家に持って帰ること。
+2011730:0	数少ない友人を大切にする。	I cherish my few friends.	数が少ない。
+1013310:0	旅行の前はわくわくする。	I get excited before a trip.	期待で心が落ち着かない様子。
+1176120:0	円盤を投げる。	I throw a discus.	丸くて平らな板。
+1181540:1	彼は大会の王者だ。	He's the tournament champion.	競技で最も強い者。
+1193420:0	歌舞伎を見に行く。	I go to see kabuki.	日本の伝統的な演劇。
+1199210:0	社長を解任する。	They dismiss the president.	役目をやめさせること。
+1204140:0	外務省で働く。	I work at the Foreign Ministry.	外国との関係を扱う国の役所。
+1224140:0	騎手が馬に乗る。	The jockey mounts the horse.	競馬で馬に乗る人。
+1283760:0	野菜が高値で売れる。	Vegetables sell at a high price.	高い値段。
+1296690:0	うそは罪悪だ。	Lying is a sin.	道徳に反する悪い行い。
+1305730:0	この台所は使い勝手がいい。	This kitchen is easy to use.	使うときの便利さ。
+1310900:0	事故で死人が出た。	People died in the accident.	死んだ人。
+1333790:0	意見を集約する。	We bring the opinions together.	集めて一つにまとめること。
+1371800:0	水槽に水をためる。	I fill the tank with water.	水を入れておく入れ物。
+1371800:1	水槽で金魚を飼う。	I keep goldfish in a tank.	魚を飼うための入れ物。
+1379310:0	作家の生誕を祝う。	We celebrate the author's birth.	人が生まれること。
+1380230:0	森の精霊を信じる。	I believe in forest spirits.	自然の物に宿るたましい。
+1380830:0	製薬の会社に勤める。	I work at a pharmaceutical company.	薬を作ること。
+1389820:0	専属の歌手になる。	She becomes an exclusive singer.	一つの所だけに属すること。
+1403280:0	政府が増税する。	The government raises taxes.	税金を増やすこと。
+1404180:0	即座に答える。	I answer on the spot.	その場ですぐ。
+1407050:0	他国の文化を学ぶ。	I learn other countries' cultures.	よその国。
+1428900:0	警察が事情を聴取する。	The police take a statement.	話を聞き取ること。
+1430910:0	駅に直結したビルだ。	The building is directly connected to the station.	直接つながること。
+1432030:0	部屋を賃貸する。	I rent out a room.	お金を取って貸すこと。
+1432610:0	亡くなった人を追悼する。	We mourn the deceased.	死んだ人を思って悲しむこと。
+1433810:0	庭に椿が咲く。	Camellias bloom in the garden.	冬から春に赤い花が咲く木。
+1446710:0	唐突な質問に驚く。	I'm surprised by an abrupt question.	突然で場に合わないこと。
+1451580:0	動脈を血が流れる。	Blood flows through the arteries.	心臓から体へ血を送る血管。
+1452870:0	同性の友人が多い。	I have many same-sex friends.	性別が同じであること。
+1452950:0	この車は新品も同然だ。	This car is as good as new.	ほとんど同じであること。
+1463630:0	彼は肉食を好む。	He prefers eating meat.	肉を食べること。
+1473120:0	商品を配送する。	We deliver goods.	物を配って届けること。
+1488090:0	百貨店で買い物する。	I shop at a department store.	多くの種類の商品を売る大きな店。
+1493960:0	不適切な発言をした。	He made an inappropriate remark.	ふさわしくないこと。
+1512470:0	便器を掃除する。	I clean the toilet bowl.	大小便を受ける器。
+
+# ── BATCH 321 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1519600:0	警察が暴力団を取り締まる。	Police crack down on gangs.	暴力で利益を得る集団。
+1527050:0	朝は味噌汁を飲む。	I have miso soup in the morning.	味噌を溶かした汁。
+1559970:0	錬金術で金を作ろうとした。	They tried to make gold through alchemy.	金属を金に変えようとした昔の技術。
+1591010:1	合衆国の大統領が来る。	The US president is coming.	米国のこと。
+1657750:0	最多の票を得る。	He gets the most votes.	最も多いこと。
+1918240:0	この橋は脆弱だ。	This bridge is fragile.	もろくて弱いこと。
+1151440:0	子供に悪影響を与える。	It has a bad influence on children.	悪い影響。
+1174380:0	英会話を習う。	I take English conversation lessons.	英語で話すこと。
+1200990:0	店を改装する。	We remodel the shop.	建物の飾りや設備を新しくすること。
+1222880:0	希少な動物を守る。	We protect rare animals.	数が非常に少ないこと。
+1241630:1	禁断の果実を食べる。	He eats the forbidden fruit.	固く禁じられていること。
+1260280:0	村の賢者に相談する。	I consult the village sage.	賢い人。
+1262570:0	厳格な父に育てられた。	I was raised by a strict father.	規則に厳しく、甘さがないこと。
+1272900:0	大学で光学を研究する。	I study optics at university.	光の性質を研究する学問。
+1278670:0	広範囲に雨が降る。	It rains over a wide area.	広い範囲。
+1294120:0	最先端の技術を使う。	We use cutting-edge technology.	最も進んでいるところ。
+1307430:0	彼は海軍の士官だ。	He's a naval officer.	軍隊で兵を指揮する人。
+1324260:0	容疑者を釈放する。	They release the suspect.	捕らえていた人を自由にすること。
+1339800:0	作品を展覧会に出展する。	I exhibit my work at the exhibition.	展示のために作品を出すこと。
+1343220:0	会社の所在地を調べる。	I look up the company's location.	建物などがある場所。
+1343910:0	手紙の書き方を習う。	I learn how to write letters.	書く方法。
+1346180:0	勝者に賞を与える。	We give the winner a prize.	勝った人。
+1354180:0	上半身を鍛える。	I train my upper body.	体の腰から上の部分。
+1354510:0	川の上流に行く。	I go to the upper reaches of the river.	川の水が流れてくる方。
+1354510:2	上流の家庭に育つ。	He grows up in an upper-class family.	社会で地位や収入が高い階級。
+1370180:0	相手の陣営を批判する。	They criticize the opposing camp.	対立する勢力の一方の側。
+1371670:0	水色のシャツを着る。	I wear a light blue shirt.	薄い青色。
+1394830:0	県の全域に雪が降る。	Snow falls across the whole prefecture.	地域の全体。
+1401750:0	総督が島を治める。	The governor-general rules the island.	植民地を治める長官。
+1405820:0	病人が続出する。	People keep falling ill.	次々に現れること。
+1426170:0	王に忠誠を誓う。	I swear loyalty to the king.	真心を持って仕えること。
+1433230:0	通算で百勝した。	He has a hundred wins in total.	全体を通して計算すること。
+1471430:0	彼は酒で破滅した。	He was ruined by drink.	だめになって滅びること。
+1473180:0	軍を国境に配備する。	We deploy troops at the border.	必要な所に置いて備えること。
+1475160:0	白黒の写真を見る。	I look at black-and-white photos.	白と黒。
+1475160:1	裁判で白黒をつける。	We settle right and wrong in court.	正しいか正しくないか。
+1481300:0	荷物を搬送する。	We transport cargo.	物を運んで送ること。
+1481300:1	患者を病院に搬送する。	We take the patient to hospital.	病人を病院へ運ぶこと。
+1513910:0	環境を保全する。	We preserve the environment.	安全であるように守ること。
+1535370:0	魚の目玉を食べる。	I eat the fish's eyeball.	目の玉。
+1535370:1	これが今日の目玉の商品だ。	This is today's featured product.	人を引きつける中心のもの。
+1541830:0	彼は裕福な家に生まれた。	He was born into a wealthy family.	お金が多く生活が豊かなこと。
+1546660:0	警備の要員を増やす。	We increase security personnel.	ある仕事に必要な人。
+1550120:0	理不尽な要求に怒る。	I'm angry at an unreasonable demand.	道理に合わないこと。
+1591030:0	気合を入れて走る。	I run with fighting spirit.	物事に向かう強い気持ち。
+1609800:0	最大限の努力をする。	I make the utmost effort.	できる限り大きいこと。
+1631500:0	関心の高まりを感じる。	I sense rising interest.	程度が高くなること。
+1852830:0	体力の衰えを感じる。	I feel my strength declining.	勢いが弱くなること。
+1982960:0	重大な事案が起きた。	A serious case arose.	問題となっている事柄。
+2101170:0	ついつい食べすぎる。	I end up overeating.	そのつもりがないのにしてしまう様子。
+
+# ── BATCH 322 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1182730:0	屋内で運動する。	I exercise indoors.	建物の中。
+1204170:0	ボールが外野に飛ぶ。	The ball flies to the outfield.	野球場で内野の後ろの部分。
+1204170:3	外野は黙っていろ。	Outsiders, keep quiet.	直接関係のない人。
+1212950:0	勝利に歓喜する。	We rejoice at the victory.	大いに喜ぶこと。
+1222690:0	気力がなくなる。	I lose my drive.	物事を続けようとする心の力。
+1226730:0	客室を掃除する。	I clean the guest room.	客が泊まる部屋。
+1229270:0	救命の訓練を受ける。	I take lifesaving training.	命を救うこと。
+1229970:0	球場で試合を見る。	I watch a game at the ballpark.	野球をする場所。
+1242360:0	近親の者だけで集まる。	Only close relatives gather.	血のつながりが近い親類。
+1255550:0	月間の売り上げを調べる。	I check the monthly sales.	ひと月の間。
+1276030:0	銃の口径を測る。	We measure the gun's caliber.	筒の口の内側の直径。
+1292040:0	計画が挫折した。	The plan fell through.	途中でだめになること。
+1294210:0	最短の道を選ぶ。	I choose the shortest route.	最も短いこと。
+1299360:0	網に雑魚がかかる。	Small fish get caught in the net.	小さな魚。	ざこ
+1304410:0	斬新な考えを出す。	He comes up with a novel idea.	今までになく新しいこと。
+1316490:0	次期の社長を選ぶ。	We choose the next president.	次の期間。
+1323430:0	邪悪な心を持つ。	He has a wicked heart.	心が正しくなく悪いこと。
+1328760:0	森で狩猟する。	We hunt in the forest.	野生の鳥や獣を捕ること。
+1332900:0	終戦の日を迎える。	We reach the day the war ended.	戦争が終わること。
+1343080:0	初恋の人に会う。	I meet my first love.	初めての恋。
+1349740:0	部長に昇格する。	I'm promoted to department manager.	地位が上がること。
+1353710:0	建物の上層に住む。	I live on the upper floors.	上の層。
+1356550:0	契約の条項を読む。	I read the contract's clauses.	一つ一つの決まり。
+1429470:0	彼は超人のように強い。	He's strong like a superman.	普通の人を超えた力を持つ人。
+1435660:0	議員の定数を減らす。	We reduce the fixed number of legislators.	決められた数。
+1440820:0	砂糖を添加する。	We add sugar.	別のものを加えること。
+1440880:0	写真を添付する。	I attach a photo.	書類などに付け加えること。
+1467370:0	妊婦に席を譲る。	I give my seat to a pregnant woman.	妊娠している女性。
+1477520:0	ここは文明が発祥した地だ。	This is where civilization originated.	物事が初めて起こること。
+1484040:0	成功の秘訣を教える。	I share the secret of success.	人に知られていない最も良い方法。
+1485560:2	技術が飛躍した。	Technology made great strides.	急に大きく進歩すること。
+1499420:0	部族の長に会う。	I meet the tribal chief.	同じ祖先や文化を持つ人々の集団。
+1518730:0	彼は隣の国に亡命した。	He sought asylum in the neighboring country.	政治的な理由で外国へ逃げること。
+1524820:0	幕府が国を治める。	The shogunate rules the country.	将軍を中心とした武士の政府。
+1528730:0	民事の裁判を起こす。	I file a civil suit.	個人の間の争いに関すること。
+1531050:0	自分の無力を感じる。	I feel my own powerlessness.	力がないこと。
+1585290:0	老舗の旅館に泊まる。	I stay at a long-established inn.	昔から続いている店。
+1611860:0	二人は見分けがつかない。	You can't tell the two apart.	違いを区別すること。
+1619510:0	選手が退場する。	The player leaves the field.	会場から出ること。
+1657590:0	今季は成績がいい。	Results are good this season.	この季節。
+2077210:0	店の集客を増やす。	We boost the shop's customer draw.	客を集めること。
+2825953:2	人手が足りない。	We're short-handed.	働く人。
+1152540:0	彼は悪役を演じる。	He plays the villain.	劇で悪人の役。
+1183780:0	会場の音響がいい。	The venue's acoustics are good.	音の響き。
+1191900:0	医者の家系に生まれる。	I was born into a line of doctors.	先祖から続く家の系統。
+1201650:0	海底を調べる。	We survey the seafloor.	海の底。
+1207390:0	試合は楽勝だった。	The match was an easy win.	簡単に勝つこと。
+1237260:0	教団に入る。	He joins a religious order.	同じ宗教を信じる人々の団体。
+1253650:0	客が激減した。	Customers dropped sharply.	急にひどく減ること。
+
+# ── BATCH 323 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1290680:0	些細なことで怒る。	He gets angry over trivial things.	わずかで重要でないこと。
+1298210:0	昨今の物価は高い。	Prices these days are high.	このごろ。
+1344700:0	研究を助成する。	We subsidize research.	事業や研究を助けること。
+1360140:0	寝室で本を読む。	I read in the bedroom.	寝るための部屋。
+1362290:0	新年を祝う。	We celebrate the New Year.	新しい年。
+1380350:0	聖人の話を聞く。	I listen to the story of a saint.	宗教で特に尊いとされる人。
+1390340:0	兵士が戦線に向かう。	Soldiers head to the front.	戦いが行われている所。
+1397810:0	成長を阻害する。	It hinders growth.	じゃまをして妨げること。
+1412470:0	代理人を立てる。	I appoint a proxy.	本人の代わりに事を行う人。
+1458730:0	店の内装を変える。	We change the shop's interior.	建物の内部の飾りや設備。
+1471870:0	この車は馬力がある。	This car has horsepower.	動力の大きさを表す単位。
+1506970:0	心の平安を願う。	I wish for peace of mind.	穏やかで無事なこと。
+1510850:2	ウイルスが変異する。	The virus mutates.	性質が変わること。
+1521100:0	北西から風が吹く。	The wind blows from the northwest.	北と西の間の方角。
+1522410:0	本業は教師だ。	My main job is teaching.	主な職業。
+1555870:0	公園に隣接する家だ。	It's a house adjoining the park.	隣にあって続いていること。
+1578120:0	金色の紙を使う。	I use gold-colored paper.	金のような色。
+1586770:0	荒野を歩く。	I walk through the wilderness.	荒れた野原。	こうや
+1588790:0	仲間を援護する。	I back up my comrades.	困っている者を助け守ること。
+1604450:0	巫女が神社で働く。	A shrine maiden works at the shrine.	神に仕える女性。
+1607460:0	幕末の歴史を学ぶ。	I study the history of the Bakumatsu.	江戸幕府の終わりのころ。
+1623130:0	塩で調味する。	I season with salt.	味をととのえること。
+1635700:0	敵を銃撃する。	They shoot at the enemy.	銃で撃つこと。
+2027680:0	煙を検知する。	It detects smoke.	調べて知ること。
+1158160:0	机を窓のそばに移す。	I move the desk next to the window.	別の場所へ動かす。
+1158160:1	計画を実行に移す。	I put the plan into action.	次の段階に進める。
+1158160:4	風邪を人に移す。	I give someone my cold.	病気を他人に感染させる。
+1173570:0	営利を目的とする団体だ。	It's a for-profit organization.	利益を得ようとすること。
+1201120:0	結婚して改名した。	I changed my name on marrying.	名前を変えること。
+1226620:0	申請を却下する。	They reject the application.	願いや訴えを受け付けずに返すこと。
+1240470:0	極秘の計画を進める。	We advance a top-secret plan.	絶対に秘密にすること。
+1260640:0	効果が顕著に現れる。	The effect appears markedly.	はっきりと目立つこと。
+1267140:0	故意に窓を割った。	He broke the window on purpose.	わざとすること。
+1271350:0	誤字を直す。	I correct typos.	間違った字。
+1288570:0	骨格がしっかりしている。	He has a sturdy frame.	体を支える骨の組み立て。
+1288570:1	計画の骨格を作る。	We build the plan's framework.	物事の基本となる組み立て。
+1296540:0	明日は在宅する。	I'll be at home tomorrow.	家にいること。
+1298280:0	計画を策定する。	We formulate a plan.	計画や方針を考えて決めること。
+1305300:0	商品の仕入れに行く。	I go to stock up on goods.	売るための品物を買うこと。
+1310890:0	死神が現れる。	The god of death appears.	人を死に導く神。
+1314000:0	自然の事象を観察する。	I observe natural phenomena.	実際に起こる事柄。
+1316120:0	時空を超える旅をする。	I travel beyond space-time.	時間と空間。
+
+# ── BATCH 324 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1332240:0	修道院で静かに暮らす。	They live quietly in a monastery.	神に仕える人々が共同で生活する所。
+1343300:0	所詮は子供の遊びだ。	After all, it's just child's play.	結局のところ。
+1350230:0	データが消失した。	The data vanished.	消えてなくなること。
+1350450:0	昼に焼きそばを食べる。	I eat yakisoba for lunch.	麺を野菜や肉と一緒に炒めた料理。
+1370110:0	腎臓の病気になる。	He gets kidney disease.	血をきれいにして尿を作る臓器。
+1385530:0	客を接待する。	We entertain clients.	客をもてなすこと。
+1386930:0	山の絶頂に立つ。	I stand at the summit.	山の最も高い所。
+1386930:1	彼は人気の絶頂にある。	He's at the height of his popularity.	物事の最も盛んな時。
+1407900:0	多大な被害を受けた。	We suffered enormous damage.	非常に多いこと。
+1421100:0	地裁が判決を出す。	The district court hands down a ruling.	地方の裁判所。
+1444750:0	土地を登記する。	I register the land.	権利を役所の帳簿に記すこと。
+1449230:0	当分は家にいる。	I'll stay home for the time being.	しばらくの間。
+1453000:0	同窓会に出席する。	I attend the class reunion.	同じ学校を出た人の集まり。
+1472050:0	古い町が廃墟になった。	The old town fell into ruins.	人が住まなくなって荒れた建物や町。
+1473110:0	部屋の配線を直す。	I fix the room's wiring.	電気の線を引くこと。
+1484340:0	大きな損害を被る。	We suffer great damage.	害や恵みを受ける。
+1489670:0	優れた社員を表彰する。	We honor outstanding employees.	立派な行いをほめて広く知らせること。
+1522770:0	電車の本数が少ない。	There are few trains.	細長いものや列車の数。
+1522830:0	列車が本線を走る。	The train runs on the main line.	鉄道の中心となる線。
+1528590:0	鉄道を民営にする。	We privatize the railway.	民間が経営すること。
+1534740:0	木造の家に住む。	I live in a wooden house.	木で造ること。
+1605220:0	飲み物の持ち込みは禁止だ。	Bringing in drinks is prohibited.	外から物を持って入ること。
+1610940:0	祖母は長生きした。	My grandmother lived long.	長く生きること。
+1158140:0	異例の速さで決まった。	It was decided with exceptional speed.	今までの例にないこと。
+1164280:1	仕事と遊びの間に一線を引く。	I draw a line between work and play.	はっきりした区切り。
+1164280:2	彼は一線で働いている。	He works on the front line.	活動の最も前の所。
+1190230:0	料金を加算する。	We add a charge.	加えて計算すること。
+1202550:0	桜が開花した。	The cherry blossoms bloomed.	花が咲くこと。
+1202550:1	才能が開花する。	Talent blossoms.	才能などが表に現れて盛んになること。
+1204810:0	庭の柿が赤くなった。	The persimmons in the garden turned red.	秋に実る甘い果物。
+1215080:0	弾が壁を貫通した。	The bullet went through the wall.	突き抜けて通ること。
+1216120:1	会社が危機に陥る。	The company falls into crisis.	悪い状態になる。
+1216120:2	敵のわなに陥る。	I fall into the enemy's trap.	計略にかかる。
+1242530:0	駅の近辺に住む。	I live in the vicinity of the station.	近くの辺り。
+1244540:0	強い相手に苦戦する。	We struggle against a strong opponent.	苦しい戦いをすること。
+1250040:0	人々を啓発する。	We enlighten people.	知識を与えて気づかせること。
+1270090:0	映画の後編を見る。	I watch the second part of the film.	二つに分けた作品の後の部分。
+1277570:0	彼の態度に好感を持つ。	I have a good impression of his attitude.	好ましいと思う気持ち。
+1290580:0	動物の痕跡を見つける。	I find traces of an animal.	何かがあったことを示す跡。
+1303060:0	山頂から町を見る。	I look at the town from the summit.	山の頂上。
+1309180:0	彼女は思いやりがある。	She's considerate.	相手の気持ちを考える心。
+1310800:0	祖父が死去した。	My grandfather passed away.	死ぬこと。
+1321350:0	会社の実体を調べる。	We look into the company's real substance.	物事の本当の姿。
+1323090:0	車椅子で移動する。	I get around by wheelchair.	歩けない人が座って移動するための椅子。
+1323180:0	車線を変える。	I change lanes.	道路で車が走る列。
+1343340:0	研究所の所長に会う。	I meet the institute's director.	事務所や研究所の長。
+1345180:0	女児が生まれた。	A baby girl was born.	女の子供。
+1389850:0	研究に専念する。	I devote myself to research.	一つのことだけに心を集中すること。
+1405940:0	卒業生が学校を訪ねる。	Graduates visit the school.	学校を卒業した人。
+
+# ── BATCH 325 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1413830:0	画家が大作を描く。	The painter creates a large-scale work.	規模の大きい作品。
+1418560:0	炭水化物を減らす。	I cut back on carbohydrates.	米やパンに多く含まれる栄養素。
+1449570:0	大臣が国会で答弁する。	The minister answers in the Diet.	質問に答えて説明すること。
+1464950:1	今日はよい日和だ。	It's fine weather today.	晴れた良い天気。
+1467820:0	観客が熱狂する。	The audience goes wild.	興奮して夢中になること。
+1477450:0	パンの生地を発酵させる。	We let the bread dough ferment.	菌の働きで物の性質が変わること。
+1478330:0	公園に鳩がいる。	There are pigeons in the park.	平和のしるしとされる鳥。
+1480800:0	銃の反動を受ける。	I take the gun's recoil.	力を加えたとき逆の方向に働く力。
+1492670:0	不自然な姿勢で座る。	I sit in an unnatural posture.	自然でないこと。
+1510450:0	平均からの偏差を求める。	We find the deviation from the mean.	標準からのずれ。
+1514030:0	返事を保留する。	I put my answer on hold.	すぐに決めずにそのままにしておくこと。
+1517330:0	法制を整える。	We put the legal system in order.	法律と制度。
+1517840:0	蜂に刺された。	I was stung by a bee.	針を持ち、花の蜜を集める虫。
+1553590:0	両国の関係が良くなった。	Relations between the two countries improved.	両方の国。
+1559630:0	太鼓を連打する。	I beat the drum repeatedly.	続けて打つこと。
+1562180:0	和風の料理を作る。	I make Japanese-style food.	日本の伝統的な様式。
+1591510:0	凶悪な犯罪が起きた。	A heinous crime occurred.	残酷でひどく悪いこと。
+1600030:0	バスの料金を値上げする。	They raise bus fares.	値段を上げること。
+1601550:0	券と引き換えに品物をもらう。	I get the item in exchange for the ticket.	物と物を取り替えること。
+1628120:0	青葉が美しい季節だ。	It's the season of beautiful fresh leaves.	初夏の緑の若い葉。
+1629510:0	物流の仕事をする。	I work in logistics.	商品を運んで届ける仕組み。
+1661860:0	手紙に追記する。	I add a postscript to the letter.	後から書き加えること。
+1770610:0	道中の無事を祈る。	I pray for a safe journey.	旅の途中。
+1777550:0	努力の積み重ねが大切だ。	Accumulated effort matters.	少しずつ重ねていくこと。
+1956540:0	結婚して籍を入れる。	We marry and register.	戸籍。
+1956660:0	体が宙に浮く。	My body floats in midair.	地面から離れた空間。
+2012360:0	長期間入院する。	I'm hospitalized for a long time.	長い期間。
+1098580:0	バス停で待つ。	I wait at the bus stop.	バスが止まって客が乗る場所。
+1176310:0	宴に招かれる。	I'm invited to a banquet.	酒や料理を楽しむ集まり。
+1224350:0	彼の言葉に偽りはない。	There's no falsehood in his words.	本当でないこと。
+1233720:0	容疑者が供述する。	The suspect gives a statement.	取り調べで事実を述べること。
+1255700:0	月収が上がった。	My monthly income rose.	月ごとの収入。
+1259860:0	見知らぬ人に声をかけられた。	A stranger spoke to me.	見たことがない。
+1260940:0	この店がラーメンの元祖だ。	This shop is the originator of ramen.	ある物事を最初に始めた人。
+1273180:0	公安を守る。	They keep public order.	社会の安全と秩序。
+1283280:0	高温で鉄を溶かす。	We melt iron at high temperature.	高い温度。
+1289650:0	婚姻の届けを出す。	We file the marriage registration.	夫婦になること。
+1293880:0	最高裁が判決を出す。	The Supreme Court rules.	国で最も上の裁判所。
+1312590:0	厳しい試練に耐える。	I endure a harsh trial.	心や力を試す苦しみ。
+1330470:0	囚人が働く。	Prisoners work.	刑務所に入れられている人。
+1342150:0	聖地を巡礼する。	I make a pilgrimage to holy sites.	神聖な場所を回って拝むこと。
+1412690:0	車の台数を数える。	I count the number of cars.	車や機械の数。
+1418320:0	月を探査する。	We explore the moon.	探って調べること。
+1419240:0	団子を食べる。	I eat dango.	粉を丸めて蒸した食べ物。
+1419410:0	政府が運動を弾圧する。	The government suppresses the movement.	権力で無理に抑えること。
+1436390:0	改革を提言する。	We propose reform.	意見や考えを出すこと。
+1449250:2	当面はこのままでいい。	It's fine as is for now.	今のところ。
+1456330:0	漢字の読み方を調べる。	I look up the kanji's reading.	文字を読む方法。
+1473070:0	薬を配合する。	We blend medicines.	いくつかのものを合わせること。
+
+# ── BATCH 326 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1484850:0	非公式に会う。	We meet unofficially.	公式でないこと。
+1532490:0	理由を明示する。	We state the reason explicitly.	はっきり示すこと。
+1554480:0	温泉で療養する。	I recuperate at a hot spring.	病気を治すために体を休めること。
+1559440:0	警察が男を連行した。	The police took the man away.	人を連れて行くこと。
+1563960:0	傲慢な態度を取る。	He takes an arrogant attitude.	自分が偉いと思い、人を見下すこと。
+1584700:0	暴言を吐く。	He hurls abuse.	乱暴でひどい言葉。
+1596340:0	小説の前編を読む。	I read the first part of the novel.	二つに分けた作品の前の部分。
+1599050:0	予約の取り消しをする。	I cancel the reservation.	一度決めたことをなかったことにすること。
+1980240:0	財務省が予算を作る。	The Finance Ministry draws up the budget.	国のお金を扱う役所。
+1152020:0	悪人を捕まえる。	We catch the villain.	悪いことをする人。
+1156810:0	言葉の意味合いが違う。	The nuance of the words differs.	言葉や物事に含まれる意味。
+1156880:0	慰めの言葉をかける。	I offer words of comfort.	悲しみや苦しみを和らげること。
+1184480:0	下位のチームに負けた。	We lost to a lower-ranked team.	低い地位や順位。
+1200080:1	快速に乗って帰る。	I take the rapid train home.	止まる駅が少ない速い電車。
+1234750:0	二つの党が共闘する。	The two parties join forces.	一緒に戦うこと。
+1237050:0	教官が運転を教える。	The instructor teaches driving.	技術などを教える人。
+1237360:0	小学校の教諭になる。	I become an elementary school teacher.	学校の正式な先生。
+1244610:0	彼は深く苦悩している。	He's in deep anguish.	苦しみ悩むこと。
+1250820:0	町の景観を守る。	We preserve the town's scenery.	景色の眺め。
+1266510:0	新しい呼称を決める。	We decide on a new name.	呼び名。
+1273220:0	公益のために働く。	I work for the public good.	社会全体の利益。
+1284730:0	合金で部品を作る。	We make parts from alloy.	二つ以上の金属を混ぜたもの。
+1291340:0	二つの差異を調べる。	We examine the difference between the two.	違い。
+1303050:0	山中で道に迷う。	I get lost in the mountains.	山の中。
+1327840:0	友人の手助けをする。	I help a friend.	人の仕事を助けること。
+1334650:0	教会に十字架がある。	There's a cross in the church.	キリスト教のしるしである十字の形。
+1377710:0	正統な方法で学ぶ。	I learn by the orthodox method.	正しい系統であること。
+1391090:0	洗練された服を着る。	She wears refined clothes.	みがいて上品にすること。
+1399530:0	朝の散歩は爽快だ。	A morning walk is refreshing.	さわやかで気持ちがよいこと。
+1400200:0	毎朝早起きする。	I get up early every morning.	朝早く起きること。
+1405000:0	速やかに避難する。	We evacuate promptly.	時間をかけず早いこと。
+1423370:0	彼は中尉になった。	He became a first lieutenant.	軍隊の階級の一つ。
+1430020:0	長寿を祝う。	We celebrate long life.	長生きすること。
+1446000:0	党首が演説する。	The party leader gives a speech.	政党の代表者。
+1453660:0	先生の導きに従う。	I follow my teacher's guidance.	教えて正しい方へ進ませること。
+1466520:0	軍に入隊する。	I enlist in the army.	軍隊に入ること。
+1508280:0	弊社の製品です。	This is our company's product.	自分の会社を低めて言う言葉。
+1514490:0	足りない部分を補完する。	We supplement the missing part.	足りないところを補って完全にすること。
+1526640:0	慢性の病気を持つ。	I have a chronic illness.	症状が長く続くこと。
+1526980:0	塩で味付けする。	I season with salt.	料理に味をつけること。
+1532150:0	息子を太郎と命名した。	I named my son Taro.	名前をつけること。
+1541200:1	有給を取る。	I take paid leave.	給料が出る休み。
+1541360:0	有志が集まった。	Volunteers gathered.	ある事をしようという気持ちのある人。
+1547520:0	翌年に結婚した。	I married the following year.	次の年。
+1560740:0	朗報が届いた。	Good news arrived.	うれしい知らせ。
+1576020:0	一行だけ書く。	I write just one line.	文字の一つの並び。	いちぎょう
+1583930:0	桜の別名を調べる。	I look up another name for cherry blossoms.	別の名前。
+1584190:0	北東に進む。	We head northeast.	北と東の間の方角。
+1591130:0	将来を危惧する。	I'm apprehensive about the future.	悪い結果を恐れること。
+1594690:0	チームが首位に立つ。	The team takes first place.	一番の地位。
+
+# ── BATCH 327 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1595300:0	若年の労働者が減る。	Young workers are decreasing.	年が若いこと。
+1619690:0	絵を展覧する。	We exhibit paintings.	広げて人々に見せること。
+1623610:0	男児が生まれた。	A baby boy was born.	男の子供。
+1629750:0	正月に福袋を買う。	I buy a lucky bag at New Year.	いろいろな品物を入れて売る袋。
+1154370:0	暗闇の中を歩く。	I walk in the darkness.	光がなく暗い所。
+1193320:0	彼女の歌唱は見事だ。	Her singing is superb.	歌を歌うこと。
+1232670:0	虚偽の報告をする。	He files a false report.	事実でないこと。
+1233910:0	先祖を供養する。	We hold a memorial for our ancestors.	死んだ人のために祈ること。
+1240300:0	体力の極限に達する。	I reach the limit of my strength.	これ以上はないという限界。
+1240670:0	玉ねぎを切る。	I cut an onion.	丸くて辛い野菜。
+1276890:0	それは彼の口癖だ。	That's his pet phrase.	いつも言う言葉。
+1277060:0	二人が向き合う。	The two face each other.	互いに正面を向く。
+1277060:1	問題に向き合う。	I face the problem.	逃げずに取り組む。
+1280420:0	皇室の行事を見る。	I watch an Imperial household event.	天皇とその家族。
+1283870:0	物価が高騰する。	Prices soar.	値段が急に上がること。
+1289080:0	今期の利益が増えた。	Profits rose this term.	今の期間。
+1297300:0	新しい製品を作り出す。	We produce a new product.	物を生産する。
+1300990:0	打者が三振した。	The batter struck out.	野球で、打者が打てずに退くこと。
+1304740:0	薬が体に残留する。	The drug remains in the body.	後に残ること。
+1323200:0	車体を洗う。	I wash the car body.	車の本体。
+1330370:0	木から樹脂が出る。	Resin comes out of the tree.	木から出る粘りのある液。
+1336310:0	彼は重症で入院した。	He was hospitalized in serious condition.	病気やけがが重いこと。
+1347370:0	新しい商法で稼ぐ。	He earns with a new business method.	商売のやり方。
+1347690:0	将校が命令する。	The officer gives orders.	軍隊で兵を指揮する人。
+1358050:0	たこが触手を伸ばす。	The octopus extends its tentacles.	動物が物に触れるための細長い器官。
+1371640:0	水上を船が進む。	A boat moves on the water.	水の表面。
+1374640:0	軍が町を制圧した。	The army took control of the town.	力で押さえて支配すること。
+1376340:0	星空を見上げる。	I look up at the starry sky.	星がたくさん見える空。
+1378560:0	事故で一人だけ生き残る。	Only one survives the accident.	死なずに残る。
+1380950:0	駅の西口で会う。	We meet at the station's west exit.	西側の出入り口。
+1393180:0	前述の通りだ。	It's as stated above.	前に述べたこと。
+1396800:0	祖国に帰る。	I return to my homeland.	自分が生まれた国。
+1400860:0	二つの数字は相関する。	The two figures correlate.	互いに関係があること。
+1404840:0	足首をひねった。	I twisted my ankle.	足と脚をつなぐ部分。
+1405810:0	試合を続行する。	We continue the match.	続けて行うこと。
+1407520:0	多額の借金がある。	I have a large debt.	金額が多いこと。
+1408130:1	外来語を多用する。	He uses loanwords heavily.	多く使うこと。
+1411400:0	彼は会社を退社した。	He left the company.	会社をやめること。
+1411400:1	六時に退社する。	I leave work at six.	仕事を終えて会社を出ること。
+1414610:0	大都市に住む。	I live in a big city.	人口の多い大きな都市。
+1428800:0	町内の祭りに行く。	I go to the neighborhood festival.	町の中。
+1430960:0	空港へ直行する。	I go straight to the airport.	寄り道をせずにまっすぐ行くこと。
+1436340:0	問題を提起する。	I raise an issue.	問題を持ち出すこと。
+1438880:0	天空に星が輝く。	Stars shine in the sky.	広い空。
+1455100:0	特製のソースを使う。	We use a special sauce.	特別に作ること。
+1469060:0	年内に完成する。	It'll be finished within the year.	その年が終わるまでの間。
+1471780:0	馬車に乗る。	I ride in a carriage.	馬が引く車。
+1479790:0	半導体を作る工場だ。	It's a factory making semiconductors.	電気を通す性質が中間の物質。
+1493000:0	政治に不信を抱く。	I distrust politics.	信用しないこと。
+
+# ── BATCH 328 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1516170:0	宝くじを買う。	I buy a lottery ticket.	当たるとお金がもらえるくじ。
+1520580:0	城の防備を固める。	We strengthen the castle's defenses.	敵を防ぐ備え。
+1525200:0	名前を抹消する。	We strike out the name.	消してなくすこと。
+1532730:0	迷宮から出られない。	I can't get out of the labyrinth.	道が複雑で出口の分からない建物。
+1532860:0	鳥の鳴き声が聞こえる。	I hear birds calling.	動物が鳴く声。
+1538230:0	薬剤師に相談する。	I consult a pharmacist.	薬を用意する資格を持つ人。
+1541240:0	有権者が投票する。	Voters cast their ballots.	選挙で投票する権利を持つ人。
+1546760:0	敵の要塞を攻める。	We attack the enemy's fortress.	敵を防ぐための強い陣地。
+1557060:0	冷戦が終わった。	The Cold War ended.	武力を使わない国と国の対立。
+1559750:0	チームは連敗している。	The team is on a losing streak.	続けて負けること。
+1568440:0	うつ病を治す。	I treat depression.	気分が沈む状態が続く病気。
+1583810:0	胃液を分泌する。	It secretes gastric juice.	体の中で液を作って出すこと。
+1584180:0	建物の北側は暗い。	The north side of the building is dark.	北の方。
+1597750:0	使い捨てのコップを使う。	I use a disposable cup.	一度使って捨てること。
+1611230:0	葉っぱが落ちる。	A leaf falls.	草や木の葉。
+1659130:0	年金を受給する。	I receive a pension.	お金や物の支給を受けること。
+1758320:0	利便のよい場所に住む。	I live in a convenient place.	都合がよく便利なこと。
+2846529:0	窓の歪みを直す。	I fix the window's warp.	形が正しくなくなること。
