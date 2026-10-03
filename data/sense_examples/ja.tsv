@@ -19530,3 +19530,167 @@
 1402280:0	客を装う。	He poses as a customer.	そのように見せかける。
 1408910:0	相手の考えを打診する。	I sound out the other side's thinking.	前もって相手の様子を探ること。
 1410560:0	敵を待ち伏せする。	We ambush the enemy.	隠れて相手が来るのを待つこと。
+1416600:0	蛇が脱皮する。	The snake sheds its skin.	古い皮を脱ぐこと。
+1428820:0	町民が集まる。	The townspeople gather.	町に住む人。
+1437590:0	川で溺死する。	He drowns in the river.	水におぼれて死ぬこと。
+1452710:0	友人の車に同乗する。	I ride along in my friend's car.	同じ乗り物に一緒に乗ること。
+1461020:0	難題を解決する。	We solve a difficult problem.	難しい問題。
+1464150:0	日照が足りない。	There isn't enough sunlight.	太陽が地上を照らすこと。
+1468730:0	年始の挨拶をする。	I give New Year's greetings.	年の初め。
+1470110:0	税金を納付する。	I pay my taxes.	お金を役所に納めること。
+1477300:0	切符を発券する。	We issue a ticket.	券を出すこと。
+1482100:0	遅れを挽回する。	I make up for lost time.	失ったものを取り返すこと。
+1492970:0	不条理な世の中だ。	It's an absurd world.	道理に合わないこと。
+1495010:0	不眠に悩む。	I suffer from insomnia.	眠れないこと。
+1502200:0	仏壇に花を供える。	I offer flowers at the Buddhist altar.	仏や先祖を祭る家の中の壇。
+1505360:0	文庫本を買う。	I buy a paperback.	小さくて安い形の本。
+1511160:0	紙が変色する。	The paper discolors.	色が変わること。
+1518250:0	海外の邦人を守る。	We protect Japanese nationals abroad.	外国にいる日本人。
+1527990:0	未払いの料金がある。	There's an unpaid charge.	まだ払っていないこと。
+1529480:0	未来を夢想する。	I dream of the future.	夢のように思い描くこと。
+1535690:0	目薬をさす。	I put in eye drops.	目につける薬。
+1538760:0	政治と企業が癒着する。	Politics and business are in cahoots.	不正に強く結びつくこと。
+1542080:0	子供の遊び場を作る。	We build a playground for children.	遊ぶ場所。
+1550590:0	証拠が話を裏付ける。	The evidence backs up the story.	確かであることを証明する。
+1554740:0	領事館に行く。	I go to the consulate.	外国で自国民を守る役所。
+1576650:0	塩水でうがいする。	I gargle with salt water.	塩を含んだ水。	しおみず
+1576700:0	心の奥底で思う。	I feel it deep in my heart.	一番深いところ。
+1594800:0	技を修練する。	I train my skills.	技や心を磨くこと。
+
+# ── BATCH 387 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1599700:0	成り行きに任せる。	I leave it to the course of events.	物事が移り変わっていく様子。
+1603680:0	神を冒涜する。	He blasphemes God.	神聖なものを汚すこと。
+1614360:0	彼とは顔見知りだ。	He's an acquaintance of mine.	互いに顔を知っていること。
+1619170:0	階段を昇降する。	I go up and down the stairs.	昇ることと降りること。
+1623530:0	大卒で就職する。	I get a job as a university graduate.	大学を卒業していること。
+1633580:0	兵士を戦地に送る。	They send soldiers to the front.	戦争が行われている土地。
+1644550:0	牢獄に入れられる。	He's thrown in prison.	罪人を閉じ込めておく所。
+1658200:0	故郷を思い浮かべる。	I picture my hometown.	頭の中に姿を描く。
+1764910:0	神社の神木を見る。	I see the shrine's sacred tree.	神が宿るとされる木。
+1804310:0	銀河系の星を観測する。	We observe stars in the Milky Way.	太陽系を含む星の大きな集まり。
+1815850:0	屋根裏に荷物を置く。	I store things in the attic.	屋根と天井の間の空間。
+1828720:0	彼は愚か者だ。	He's a fool.	愚かな人。
+1836130:0	政府の要人を守る。	They protect government VIPs.	重要な地位にある人。
+1844370:0	変わった風貌の男だ。	He's a man of unusual appearance.	人の姿や顔かたち。
+1942230:0	男子校に通う。	I attend a boys' school.	男子だけが通う学校。
+1956800:0	二の腕を鍛える。	I train my upper arms.	肩からひじまでの部分。
+1984000:0	通年で営業する。	We're open all year round.	一年を通してであること。
+2011150:0	手作業で作る。	We make it by hand.	機械を使わず手でする作業。
+2629910:0	チームは無敗だ。	The team is undefeated.	一度も負けていないこと。
+1176920:0	演者が舞台に立つ。	The performer takes the stage.	劇や芸を演じる人。
+1183180:0	恩赦を受ける。	He's granted amnesty.	国が特別に刑を軽くすること。
+1183970:0	音程が外れる。	The pitch is off.	二つの音の高さの差。
+1200900:0	悪人が改心する。	The villain reforms.	悪い心を改めること。
+1201340:0	広い海原を進む。	We sail across the wide ocean.	広々とした海。
+1201590:0	海藻を食べる。	I eat seaweed.	海の中に生える草の仲間。
+1202520:0	動物園が開園する。	The zoo opens.	動物園や幼稚園を開くこと。
+1205300:0	昔の格言を学ぶ。	I learn old maxims.	教えを短く言い表した言葉。
+1220120:0	責任を忌避する。	He evades responsibility.	嫌って避けること。
+1222020:0	母の体が気がかりだ。	I'm worried about my mother's health.	心配なこと。
+1223950:0	全員が起立する。	Everyone stands up.	立ち上がること。
+1226770:0	客船で旅をする。	I travel by passenger ship.	客を乗せて運ぶ船。
+1231390:0	旧来の方法を守る。	We keep to the old methods.	昔からのこと。
+1240000:0	明るい曲調の歌だ。	It's a song with a bright melody.	曲の調子。
+1241890:0	緊迫した空気が流れる。	A tense atmosphere prevails.	差し迫っていること。
+1246990:0	夜の町に繰り出す。	We head out into the night town.	大勢で出かける。
+1254940:0	業者と結託する。	He colludes with the contractor.	悪いことのために力を合わせること。
+1265720:0	古巣に戻る。	I return to my old haunt.	前にいた所。
+1271560:0	護身の術を習う。	I learn self-defense.	危険から自分の身を守ること。
+1276500:0	口先だけの約束だ。	It's a promise in words only.	うわべだけの言葉。
+1284790:0	二人で合作する。	The two collaborate.	一緒に一つの物を作ること。
+1294380:0	宰相が国を治める。	The prime minister governs the country.	王を助けて政治を行う最高の役。
+1295650:0	細心の注意を払う。	I take the utmost care.	細かい所まで気を配ること。
+1302860:0	山菜を採る。	I gather wild mountain vegetables.	山に自然に生える食べられる植物。
+1303020:0	山賊に襲われる。	We're attacked by bandits.	山で旅人を襲って物を奪う者。
+1341920:0	純真な子供だ。	He's an innocent child.	心が清らかでうそがないこと。
+1343200:0	医者の所見を聞く。	I hear the doctor's findings.	見た結果の考え。
+1354860:0	彼は計画に乗り気だ。	He's keen on the plan.	進んでしようという気持ち。
+1358580:0	食肉を加工する。	We process meat.	食べるための肉。
+1360210:0	寝袋で寝る。	I sleep in a sleeping bag.	中に入って寝る袋。
+1364490:0	神官が祈る。	The Shinto priest prays.	神社で神に仕える人。
+
+# ── BATCH 388 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1373080:0	数珠を持って祈る。	I pray holding prayer beads.	仏を拝むときに手にかける玉の輪。
+1386340:0	節分に豆をまく。	We scatter beans at Setsubun.	立春の前の日。
+1390310:0	戦勝を祝う。	We celebrate victory in war.	戦争に勝つこと。
+1395390:0	家が全焼した。	The house burned down completely.	建物が全部焼けること。
+1397790:0	検察が彼を訴追する。	The prosecutors indict him.	裁判にかけるよう求めること。
+1398500:0	創世の神話を読む。	I read a creation myth.	世界を初めて造ること。
+1401030:0	相手方と交渉する。	We negotiate with the other party.	相手の側。	あいてかた
+1404300:0	その場で即売する。	We sell on the spot.	その場で売ること。
+1404820:0	雪で足止めされる。	I'm stranded by snow.	先へ進めないようにすること。
+1410390:0	耐熱のガラスを使う。	We use heat-resistant glass.	熱に耐えること。
+1411380:0	敵が退散する。	The enemy scatters.	逃げて去ること。
+1415140:0	大理石の床を磨く。	I polish the marble floor.	建物や像に使う美しい石。
+1418680:0	短距離を走る。	I run short distances.	短い距離。
+1420030:0	男らしい態度を取る。	He takes a manly attitude.	いかにも男性にふさわしい。
+1436290:0	家を抵当に入れる。	I mortgage the house.	借金の保証として差し出すもの。
+1436950:0	車が泥沼にはまる。	The car gets stuck in the mud.	泥の深い沼。
+1446090:0	冬休みに旅行する。	I travel during winter vacation.	冬の学校の休み。
+1472180:0	この曲は廃盤になった。	This record went out of print.	製造をやめたレコード。
+1473840:0	商品の売り込みをする。	I pitch the product.	買ってもらうように働きかけること。
+1474520:0	塗装が剥離する。	The paint peels off.	はがれて離れること。
+1481780:0	藩主が城に住む。	The feudal lord lives in the castle.	藩を治める大名。
+1490100:0	態度が豹変する。	His attitude changes abruptly.	態度や考えが急に変わること。
+1492600:0	彼は不死身だ。	He's invincible.	どんな目にあっても死なないこと。
+1499800:0	学校の風紀を守る。	We uphold school discipline.	生活の上の決まり。
+1500960:0	服飾の仕事をする。	I work in fashion.	衣服と飾り。
+1509680:0	別件で電話する。	I'm calling about a separate matter.	別の事柄。
+1513850:0	保身を図る。	He looks out for himself.	自分の地位や安全を守ること。
+1517580:0	敵の砲火を浴びる。	We come under enemy fire.	大砲を撃つときの火。
+1530200:0	無色の液体だ。	It's a colorless liquid.	色がないこと。
+1531590:0	彼は将棋の名手だ。	He's a master of shogi.	技が特に優れている人。
+1534820:0	木馬に乗る。	I ride a rocking horse.	木で作った馬の形のもの。
+1535030:0	違反を黙認する。	They turn a blind eye to violations.	知らないふりをして許すこと。
+1539990:0	友愛の心を持つ。	We have a spirit of fraternity.	友人に対する親しい愛情。
+1545760:0	候補者を擁立する。	We field a candidate.	支持して高い地位につかせること。
+1547490:0	翌月に払う。	I pay the following month.	次の月。
+1562140:0	和製の英語を使う。	We use Japanese-made English.	日本で作ったこと。
+1569260:0	狡猾な手段を使う。	He uses cunning means.	ずるくて悪賢いこと。
+1584290:0	私は凡人だ。	I'm an ordinary person.	特に優れたところのない普通の人。
+1588080:0	荷物の受け渡しをする。	We hand over the parcel.	品物を渡して受け取ること。
+1588800:0	追い風を受けて走る。	I run with a tailwind.	進む方向に後ろから吹く風。
+1589760:0	替え歌を歌う。	I sing a parody song.	元の曲に別の言葉をつけた歌。
+1589850:0	係員に聞く。	I ask the attendant.	その仕事を受け持つ人。
+1605910:0	横丁を歩く。	I walk down a side street.	表の通りから横に入った道。
+1655260:0	春季の大会に出る。	I compete in the spring tournament.	春の季節。
+1662610:0	敵の残党を捕まえる。	We capture the enemy's remnants.	負けた後に残った仲間。
+1700570:0	祖父は今も存命だ。	My grandfather is still alive.	生きていること。
+1713330:0	計画が頓挫する。	The plan stalls.	途中で急にだめになること。
+1784380:0	唖然として立つ。	I stand dumbfounded.	驚いて言葉が出ない様子。
+1807800:0	目元が母に似ている。	Her eyes resemble her mother's.	目のあたり。
+
+# ── BATCH 389 — ESTIMATED-level senses below frequency 400, most common first (tier d). ──
+1822910:0	本戦に進む。	We advance to the main round.	予選の後に行う試合。
+1857970:0	憤りを感じる。	I feel indignation.	ひどく怒ること。
+2000550:0	文具を買う。	I buy stationery.	書くときに使う道具。
+2061080:0	行きつけの店に行く。	I go to my usual shop.	いつも行って慣れていること。
+2115820:0	聖水をかける。	He sprinkles holy water.	宗教の儀式で使う清めた水。
+2862000:0	花弁が落ちる。	A petal falls.	花びら。	かべん
+1164710:0	仕事が一段落する。	Work reaches a stopping point.	物事が一つの区切りまで片付くこと。
+1168870:0	椅子を引き寄せる。	I pull the chair closer.	引いて自分の近くに寄せる。
+1212920:0	棺桶に花を入れる。	We put flowers in the coffin.	死んだ人を入れる箱。
+1214190:0	警察の管内で起きた。	It happened within the police's jurisdiction.	役所が受け持つ区域の中。
+1220660:0	訴えを棄却する。	The court dismisses the suit.	訴えを取り上げないこと。
+1223080:0	会社の規程に従う。	I follow company regulations.	役所や会社の決まり。
+1224960:0	子供の戯れを見る。	I watch the children at play.	遊び。ふざけること。
+1227010:0	逆境に耐える。	I endure adversity.	苦しく思うようにならない立場。
+1228080:0	火山が休眠する。	The volcano lies dormant.	活動を一時やめること。
+1234400:0	二つの団体が共催する。	The two organizations co-host it.	一緒に催しを開くこと。
+1240760:0	僅差で勝つ。	We win by a narrow margin.	わずかな差。
+1242790:0	ドアの金具を直す。	I fix the door's metal fittings.	物につける金属の部品。
+1243410:0	銀メダルを取る。	I win a silver medal.	二位の人に与えるメダル。
+1250850:0	景勝の地を訪ねる。	I visit a scenic spot.	景色が優れていること。
+1251620:0	仏教の経典を読む。	I read Buddhist scriptures.	宗教の教えを書いた本。
+1255870:0	月夜に散歩する。	I take a walk on a moonlit night.	月の明るい夜。
+1276630:0	口笛を吹く。	I whistle.	唇をすぼめて息で出す音。
+1286580:0	国策を進める。	We advance national policy.	国の政策。
+1294770:0	病院で採血する。	They draw blood at the hospital.	検査のために血を取ること。
+1303310:0	惨劇が起きた。	A tragedy occurred.	むごい出来事。
+1306670:0	図書館の司書に聞く。	I ask the librarian.	図書館で本の仕事をする人。
+1324130:0	成功の尺度は人による。	The measure of success depends on the person.	判断の基準。
+1325580:0	チームの主軸となる。	He becomes the mainstay of the team.	中心となるもの。
+1337290:0	宿敵と戦う。	I fight my old rival.	昔からの敵。
+1341890:0	純潔を守る。	She keeps her purity.	心や体が汚れていないこと。
+1345790:0	会員を除名する。	They expel the member.	名前を除いて仲間から外すこと。
+1377480:0	正装で出席する。	I attend in formal dress.	儀式のための正式な服。
