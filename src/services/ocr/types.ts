@@ -19,6 +19,14 @@ export interface OcrBlock {
   height: number;
 }
 
+/**
+ * How the photographed text runs. `horizontal` = 横書き (rows top→bottom, read
+ * left→right); `vertical` = 縦書き (columns right→left, read top→bottom — manga,
+ * novels). Normally DETECTED (see `detectDirection`); callers pass one only to
+ * override that.
+ */
+export type OcrDirection = "horizontal" | "vertical";
+
 /** A complete recognition: the source image's pixel size + the recognized blocks. */
 export interface OcrResult {
   width: number;
@@ -68,6 +76,13 @@ export interface OcrRecognizer {
   captureImage(opts?: { source?: OcrSource }): Promise<OcrImage | null>;
   /** Recognize an image (possibly cropped). Null if the language is unsupported. */
   recognizeImage(opts: { base64: string; lang: LangCode }): Promise<OcrResult | null>;
+  /**
+   * OPTIONAL: read an image straight to text, in the engine's own reading order and
+   * with no geometry. The path for VERTICAL text, which the block recognizer above
+   * cannot read at all. Null when this backend, device or language can't do it — the
+   * caller then falls back to `recognizeImage`.
+   */
+  transcribeImage?(opts: { base64: string; lang: LangCode }): Promise<string | null>;
   /** Photo + recognition in one go (no crop step). */
   capture(opts: { lang: LangCode; source?: OcrSource }): Promise<OcrResult | null>;
 }

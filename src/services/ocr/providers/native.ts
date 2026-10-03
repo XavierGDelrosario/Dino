@@ -16,6 +16,8 @@ import type { OcrImage, OcrRecognizer, OcrResult, OcrSource } from "../types";
 
 interface TextOcrPlugin {
   recognize(opts: { image: string; lang: string }): Promise<OcrResult>;
+  /** VisionKit ImageAnalyzer (Live Text). `supported` is false before iOS 16. */
+  transcribe(opts: { image: string; lang: string }): Promise<{ text: string; supported: boolean }>;
 }
 
 const TextOcr = registerPlugin<TextOcrPlugin>("TextOcr");
@@ -77,6 +79,19 @@ export const nativeRecognizer: OcrRecognizer = {
     const tag = toVisionLanguage(lang);
     if (!tag) return null;
     return TextOcr.recognize({ image: base64, lang: tag });
+  },
+
+  async transcribeImage({ base64, lang }): Promise<string | null> {
+    const tag = toVisionLanguage(lang);
+    if (!tag) return null;
+    try {
+      const { text, supported } = await TextOcr.transcribe({ image: base64, lang: tag });
+      return supported ? text : null;
+    } catch {
+      // An older native build without the method, or the analyzer failing: either
+      // way the block recognizer is still there to try.
+      return null;
+    }
   },
 
   async capture({ lang, source }): Promise<OcrResult | null> {

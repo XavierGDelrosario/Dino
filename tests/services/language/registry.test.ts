@@ -45,3 +45,13 @@ describe("registry", () => {
     });
   });
 });
+
+describe("canBeVertical", () => {
+  it("is true only for a language that is also written vertically", async () => {
+    const { canBeVertical } = await import("@/services/language/registry");
+    expect(canBeVertical("JA")).toBe(true);
+    expect(canBeVertical("ja")).toBe(true);
+    expect(canBeVertical("EN")).toBe(false);
+    expect(canBeVertical("XX")).toBe(false);
+  });
+});

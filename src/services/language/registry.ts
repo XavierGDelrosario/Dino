@@ -17,6 +17,12 @@ export interface LanguageDefinition {
    * which is detected only when no script-specific language claims the text.
    */
   matches?: (text: string) => boolean;
+  /**
+   * The language is also written VERTICALLY (縦書き: columns top→bottom, right→left).
+   * Gates the photo scanner's text-direction choice — a language that is only ever
+   * horizontal is never asked.
+   */
+  vertical?: boolean;
 }
 
 /** Builds a script matcher from inclusive Unicode code-point ranges. */
@@ -40,6 +46,7 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
   {
     code: "JA",
     name: "Japanese",
+    vertical: true,
     matches: scriptMatcher([
       [0x3040, 0x30ff], // Hiragana + Katakana
       [0x3400, 0x4dbf], // CJK Extension A
@@ -75,4 +82,9 @@ export const DEFAULT_LEARNING_LANGUAGE: LangCode = "JA";
  */
 export function isSupported(code: string): boolean {
   return SUPPORTED_LANGUAGES.some((l) => l.code === code);
+}
+
+/** Whether text in this language can run vertically (unknown codes: no). */
+export function canBeVertical(code: LangCode): boolean {
+  return SUPPORTED_LANGUAGES.some((l) => l.code === code.toUpperCase() && l.vertical === true);
 }

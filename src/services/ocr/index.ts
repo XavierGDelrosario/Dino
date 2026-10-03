@@ -17,9 +17,10 @@
 // =========================================================
 
 import type { LangCode } from "../language";
-import type { OcrImage, OcrResult, OcrSource } from "./types";
+import type { OcrDirection, OcrImage, OcrResult, OcrSource } from "./types";
 import { resolveRecognizer } from "./registry";
-import { blocksToText } from "./readingOrder";
+import { canBeVertical } from "../language/registry";
+import { blocksToText, detectDirection, joinVerticalLines } from "./readingOrder";
 
 /** Whether camera OCR works here (gates the camera button). When `lang` is given,
  *  also requires the backend to support that language. */
@@ -52,11 +53,36 @@ export async function recognizeImage(opts: { base64: string; lang: LangCode }): 
   return recognizer.recognizeImage(opts);
 }
 
-/** Recognize an already-captured image → text in horizontal reading order
- *  (empty string if nothing was recognized / no backend). */
-export async function recognizeText(opts: { base64: string; lang: LangCode }): Promise<string> {
-  const result = await recognizeImage(opts);
-  return result ? blocksToText(result.blocks) : "";
+/**
+ * Recognize an already-captured image → text in reading order (empty string if
+ * nothing was recognized / no backend).
+ *
+ * The text DIRECTION is detected, not asked for. For a language that can be written
+ * vertically, the image goes through both engines — the block recognizer (horizontal
+ * lines, with geometry) and the transcript engine (either direction, text only) — and
+ * `detectDirection` compares them. Horizontal text keeps the block path it always
+ * had; vertical text takes the transcript. A horizontal-only language, or a backend
+ * with no transcript engine, never leaves the block path. `direction` overrides the
+ * detection.
+ */
+export async function recognizeText(opts: {
+  base64: string;
+  lang: LangCode;
+  direction?: OcrDirection;
+}): Promise<string> {
+  const recognizer = await resolveRecognizer();
+  if (!recognizer) return "";
+  const transcribe =
+    opts.direction !== "horizontal" && canBeVertical(opts.lang) && recognizer.transcribeImage
+      ? recognizer.transcribeImage(opts)
+      : Promise.resolve(null);
+  const [result, transcript] = await Promise.all([recognizer.recognizeImage(opts), transcribe]);
+
+  const vertical = transcript ? joinVerticalLines(transcript.split("\n")) : "";
+  const direction =
+    opts.direction ?? (result && transcript ? detectDirection(result, transcript) : "horizontal");
+  if (direction === "vertical" && vertical) return vertical;
+  return result ? blocksToText(result.blocks, direction) : vertical;
 }
 
 /** Take a photo and return the recognized blocks + geometry, or null if cancelled
