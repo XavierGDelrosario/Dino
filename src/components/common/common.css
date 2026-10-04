@@ -595,6 +595,11 @@ body {
   text-align: center;
 }
 
+/* Hidden while a study surface is on screen (components/common/NoFooter). */
+main:has([data-no-footer]) .app__footer {
+  display: none;
+}
+
 .app__footer a {
   color: var(--muted);
   text-decoration: underline;

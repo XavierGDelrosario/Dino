@@ -12,6 +12,7 @@
 // language, set in one place (the profile page). A second, local picker here meant two
 // answers to "what am I learning", and the placement quiz, the bands and Articles had
 // to be kept agreeing with whichever one the user had last touched.
+import { NoFooter } from "../components/common/NoFooter";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { listUserLists, createList, type List } from "../services/lists";
 import {
@@ -182,6 +183,7 @@ export function LearnView({ userId }: { userId: string }) {
   if (calibrating) {
     return (
       <section className="review">
+        <NoFooter />
         <CalibrationView
           userId={userId}
           // The pair PICKED ON THIS SCREEN, not the profile: the quiz is launched from
@@ -203,6 +205,7 @@ export function LearnView({ userId }: { userId: string }) {
   if (status === "quiz") {
     return (
       <section className="review">
+        <NoFooter />
         <TextQuizView
           key={batch}
           userId={userId}
