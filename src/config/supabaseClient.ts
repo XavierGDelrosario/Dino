@@ -13,6 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import type { Database } from "../types/database.types";
 import { captureOAuthReturnFromUrl } from "../services/oauthReturn";
+import { captureGoogleReturnFromUrl } from "../services/googleIdentity";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -40,7 +41,12 @@ if (!url || !anonKey) {
 const native = Capacitor.isNativePlatform();
 // A failed OAuth return reports its error only in the URL; read it BEFORE the client
 // exists, or its own URL handling can consume the fragment first (services/oauthReturn).
-if (!native) captureOAuthReturnFromUrl();
+// Google's own return (an ID token for /auth/google) is lifted out first, for the same
+// reason, and so the token never sits in the URL while the app renders.
+if (!native) {
+  captureGoogleReturnFromUrl();
+  captureOAuthReturnFromUrl();
+}
 export const supabase = createClient<Database>(
   url,
   anonKey,

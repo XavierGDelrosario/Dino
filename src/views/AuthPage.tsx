@@ -7,7 +7,7 @@
 // sign-in on an OAuth-only account, names how that account actually signs in
 // (getSignInMethods). A sign-up that LINKS a Google/Apple account which is already a
 // DINO user is answered by signing in to it instead — the guest's words follow.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   upgradeToAccount,
   signIn,
@@ -25,8 +25,13 @@ import {
 } from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { onOAuthError, takeOAuthError, type OAuthReturnError } from "../services/oauthReturn";
-import { emailFromIdToken, googleButtonEnabled, type GoogleCredential } from "../services/googleIdentity";
-import { GoogleSignInButton } from "../components/common/GoogleSignInButton";
+import {
+  emailFromIdToken,
+  googleIdTokenEnabled,
+  startGoogleSignIn,
+  takeGoogleReturn,
+  type GoogleCredential,
+} from "../services/googleIdentity";
 import { errorMessage } from "../lib/errorMessage";
 import { formatMethods, oauthErrorCopy, PROVIDER } from "../lib/authCopy";
 import { checkPassword } from "../lib/password";
@@ -50,9 +55,6 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [agreed, setAgreed] = useState(false);
 
   const [note, setNote] = useState<string | null>(null);
-  // Web shows Google's own button (ID-token flow); if its script can't load, or on
-  // native, the plain button runs the redirect flow instead.
-  const [googleButton, setGoogleButton] = useState(googleButtonEnabled);
 
   // Signup requires accepting the Terms/Privacy; sign-in doesn't.
   const needsAgreement = mode === "signup" && !agreed;
@@ -156,19 +158,35 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       setBusy(false);
     }
   };
-  const google = oauth(linkGoogle, signInWithGoogle);
+  // WEB with a Google client id: go to Google ourselves and come back to this origin
+  // with an ID token (services/googleIdentity), so Google never shows Supabase's
+  // domain. Otherwise (native, or no client id) the Supabase redirect flow.
+  const google = googleIdTokenEnabled()
+    ? async () => {
+        if (needsAgreement) return;
+        setBusy(true);
+        setErr(null);
+        try {
+          // Stamp the agreement before leaving: the page unloads, and a sign-up that
+          // returns already linked must not be re-prompted by the terms gate.
+          if (mode === "signup") await recordTermsAgreement();
+          await startGoogleSignIn(mode); // navigates away; `busy` holds until it does
+        } catch (e) {
+          setErr(errorMessage(e));
+          setBusy(false);
+        }
+      }
+    : oauth(linkGoogle, signInWithGoogle);
 
-  // Google's own button already has the credential, and nothing left the page: the
-  // whole round-trip is this one handler. Sign-up LINKS the guest (same uid); a Google
-  // account that is already a DINO user can't be linked, so the SAME token signs in to
-  // it instead and the guest's words follow via the merge ticket.
-  const googleCredential = async (credential: GoogleCredential) => {
-    if (busy || needsAgreement) return;
+  // Google has returned with the ID token (the page load that mounted this component).
+  // Sign-up LINKS the guest (same uid); a Google account that is already a DINO user
+  // can't be linked, so the SAME token signs in to it instead and the guest's words
+  // follow via the merge ticket.
+  const finishGoogle = async (credential: GoogleCredential) => {
     setBusy(true);
     setErr(null);
     try {
       if (mode === "signup") {
-        await recordTermsAgreement();
         try {
           await linkGoogleIdToken(credential);
         } catch (e) {
@@ -182,8 +200,8 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       navigate("/");
     } catch (e) {
       // The one-method rule refused it (this email's account signs in another way).
-      // GoTrue reports that only as a generic failure — but unlike the redirect flow we
-      // hold the token, so we know the email and can NAME the method it uses.
+      // GoTrue reports that only as a generic failure — but unlike the Supabase redirect
+      // flow we hold the token, so we know the email and can NAME the method it uses.
       const email = emailFromIdToken(credential.token);
       const methods = email ? await getSignInMethods(email) : [];
       if (methods.length && !methods.includes("google")) {
@@ -204,6 +222,17 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       setBusy(false);
     }
   };
+  const finishGoogleRef = useRef(finishGoogle);
+  finishGoogleRef.current = finishGoogle;
+  useEffect(() => {
+    const back = takeGoogleReturn();
+    if (back) void finishGoogleRef.current(back.credential);
+    // Leaving for Google sets `busy`; "Back" can restore this page from the browser's
+    // back/forward cache with it still set, and every button disabled.
+    const restored = (e: PageTransitionEvent) => { if (e.persisted) setBusy(false); };
+    window.addEventListener("pageshow", restored);
+    return () => window.removeEventListener("pageshow", restored);
+  }, []);
   const apple = oauth(linkApple, signInWithApple);
 
   const sendReset = async () => {
@@ -302,15 +331,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         {mode === "signup" ? t("auth.createAccount") : t("auth.signIn")}
       </button>
 
-      {/* Google's button is an iframe that can't be disabled, so it is only mounted
-          while the form is actionable; otherwise the plain button holds its place. */}
-      {googleButton && !busy && !needsAgreement ? (
-        <GoogleSignInButton onCredential={googleCredential} onUnavailable={() => setGoogleButton(false)} />
-      ) : (
-        <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={google}>
-          {t("auth.google")}
-        </button>
-      )}
+      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={google}>
+        {t("auth.google")}
+      </button>
 
       {/* Sign in with Apple is not optional on iOS: the App Store requires it
           wherever another third-party login is offered. */}

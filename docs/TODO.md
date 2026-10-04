@@ -333,8 +333,8 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 ### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
 - **Google sign-in, ID-token flow (web)** — live-verify on prod: sign-in, sign-up link, and
   the fallback when the Google account is already a DINO user (`services/googleIdentity.ts`).
-  Every origin that serves the app must be in the Google client's Authorised JavaScript
-  origins, or its button opens an `origin_mismatch` error.
+  Every origin that serves the app needs `<origin>/auth/google` in the Google client's
+  Authorised redirect URIs, or Google stops on `redirect_uri_mismatch`.
 - **Google brand verification** — shows the app name and logo on Google's screen (Search
   Console TXT for `dinostudy.com` → Branding → submit). iOS still uses the redirect flow,
   so it reads "continue to …supabase.co" there until then.

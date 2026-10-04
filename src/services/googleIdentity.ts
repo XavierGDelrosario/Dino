@@ -1,39 +1,56 @@
 // =========================================================
 // Google sign-in WITHOUT the round-trip through Supabase's domain (web only).
 //
-// WHY: the redirect flow (session.ts startOAuth) sends the user to Google with a
-// redirect URI on `<ref>.supabase.co`, so Google's consent screen reads "continue to
-// <ref>.supabase.co" — a string no user recognises. The fixes Supabase offers are a
-// paid custom domain or this: let GOOGLE hand the browser an ID token directly
-// (Google Identity Services), then give that token to Supabase
-// (`signInWithIdToken` / `linkIdentity`). No redirect URI is involved, so Google names
-// the page's own origin, and there is no page reload — the result comes back to the
-// caller as a value, which also removes the URL-error bookkeeping of the redirect flow.
+// WHY: the Supabase redirect flow (session.ts startOAuth) sends the user to Google
+// with a redirect URI on `<ref>.supabase.co`, so Google's consent screen reads
+// "continue to <ref>.supabase.co" — a string no user recognises. The fixes Supabase
+// offers are a paid custom domain or this: get an ID TOKEN from Google ourselves and
+// hand it to Supabase (`signInWithIdToken` / `linkIdentity`).
 //
-// THE BUTTON IS GOOGLE'S. GIS only issues a token from the button IT renders (an
-// iframe); a custom button cannot trigger it. So this module mounts their button into
-// a container and reports the credential.
+// HOW: a full-page redirect to Google and back to OUR origin (OpenID Connect implicit
+// flow, `response_type=id_token`). Google returns to `<origin>/auth/google` with the
+// token in the URL fragment; `captureGoogleReturnFromUrl` lifts it out before the app
+// renders and the auth page finishes the sign-in. The redirect URI is ours, so the
+// consent screen names this site, and `prompt=select_account` always offers the
+// account chooser.
+//
+// WHY NOT GOOGLE'S OWN BUTTON (tried first, #126): its popup depends on cross-site
+// cookies, so it hangs on a blank window in a private window or any browser that
+// blocks them — and the page cannot detect that to fall back. A redirect needs
+// neither popups nor third-party cookies.
 //
 // NONCE: Google is given the SHA-256 of a random value and stamps it into the token;
-// Supabase is given the RAW value and checks the two match. One nonce per mount, so a
-// token can't be replayed against a later session.
+// Supabase is given the RAW value and checks the two match. STATE: a second random
+// value, echoed back by Google and compared here, so a token can't be injected by a
+// crafted link to /auth/google.
 //
-// OFF WITHOUT A CLIENT ID: no VITE_GOOGLE_CLIENT_ID → googleButtonEnabled() is false
-// and callers keep the redirect flow. It must be the SAME web client the Supabase
-// Google provider is configured with (the token's audience is checked server-side),
-// and the page's origin must be in that client's "Authorised JavaScript origins".
+// OFF WITHOUT A CLIENT ID: no VITE_GOOGLE_CLIENT_ID → googleIdTokenEnabled() is false
+// and callers keep the Supabase redirect flow. It must be the SAME web client the
+// Supabase Google provider is configured with (the token's audience is checked
+// server-side), and `<origin>/auth/google` must be in that client's "Authorised
+// redirect URIs" for EVERY origin that serves the app — otherwise Google stops on a
+// `redirect_uri_mismatch` page.
 //
-// NATIVE (iOS/Capacitor): GIS does not run under `capacitor://`, so native keeps the
-// in-app-browser redirect flow.
+// NATIVE (iOS/Capacitor): the WebView has no https origin to return to, so native
+// keeps the in-app-browser flow.
+//
+// This module must stay free of the Supabase client: `captureGoogleReturnFromUrl`
+// runs BEFORE the client is constructed (config/supabaseClient.ts).
 // =========================================================
 
-import { isNative } from "./nativeAuth";
+import { Capacitor } from "@capacitor/core";
 import { ServiceError } from "./errors";
+import { recordOAuthError } from "./oauthReturn";
 
-/** The Google OAuth WEB client id. Unset (the default) = this path is off. */
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
-const SCRIPT_URL = "https://accounts.google.com/gsi/client";
+/** Where Google returns to. Served by the SPA fallback; never rendered as a page. */
+export const GOOGLE_RETURN_PATH = "/auth/google";
+
+const PENDING_KEY = "dino.googleSignIn";
+// Long enough for a slow consent screen, short enough that an abandoned attempt
+// can't be completed by a stale tab much later.
+const PENDING_TTL_MS = 15 * 60 * 1000;
 
 /** What Supabase needs to accept a Google sign-in: the ID token + the raw nonce. */
 export interface GoogleCredential {
@@ -41,43 +58,41 @@ export interface GoogleCredential {
   nonce: string;
 }
 
-interface GisIdApi {
-  initialize(options: {
-    client_id: string;
-    callback: (response: { credential?: string }) => void;
-    nonce: string;
-    ux_mode: "popup";
-  }): void;
-  renderButton(
-    container: HTMLElement,
-    options: {
-      type: "standard";
-      theme: "outline" | "filled_black";
-      size: "large";
-      text: "continue_with";
-      shape: "rectangular";
-      logo_alignment: "center";
-      width: number;
-      locale: string;
-    },
-  ): void;
+/** Which page started the round-trip — and so which one finishes it. */
+export type GoogleMode = "signin" | "signup";
+
+export interface GoogleReturn {
+  credential: GoogleCredential;
+  mode: GoogleMode;
 }
 
-declare global {
-  interface Window {
-    google?: { accounts: { id: GisIdApi } };
-  }
+interface Pending {
+  mode: GoogleMode;
+  nonce: string;
+  state: string;
+  at: number;
 }
 
-/** True when this build can mount Google's own button (web + a client id). */
-export function googleButtonEnabled(): boolean {
-  return Boolean(CLIENT_ID) && typeof document !== "undefined" && !isNative();
+const PATH_BY_MODE: Record<GoogleMode, string> = { signin: "/signin", signup: "/signup" };
+
+/** The Google OAuth WEB client id. Unset (the default) = this path is off. */
+function clientId(): string | undefined {
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID || undefined;
+}
+
+/** True when this build signs in with a Google ID token (web + a client id). */
+export function googleIdTokenEnabled(): boolean {
+  return Boolean(clientId()) && typeof window !== "undefined" && !Capacitor.isNativePlatform();
+}
+
+function randomValue(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes));
 }
 
 /** A random nonce and the SHA-256 hex digest Google is given in its place. */
 export async function makeNonce(): Promise<{ raw: string; hashed: string }> {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const raw = btoa(String.fromCharCode(...bytes));
+  const raw = randomValue();
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
   const hashed = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
   return { raw, hashed };
@@ -101,72 +116,83 @@ export function emailFromIdToken(token: string): string | null {
   }
 }
 
-// The <script> is injected once per page; concurrent callers share the load.
-let scriptLoad: Promise<GisIdApi> | null = null;
-
-function loadGis(): Promise<GisIdApi> {
-  return (scriptLoad ??= new Promise<GisIdApi>((resolve, reject) => {
-    const ready = () => window.google?.accounts?.id;
-    const existing = ready();
-    if (existing) return resolve(existing);
-    const script = document.createElement("script");
-    script.src = SCRIPT_URL;
-    script.async = true;
-    script.onload = () => {
-      const api = ready();
-      if (api) resolve(api);
-      else reject(new ServiceError("Google sign-in failed to load", "unknown"));
-    };
-    script.onerror = () => reject(new ServiceError("Google sign-in failed to load", "unknown"));
-    document.head.appendChild(script);
-  }).catch((e) => {
-    scriptLoad = null; // a blocked or flaky load shouldn't poison every later attempt
-    throw e;
-  }));
+/**
+ * Remember this attempt and build the Google URL to send the page to.
+ * THROWS: ServiceError when no client id is configured.
+ */
+export async function buildGoogleAuthUrl(mode: GoogleMode): Promise<string> {
+  const id = clientId();
+  if (!id) throw new ServiceError("Google sign-in is not configured", "unknown");
+  const nonce = await makeNonce();
+  const state = randomValue();
+  const pending: Pending = { mode, nonce: nonce.raw, state, at: Date.now() };
+  localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  const params = new URLSearchParams({
+    client_id: id,
+    redirect_uri: window.location.origin + GOOGLE_RETURN_PATH,
+    response_type: "id_token",
+    scope: "openid email profile",
+    nonce: nonce.hashed,
+    state,
+    prompt: "select_account",
+  });
+  return `${AUTH_URL}?${params.toString()}`;
 }
 
-// Google's button takes a pixel width in this range.
-const MIN_WIDTH = 200;
-const MAX_WIDTH = 400;
+/** Leave for Google. The page unloads; the sign-in resumes in captureGoogleReturnFromUrl. */
+export async function startGoogleSignIn(mode: GoogleMode): Promise<void> {
+  window.location.assign(await buildGoogleAuthUrl(mode));
+}
+
+function takePending(): Pending | null {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    localStorage.removeItem(PENDING_KEY);
+    if (!raw) return null;
+    const pending = JSON.parse(raw) as Pending;
+    return Date.now() - pending.at <= PENDING_TTL_MS ? pending : null;
+  } catch {
+    return null;
+  }
+}
+
+let returned: GoogleReturn | null = null;
 
 /**
- * Render Google's "Continue with Google" button into `container` and call
- * `onCredential` when the user completes the popup.
- *
- * THROWS: ServiceError when the script can't load (ad-blocker, offline) — the caller
- * falls back to the redirect flow. A user who closes the popup produces no callback
- * at all, by Google's design.
+ * If this page load is Google returning to /auth/google: lift the token out of the
+ * URL, put the user back on the page that started the attempt (the router reads
+ * location when it mounts, so rewriting it here is enough), and hold the credential
+ * for that page to finish. A failed or tampered return is recorded as an OAuth error
+ * for the same page to explain. Must run before createClient. No-op on a normal load.
  */
-export async function mountGoogleButton(
-  container: HTMLElement,
-  options: {
-    onCredential: (credential: GoogleCredential) => void;
-    theme: "light" | "dark";
-    locale: string;
-    /** True once the caller no longer wants the button (its container unmounted
-     *  while the script was loading) — nothing is initialized or rendered then. */
-    cancelled?: () => boolean;
-  },
-): Promise<void> {
-  if (!CLIENT_ID) throw new ServiceError("Google sign-in is not configured", "unknown");
-  const [gis, nonce] = await Promise.all([loadGis(), makeNonce()]);
-  if (options.cancelled?.()) return;
-  gis.initialize({
-    client_id: CLIENT_ID,
-    nonce: nonce.hashed,
-    ux_mode: "popup",
-    callback: (response) => {
-      if (response.credential) options.onCredential({ token: response.credential, nonce: nonce.raw });
-    },
-  });
-  gis.renderButton(container, {
-    type: "standard",
-    theme: options.theme === "dark" ? "filled_black" : "outline",
-    size: "large",
-    text: "continue_with",
-    shape: "rectangular",
-    logo_alignment: "center",
-    width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(container.clientWidth))),
-    locale: options.locale,
-  });
+export function captureGoogleReturnFromUrl(): void {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname !== GOOGLE_RETURN_PATH) return;
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  const get = (key: string) => fragment.get(key) ?? query.get(key);
+
+  const pending = takePending();
+  // Strip the token from the address bar and history before anything else can read it.
+  window.history.replaceState(window.history.state, "", PATH_BY_MODE[pending?.mode ?? "signin"]);
+
+  const error = get("error");
+  if (error) {
+    recordOAuthError(error, get("error_description")); // access_denied = cancelled → no message
+    return;
+  }
+  const token = get("id_token");
+  if (!token) return; // someone opened /auth/google directly
+  if (!pending || get("state") !== pending.state) {
+    recordOAuthError("state_mismatch", null);
+    return;
+  }
+  returned = { credential: { token, nonce: pending.nonce }, mode: pending.mode };
+}
+
+/** The credential Google just returned with, once — the auth page finishes it. */
+export function takeGoogleReturn(): GoogleReturn | null {
+  const r = returned;
+  returned = null;
+  return r;
 }

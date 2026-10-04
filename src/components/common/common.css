@@ -520,15 +520,6 @@ body {
   margin: 0;
   font-size: 0.85rem;
 }
-/* Google's own sign-in button — an iframe it sizes itself. Centred in the column, with
-   the height reserved so the form doesn't jump when it mounts. `color-scheme: light`
-   stops the dark theme painting an opaque box behind the transparent iframe. */
-.authpage__google {
-  display: flex;
-  justify-content: center;
-  min-height: 44px;
-  color-scheme: light;
-}
 /* Agree-to-Terms checkbox — small print, like a typical signup consent line. */
 .authpage__agree {
   display: flex;
