@@ -334,8 +334,6 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - **Google brand verification** — the consent screen says "continue to …supabase.co" until
   the app is verified (Search Console TXT for `dinostudy.com` → Branding → submit). Do it
   after the Privacy Policy naming the operator is deployed.
-- Confirm a prod password-reset email (now from `noreply@dinostudy.com`) lands in a Gmail
-  **inbox**, not spam.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
@@ -357,9 +355,6 @@ the SRS ease already does), then drop the column + its grants (`20260704`).
 
 ### Account-linking collisions — rollout `[#13]`
 **Gates the captcha rollout.** `20260782` is live on staging + prod; left:
-- Enable **manual linking** on staging (Auth → Sign In / Providers; prod already has it) —
-  sign-up's "Continue with Google/Apple" is `linkIdentity`, which fails with
-  `manual_linking_disabled` without it.
 - Live-verify with real Google (local can't), web + iOS: password account → "Continue with
   Google" is denied with the funnel copy; sign-up link on an already-registered Google
   account falls back to sign-in and merges the guest.
@@ -392,9 +387,8 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 - Screenshots: **6.9″ iPhone `1320 × 2868`** (Apple scales it to every smaller iPhone). A
   phone screenshot only passes if the phone IS a Pro Max; otherwise capture from the
   Simulator (`xcrun simctl io booted screenshot`). sRGB PNG/JPEG, no alpha.
-- ⚠ The native live transcript is **untested on a device**. Also unresolved: whether it
-  should keep listening while another app is foreground (needs the `audio` background mode
-  and a review justification).
+- Unresolved: whether the live transcript should keep listening while another app is
+  foreground (needs the `audio` background mode and a review justification).
 
 ### Legal — Privacy/ToS `[§10]`
 `/privacy` + `/terms` are drafted and footer-linked; the processor list matches the stack.
