@@ -2,9 +2,10 @@
 // there's no login wall — /signin and /signup are optional pages reached from the
 // person-icon menu. Header (menu + title) and footer wrap every route; the
 // password-recovery flow is a takeover regardless of route.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "./hooks/useSession";
-import { needsTermsAcceptance } from "./services/session";
+import { completeGoogleSignIn, needsTermsAcceptance } from "./services/session";
+import { hasGoogleReturn, recordGoogleFailure, takeGoogleReturn } from "./services/googleIdentity";
 import { warmJapaneseAnalyzer } from "./services/language";
 import { watchForReconnect } from "./services/offline/sync";
 import { ProfileMenu } from "./components/common/ProfileMenu";
@@ -39,6 +40,26 @@ export function App() {
       navigate("/");
     }
   }, [recovering, isAnonymous, path, navigate]);
+
+  // Google has just returned with an ID token (services/googleIdentity). Finish the
+  // sign-in HERE, behind the splash, so the user goes from Google straight to the app
+  // instead of watching the sign-in form reload and then leave. It needs the booted
+  // session (a sign-up links the current guest), hence the wait for `userId`. A refusal
+  // is handed to the auth page — the URL was already put back on it — to explain.
+  const [finishingGoogle, setFinishingGoogle] = useState(hasGoogleReturn);
+  const googleStarted = useRef(false);
+  useEffect(() => {
+    if (!userId || googleStarted.current) return;
+    const back = takeGoogleReturn();
+    if (!back) return;
+    googleStarted.current = true;
+    void completeGoogleSignIn(back)
+      .then((failed) => {
+        if (failed) recordGoogleFailure(failed);
+        else navigate("/");
+      })
+      .finally(() => setFinishingGoogle(false));
+  }, [userId, navigate]);
 
   // Terms gate: a permanent account that hasn't accepted the current Terms version
   // (Google signup that skipped the checkbox, or anyone after a Terms update) must
@@ -78,7 +99,7 @@ export function App() {
   // Startup: nothing but the mascot + dots until the session exists — the header's
   // menus have nothing to act on yet, and this picks up exactly where index.html's
   // pre-bundle splash left off.
-  if (loading) return <SplashScreen />;
+  if (loading || (finishingGoogle && !error)) return <SplashScreen />;
 
   return (
     // The app is a phone-width column everywhere EXCEPT /admin: that's an ops

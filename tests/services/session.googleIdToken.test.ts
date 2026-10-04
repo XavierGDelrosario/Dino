@@ -10,7 +10,12 @@ vi.mock("@/services/captcha", () => ({
   captchaEnabled: vi.fn(() => false),
 }));
 
-import { linkGoogleIdToken, signInWithGoogleIdToken, hasPendingGuestMerge } from "@/services/session";
+import {
+  completeGoogleSignIn,
+  linkGoogleIdToken,
+  signInWithGoogleIdToken,
+  hasPendingGuestMerge,
+} from "@/services/session";
 import { emailFromIdToken, makeNonce } from "@/services/googleIdentity";
 
 let stub: SupabaseStub;
@@ -96,6 +101,60 @@ describe("signInWithGoogleIdToken", () => {
       error: { message: "Database error saving new user", code: "unexpected_failure" },
     });
     await expect(signInWithGoogleIdToken(credential)).rejects.toMatchObject({ code: "unexpected_failure" });
+  });
+});
+
+describe("completeGoogleSignIn", () => {
+  const b64url = (s: string) =>
+    btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const tokenFor = (email: string) => `${b64url("{}")}.${b64url(JSON.stringify({ email }))}.sig`;
+  const back = (mode: "signin" | "signup", email = "me@gmail.com") => ({
+    mode,
+    credential: { token: tokenFor(email), nonce: "raw-nonce" },
+  });
+  const ok = (id: string) => ({ data: { user: { id, email: "me@gmail.com" } }, error: null });
+  const refused = (code: string) => ({ data: { user: null, session: null }, error: { message: "no", code } });
+
+  it("sign-up links the guest and never signs in separately", async () => {
+    stub.auth.linkIdentity.mockResolvedValue(ok("guest-1"));
+    stub.queueFrom("users", { data: null, error: null });
+    expect(await completeGoogleSignIn(back("signup"))).toBeNull();
+    expect(stub.auth.signInWithIdToken).not.toHaveBeenCalled();
+  });
+
+  it("sign-up on an already-registered Google account signs in with the SAME token", async () => {
+    stub.auth.linkIdentity.mockResolvedValue(refused("identity_already_exists"));
+    stub.auth.signInWithIdToken.mockResolvedValue(ok("acct-1"));
+    stub.queueFrom("users", { data: null, error: null });
+    const attempt = back("signup");
+
+    expect(await completeGoogleSignIn(attempt)).toBeNull();
+    expect(stub.auth.signInWithIdToken).toHaveBeenCalledWith(
+      expect.objectContaining({ token: attempt.credential.token, nonce: "raw-nonce" }),
+    );
+  });
+
+  it("sign-in goes straight to the Google account", async () => {
+    stub.auth.signInWithIdToken.mockResolvedValue(ok("acct-1"));
+    stub.queueFrom("users", { data: null, error: null });
+    expect(await completeGoogleSignIn(back("signin"))).toBeNull();
+    expect(stub.auth.linkIdentity).not.toHaveBeenCalled();
+  });
+
+  it("a refusal names how that email's account DOES sign in", async () => {
+    stub.auth.signInWithIdToken.mockResolvedValue(refused("unexpected_failure"));
+    stub.rpc.mockImplementation(async (fn: string) =>
+      fn === "sign_in_methods" ? { data: ["email"], error: null } : { data: null, error: null });
+
+    expect(await completeGoogleSignIn(back("signin"))).toEqual({ code: "unexpected_failure", methods: ["email"] });
+    expect(stub.rpc).toHaveBeenCalledWith("sign_in_methods", { p_email: "me@gmail.com" });
+  });
+
+  it("a refusal on a Google account reports no other method", async () => {
+    stub.auth.signInWithIdToken.mockResolvedValue(refused("bad_jwt"));
+    stub.rpc.mockImplementation(async (fn: string) =>
+      fn === "sign_in_methods" ? { data: ["google"], error: null } : { data: null, error: null });
+    expect(await completeGoogleSignIn(back("signin"))).toEqual({ code: "bad_jwt", methods: [] });
   });
 });
 
