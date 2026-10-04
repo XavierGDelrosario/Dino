@@ -83,6 +83,24 @@ export async function makeNonce(): Promise<{ raw: string; hashed: string }> {
   return { raw, hashed };
 }
 
+/**
+ * The email address inside a Google ID token, or null if it can't be read. Used ONLY
+ * to explain a refused sign-in (which method does this email's account use?) — the
+ * token itself is verified by Supabase, never here.
+ */
+export function emailFromIdToken(token: string): string | null {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const claims = JSON.parse(new TextDecoder().decode(bytes)) as { email?: unknown };
+    return typeof claims.email === "string" && claims.email ? claims.email : null;
+  } catch {
+    return null;
+  }
+}
+
 // The <script> is injected once per page; concurrent callers share the load.
 let scriptLoad: Promise<GisIdApi> | null = null;
 
