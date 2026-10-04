@@ -639,6 +639,13 @@ const DEFAULT_MONTHLY_CHAR_QUOTA = 450_000;
 // Enforced BEFORE any dictionary lookup, so a pathological input can't hit the
 // UNMETERED JMdict/WordNet scan (the paragraph limit only gates the paid path).
 const MAX_INPUT_CHARS = 20_000;
+// BATCH mode resolves WORDS (the reader's lemma candidates), not prose — and every
+// uncached term is an unmetered dictionary scan. Both bounds are far above anything the
+// app sends (a long article is a few hundred distinct terms; a term is a word), and
+// exist so a scripted guest can't queue thousands of trigram scans in one request and
+// starve the shared database.
+const MAX_BATCH_INPUTS = 3_000;
+const MAX_BATCH_TERM_CHARS = 200;
 
 interface ResolvedLimits {
   paragraphCharLimit: number;
@@ -1081,7 +1088,7 @@ async function resolveBatch(
   const seen = new Set<string>();
   for (const raw of rawInputs) {
     const v = String(raw ?? "").trim().normalize("NFC");
-    if (v && v.length <= MAX_INPUT_CHARS && !seen.has(v)) { seen.add(v); inputs.push(v); }
+    if (v && v.length <= MAX_BATCH_TERM_CHARS && !seen.has(v)) { seen.add(v); inputs.push(v); }
   }
   if (inputs.length === 0) return [];
 
@@ -1300,6 +1307,9 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // BATCH mode: { inputs: string[] } resolves many cacheable words in ONE request.
   if (Array.isArray(body.inputs)) {
+    if (body.inputs.length > MAX_BATCH_INPUTS) {
+      return reply({ error: `Too many terms in one request (max ${MAX_BATCH_INPUTS})` }, 413);
+    }
     try {
       const results = await resolveBatch(
         supabase, body.inputs, sourceLang, targetLang, req.headers.get("Authorization"),

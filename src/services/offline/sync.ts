@@ -12,6 +12,7 @@
 
 import { mapLimit } from "../../lib/concurrency";
 import { sendReview } from "../review";
+import { supabase } from "../../config/supabaseClient";
 import { offlineStore } from "./store";
 import { acknowledge, drainable, markFailed, pending, type PendingGrade } from "./queue";
 
@@ -41,7 +42,9 @@ export function drainPendingReviews(): Promise<DrainResult> {
 
 async function runDrain(): Promise<DrainResult> {
   const store = offlineStore();
-  const queued = drainable(await pending(store));
+  // getSession reads local storage — no network — so this works on the reconnect edge.
+  const userId = (await supabase.auth.getSession()).data.session?.user.id ?? null;
+  const queued = drainable(await pending(store), userId);
   if (queued.length === 0) return { sent: 0, failed: 0, remaining: (await pending(store)).length };
 
   // Group by card so one card's grades stay ordered; different cards go in parallel.

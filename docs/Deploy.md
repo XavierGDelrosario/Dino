@@ -59,7 +59,7 @@ supabase functions deploy translate
 supabase secrets set TRANSLATION_API_KEY=<google-key>        # enables MT fallback
 supabase secrets set ALLOWED_ORIGINS=https://<your-pages-domain>   # CORS allow-list
 # Cost controls (#1) — optional but recommended before public:
-supabase secrets set GLOBAL_MONTHLY_CHAR_QUOTA=<aggregate-cap>     # e.g. 5000000
+supabase secrets set GLOBAL_MONTHLY_CHAR_QUOTA=<aggregate-cap>     # unset = 2000000
 #   (MT_DISABLED=1 is the emergency kill-switch — set it to stop all paid calls.)
 # Optional per-request / per-user defaults: PARAGRAPH_CHAR_LIMIT, MONTHLY_CHAR_QUOTA.
 ```

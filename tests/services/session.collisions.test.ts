@@ -13,6 +13,7 @@ vi.mock("@/services/captcha", () => ({
 import {
   collisionKind,
   getSignInMethods,
+  requestPasswordReset,
   signIn,
   claimGuestMerge,
   hasPendingGuestMerge,
@@ -84,6 +85,17 @@ describe("guest → account merge", () => {
     await signIn({ email: "a@b.com", password: "pw12345678" });
 
     expect(order).toEqual(["create_guest_merge_ticket", "signInWithPassword"]);
+    expect(hasPendingGuestMerge()).toBe(true);
+  });
+
+  it("requesting a reset link mints the ticket too — following it replaces the guest", async () => {
+    sessionAs({ id: "guest-1", is_anonymous: true });
+    stub.rpc.mockResolvedValue({ data: "tok-1", error: null });
+    stub.auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+
+    await requestPasswordReset("a@b.com");
+
+    expect(stub.rpc).toHaveBeenCalledWith("create_guest_merge_ticket");
     expect(hasPendingGuestMerge()).toBe(true);
   });
 

@@ -138,6 +138,20 @@ describe.skipIf(!ENABLED)("DB constraints: CHECK", () => {
     expect(error?.code).toBe("23514");
   });
 
+  it("an over-long input, custom meaning or list name is rejected (20260785 length caps)", async () => {
+    const u = await makeUser();
+    const base = { user_id: u.userId, source_lang: "JA", target_lang: "EN", dictionary_word_id: null };
+    const longInput = await u.client.from("user_words").insert({ ...base, input: "x".repeat(201), custom_translation: "m" });
+    expect(longInput.error?.code).toBe("23514");
+    const longMeaning = await u.client.from("user_words").insert({ ...base, input: "x", custom_translation: "m".repeat(2001) });
+    expect(longMeaning.error?.code).toBe("23514");
+    const longList = await u.client.from("lists").insert({ user_id: u.userId, list_name: "n".repeat(101) });
+    expect(longList.error?.code).toBe("23514");
+    // At the limit is fine.
+    const ok = await u.client.from("user_words").insert({ ...base, input: "x".repeat(200), custom_translation: "m".repeat(2000) });
+    expect(ok.error).toBeNull();
+  });
+
   it("confidence_rating outside 0–5 is rejected", async () => {
     const u = await makeUser();
     const { error } = await u.client.from("user_words").insert({

@@ -67,6 +67,21 @@ describe("markFailed", () => {
   });
 });
 
+describe("drainable — per user", () => {
+  const entry = (id: string, userId?: string) =>
+    ({ id, userWordId: "w", grade: 3, reviewedAt: "2026-01-01T00:00:00Z", approx: false, attempts: 0, userId }) as const;
+
+  it("holds another user's grades back and keeps unstamped legacy entries", () => {
+    const q = [entry("mine", "u1"), entry("theirs", "u2"), entry("legacy")];
+    expect(drainable(q, "u1").map((e) => e.id)).toEqual(["mine", "legacy"]);
+  });
+
+  it("with no session to compare against, drains as before", () => {
+    const q = [entry("a", "u1"), entry("b", "u2")];
+    expect(drainable(q, null).map((e) => e.id)).toEqual(["a", "b"]);
+  });
+});
+
 describe("drainable", () => {
   it("returns everything under the attempt ceiling", () => {
     const q = [

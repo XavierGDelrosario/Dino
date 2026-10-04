@@ -1,5 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { detectLanguage, resolveSourceLanguage, AUTO_DETECT } from "@/services/language/detect";
+import { detectLanguage, isAlreadyIn, resolveSourceLanguage, AUTO_DETECT } from "@/services/language/detect";
+
+describe("isAlreadyIn", () => {
+  it("English typed with the source set to Japanese is already English", () => {
+    expect(isAlreadyIn("hello world", "EN", "JA")).toBe(true);
+  });
+
+  it("Japanese typed with the source set to English is already Japanese", () => {
+    expect(isAlreadyIn("安倍晋三", "JA", "EN")).toBe(true);
+  });
+
+  it("an English text carrying one native-script name is NOT already Japanese", () => {
+    expect(isAlreadyIn("Shinzo Abe (安倍晋三) said on Monday", "JA", "EN")).toBe(false);
+    expect(isAlreadyIn("Xi Jinping (习近平) arrived", "JA", "EN")).toBe(false);
+  });
+
+  it("a Japanese text with a Latin word in it is NOT already English", () => {
+    expect(isAlreadyIn("今日はDINOで勉強する", "EN", "JA")).toBe(false);
+  });
+
+  it("the same language on both sides is always already there", () => {
+    expect(isAlreadyIn("anything", "EN", "EN")).toBe(true);
+  });
+});
 
 describe("detectLanguage", () => {
   it("detects Japanese script", () => {

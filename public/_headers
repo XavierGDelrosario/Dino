@@ -7,6 +7,14 @@
 # setting Content-Encoding: gzip (or the browser auto-decompresses and kuromoji's
 # gunzip dies with "invalid file signature"). octet-stream keeps the host from
 # compressing them. Mirrors the dev-only serveDictRaw Vite plugin (vite.config.ts).
+# Every response: no framing by other sites (clickjacking a signed-in user through
+# /delete-account), no MIME sniffing, and only the origin sent as referrer cross-site.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
 /dict/*
   Content-Type: application/octet-stream
   Cache-Control: public, max-age=31536000, immutable

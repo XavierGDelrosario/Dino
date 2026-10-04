@@ -31,8 +31,11 @@ import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { InputField } from "../components/common/InputField";
+import { BackLink } from "../components/common/BackLink";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
+
+const APPLE_SIGNIN_ENABLED = import.meta.env.VITE_APPLE_SIGNIN === "1";
 
 export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const { t } = useI18n();
@@ -241,9 +244,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   if (confirmSent) {
     return (
       <section className="authpage">
+        <BackLink />
         <h2 className="authpage__title">{t("auth.signUpTitle")}</h2>
         <p className="review__msg">{t("auth.confirmEmail")}</p>
-        <Link to="/" className="account__link">{t("profile.back")}</Link>
       </section>
     );
   }
@@ -257,7 +260,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           upgrade note) — a fourth would read as a fourth choice rather than the exit.
           Signing in is optional in DINO (a guest is a real account), so leaving must be
           as reachable as continuing. */}
-      <Link to="/" className="account__link authpage__back">{t("profile.back")}</Link>
+      <BackLink />
       <h2 className="authpage__title">{mode === "signup" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h2>
       <InputField type="email" value={email} onChange={setEmail}
         placeholder={t("auth.emailPlaceholder")} ariaLabel={t("auth.emailPlaceholder")} autoComplete="email" />
@@ -295,10 +298,14 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       </button>
 
       {/* Sign in with Apple is not optional on iOS: the App Store requires it
-          wherever another third-party login is offered. */}
-      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
-        {t("auth.apple")}
-      </button>
+          wherever another third-party login is offered. It is shown only once the
+          project's Apple provider is configured (VITE_APPLE_SIGNIN=1) — before that the
+          button led off the site to a raw provider-not-enabled error. */}
+      {APPLE_SIGNIN_ENABLED && (
+        <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
+          {t("auth.apple")}
+        </button>
+      )}
 
       {mode === "signin" && (
         <button className="account__link" onClick={() => { setForgot(true); setErr(null); }}>
