@@ -88,6 +88,8 @@ export function createSupabaseStub() {
     getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
     signInAnonymously: vi.fn(),
     signInWithPassword: vi.fn(),
+    signInWithIdToken: vi.fn(),
+    linkIdentity: vi.fn(),
     resetPasswordForEmail: vi.fn(),
     signOut: vi.fn().mockResolvedValue({ error: null }),
   };

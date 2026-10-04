@@ -110,6 +110,7 @@ deploy_frontend() {
   echo "==> Building frontend against https://$SUPABASE_PROJECT_REF.supabase.co"
   VITE_SUPABASE_URL="https://$SUPABASE_PROJECT_REF.supabase.co" \
   VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
+  VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_OAUTH_CLIENT_ID:-}}" \
     npm run build
 
   echo "==> Ensuring Cloudflare Pages project '$CF_PROJECT' exists"

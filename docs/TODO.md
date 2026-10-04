@@ -331,9 +331,13 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <summary><h2>➕ Open follow-ups</h2></summary>
 
 ### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
-- **Google brand verification** — the consent screen says "continue to …supabase.co" until
-  the app is verified (Search Console TXT for `dinostudy.com` → Branding → submit). Do it
-  after the Privacy Policy naming the operator is deployed.
+- **Google sign-in, ID-token flow (web)** — live-verify on prod: sign-in, sign-up link, and
+  the fallback when the Google account is already a DINO user (`services/googleIdentity.ts`).
+  Every origin that serves the app must be in the Google client's Authorised JavaScript
+  origins, or its button opens an `origin_mismatch` error.
+- **Google brand verification** — shows the app name and logo on Google's screen (Search
+  Console TXT for `dinostudy.com` → Branding → submit). iOS still uses the redirect flow,
+  so it reads "continue to …supabase.co" there until then.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
