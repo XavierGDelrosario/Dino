@@ -13,7 +13,7 @@ import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 import { resetVocabulary } from "./words/vocabularyCache";
 import { rememberOAuthIntent, type OAuthProvider } from "./oauthReturn";
-import type { GoogleCredential } from "./googleIdentity";
+import { emailFromIdToken, type GoogleCredential, type GoogleFailure, type GoogleReturn } from "./googleIdentity";
 
 export interface UserProfile {
   userId: string;
@@ -208,6 +208,42 @@ export async function signInWithGoogleIdToken(credential: GoogleCredential): Pro
  */
 export const linkApple = () => linkProvider("apple");
 export const signInWithApple = () => signInWithProvider("apple");
+
+/**
+ * Finish a Google return: sign-up LINKS the guest (same uid); a Google account that is
+ * already a DINO user can't be linked, so the SAME token signs in to it instead and
+ * the guest's words follow via the merge ticket.
+ *
+ * OUTPUT: null on success, else why it was refused. The one-method rule surfaces from
+ * GoTrue only as a generic failure — but we hold the token, so we read the email from
+ * it and report the methods that account DOES use (empty when it is a Google account
+ * or unknown). Never throws.
+ */
+export async function completeGoogleSignIn(back: GoogleReturn): Promise<GoogleFailure | null> {
+  const codeOf = (e: unknown) => (e as { code?: unknown } | null)?.code;
+  try {
+    if (back.mode === "signup") {
+      try {
+        await linkGoogleIdToken(back.credential);
+      } catch (e) {
+        if (codeOf(e) !== "identity_already_exists") throw e;
+        await signInWithGoogleIdToken(back.credential);
+      }
+    } else {
+      await signInWithGoogleIdToken(back.credential);
+    }
+    return null;
+  } catch (e) {
+    const code = codeOf(e);
+    console.warn("Google sign-in failed:", code, e);
+    const email = emailFromIdToken(back.credential.token);
+    const methods = email ? await getSignInMethods(email) : [];
+    return {
+      code: typeof code === "string" ? code : "unknown",
+      methods: methods.includes("google") ? [] : methods,
+    };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Collisions. ONE email = one account = one method (password · Google · Apple),

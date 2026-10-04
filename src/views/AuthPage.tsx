@@ -7,7 +7,7 @@
 // sign-in on an OAuth-only account, names how that account actually signs in
 // (getSignInMethods). A sign-up that LINKS a Google/Apple account which is already a
 // DINO user is answered by signing in to it instead — the guest's words follow.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   upgradeToAccount,
   signIn,
@@ -17,21 +17,14 @@ import {
   linkApple,
   signInWithApple,
   signInWithProvider,
-  linkGoogleIdToken,
-  signInWithGoogleIdToken,
   recordTermsAgreement,
   collisionKind,
   getSignInMethods,
+  type SignInMethod,
 } from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { onOAuthError, takeOAuthError, type OAuthReturnError } from "../services/oauthReturn";
-import {
-  emailFromIdToken,
-  googleIdTokenEnabled,
-  startGoogleSignIn,
-  takeGoogleReturn,
-  type GoogleCredential,
-} from "../services/googleIdentity";
+import { googleIdTokenEnabled, startGoogleSignIn, takeGoogleFailure } from "../services/googleIdentity";
 import { errorMessage } from "../lib/errorMessage";
 import { formatMethods, oauthErrorCopy, PROVIDER } from "../lib/authCopy";
 import { checkPassword } from "../lib/password";
@@ -178,61 +171,27 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       }
     : oauth(linkGoogle, signInWithGoogle);
 
-  // Google has returned with the ID token (the page load that mounted this component).
-  // Sign-up LINKS the guest (same uid); a Google account that is already a DINO user
-  // can't be linked, so the SAME token signs in to it instead and the guest's words
-  // follow via the merge ticket.
-  const finishGoogle = async (credential: GoogleCredential) => {
-    setBusy(true);
-    setErr(null);
-    try {
-      if (mode === "signup") {
-        try {
-          await linkGoogleIdToken(credential);
-        } catch (e) {
-          if ((e as { code?: unknown } | null)?.code !== "identity_already_exists") throw e;
-          setNote(t("auth.linkTaken", { provider: PROVIDER.google }));
-          await signInWithGoogleIdToken(credential);
-        }
-      } else {
-        await signInWithGoogleIdToken(credential);
-      }
-      navigate("/");
-    } catch (e) {
-      // The one-method rule refused it (this email's account signs in another way).
-      // GoTrue reports that only as a generic failure — but unlike the Supabase redirect
-      // flow we hold the token, so we know the email and can NAME the method it uses.
-      const email = emailFromIdToken(credential.token);
-      const methods = email ? await getSignInMethods(email) : [];
-      if (methods.length && !methods.includes("google")) {
-        setErr(t("auth.existsWith", { methods: formatMethods(t, methods) }));
-        return;
-      }
-      const code = (e as { code?: unknown } | null)?.code;
-      console.warn("Google sign-in failed:", code, e);
-      setErr(
-        oauthErrorCopy(t, {
-          code: typeof code === "string" ? code : "unknown",
-          description: null,
-          intent: { mode, provider: "google", at: Date.now() },
-        }) ?? errorMessage(e),
-      );
-    } finally {
-      setNote(null);
-      setBusy(false);
-    }
-  };
-  const finishGoogleRef = useRef(finishGoogle);
-  finishGoogleRef.current = finishGoogle;
+  // A Google return is finished by the app shell behind its splash (App.tsx); only a
+  // REFUSED one lands here, with its reason.
   useEffect(() => {
-    const back = takeGoogleReturn();
-    if (back) void finishGoogleRef.current(back.credential);
+    const failed = takeGoogleFailure();
+    if (failed) {
+      setErr(
+        failed.methods.length
+          ? t("auth.existsWith", { methods: formatMethods(t, failed.methods as SignInMethod[]) })
+          : oauthErrorCopy(t, {
+              code: failed.code,
+              description: null,
+              intent: { mode, provider: "google", at: Date.now() },
+            }),
+      );
+    }
     // Leaving for Google sets `busy`; "Back" can restore this page from the browser's
     // back/forward cache with it still set, and every button disabled.
     const restored = (e: PageTransitionEvent) => { if (e.persisted) setBusy(false); };
     window.addEventListener("pageshow", restored);
     return () => window.removeEventListener("pageshow", restored);
-  }, []);
+  }, [t, mode]);
   const apple = oauth(linkApple, signInWithApple);
 
   const sendReset = async () => {

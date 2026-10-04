@@ -10,7 +10,9 @@
 // HOW: a full-page redirect to Google and back to OUR origin (OpenID Connect implicit
 // flow, `response_type=id_token`). Google returns to `<origin>/auth/google` with the
 // token in the URL fragment; `captureGoogleReturnFromUrl` lifts it out before the app
-// renders and the auth page finishes the sign-in. The redirect URI is ours, so the
+// renders and the app shell finishes the sign-in behind its splash (the user goes
+// from Google straight to the app, never back through the form — only a FAILURE shows
+// the auth page, with the reason). The redirect URI is ours, so the
 // consent screen names this site, and `prompt=select_account` always offers the
 // account chooser.
 //
@@ -190,9 +192,36 @@ export function captureGoogleReturnFromUrl(): void {
   returned = { credential: { token, nonce: pending.nonce }, mode: pending.mode };
 }
 
-/** The credential Google just returned with, once — the auth page finishes it. */
+/** Is a Google return waiting to be finished? (The app holds its splash until it is.) */
+export function hasGoogleReturn(): boolean {
+  return returned !== null;
+}
+
+/** The credential Google just returned with, once — the app shell finishes it. */
 export function takeGoogleReturn(): GoogleReturn | null {
   const r = returned;
   returned = null;
   return r;
+}
+
+/**
+ * Why a returned sign-in was refused, for the auth page to explain: GoTrue's code,
+ * plus — when the email's account signs in another way — the methods it does use.
+ */
+export interface GoogleFailure {
+  code: string;
+  methods: string[];
+}
+
+let failure: GoogleFailure | null = null;
+
+export function recordGoogleFailure(f: GoogleFailure): void {
+  failure = f;
+}
+
+/** The pending failure, once — the page that shows it clears it. */
+export function takeGoogleFailure(): GoogleFailure | null {
+  const f = failure;
+  failure = null;
+  return f;
 }
