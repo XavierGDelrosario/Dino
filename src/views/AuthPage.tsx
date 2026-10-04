@@ -17,12 +17,16 @@ import {
   linkApple,
   signInWithApple,
   signInWithProvider,
+  linkGoogleIdToken,
+  signInWithGoogleIdToken,
   recordTermsAgreement,
   collisionKind,
   getSignInMethods,
 } from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { onOAuthError, takeOAuthError, type OAuthReturnError } from "../services/oauthReturn";
+import { googleButtonEnabled, type GoogleCredential } from "../services/googleIdentity";
+import { GoogleSignInButton } from "../components/common/GoogleSignInButton";
 import { errorMessage } from "../lib/errorMessage";
 import { formatMethods, oauthErrorCopy, PROVIDER } from "../lib/authCopy";
 import { checkPassword } from "../lib/password";
@@ -46,6 +50,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const [agreed, setAgreed] = useState(false);
 
   const [note, setNote] = useState<string | null>(null);
+  // Web shows Google's own button (ID-token flow); if its script can't load, or on
+  // native, the plain button runs the redirect flow instead.
+  const [googleButton, setGoogleButton] = useState(googleButtonEnabled);
 
   // Signup requires accepting the Terms/Privacy; sign-in doesn't.
   const needsAgreement = mode === "signup" && !agreed;
@@ -150,6 +157,43 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
     }
   };
   const google = oauth(linkGoogle, signInWithGoogle);
+
+  // Google's own button already has the credential, and nothing left the page: the
+  // whole round-trip is this one handler. Sign-up LINKS the guest (same uid); a Google
+  // account that is already a DINO user can't be linked, so the SAME token signs in to
+  // it instead and the guest's words follow via the merge ticket.
+  const googleCredential = async (credential: GoogleCredential) => {
+    if (busy || needsAgreement) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      if (mode === "signup") {
+        await recordTermsAgreement();
+        try {
+          await linkGoogleIdToken(credential);
+        } catch (e) {
+          if ((e as { code?: unknown } | null)?.code !== "identity_already_exists") throw e;
+          setNote(t("auth.linkTaken", { provider: PROVIDER.google }));
+          await signInWithGoogleIdToken(credential);
+        }
+      } else {
+        await signInWithGoogleIdToken(credential);
+      }
+      navigate("/");
+    } catch (e) {
+      const code = (e as { code?: unknown } | null)?.code;
+      setErr(
+        oauthErrorCopy(t, {
+          code: typeof code === "string" ? code : "unknown",
+          description: null,
+          intent: { mode, provider: "google", at: Date.now() },
+        }) ?? errorMessage(e),
+      );
+    } finally {
+      setNote(null);
+      setBusy(false);
+    }
+  };
   const apple = oauth(linkApple, signInWithApple);
 
   const sendReset = async () => {
@@ -248,9 +292,15 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
         {mode === "signup" ? t("auth.createAccount") : t("auth.signIn")}
       </button>
 
-      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={google}>
-        {t("auth.google")}
-      </button>
+      {/* Google's button is an iframe that can't be disabled, so it is only mounted
+          while the form is actionable; otherwise the plain button holds its place. */}
+      {googleButton && !busy && !needsAgreement ? (
+        <GoogleSignInButton onCredential={googleCredential} onUnavailable={() => setGoogleButton(false)} />
+      ) : (
+        <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={google}>
+          {t("auth.google")}
+        </button>
+      )}
 
       {/* Sign in with Apple is not optional on iOS: the App Store requires it
           wherever another third-party login is offered. */}

@@ -13,6 +13,7 @@ import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 import { resetVocabulary } from "./words/vocabularyCache";
 import { rememberOAuthIntent, type OAuthProvider } from "./oauthReturn";
+import type { GoogleCredential } from "./googleIdentity";
 
 export interface UserProfile {
   userId: string;
@@ -160,6 +161,40 @@ const PROVIDER_NAME: Record<OAuthProvider, string> = { google: "Google", apple: 
 
 export const linkGoogle = () => linkProvider("google");
 export const signInWithGoogle = () => signInWithProvider("google");
+
+/**
+ * The same two Google operations, from an ID TOKEN Google handed the page directly
+ * (services/googleIdentity) instead of a redirect through Supabase's domain. WEB only.
+ * Nothing leaves the page, so the outcome is a return value or a thrown ServiceError
+ * carrying GoTrue's `code` — e.g. `identity_already_exists` when the Google account is
+ * already a DINO user, which the auth page answers by signing in with the same token.
+ */
+export async function linkGoogleIdToken(credential: GoogleCredential): Promise<AuthStatus> {
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider: "google",
+    token: credential.token,
+    nonce: credential.nonce,
+  });
+  if (error) throw toServiceError(error, "Could not link Google");
+  if (!data.user) throw toServiceError(null, "Could not link Google");
+  await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
+  return toStatus(data.user as SupaUser);
+}
+
+export async function signInWithGoogleIdToken(credential: GoogleCredential): Promise<AuthStatus> {
+  const captchaToken = await getCaptchaToken();
+  await prepareGuestMerge(); // while we are still the guest — see claimGuestMerge
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: credential.token,
+    nonce: credential.nonce,
+    options: { captchaToken },
+  });
+  if (error) throw toServiceError(error, "Google sign-in failed");
+  if (!data.user) throw toServiceError(null, "Google sign-in failed");
+  await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
+  return toStatus(data.user as SupaUser);
+}
 
 /**
  * Sign in with Apple — same flow as Google, and REQUIRED rather than optional: App
