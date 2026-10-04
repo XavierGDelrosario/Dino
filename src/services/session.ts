@@ -8,7 +8,7 @@ import { Browser } from "@capacitor/browser";
 import { supabase } from "../config/supabaseClient";
 import { getCaptchaToken } from "./captcha";
 import { toServiceError } from "./errors";
-import { CURRENT_TERMS_VERSION } from "../lib/terms";
+import { CURRENT_TERMS_VERSION, termsOutdated } from "../lib/terms";
 import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 import { resetVocabulary } from "./words/vocabularyCache";
@@ -373,21 +373,25 @@ export async function recordTermsAgreement(): Promise<void> {
   const { data } = await supabase.auth.getUser();
   const uid = data.user?.id;
   if (!uid) return;
+  // Never move an acceptance BACKWARDS: only stamp a row that has none or an older
+  // one (see lib/terms.ts — an older build must not overwrite a newer acceptance).
   const { error } = await supabase
     .from("users")
     .update({ terms_agreed_at: new Date().toISOString(), terms_version: CURRENT_TERMS_VERSION })
-    .eq("user_id", uid);
+    .eq("user_id", uid)
+    .or(`terms_version.is.null,terms_version.lt.${CURRENT_TERMS_VERSION}`);
   if (error) throw toServiceError(error);
 }
 
 /**
  * Does this account still owe Terms acceptance? True when its stored `terms_version` is
- * missing or behind CURRENT_TERMS_VERSION — an OAuth signup that bypassed the checkbox,
+ * missing or OLDER than CURRENT_TERMS_VERSION (a newer one, stamped by a newer build,
+ * counts as accepted) — an OAuth signup that bypassed the checkbox,
  * or anyone after a Terms update. Only checked for permanent accounts; guests aren't gated.
  */
 export async function needsTermsAcceptance(userId: string): Promise<boolean> {
   const profile = await getUserProfile(userId);
-  return !profile || profile.termsVersion !== CURRENT_TERMS_VERSION;
+  return !profile || termsOutdated(profile.termsVersion);
 }
 
 /** Sign out into a FRESH anonymous guest (no login wall). Returns the new userId. */
