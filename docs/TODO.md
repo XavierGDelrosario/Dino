@@ -330,13 +330,12 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <details open>
 <summary><h2>➕ Open follow-ups</h2></summary>
 
-### Custom domain + email deliverability `[launch polish · partly URGENT]`
-- **Status:** prod email works but **lands in spam**. Sender is a `@gmail.com` address, and
-  `gmail.com` authorizes only Google's servers — SPF/DKIM can **never** align through Brevo.
-- **Fix (one task, three payoffs):** register a domain (~$10/yr) → authenticate in Brevo
-  (SPF/DKIM/DMARC — zero authenticated domains today) → send from `noreply@<domain>`.
-- **Also fixes:** the app URL (`dino-86y.pages.dev`) → then update Supabase Site URL +
-  redirects, edge `ALLOWED_ORIGINS`, and Google origins.
+### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
+- **Google brand verification** — the consent screen says "continue to …supabase.co" until
+  the app is verified (Search Console TXT for `dinostudy.com` → Branding → submit). Do it
+  after the Privacy Policy naming the operator is deployed.
+- Confirm a prod password-reset email (now from `noreply@dinostudy.com`) lands in a Gmail
+  **inbox**, not spam.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
