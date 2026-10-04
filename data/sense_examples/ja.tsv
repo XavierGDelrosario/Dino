@@ -21289,7 +21289,7 @@
 2012790:0	車の排ガスを減らす。	We reduce exhaust fumes from cars.	エンジンなどから出る不要なガス。
 2028890:0	その質問は既出だ。	That question has already come up.	すでに示されていること。
 2152000:0	明日は有休を取る。	I take a paid day off tomorrow.	給料が出る休暇。
-2153610:0	自然体で試合に臨む。	I go into the match relaxed and natural.	気負いのないありのままの態度。
+2153610:0	柔道で自然体に構える。	I take a natural stance in judo.	柔道で、力を入れずに自然に立った姿勢。
 2563700:0	他校の生徒と交流する。	We mix with students from other schools.	ほかの学校。
 2732640:0	間奏でギターを弾く。	He plays the guitar in the interlude.	歌の途中に入る楽器だけの演奏。
 2831130:0	問題の大本を正す。	We fix the root of the problem.	物事のいちばんのもと。
@@ -21475,7 +21475,7 @@
 1250730:1	若者は面倒な仕事を敬遠する。	Young people shy away from tedious jobs.	嫌って避けること。
 1263350:1	ごみを減量する。	We cut down the amount of rubbish.	分量を減らすこと。
 1270840:1	修行の末に悟りを開く。	After long training he attains enlightenment.	仏教で、迷いを去って真理を知ること。
-1391080:1	新人がプロの洗礼を受ける。	The rookie gets his initiation as a pro.	初めて経験する厳しい試練。
+1391080:2	新人がプロの洗礼を受ける。	The rookie gets his initiation as a pro.	初めて経験する厳しい試練。
 1420280:1	首相が談話を発表する。	The prime minister issues a statement.	ある問題について述べる非公式な意見。
 1475200:1	答案を白紙で出す。	I hand in a blank answer sheet.	何も書いていない紙。
 1545880:1	週末は洋画を見る。	I watch Western films at the weekend.	欧米で作られた映画。
@@ -21561,7 +21561,7 @@
 1324180:1	灼熱の恋をする。	They fall into a burning love.	感情が激しく燃えること。
 1450940:1	名前の頭文字を書く。	I write the initials of my name.	姓名の最初の文字。
 1469090:1	年配の客が多い。	There are many elderly customers.	年を取っていること。
-1494200:1	景気の行方は不透明だ。	The outlook for the economy is unclear.	先の見通しがはっきりしないこと。
+1494200:2	景気の行方は不透明だ。	The outlook for the economy is unclear.	先の見通しがはっきりしないこと。
 1575330:1	近代の黎明を迎える。	The dawn of the modern age arrives.	新しい時代の始まり。
 1590130:1	交渉で駆け引きをする。	They manoeuvre in the negotiations.	相手の出方を見て有利に運ぶこと。
 1317430:1	自家製のパンを売る。	They sell bread made on the premises.	その店で作ったものであること。
@@ -21665,3 +21665,351 @@
 2013500:1	気分の落ち込みが続く。	My low spirits continue.	気持ちが沈むこと。
 1361170:1	知識を振り回す。	He shows off his knowledge.	得意になって見せつける。
 1460760:1	居酒屋で軟骨を頼む。	I order chicken gristle at the pub.	鳥の柔らかい骨を揚げた料理。
+# ── BATCH 430 — tier d, second senses (`:1`), most common first. ──
+1556030:1	累積の赤字が増える。	The cumulative deficit grows.	積み重なって増えた分であること。
+1594320:1	下請けに仕事を回す。	We pass the work to a subcontractor.	引き受けた仕事の一部をさらに引き受ける業者。
+1599690:1	文の成り立ちを調べる。	We examine how the sentence is constructed.	物事の組み立て。
+1609250:1	神の戒めを守る。	They keep God's commandments.	してはならないと定めた教え。
+1232360:1	高い壁が侵入を拒む。	The high wall blocks intruders.	進んでくるのを防ぐ。
+1337210:1	旅人が寺に宿る。	The traveller lodges at a temple.	旅先で泊まる。
+1546110:1	鉄を溶解する。	They melt the iron.	金属が熱で溶けること。
+1553270:1	祖母は静かに旅立つ。	My grandmother passes away peacefully.	死ぬ。
+1776900:1	画面に釘付けになる。	I am glued to the screen.	その場から動けなくなること。
+2037010:1	権力を振るう。	He wields power.	力を十分に発揮する。
+1259560:1	収入に見合う暮らしをする。	I live within my income.	釣り合う。
+1332850:1	長い争いに終止符を打つ。	We put an end to the long dispute.	物事の終わり。
+1370770:1	よく寝て疲れが吹っ飛ぶ。	After a good sleep my tiredness vanishes.	一度に消えてなくなる。
+1519530:1	銃が暴発する。	The gun goes off accidentally.	銃の弾が誤って飛び出すこと。
+1522720:1	本職の料理は味が違う。	A professional's cooking tastes different.	その道の専門家。
+1570520:1	緻密な計画を立てる。	We draw up a meticulous plan.	細かいところまで注意が行き届いていること。
+1587800:1	弟と席を入れ替わる。	I swap seats with my brother.	互いの位置や役目を交替する。
+1601100:1	波乱の人生を送る。	She leads a life of ups and downs.	変化が激しいこと。
+1650120:1	来年の干支を調べる。	I look up next year's zodiac animal.	年に当てる十二の動物。
+1154220:1	親切の安売りはしない。	I do not hand out kindness cheaply.	気軽に与えること。
+1170380:1	彼は陰性の性格だ。	He has a gloomy character.	暗くて消極的な性質。
+1279560:1	計器を校正する。	We calibrate the instrument.	計器の狂いを正すこと。
+1384090:1	新しい切り口で問題を論じる。	We discuss the issue from a new angle.	物事を分析する視点。
+1450170:1	新しい人生に踏み出す。	I set out on a new life.	新しい活動を始める。
+1454280:1	家族を道連れにする。	He drags his family down with him.	無理に同じ行動を取らせること。
+1467810:1	会場は熱気に包まれる。	The venue is filled with excitement.	高まった意気込み。
+1630410:1	パンチが空振りになる。	The punch misses.	振ったものが当たらないこと。
+1661230:1	成功は努力の賜物だ。	Success is the fruit of effort.	あることの結果として得た良いもの。
+2024730:1	不正が明るみに出る。	The wrongdoing comes to light.	世間に知られる所。
+1157130:1	一代で財を成す。	He builds a fortune in one generation.	作り上げる。
+1179790:1	往来で子供が遊ぶ。	Children play in the street.	人や車が通る道。
+1194830:1	引退の花道を飾る。	He caps his career with a glorious retirement.	惜しまれて去る晴れやかな場面。	はなみち
+1254590:1	休んだ人の穴埋めをする。	I fill in for someone who is off.	欠けたところを補うこと。
+1269640:1	後ろ向きな考えを捨てる。	I drop my negative thinking.	考え方が消極的であること。
+1360100:1	そんな寝言は聞きたくない。	I do not want to hear such nonsense.	筋の通らない言葉。
+1371070:1	表情から気持ちを推す。	I infer his feelings from his expression.	あることをもとに考える。
+1459540:1	内輪の話をする。	We talk about private matters.	外部に知らせない内部の事情。
+1474340:1	敵意をむき出しにする。	He openly shows his hostility.	感情を隠さないこと。
+1591890:1	切れ味の鋭い批評を書く。	She writes incisive criticism.	頭の働きや技が鋭いこと。
+1599990:1	法律の抜け道を探す。	They look for a loophole in the law.	規則をうまく逃れる方法。
+# ── BATCH 431 — tier d, second senses (`:1`), most common first. ──
+1216290:1	年を取って性格に丸みが出る。	His character mellows with age.	人柄の穏やかさ。
+1244360:1	借金が家族を苦しめる。	The debt torments the family.	心や生活を苦しくさせる。
+1281730:1	議論は同じ結論に行き着く。	The discussion arrives at the same conclusion.	最後の状態に達する。
+1391700:1	新人が業界に旋風を起こす。	The newcomer causes a sensation in the industry.	社会を騒がせる出来事。
+1404240:1	即席のラーメンを食べる。	I eat instant ramen.	すぐに食べられるように作った食品。
+1437830:1	鉄筋のアパートに住む。	I live in a reinforced-concrete apartment block.	鉄の棒を入れたコンクリートの建物。
+1516190:1	海は資源の宝庫だ。	The sea is a treasure trove of resources.	良いものがたくさんある所。
+1524510:1	動画の埋め込みを許可する。	We allow the video to be embedded.	ほかのものの中に組み入れること。
+1535530:1	目先の利益を追う。	They chase short-term profit.	さしあたりの近い将来。
+1591380:1	危機の意識が希薄だ。	The sense of crisis is weak.	気持ちや熱意が乏しいこと。
+1610210:1	友人に手紙を託す。	I entrust a letter to a friend.	人に頼んで届けてもらう。
+1166490:1	事故の一報が入る。	The first report of the accident comes in.	最初の知らせ。
+1245500:1	空虚な毎日を送る。	I spend empty days.	価値や意味がないこと。
+1274750:1	学校で公民を習う。	We learn civics at school.	社会の仕組みを学ぶ科目。
+1341200:1	驚いて目を瞬く。	I blink in surprise.	まぶたを開けたり閉じたりする。	またたく
+1376630:1	姿勢を正す。	I straighten my posture.	乱れたところをきちんと直す。
+1402280:1	平気を装う。	I pretend to be unconcerned.	そのようなふりをする。
+1408910:1	相手の意向を打診する。	We sound out the other party's intentions.	相手の考えを前もって探ること。
+1416600:1	古い体質から脱皮する。	They break with their old ways.	古い考え方を捨てて進歩すること。
+1468730:1	親類の家に年始に行く。	I go to my relatives' house for New Year's greetings.	新年のあいさつ。
+1538760:1	政治と業界の癒着を断つ。	They cut the cosy ties between politics and industry.	利益のために不正に結びつくこと。
+1576700:1	心の奥底で信じる。	I believe it in the depths of my heart.	心のいちばん深いところ。
+1176920:1	番組の演者が決まる。	The programme's performers are decided.	番組や舞台に出る人。
+1183970:1	歌の音程が外れる。	The song goes off pitch.	音の高さ。
+1246990:1	仲間と町に繰り出す。	I head out into town with my friends.	大勢でそろって出かける。
+1404820:1	大雪で空港に足止めされる。	I am stranded at the airport by heavy snow.	その場所から動けなくなること。
+1411380:1	敵が退散する。	The enemy flees.	逃げ去ること。
+1436950:1	争いが泥沼に入る。	The dispute becomes a quagmire.	抜け出せない悪い状態。
+1588800:1	景気の回復が追い風になる。	The economic recovery works in our favour.	有利に働く状況。
+1168870:1	魅力で客を引き寄せる。	It draws customers in with its charm.	人の心を引きつける。
+1325580:1	彼はチームの主軸だ。	He is the linchpin of the team.	中心となって働く人。
+1460950:1	交渉が難航する。	The negotiations run into trouble.	物事がはかどらないこと。
+1524780:1	新しい時代の幕開けだ。	It is the dawn of a new era.	物事が始まること。
+# ── BATCH 432 — tier d, second senses (`:1`), most common first. ──
+1313330:1	物価の上昇に歯止めをかける。	We put a brake on rising prices.	物事の行き過ぎを食い止めるもの。
+1499770:1	戦争の記憶が風化する。	Memories of the war fade.	記憶や印象が薄れること。
+1597820:1	患者に付き添いが必要だ。	The patient needs an attendant.	そばにいて世話をする人。
+1269690:1	宴会の後始末をする。	I clear up after the party.	あとを片付けること。
+1270150:1	病状が後戻りする。	The patient's condition relapses.	もとの悪い状態に返ること。
+1295140:1	監督が采配を振るう。	The manager directs the team.	指図。指揮。
+1444140:1	煙を吐き出す。	He blows out smoke.	息や煙を外へ出す。
+1645510:1	選手が聖火を運ぶ。	The athlete carries the Olympic flame.	オリンピックの会場で燃やし続ける火。
+1658460:1	選手が持ち味を発揮する。	The player shows what makes him special.	その人だけが持つ良さ。
+2265620:1	彫りの深い顔だ。	He has chiselled features.	顔の目や鼻の起伏。
+1236710:1	世界に恐慌が広がる。	A financial panic spreads through the world.	経済が急に大きく混乱すること。
+1362570:1	昔の思い出に浸る。	I lose myself in old memories.	ある気持ちや状態に入り切る。
+1378470:1	自分の生い立ちを語る。	He talks about his upbringing.	育ってきた経歴。
+1404830:1	犯人の足取りを追う。	They trace the culprit's movements.	歩いた道筋。
+1507740:1	今年の気温は平年より高い。	This year's temperatures are above normal.	気象でいつもの年。
+1589010:1	社長はただの置物だ。	The president is a mere figurehead.	形だけで実際の力がない人。
+2068400:1	激辛の批評を書く。	She writes a scathing review.	批評などが非常に厳しいこと。
+2114790:1	公私の線引きをする。	I draw a line between public and private.	区別をはっきりさせること。	せんびき
+1215190:1	古い絵を鑑識する。	He appraises old paintings.	物の価値や真偽を見分けること。
+1263390:1	日本文化の源流を探る。	We trace the origins of Japanese culture.	物事の起こり。
+1297320:1	うその話を作り上げる。	He makes up a false story.	ないことをあるように作る。
+1370690:1	不安を吹き飛ばす。	It blows away my worries.	嫌な気分を一気になくす。
+1611730:1	見ず知らずの人に助けられる。	I am helped by a total stranger.	まったく知らない人。
+2010950:1	雑草を根こそぎにする。	I pull the weeds out by the roots.	根まですっかり抜き取ること。
+1191130:1	計画の可否を問う。	We put the plan to a vote for or against.	賛成と反対。
+1242390:1	近世の文学を研究する。	She studies early modern literature.	日本の歴史で、江戸時代を中心とする時代。
+1408350:1	彼には太刀打ちできない。	I am no match for him.	張り合って競争すること。
+1458540:1	家で内職をする。	I do piecework at home.	家でする簡単な賃仕事。
+1460790:1	軟弱な態度を取る。	He takes a spineless attitude.	意志が弱くて相手に従いやすいこと。
+1499850:1	交渉の風向きが変わる。	The way the negotiations are going changes.	物事の成り行き。
+1516730:1	消防士が火に放水する。	The firefighters hose the fire.	ホースで水を勢いよくかけること。
+1333970:1	盗賊の住処を見つける。	We find the bandits' den.	悪者などがすみつく所。
+1396620:1	私は政治に疎い。	I know little about politics.	その方面の事情をよく知らない。
+1611080:1	味方の寝返りで負ける。	We lose because an ally changes sides.	味方を裏切って敵につくこと。
+1745010:1	今の仕事を踏み台にする。	I use my current job as a stepping stone.	目的のために一時的に利用するもの。
+# ── BATCH 433 — tier d, second senses (`:1`), most common first. ──
+1184330:1	彼は下っ端の役人だ。	He is a petty official.	地位が低いこと。
+1228750:1	問題の急所を突く。	She gets to the heart of the problem.	物事の最も大事なところ。
+1252470:1	環境破壊に警鐘を鳴らす。	They sound the alarm over environmental destruction.	危険を知らせる警告。
+1320840:1	秋の実りを祝う。	We celebrate the autumn harvest.	穀物などの収穫。
+1404420:1	景気が息切れする。	The economy runs out of steam.	途中で勢いが続かなくなること。
+1441300:1	新しい学校に転入する。	I transfer to a new school.	ほかの学校から移って入ること。
+1524580:1	才能が世間に埋没する。	His talent goes unrecognised by the world.	世間に知られずにいること。
+1634690:1	会社の経営に赤信号がともる。	Warning lights come on for the company's finances.	危険な状態を知らせる印。
+1180670:1	作家の横顔を紹介する。	We give a profile of the author.	人物のあまり知られていない一面。
+1220770:1	改革の機運が高まる。	Momentum for reform builds.	物事を行うのによい時の巡り合わせ。
+1323490:1	それは料理としては邪道だ。	As cooking, that is heresy.	正しくないやり方。
+1454140:1	道楽で財産を失う。	He loses his fortune through dissipation.	酒や賭け事などの遊びにふけること。
+1547200:1	温泉で養生する。	I recuperate at a hot spring.	病気の回復に努めること。
+1595084:1	王の前から退く。	He withdraws from the king's presence.	身分の高い人の前から下がる。
+1610720:1	会社の経営を立て直す。	They put the company back on its feet.	悪くなったものをもとの良い状態に戻す。
+1645430:1	漁を生業とする。	They make their living from fishing.	生活のための仕事。
+1310840:1	その言葉はもう死語だ。	That word is already dated.	今では使われない古い言葉。
+1341780:1	生活に潤いを与える。	It adds richness to life.	心のゆとりや豊かさ。
+1416620:1	彼の努力には脱帽する。	I take my hat off to his efforts.	相手に感心して敬意を表すこと。
+1432780:1	不況で大きな痛手を受ける。	We take a heavy blow from the recession.	ひどい損害。
+1447100:1	政治の世界に身を投じる。	He throws himself into politics.	自分から進んでその中に入る。
+1460910:1	雪道で難儀する。	I have a hard time on the snowy road.	苦しむこと。困ること。
+1488890:1	就職の氷河期が続く。	The job drought continues.	機会が乏しく厳しい時期。
+1523220:1	夢がかなって本望だ。	My dream has come true and I am satisfied.	望みを達して満足なこと。
+1530010:1	町は無残な姿に変わる。	The town is reduced to a pitiful state.	痛ましいこと。
+1698810:1	手っ取り早い方法を選ぶ。	I choose the easy way.	手間がかからない。
+1150480:1	庭の花を愛でる。	I admire the flowers in the garden.	美しさを味わって楽しむ。
+1279830:1	プログラムの構文を確かめる。	I check the program's syntax.	プログラムの文の決まり。
+1338420:1	偽の札が出回る。	Counterfeit notes are in circulation.	あちこちで見られるようになる。
+1433590:1	会議は通例、月曜に開く。	Meetings are usually held on Mondays.	一般に。普通は。
+1549130:1	選挙に候補者が乱立する。	Candidates crowd into the election.	候補者がむやみに多く立つこと。
+1611910:1	無心で絵を描く。	I paint with a mind free of thoughts.	余計な考えがないこと。
+# ── BATCH 434 — tier d, second senses (`:1`), most common first. ──
+1153860:1	今の地位に安住する。	He is content with his present position.	今の状態に満足して努力しないこと。
+1179570:1	奥深い森に入る。	We go into the depths of the forest.	入口から遠く奥のほうにある。
+1207010:1	放課後は学童に通う。	After school I go to childcare.	放課後に小学生を預かる施設。
+1258050:1	警察の検問を通る。	I go through a police checkpoint.	通る人や車を止めて調べること。
+1357900:1	意見を賛成と反対に色分けする。	We sort the opinions into for and against.	種類によって分けること。
+1362210:1	運動で新陳代謝を高める。	Exercise raises my metabolism.	体が必要なものを取り入れ不要なものを出す働き。
+1409780:1	川底に泥が堆積する。	Mud builds up on the riverbed.	土や砂が積もること。
+1434160:1	うちの亭主は料理が上手だ。	My husband is a good cook.	夫。
+1440180:1	悪人に天罰が下る。	The villain gets his just deserts.	悪い行いに対する当然の報い。
+1472770:1	背伸びして高い店に入る。	I overreach and go into an expensive restaurant.	実力以上のことをしようとすること。
+1562950:1	腕力に訴える。	He resorts to force.	暴力。
+1655950:1	雲の絶え間から日が差す。	The sun shines through a gap in the clouds.	続いているものの切れ目。
+2393540:1	古い文書を読み解く。	We decipher old documents.	難しい文章や暗号の意味を明らかにする。
+1203420:1	午後は外回りに出る。	In the afternoon I go out on calls.	会社の外を回ってする仕事。
+1220220:1	それは机上の計画だ。	That is an armchair plan.	頭で考えただけで実際的でないこと。
+1240130:1	演奏会の曲目を決める。	We decide the concert programme.	演奏する曲の名前を並べたもの。
+1244460:1	毎日の通勤は苦行だ。	The daily commute is an ordeal.	つらくて苦しい仕事。
+1288730:1	法案が骨抜きにされる。	The bill is watered down.	大事な部分を除いて中身をなくすこと。
+1447350:1	相手にひどい言葉を投げつける。	He hurls harsh words at the other person.	乱暴な言葉を浴びせる。
+1531390:1	映画館で昔の名画を見る。	I see an old film classic at the cinema.	優れた映画。
+1561740:1	新聞の論説を読む。	I read the newspaper's editorial.	新聞が意見を述べる記事。
+1786540:1	この鉄道は国の大動脈だ。	This railway is the nation's main artery.	交通の最も重要な道筋。
+2006250:1	会社は崖っぷちに立つ。	The company is on the brink.	危険が迫った状態。
+1156300:1	威勢のいい声を出す。	He calls out in a spirited voice.	元気で勢いがあること。
+1163240:1	強敵を一蹴する。	They beat a strong opponent with ease.	簡単に負かすこと。
+1512340:1	彼の職業の遍歴は多彩だ。	His career history is varied.	いろいろな経験を重ねること。
+1579920:1	道が縦横に走る。	Roads run in every direction.	あらゆる方向。
+1589800:1	人気の俳優の顔合わせが話題だ。	The pairing of popular actors is the talk of the town.	映画や芝居で共演すること。
+1675650:1	議論が空回りする。	The discussion goes round in circles.	話や行動が進まないこと。
+1213570:1	甘美な音楽を聞く。	I listen to sweet music.	うっとりするほど心地よいこと。
+1228960:1	病人の急変に備える。	We prepare for a sudden emergency with the patient.	急に起こった変わった出来事。
+1291170:1	窓から朝日が差し込む。	The morning sun streams in through the window.	光が中に入ってくる。
+1385770:1	神の摂理を信じる。	I believe in divine providence.	すべてを治める神の意志。
+1552930:1	地震で土地が隆起する。	The land rises in the earthquake.	土地が高く盛り上がること。
+1594080:1	買った株を塩漬けにする。	I sit on the shares I bought.	値下がりした株を売らずに持ち続けること。
+1613930:1	幕府が開国を決める。	The shogunate decides to open the country.	外国との交流を始めること。
+# ── BATCH 435 — tier d, second senses (`:1`), most common first; reaches the frequency-300 floor. ──
+1393320:1	地震の前触れかもしれない。	It may be a sign of an earthquake.	何かが起こることを知らせるしるし。
+1500410:1	この発見は研究の副産物だ。	This discovery is a by-product of the research.	あることに伴って生じた別の結果。
+1579940:1	親の期待が重荷になる。	My parents' expectations become a burden.	重すぎる責任や負担。
+1627790:1	息苦しい雰囲気だ。	The atmosphere is oppressive.	押さえつけられるようで苦しい。
+1715770:1	字が小さくて見にくい。	The writing is small and hard to read.	はっきり見えない。
+1216130:1	敵の城を陥れる。	They take the enemy's castle.	城などを攻め落とす。
+1259880:1	驚いて目を見張る。	I open my eyes wide in surprise.	目を大きく開いて見る。
+1299160:1	それは殺生な話だ。	That is a cruel thing to say.	むごいこと。
+1327340:1	練習の手応えを感じる。	I feel my practice is paying off.	働きかけに対する反応。
+1330270:1	天から才能を授かる。	She is endowed with talent from heaven.	才能などを生まれつき与えられる。
+1345500:1	これは事件の序章にすぎない。	This is only the beginning of the affair.	物事の始まり。
+1404930:1	交渉が足踏みする。	The negotiations are at a standstill.	物事が進まないで同じ状態にあること。
+1433780:1	思いを手紙に綴る。	I put my feelings into a letter.	言葉を続けて文章を作る。
+1551260:1	大きな問題が計画に立ちはだかる。	A major problem stands in the way of the plan.	進もうとするものの邪魔をする。
+1266450:1	仲間と呼応して動く。	We act in concert with our comrades.	互いに気持ちを合わせて行動すること。
+1496880:1	将来への布石を打つ。	We lay the groundwork for the future.	将来のための準備。
+1505810:1	番組の聞き手を務める。	She acts as the programme's interviewer.	質問をして話を引き出す人。
+1565150:1	話の内容を咀嚼する。	I digest what was said.	意味をよく考えて理解すること。
+1566740:1	上司の意向を忖度する。	They defer to what their boss wants.	相手の気持ちを考えて行動すること。
+1600700:1	友情を育む。	We nurture a friendship.	大切に守って発展させる。
+1619730:1	当直の医師が診る。	The doctor on duty examines the patient.	当番で勤める人。
+1228230:1	闇が人影を吸い込む。	The darkness swallows up the figure.	中に引き入れて見えなくする。
+1260050:1	書類をもう一度見返す。	I look over the documents once more.	もう一度見る。
+1281610:1	社会の荒波を越える。	I get through the hardships of society.	世の中の厳しさ。
+1354940:1	新しい事業に乗り出す。	They embark on a new venture.	進んで新しいことを始める。
+1370700:1	冷たい水で眠気が吹き飛ぶ。	Cold water drives my sleepiness away.	一度に消えてなくなる。
+1523280:1	保守の本流を歩む。	He follows the mainstream of conservatism.	中心となる流派や考え方。
+1527780:1	彼の実力は未知数だ。	His real ability is an unknown quantity.	どうなるか予想がつかないこと。
+1531800:1	彼がこの言葉の名付け親だ。	He is the one who coined this word.	物に初めて名前を付けた人。
+1208510:1	愛情への渇きを感じる。	I feel a thirst for affection.	強く欲しがる気持ち。
+1236300:1	音の強弱をつける。	I vary the loudness of the sound.	音の強さの程度。
+1311470:1	事件の糸口をつかむ。	They get a lead in the case.	手がかり。
+1450680:1	美しい音楽に陶酔する。	I am carried away by the beautiful music.	心を奪われてうっとりすること。
+1455980:1	首位を独走する。	They hold a runaway lead at the top.	ほかを大きく引き離して先を行くこと。
+1511860:1	彼は社長の片腕だ。	He is the president's right-hand man.	最も信頼できる助け手。
+1514540:1	補欠の選挙を行う。	They hold a by-election.	欠けた分を補うこと。
+1745340:1	有色の野菜を食べる。	I eat coloured vegetables.	色が付いていること。
+1950840:1	泣く泣く計画をあきらめる。	I reluctantly give up the plan.	しかたなく。
+2153610:1	自然体で試合に臨む。	I go into the match relaxed and natural.	気負いのないありのままの態度。
+2854609:1	ついにタイトルを獲る。	At last she wins the title.	賞や地位を手に入れる。	とる
+# ── BATCH 436 — tier d, THIRD senses (`:2`) of words whose first sense is written; most common first. ──
+1291060:2	軍の左翼を攻める。	They attack the army's left flank.	隊形の左の部分。
+1443200:2	電撃の発表に驚く。	I am startled by the bombshell announcement.	突然で人を驚かせること。
+1176930:2	大学の演習に出る。	I attend a university seminar.	学生が発表や討論をする授業。
+1280790:2	大晦日に紅白を見る。	I watch the Kōhaku song contest on New Year's Eve.	年末に放送される歌の番組。
+1576130:2	町は祭り一色になる。	The town is given over entirely to the festival.	全体が一つの傾向になること。
+1171270:2	敵の右翼を突く。	We strike the enemy's right flank.	隊形の右の部分。
+1531650:2	自分が持ち主だと名乗る。	He comes forward as the owner.	自分がその人だと告げる。
+1200480:2	山の懐に抱かれた村だ。	It is a village nestled in the heart of the mountains.	周りを囲まれた奥深い所。
+1593910:2	切った玉ねぎを水に晒す。	I soak the sliced onion in water.	野菜を水につけてあくを抜く。
+1219130:2	青を基調とした部屋だ。	It is a room with blue as its keynote.	中心となる色や調子。
+1176120:2	アニメの円盤を買う。	I buy the anime on disc.	映像や音楽を記録した丸い板。
+1343910:2	報告書の書き方を教わる。	I am taught how to format a report.	文書の決まった形式。
+1535370:2	今日の目玉の商品は卵だ。	Today's featured bargain is eggs.	客を集めるための特別な品。
+1158160:2	視線を窓の外に移す。	I shift my gaze out of the window.	関心や視線をほかへ向ける。
+1419240:2	選手が団子になって走る。	The runners race in a tight bunch.	一つにかたまった状態。
+1456330:2	この詩にはいろいろな読み方がある。	This poem can be read in various ways.	文章の意味の受け取り方。
+1532730:2	ゲームの迷宮を進む。	I make my way through the game's dungeon.	ゲームで探検する複雑な地下の場所。
+1285910:2	裏切り者の刻印を押される。	He is branded a traitor.	消すことのできない悪い評判。
+1348480:2	店の小僧が使いに出る。	The shop-boy goes out on an errand.	商店で働く少年。
+1460730:2	柔らかな考え方をする。	She thinks flexibly.	考えや態度に融通がきく様子。
+1161400:2	優勝候補の一角を占める。	They rank among the favourites to win.	集団を構成する一つ。
+1341950:2	純正の部品を使う。	We use genuine parts.	その会社が作った本来の製品であること。
+1365360:2	大工の親方に仕事を教わる。	I learn the trade from a master carpenter.	職人の頭。
+1580030:2	刑期を終えて出所する。	He is released after serving his sentence.	刑務所を出ること。
+1315590:2	試合を延長に持ち込む。	They take the match into extra time.	次の段階に進ませる。
+1595640:2	凄まじい光景を目にする。	I witness an appalling sight.	恐ろしいほどひどい。
+2835826:2	議論は平行のままだ。	The debate remains deadlocked.	意見が一致しないこと。
+1385610:2	二人には接点がない。	The two have nothing in common.	互いに触れ合うところ。
+1416740:2	福祉の谷間に置かれる。	They are left in a gap in the welfare system.	周りから取り残された所。
+1619700:2	驚いて気が転倒する。	I am so startled I lose my head.	驚いて落ち着きを失うこと。
+1168680:2	因果な商売だ。	It is an ill-fated trade.	不幸な巡り合わせであること。
+1447110:2	作者の経験を作品に投影する。	The author's experience is reflected in the work.	あるものにほかのものを反映させること。
+1634340:2	断りの手紙を書く。	I write a letter of refusal.	相手の頼みを受け入れないこと。
+1263880:2	給料を現物で払う。	Wages are paid in kind.	金銭の代わりにする品物。
+1589410:2	責任の重みを知る。	I come to know the weight of responsibility.	重要であること。
+1250730:2	強い打者を敬遠する。	They intentionally walk the strong batter.	野球で打者をわざと歩かせること。
+1475200:2	計画を白紙に戻す。	We take the plan back to a clean slate.	何もなかったもとの状態。
+1328370:2	娘を手放す。	They let their daughter go.	身近な人を遠くへやる。
+1785660:2	予想が大当たりする。	My prediction is spot on.	予想がぴったり当たること。
+1378210:2	過去を清算する。	He puts his past behind him.	今までの関係に決まりをつけること。
+# ── BATCH 437 — tier d, third senses (`:2`), most common first. ──
+1205350:2	格子の柄のシャツを着る。	I wear a checked shirt.	縦と横の線を組み合わせた模様。
+1583030:2	転んだ拍子に財布を落とす。	I drop my wallet the moment I fall.	何かをしたちょうどその時。
+1335540:2	渋い顔をする。	He pulls a sour face.	不満で不機嫌な様子である。
+1416540:2	暑さで脱水になる。	I get dehydrated in the heat.	体の水分が足りなくなること。
+1450560:2	箱の中身を透視する。	She sees through to what is inside the box.	特別な力で中を見通すこと。
+1166260:2	薬を一服飲む。	I take one dose of the medicine.	粉薬の一回分。
+1457020:2	一社だけ売り上げが突出する。	One company's sales alone stand out.	ほかより目立って多いこと。
+1216150:2	首位から陥落する。	They fall from first place.	地位や順位が下がること。
+1404860:2	海外に進出の足場を築く。	We build a foothold for expanding abroad.	物事をするためのよりどころ。
+1599710:2	犬が縄張りを主張する。	The dog asserts its territory.	動物がほかを入れない一定の地域。
+1391630:2	人々の不安を煽る。	They stir up people's anxiety.	人の気持ちをかき立てる。
+1530120:2	チームは無傷で決勝に進む。	The team reaches the final without a blemish.	失敗や負けが一つもないこと。
+1339510:2	国の出先の機関で働く。	I work at a regional branch of a national agency.	役所や会社が地方に置く機関。
+1281720:2	子供の行き先が心配だ。	I worry about my child's future.	これから先。	いきさき
+1532440:2	給料の明細を受け取る。	I receive my pay statement.	内容を細かく書いた書類。
+1326720:2	反対派を取り込む。	They win over the opposition.	うまく味方に引き入れる。
+1336360:2	重心を低くして構える。	I lower my centre of balance and get set.	体の釣り合い。
+1162370:2	一口に言えば失敗だ。	In a word, it is a failure.	短くまとめて言うこと。
+1298930:2	意見のすれ違いが生じる。	A disagreement arises.	考えがかみ合わないこと。
+1354770:2	弟子が師を乗り越える。	The pupil surpasses the master.	前の人を追い越して優れる。
+1555740:2	輪郭の整った顔だ。	She has well-defined features.	顔だち。
+1451960:2	移民が社会に同化する。	The immigrants assimilate into society.	周りと同じようになること。
+1186260:2	実話を下敷きにした小説だ。	It is a novel modelled on a true story.	手本や土台となるもの。
+1550560:2	彼は裏表のない人だ。	He is a man with no hidden side.	人前と陰とで態度が違うこと。
+1789470:2	後輩に差し入れを持っていく。	I take refreshments to my juniors.	励ますために届ける食べ物。
+1456210:2	機械でバーコードを読み取る。	We scan the barcode with a machine.	機械が記号などを読む。
+1605580:2	言いたいことは山々ある。	There is a lot I want to say.	たくさん。
+1242090:2	一週間の謹慎を命じられる。	He is suspended for a week.	罰として出勤や登校を止めること。
+1360060:2	兄と同じ部屋で寝起きする。	I share a room with my brother.	日々の生活をすること。
+1611610:2	塩と砂糖を間違う。	I mistake the salt for the sugar.	ほかのものと取り違える。
+1361170:2	権力を振り回す。	He abuses his power.	むやみに使う。
+1337210:2	新しい命が宿る。	A new life is conceived.	子が母の体の中にできる。
+1612490:2	問題の根っこを探る。	We look for the root of the problem.	物事のもと。
+1630410:2	計画は空振りに終わる。	The plan ends in failure.	やったことがむだに終わること。
+1157130:2	学者として名を成す。	He makes a name for himself as a scholar.	やり遂げる。
+1254590:2	赤字の穴埋めをする。	We make up the deficit.	損失を補うこと。
+1459540:2	費用を内輪に見積もる。	I estimate the cost conservatively.	数を控えめにすること。
+1610210:2	思いを歌に託す。	I express my feelings through a song.	気持ちをほかのものに込めて表す。
+1294400:2	花が食卓を彩る。	Flowers decorate the dining table.	飾って美しくする。
+1246990:3	次々にパンチを繰り出す。	He throws punch after punch.	勢いよく突き出す。
+# ── BATCH 438 — tier d, third senses (`:2`), most common first; reaches the frequency-300 floor. ──
+1642060:2	審判の判定に物言いがつく。	The referee's decision is challenged.	決定に対して異議を出すこと。
+1444140:2	旅行のために貯金を吐き出す。	I cough up my savings for the trip.	ためていた金を出す。
+1215190:2	鑑識が現場を調べる。	Forensics examine the scene.	警察で犯罪の証拠を調べる係。
+2010950:2	財産を根こそぎ奪われる。	He is robbed of everything he owns.	残らず全部。
+1458540:2	授業中に内職をする。	I do other work on the sly during class.	授業中などにこっそり別のことをすること。
+1499850:2	今日は父の風向きが悪い。	My father is in a bad mood today.	人の機嫌。
+1294390:2	料理に彩りを添える。	It adds a touch of colour to the dish.	おもしろみや美しさを加えるもの。
+1524580:2	研究に埋没する。	He buries himself in his research.	ある物事に深く入り込むこと。
+1196350:2	報道が過熱する。	The media coverage goes into overdrive.	度を越して激しくなること。
+1595084:2	社長の職を退く。	He retires from the post of president.	地位や仕事をやめる。
+1610720:2	計画を立て直す。	We rework the plan.	計画などを改めて作る。
+1447100:2	事業に大金を投じる。	He invests a large sum in the business.	金や力をつぎ込む。
+1579920:2	彼は各地で縦横に活躍する。	He is freely active all over the country.	思いのまま。
+1589800:2	初戦は強豪との顔合わせだ。	The first match pits us against a powerhouse.	試合で対戦すること。
+1291170:2	急に腹が差し込む。	I suddenly get a griping pain in my stomach.	胸や腹が急に強く痛む。
+1603900:2	首に巻物をする。	I wear a scarf round my neck.	首や肩に巻く布。
+1330270:2	夫婦が子供を授かる。	The couple are blessed with a child.	神仏などから大切なものを与えられる。
+1433780:2	書類を綴る。	I bind the documents together.	紙などをつなぎ合わせる。
+1260050:2	いつか彼を見返す。	Some day I will show him.	立派になって見せつける。
+1227050:2	注意されて逆恨みする。	He bears a grudge for being cautioned.	筋違いなことで人を恨むこと。
+1237570:2	誘拐は狂言だった。	The kidnapping was a hoax.	人をだますために仕組んだこと。
+1455980:2	彼の独走を止める。	We stop him going his own way.	周りを無視して勝手に行動すること。
+# ── BATCH 439 — tier d, FOURTH senses (`:3`) of words whose first sense is written; most common first. ──
+1531650:3	結婚して夫の姓を名乗る。	She takes her husband's surname on marrying.	ある名前を自分の名として使う。
+1200480:3	相手の懐を探る。	I try to read what the other person is thinking.	心の中の考え。
+1516490:3	敵地にスパイを放つ。	They send spies into enemy territory.	役目を与えて送り出す。
+1411960:3	勝利の代償は大きい。	The price of victory is high.	あることのために払う犠牲。
+1622410:3	交渉の着地を探る。	We feel out where the negotiations will land.	物事の落ち着くところ。
+1475200:3	白紙から考え直す。	We rethink it from scratch.	何も決まっていない最初の状態。
+1305170:3	会の仕切りを任される。	I am put in charge of running the gathering.	全体を取りまとめて進めること。
+1335540:3	彼は金に渋い。	He is tight with money.	金を出したがらない。
+1216150:3	説得されてついに陥落する。	He finally gives in to persuasion.	説得に負けて従うこと。
+1404860:3	駅に近くて足場がいい。	It is near the station and easy to get to.	交通の便。
+1162370:3	一口千円で寄付を募る。	We collect donations at a thousand yen a share.	寄付や出資の一つの単位。
+1609630:3	辛口の批評をする。	She gives a harsh critique.	批評が厳しいこと。
+1343730:3	ディスクにデータを書き込む。	I write data to the disk.	記憶装置にデータを記録する。
+1361170:3	彼女は周りの人を振り回す。	She has the people around her at her beck and call.	人を思いどおりに動かして困らせる。
+1254590:3	穴埋めの問題を解く。	I do fill-in-the-blank questions.	空いた所に言葉を入れる問題。
+1444140:3	たまった不満を吐き出す。	I let out my pent-up frustrations.	心の中のものを言葉にして出す。
+1447100:3	患者に薬を投じる。	We administer medicine to the patient.	薬を与える。
+1611910:3	親に金を無心する。	He begs his parents for money.	遠慮なく金や物をねだること。
+1260050:3	呼ばれて後ろを見返す。	I look back when I am called.	後ろを振り向いて見る。
+1354940:3	窓から身を乗り出す。	I lean out of the window.	体を前のほうへ出す。
