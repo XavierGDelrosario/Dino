@@ -83,7 +83,15 @@ export function useSession(): SessionState {
         if (s && !s.isAnonymous && hasPendingGuestMerge()) await claimGuestMerge();
         return s;
       })
-      .then((s) => active && s && setStatus(s))
+      .then((s) => {
+        if (!active || !s) return;
+        // A sign-in can complete WHILE this bootstrap is in flight: the listener below
+        // reports the stored guest first, the auth page mounts, and it finishes a
+        // Google ID-token return (services/googleIdentity) before `getAuthStatus` — read
+        // for the user we BOOTED as — resolves. The listener's status is then the newer
+        // one; applying `s` over it showed a signed-in user as a guest until reload.
+        setStatus((prev) => (prev && prev.userId !== s.userId ? prev : s));
+      })
       .catch((e) => {
         console.error("ensureSession failed:", e); // full object in DevTools
         if (active) setError(describeError(e));
