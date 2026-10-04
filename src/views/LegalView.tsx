@@ -239,7 +239,7 @@ function Terms() {
         service, <b>except</b> where they are caused by our intentional misconduct or gross
         negligence. Where we are liable because of ordinary negligence, our liability is
         limited to direct and ordinary damages you actually suffered, up to the greater of the
-        amount you paid us in the 12 months before the claim or ¥10,000. Nothing in these terms
+        amount you paid us in the 12 months before the claim or C$100. Nothing in these terms
         limits rights you have under consumer-protection law that cannot be waived.</p>
 
       <h3>iOS app</h3>
