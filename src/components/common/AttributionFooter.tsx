@@ -1,7 +1,9 @@
 // Required data-source attribution (legal must-before-public, #15) + the legal-page
 // links. Credits the dictionary (JMdict/EDRDG), the frequency data (wordfreq,
 // CC-BY-SA), and the semantic EN→JA source (Japanese WordNet + Princeton WordNet).
-// Full detail + license terms live in ATTRIBUTION.md.
+// Full detail + license terms live in ATTRIBUTION.md, which the build copies into the
+// site root (npm `setup:static`) so the "all data sources" link below resolves. Rendered
+// by the app shell on every route — guests included.
 import { useI18n } from "../../i18n";
 import { Link } from "../../router";
 
@@ -43,6 +45,13 @@ export function AttributionFooter() {
       and{" "}
       <a href="https://wordnet.princeton.edu/" target="_blank" rel="noopener noreferrer">
         Princeton WordNet
+      </a>
+      . Japanese text analysis by kuromoji with the IPADIC dictionary, © Nara Institute of
+      Science and Technology.{" "}
+      {/* A static file, not a route — and ABSOLUTE + new tab, so the native WebView hands
+          it to the browser instead of navigating itself to a page with no way back. */}
+      <a href="https://dinostudy.com/ATTRIBUTION.md" target="_blank" rel="noopener noreferrer">
+        All data sources and licences
       </a>
       .
     </footer>

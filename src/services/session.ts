@@ -396,7 +396,9 @@ export async function needsTermsAcceptance(userId: string): Promise<boolean> {
 
 /** Sign out into a FRESH anonymous guest (no login wall). Returns the new userId. */
 export async function signOut(): Promise<string> {
-  await supabase.auth.signOut().catch(() => {});
+  // `local`: the library default is GLOBAL, which revoked the account's sessions on
+  // every other device — a phone dropped to an empty guest because a browser signed out.
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   resetVocabulary(); // don't hold the last account's vocabulary in memory
   return ensureSession();
 }
@@ -409,6 +411,10 @@ export async function signOut(): Promise<string> {
 export async function requestPasswordReset(email: string): Promise<void> {
   const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
   const captchaToken = await getCaptchaToken();
+  // Following the link signs the user IN, replacing this guest — the same uid switch as
+  // a sign-in, so mint the merge ticket now (its 1-hour life matches the link's) or the
+  // guest's words are stranded on an anonymous user nobody can reach again.
+  await prepareGuestMerge();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo,
     captchaToken,

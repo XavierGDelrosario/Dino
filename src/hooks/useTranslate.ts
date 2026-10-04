@@ -24,7 +24,7 @@ import {
   isContentPos,
   dictionaryFormOf,
   resolveSourceLanguage,
-  detectLanguage,
+  isAlreadyIn,
   searchTermFor,
   SUPPORTED_LANGUAGES,
   DEFAULT_LEARNING_LANGUAGE,
@@ -268,8 +268,9 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
       // edge rejects source === target with a 400 anyway, so without this the user got
       // an error where the correct response was "here it is, unchanged".
       // Detection runs on searchText, so converted romaji reads as Japanese and does
-      // NOT trip this.
-      if (resolvedSource === tgt || detectLanguage(searchText) === tgt) {
+      // NOT trip this. isAlreadyIn (not bare detectLanguage): a single native-script
+      // name inside an English text must not make the whole text "already Japanese".
+      if (isAlreadyIn(searchText, tgt, resolvedSource)) {
         setOutput(text);
         setMeanings([]);
         setPara(null);

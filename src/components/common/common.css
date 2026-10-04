@@ -565,13 +565,6 @@ body {
   font-size: 1rem;
   margin: 1.25rem 0 0.35rem;
 }
-.legal__draft {
-  font-size: 0.8rem;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.7rem;
-}
 .legal__updated {
   font-size: 0.78rem;
   color: var(--muted);

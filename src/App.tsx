@@ -14,6 +14,7 @@ import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { TermsGateView } from "./components/common/TermsGateView";
 import { ErrorText } from "./components/common/ErrorText";
 import { SplashScreen } from "./components/common/Loading";
+import { AttributionFooter } from "./components/common/AttributionFooter";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
@@ -60,6 +61,13 @@ export function App() {
       })
       .finally(() => setFinishingGoogle(false));
   }, [userId, navigate]);
+
+  // A recovery takeover only makes sense for an ACCOUNT. `recovering` is seeded from
+  // the URL, so a mangled or crafted link could raise it over a guest, whose password
+  // can never be set — a form with no way out. Drop it.
+  useEffect(() => {
+    if (recovering && userId && isAnonymous) clearRecovery();
+  }, [recovering, userId, isAnonymous, clearRecovery]);
 
   // Terms gate: a permanent account that hasn't accepted the current Terms version
   // (Google signup that skipped the checkbox, or anyone after a Terms update) must
@@ -139,7 +147,7 @@ export function App() {
       )}
 
       {/* Password-recovery takeover: followed a reset link → set a new password first. */}
-      {recovering && <ResetPasswordView onDone={clearRecovery} />}
+      {recovering && <ResetPasswordView onDone={clearRecovery} onCancel={clearRecovery} />}
 
       {/* Legal docs are ALWAYS reachable — even while the Terms gate is up, the user
           must be able to read what they're accepting (the gate links here in a new tab). */}
@@ -161,8 +169,12 @@ export function App() {
         : path === "/history" ? (isAnonymous ? <AuthPage mode="signup" /> : <HistoryPage userId={userId} />)
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
         : path === "/admin" ? <AdminPage />
-        : <HomeView userId={userId} />
+        : <HomeView key={userId} userId={userId} />
       )}
+
+      {/* Legal links + data-source credits for EVERYONE, on every route. They used to
+          sit only on the Profile page, which a guest — the default visitor — can't reach. */}
+      <AttributionFooter />
     </main>
   );
 }

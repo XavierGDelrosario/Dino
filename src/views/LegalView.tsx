@@ -1,7 +1,7 @@
 // Privacy Policy + Terms of Service + Support pages (/privacy, /terms, /support).
-// The first two are DRAFTS reflecting the app's ACTUAL data flows — not legal advice;
-// have counsel review before publishing. Kept in English (canonical) for v1; the
-// chrome around them is localized.
+// The first two describe the app's ACTUAL data flows and are published as-is; counsel
+// review waits for a trigger (docs/TODO.md §Legal). Kept in English (canonical) for v1;
+// the chrome around them is localized. Any change here bumps CURRENT_TERMS_VERSION.
 //
 // /support exists because the App Store REQUIRES a reachable support URL on the
 // listing, and review checks it loads and is about this app. It is a page, not a
@@ -10,7 +10,7 @@ import { useI18n } from "../i18n";
 import { Link } from "../router";
 import "../components/common/common.css";
 
-const UPDATED = "2026-10-04";
+const UPDATED = "2026-10-05";
 
 /** Where support mail goes — a Cloudflare Email Routing forward, not a mailbox. */
 export const SUPPORT_EMAIL = "support@dinostudy.com";
@@ -19,12 +19,6 @@ export function LegalView({ doc }: { doc: "privacy" | "terms" | "support" }) {
   const { t } = useI18n();
   return (
     <section className="legal">
-      {doc !== "support" && (
-        <p className="legal__draft">
-          Draft — provided as-is for a POC and not legal advice; review with counsel
-          before publishing.
-        </p>
-      )}
       {doc === "privacy" ? <Privacy /> : doc === "terms" ? <Terms /> : <Support />}
       <p className="legal__updated">Last updated: {UPDATED}</p>
       <Link to="/" className="account__link">{t("profile.back")}</Link>
@@ -78,9 +72,14 @@ function Privacy() {
         purpose without telling you first.</p>
 
       <h3>Photos, microphone and handwriting</h3>
-      <p>In the iOS app, photos, camera images, microphone audio and handwriting are turned into
-        text <b>on your device</b> and are never uploaded. Only the resulting text is looked up,
-        and only if you ask for it.</p>
+      <p>In the iOS app, photos, camera images and handwriting are turned into text <b>on your
+        device</b> and are never uploaded. Speech is recognised on your device where your iPhone
+        supports that for the language; where it doesn't, iOS sends the audio to Apple to
+        recognise it. We never receive or store audio, images or handwriting. Only the
+        resulting text is looked up, and only if you ask for it.</p>
+      <p>Handwriting recognition uses Google's ML Kit, which runs on your device. The first time
+        you use it, it downloads its language model from Google, and it sends Google usage and
+        diagnostic data about the kit itself (not what you write).</p>
       <p>In a web browser, the live transcript uses your browser's built-in speech recognition.
         Some browsers (including Chrome) send the audio to their own servers — Google's, for
         Chrome — to do this. We never receive or store the audio.</p>
@@ -94,7 +93,9 @@ function Privacy() {
           information you don't want processed by a third party.</li>
         <li><b>Brevo</b> — sends account email (sign-up confirmation, password reset); receives
           your email address.</li>
-        <li><b>Google and Apple</b> — only if you choose to sign in with them.</li>
+        <li><b>Google and Apple</b> — if you choose to sign in with them; and, in the iOS app,
+          Apple for speech recognition and Google for the handwriting kit, as described
+          above.</li>
         <li><b>Wikimedia</b> — the Articles section loads articles from Wikinews directly from
           your device, so Wikimedia sees your IP address and which article you opened.</li>
       </ul>
@@ -202,9 +203,17 @@ function Terms() {
         <b> Japanese WordNet</b> (NICT, Francis Bond et al.) and <b>Princeton WordNet</b>, both
         under BSD-style licences. Word-frequency data is derived from <b>wordfreq</b>
         (CC BY-SA 4.0); level data from the <b>CEFR-J</b> wordlist (© Tono Lab, TUFS) and the
-        <b>Octanove</b> vocabulary profile (CC BY-SA 4.0). Media articles come from
-        <b> Wikinews</b> (CC BY 2.5) and remain the property of their authors. Full licence
-        details are in the app footer and in ATTRIBUTION.md.</p>
+        <b>Octanove</b> vocabulary profile (CC BY-SA 4.0), the JLPT vocabulary list compiled by
+        Jonathan Waller, and <b>NINJAL</b> teaching-vocabulary lists (CC BY 4.0). Japanese
+        text is analysed with <b>kuromoji</b> and the <b>IPADIC</b> dictionary (© Nara
+        Institute of Science and Technology); English part-of-speech tagging uses a model
+        trained on <b>UD English-EWT</b> (CC BY-SA 4.0). Media articles come from
+        <b> Wikinews</b> (CC BY 2.5) and remain the property of their authors. The full list,
+        with each source's licence, is at{" "}
+        <a href="https://dinostudy.com/ATTRIBUTION.md" target="_blank" rel="noopener noreferrer">
+          dinostudy.com/ATTRIBUTION.md
+        </a>, linked from the footer of
+        every page.</p>
 
       <h3>Third-party services and content</h3>
       <p>DINO relies on third parties (hosting, sign-in, machine translation, the App Store,

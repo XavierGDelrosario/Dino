@@ -9,7 +9,7 @@ import { useI18n } from "../../i18n";
 import { ErrorText } from "./ErrorText";
 import "./common.css";
 
-export function ResetPasswordView({ onDone }: { onDone: () => void }) {
+export function ResetPasswordView({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const { t } = useI18n();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -58,6 +58,12 @@ export function ResetPasswordView({ onDone }: { onDone: () => void }) {
       <ErrorText message={err} />
       <button className="btn" disabled={busy || password === "" || confirm === ""} onClick={submit}>
         {t("auth.updatePassword")}
+      </button>
+      {/* The way out. A recovery link already signed them in, so leaving just keeps the
+          old password — and an account that can't take one (Google-only, refused by the
+          one-method rule) would otherwise be stuck on this form. */}
+      <button className="account__link" disabled={busy} onClick={onCancel}>
+        {t("common.cancel")}
       </button>
     </div>
   );

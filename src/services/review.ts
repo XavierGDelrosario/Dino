@@ -350,8 +350,10 @@ export async function recordReview(params: {
 
     const store = offlineStore();
     const stamp = stampFor(getAnchor());
+    const { data } = await supabase.auth.getSession(); // local read; works offline
     await enqueue(store, {
       id: newId(),
+      userId: data.session?.user.id,
       userWordId: params.userWordId,
       grade: params.grade,
       reversed: params.reversed,

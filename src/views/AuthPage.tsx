@@ -34,6 +34,8 @@ import { InputField } from "../components/common/InputField";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
 
+const APPLE_SIGNIN_ENABLED = import.meta.env.VITE_APPLE_SIGNIN === "1";
+
 export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const { t } = useI18n();
   const { navigate } = useRouter();
@@ -295,10 +297,14 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       </button>
 
       {/* Sign in with Apple is not optional on iOS: the App Store requires it
-          wherever another third-party login is offered. */}
-      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
-        {t("auth.apple")}
-      </button>
+          wherever another third-party login is offered. It is shown only once the
+          project's Apple provider is configured (VITE_APPLE_SIGNIN=1) — before that the
+          button led off the site to a raw provider-not-enabled error. */}
+      {APPLE_SIGNIN_ENABLED && (
+        <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
+          {t("auth.apple")}
+        </button>
+      )}
 
       {mode === "signin" && (
         <button className="account__link" onClick={() => { setForgot(true); setErr(null); }}>

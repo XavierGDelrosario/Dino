@@ -31,6 +31,10 @@ export interface PendingGrade {
   approx: boolean;
   /** Failed replay attempts; used to shelve a poison entry rather than block the queue. */
   attempts: number;
+  /** Who graded it. A queue outlives a sign-out, and replaying A's grades under B's
+   *  session is refused by the server and burns A's attempts — so each entry waits for
+   *  ITS user. Absent on entries queued by an older build: those drain as before. */
+  userId?: string;
 }
 
 /** After this many failed replays an entry stops blocking the others (see drainable). */
@@ -54,9 +58,14 @@ export async function enqueue(store: OfflineStore, entry: Omit<PendingGrade, "at
  * A grade the server keeps rejecting (a word deleted on another device, say) must not
  * wedge the queue behind it — after MAX_ATTEMPTS it is skipped here but KEPT in storage,
  * so it can be inspected rather than vanishing.
+ *
+ * With `userId`, only that user's entries (and unstamped legacy ones): another user's
+ * grades stay queued, untouched, until they sign back in on this device.
  */
-export function drainable(q: PendingGrade[]): PendingGrade[] {
-  return q.filter((e) => e.attempts < MAX_ATTEMPTS);
+export function drainable(q: PendingGrade[], userId?: string | null): PendingGrade[] {
+  return q.filter(
+    (e) => e.attempts < MAX_ATTEMPTS && (!e.userId || !userId || e.userId === userId),
+  );
 }
 
 /** Drop the entries the server accepted. Called only after a confirmed write. */

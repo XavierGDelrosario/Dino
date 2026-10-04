@@ -104,10 +104,30 @@ export function CalibrationView({
     );
   }
 
-  if (status === "loading" || !current) {
+  if (status === "loading") {
     return (
       <section className="review">
         <p className="review__msg"><Loading text={t("calib.loading")} /></p>
+      </section>
+    );
+  }
+
+  // The deck ran dry mid-quiz: a refill is in flight, or it failed / came back empty
+  // (a bad connection, a band with nothing left). Never a bare spinner here — the
+  // answers already given are worth keeping, so offer Finish once there are enough,
+  // and always the way out.
+  if (!current) {
+    return (
+      <section className="review">
+        <p className="review__msg"><Loading text={t("calib.loading")} /></p>
+        <div className="review__foot">
+          {c.live?.sufficient && (
+            <button className="btn btn--primary calib__finish" onClick={c.finish}>
+              {t("calib.finish")}
+            </button>
+          )}
+          {close}
+        </div>
       </section>
     );
   }

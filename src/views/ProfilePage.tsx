@@ -10,7 +10,6 @@ import { errorMessage } from "../lib/errorMessage";
 import { useI18n, LOCALES, type Locale } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { Link } from "../router";
-import { AttributionFooter } from "../components/common/AttributionFooter";
 import "../components/common/common.css";
 
 export function ProfilePage({
@@ -102,7 +101,6 @@ export function ProfilePage({
           </Link>
         )}
       </div>
-      <AttributionFooter />
     </section>
   );
 }

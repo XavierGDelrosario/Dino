@@ -9,7 +9,7 @@
 // build read the newer stamp as "not accepted", re-prompted, and wrote its OLDER
 // version back, which made the newer build prompt again — a loop between a phone and
 // a browser on the same account (seen on prod, 2026-10-05).
-export const CURRENT_TERMS_VERSION = "2026-10-04";
+export const CURRENT_TERMS_VERSION = "2026-10-05";
 
 /** Has `accepted` (a stored terms_version, or none) fallen behind this build's terms? */
 export function termsOutdated(accepted: string | null | undefined): boolean {

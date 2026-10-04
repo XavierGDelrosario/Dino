@@ -2,7 +2,7 @@
 // message here points the user back to the method their account was created with.
 import type { TFn } from "../i18n";
 import type { SignInMethod } from "../services/session";
-import type { OAuthProvider, OAuthReturnError } from "../services/oauthReturn";
+import { EMAIL_LINK_EXPIRED, type OAuthProvider, type OAuthReturnError } from "../services/oauthReturn";
 
 export const PROVIDER: Record<OAuthProvider, string> = { google: "Google", apple: "Apple" };
 
@@ -19,6 +19,9 @@ export function oauthErrorCopy(t: TFn, err: OAuthReturnError): string | null {
   switch (err.code) {
     case "access_denied":
       return null;
+    // Not OAuth at all: a reset or confirmation link that expired or was used.
+    case EMAIL_LINK_EXPIRED:
+      return t("auth.linkExpired");
     case "identity_already_exists":
       return t("auth.identityTaken", { provider });
     case "manual_linking_disabled":
@@ -30,6 +33,7 @@ export function oauthErrorCopy(t: TFn, err: OAuthReturnError): string | null {
     case "unexpected_failure":
       return t("auth.oauthDenied", { provider });
     default:
-      return t("auth.oauthFailed", { provider });
+      // With no recorded attempt we don't know a provider was involved — don't name one.
+      return err.intent ? t("auth.oauthFailed", { provider }) : t("auth.signInFailed");
   }
 }
