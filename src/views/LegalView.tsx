@@ -6,8 +6,8 @@
 // /support exists because the App Store REQUIRES a reachable support URL on the
 // listing, and review checks it loads and is about this app. It is a page, not a
 // mailto: — Apple rejects a bare mail link.
-import { useI18n } from "../i18n";
 import { Link } from "../router";
+import { BackLink } from "../components/common/BackLink";
 import "../components/common/common.css";
 
 const UPDATED = "2026-10-05";
@@ -16,12 +16,11 @@ const UPDATED = "2026-10-05";
 export const SUPPORT_EMAIL = "support@dinostudy.com";
 
 export function LegalView({ doc }: { doc: "privacy" | "terms" | "support" }) {
-  const { t } = useI18n();
   return (
     <section className="legal">
+      <BackLink />
       {doc === "privacy" ? <Privacy /> : doc === "terms" ? <Terms /> : <Support />}
       <p className="legal__updated">Last updated: {UPDATED}</p>
-      <Link to="/" className="account__link">{t("profile.back")}</Link>
     </section>
   );
 }

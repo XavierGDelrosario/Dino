@@ -412,11 +412,11 @@ body {
   position: relative;
 }
 
-/* Profile footer: Back (left) · Delete account (right). */
+/* Profile footer: Delete account, centred (Back is the arrow at the top-left). */
 .profile__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   margin-top: 1.5rem;
   padding-top: 1rem;
@@ -507,14 +507,28 @@ body {
   font-size: 1.2rem;
   margin: 0 0 0.25rem;
 }
-/* The exit, pinned to the top-left of the auth form. `align-self: start` so it is a
-   back LINK the width of its text, not a full-width row that reads as a button in a
-   column of them; the negative margin closes the flex gap so it sits above the title
-   as a header rather than floating as a first field. */
-.authpage__back {
+/* The exit, at the top-left of every page (components/common/BackLink): just the arrow.
+   `align-self: start` so it is the width of its glyph, not a full-width row that reads
+   as a button in a column of them; the negative margin closes the flex gap so it sits
+   above the title as a header rather than floating as a first field. */
+.page__back {
+  /* Its own row in a block page (legal) as well as a flex column (auth, profile). */
+  display: block;
+  width: fit-content;
   align-self: flex-start;
   margin-bottom: -0.35rem;
-  font-size: 0.85rem;
+  /* A bare glyph is a small target: pad it out to a comfortable tap area, and pull it
+     left by the same amount so the arrow itself still lines up with the page edge. */
+  padding: 0.3rem 0.6rem;
+  margin-left: -0.6rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--accent);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.page__back:hover {
+  background: var(--hover);
 }
 .authpage__alt {
   margin: 0;

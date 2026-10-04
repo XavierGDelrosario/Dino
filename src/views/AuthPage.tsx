@@ -31,6 +31,7 @@ import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { InputField } from "../components/common/InputField";
+import { BackLink } from "../components/common/BackLink";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
 
@@ -243,9 +244,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   if (confirmSent) {
     return (
       <section className="authpage">
+        <BackLink />
         <h2 className="authpage__title">{t("auth.signUpTitle")}</h2>
         <p className="review__msg">{t("auth.confirmEmail")}</p>
-        <Link to="/" className="account__link">{t("profile.back")}</Link>
       </section>
     );
   }
@@ -259,7 +260,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           upgrade note) — a fourth would read as a fourth choice rather than the exit.
           Signing in is optional in DINO (a guest is a real account), so leaving must be
           as reachable as continuing. */}
-      <Link to="/" className="account__link authpage__back">{t("profile.back")}</Link>
+      <BackLink />
       <h2 className="authpage__title">{mode === "signup" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h2>
       <InputField type="email" value={email} onChange={setEmail}
         placeholder={t("auth.emailPlaceholder")} ariaLabel={t("auth.emailPlaceholder")} autoComplete="email" />
