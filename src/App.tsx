@@ -172,8 +172,10 @@ export function App() {
         : <HomeView key={userId} userId={userId} />
       )}
 
-      {/* Legal links + data-source credits for EVERYONE, on every route. They used to
-          sit only on the Profile page, which a guest — the default visitor — can't reach. */}
+      {/* Legal links + data-source credits for EVERYONE — they used to sit only on the
+          Profile page, which a guest (the default visitor) can't reach. Hidden by CSS on
+          the study surfaces (Translate, Review, quizzes — see NoFooter); a guest finds
+          them on Lists, Learn and the sign-in page. */}
       <AttributionFooter />
     </main>
   );

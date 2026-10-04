@@ -6,6 +6,7 @@
 //     least-confident saved words) + a "Read article" hand-off to the reader
 //   · a sortable / filterable list of the unique registered words in the article
 // Non-registered words (no dictionary entry) are disregarded throughout.
+import { NoFooter } from "../components/common/NoFooter";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslate, type TranslateLangs } from "../hooks/useTranslate";
 import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
@@ -103,6 +104,7 @@ export function ArticleView({
   if (quiz) {
     return (
       <section className="review">
+        <NoFooter />
         <TextQuizView
           userId={userId}
           cards={quiz}
