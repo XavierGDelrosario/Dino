@@ -33,19 +33,19 @@ export function ProfileMenu({
   return (
     <PopoverMenu icon="👤" ariaLabel={t("profile.menuAria")} open={open} onToggle={onToggle}>
       {!isAnonymous && email && <div className="profilemenu__email ellipsis">{email}</div>}
-      {/* Guests have no real account → no profile; just the sign-in/create path.
-          It sits ABOVE the theme row: this is the ACCOUNT menu, so the account's own
-          destination leads, and the theme is a setting that happens to live here. */}
-      {!isAnonymous && (
+      {/* The account's own destination leads — a guest's sign-in/create path, a
+          member's profile + history — ABOVE the theme row: this is the ACCOUNT menu,
+          and the theme is a setting that happens to live here. Sign out stays last. */}
+      {isAnonymous ? (
+        <Link to="/signin" className="profilemenu__item" onClick={close}>{t("auth.signInCreate")}</Link>
+      ) : (
         <>
           <Link to="/profile" className="profilemenu__item" onClick={close}>{t("profile.profileLink")}</Link>
           <Link to="/history" className="profilemenu__item" onClick={close}>{t("history.title")}</Link>
         </>
       )}
       <ThemeToggle />
-      {isAnonymous ? (
-        <Link to="/signin" className="profilemenu__item" onClick={close}>{t("auth.signInCreate")}</Link>
-      ) : (
+      {!isAnonymous && (
         <button
           className="profilemenu__item"
           onClick={() => { close(); signOut().then(() => navigate("/")); }}
