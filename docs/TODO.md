@@ -330,13 +330,12 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <details open>
 <summary><h2>➕ Open follow-ups</h2></summary>
 
-### Custom domain + email deliverability `[launch polish · partly URGENT]`
-- **Status:** prod email works but **lands in spam**. Sender is a `@gmail.com` address, and
-  `gmail.com` authorizes only Google's servers — SPF/DKIM can **never** align through Brevo.
-- **Fix (one task, three payoffs):** register a domain (~$10/yr) → authenticate in Brevo
-  (SPF/DKIM/DMARC — zero authenticated domains today) → send from `noreply@<domain>`.
-- **Also fixes:** the app URL (`dino-86y.pages.dev`) → then update Supabase Site URL +
-  redirects, edge `ALLOWED_ORIGINS`, and Google origins.
+### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
+- **Google brand verification** — the consent screen says "continue to …supabase.co" until
+  the app is verified (Search Console TXT for `dinostudy.com` → Branding → submit). Do it
+  after the Privacy Policy naming the operator is deployed.
+- Confirm a prod password-reset email (now from `noreply@dinostudy.com`) lands in a Gmail
+  **inbox**, not spam.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
@@ -400,11 +399,8 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 ### Legal — Privacy/ToS `[§10]`
 `/privacy` + `/terms` are drafted and footer-linked; the processor list matches the stack.
 **Counsel review is NOT a launch gate** while DINO is free, pre-revenue and founder-run
-(decided 2026-09-29) — self-fix the gaps below, pay for counsel at a trigger.
-- **Before launch (self, free):** name the operator in the Privacy Policy — legal name +
-  contact (**APPI applies regardless of size or revenue**; the address may be "on
-  request") · add a governing-law line (Japan) to the Terms · bump `CURRENT_TERMS_VERSION`
-  (`src/lib/terms.ts`) with the copy change.
+(decided 2026-09-29) — pay for counsel at a trigger. Governing law is **British Columbia**;
+keep the Apple enrollment country and the operator address consistent with it.
 - **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
   特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
   the EU · ~1k active users.
@@ -438,8 +434,7 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 
 ---
 
-**To publish (non-code):** Privacy/ToS self-fixes (operator name + governing law) +
-Production Rules console hardening. Counsel review waits for a trigger (see Legal).
+**To publish (non-code):** Production Rules console hardening. Counsel review waits for a trigger (see Legal).
 Admin tooling · Quality ceilings · Features are post-launch.
 
 **🧪 Pre-publish QA gate:** re-run the multi-agent pre-publish review before any published

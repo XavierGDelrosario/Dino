@@ -10,11 +10,10 @@ import { useI18n } from "../i18n";
 import { Link } from "../router";
 import "../components/common/common.css";
 
-const UPDATED = "2026-10-03";
+const UPDATED = "2026-10-04";
 
-/** Where support mail goes. The Brevo-validated sender for now; moves to
- *  support@<domain> when the custom domain lands (docs/TODO.md). */
-export const SUPPORT_EMAIL = "dinolanguagestudy@gmail.com";
+/** Where support mail goes — a Cloudflare Email Routing forward, not a mailbox. */
+export const SUPPORT_EMAIL = "support@dinostudy.com";
 
 export function LegalView({ doc }: { doc: "privacy" | "terms" | "support" }) {
   const { t } = useI18n();
@@ -41,9 +40,11 @@ function Privacy() {
         shared with.</p>
 
       <h3>Who we are</h3>
-      <p>DINO is operated by an individual developer based in Japan. For anything in this
-        policy — questions, or a request about your data — email{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+      <p>DINO is operated by Xavier Del Rosario, an individual developer based in British
+        Columbia, Canada, who is responsible for the personal information described here. For
+        anything in this policy — questions, or a request about your data — email{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. A postal address is available
+        on request.</p>
 
       <h3>What we store</h3>
       <ul>
@@ -237,7 +238,7 @@ function Terms() {
         service, <b>except</b> where they are caused by our intentional misconduct or gross
         negligence. Where we are liable because of ordinary negligence, our liability is
         limited to direct and ordinary damages you actually suffered, up to the greater of the
-        amount you paid us in the 12 months before the claim or ¥10,000. Nothing in these terms
+        amount you paid us in the 12 months before the claim or C$100. Nothing in these terms
         limits rights you have under consumer-protection law that cannot be waived.</p>
 
       <h3>iOS app</h3>
@@ -246,8 +247,9 @@ function Terms() {
         your use of the iOS app.</p>
 
       <h3>Governing law</h3>
-      <p>These terms are governed by the laws of Japan. Disputes go to the courts of Japan,
-        unless the consumer-protection law of the country you live in gives you the right to
+      <p>These terms are governed by the laws of the Province of British Columbia and the
+        federal laws of Canada applicable therein. Disputes go to the courts of British
+        Columbia, unless the consumer-protection law of the country you live in gives you the right to
         bring them elsewhere. Please contact us first — most problems can be settled by
         email.</p>
 
