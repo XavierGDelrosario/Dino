@@ -13,7 +13,7 @@
 #
 #   ./scripts/deploy-prod.sh supabase           # link + migrations+seed + edge fn + secrets
 #   ./scripts/deploy-prod.sh frontend           # build against cloud + deploy to Pages
-#   ./scripts/deploy-prod.sh lockdown <url>     # set ALLOWED_ORIGINS to the live Pages URL
+#   ./scripts/deploy-prod.sh lockdown <origins>  # REPLACE ALLOWED_ORIGINS (comma-separated list)
 #
 # 'all' runs supabase then frontend (then lock down CORS manually once you have
 # the final Pages URL — see step 4 / the 'lockdown' subcommand).
@@ -125,21 +125,22 @@ deploy_frontend() {
   echo "    (headless via CLOUDFLARE_API_TOKEN; no browser login needed)"
   npx -y wrangler@4.104.0 pages deploy dist --project-name "$CF_PROJECT" --branch main
 
-  echo "==> Frontend deployed. Copy the *.pages.dev URL it printed, then run:"
-  echo "    ./scripts/deploy-prod.sh lockdown https://<your>.pages.dev"
+  echo "==> Frontend deployed (live at https://dinostudy.com)."
 }
 
 lockdown() {
   local url="${1:-}"
   require SUPABASE_ACCESS_TOKEN "needed to set the secret"
-  [ -n "$url" ] || { echo "usage: ./scripts/deploy-prod.sh lockdown https://<your>.pages.dev" >&2; exit 1; }
-  echo "==> Locking CORS to $url"
+  # This REPLACES the whole list: leave out capacitor://localhost and the iOS app
+  # can no longer reach the edge function.
+  [ -n "$url" ] || { echo "usage: ./scripts/deploy-prod.sh lockdown https://dinostudy.com,capacitor://localhost" >&2; exit 1; }
+  echo "==> Setting ALLOWED_ORIGINS to $url"
   sb secrets set "ALLOWED_ORIGINS=$url"
-  echo "    Done. Also set this URL as Site URL in dashboard → Authentication → URL Configuration."
+  echo "    Done. Site URL lives in dashboard → Authentication → URL Configuration."
   echo
   echo "    Verify CORS + the live invoke path (preflight + authed POST), e.g.:"
   echo "      VITE_SUPABASE_URL=https://\$SUPABASE_PROJECT_REF.supabase.co \\"
-  echo "      VITE_SUPABASE_ANON_KEY=<anon> npm run smoke:prod -- $url"
+  echo "      VITE_SUPABASE_ANON_KEY=<anon> npm run smoke:prod -- https://dinostudy.com"
 }
 
 case "${1:-}" in

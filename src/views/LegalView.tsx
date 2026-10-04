@@ -12,9 +12,8 @@ import "../components/common/common.css";
 
 const UPDATED = "2026-10-03";
 
-/** Where support mail goes. The Brevo-validated sender for now; moves to
- *  support@<domain> when the custom domain lands (docs/TODO.md). */
-export const SUPPORT_EMAIL = "dinolanguagestudy@gmail.com";
+/** Where support mail goes — a Cloudflare Email Routing forward, not a mailbox. */
+export const SUPPORT_EMAIL = "support@dinostudy.com";
 
 export function LegalView({ doc }: { doc: "privacy" | "terms" | "support" }) {
   const { t } = useI18n();

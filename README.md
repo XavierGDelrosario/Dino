@@ -1,6 +1,6 @@
 # DINO (大脳)
 
-**Live: [dino-86y.pages.dev](https://dino-86y.pages.dev)**
+**Live: [dinostudy.com](https://dinostudy.com)**
 
 A vocabulary-learning app for Japanese ↔ English. Translate a word or paste a whole
 paragraph, save what you want to keep, and review it later on a spaced-repetition

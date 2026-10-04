@@ -25,8 +25,7 @@ Character limits are noted where Apple enforces them; the values below are insid
 | Marketing URL | *(leave blank)* |
 | Copyright | `2026 <your legal name>` (Individual enrollment — no company yet) |
 
-`<domain>` is `dino-86y.pages.dev` today; swap once the custom domain lands
-(`docs/TODO.md`). Both pages exist and are footer-linked.
+`<domain>` is `dinostudy.com`. Both pages exist and are footer-linked.
 
 **Keywords** (≤100 chars, commas, no spaces — this is 95):
 
@@ -148,8 +147,7 @@ declares mild profanity.
 - [ ] Enable **Sign in with Apple** in Supabase (Services ID + .p8-signed secret,
       `config.toml [auth.external.apple]`). Mandatory because Google sign-in is
       offered — `linkApple`/`signInWithApple` are already implemented.
-- [ ] Custom domain, so the support/privacy URLs and auth email are not on
-      `pages.dev`.
+- [ ] Auth email sent from `noreply@dinostudy.com` (`docs/TODO.md`).
 - [ ] Screenshots — **6.9" iPhone `1320 × 2868`** (also accepted: 1290 × 2796, 1260 × 2736).
       Apple scales that one set down for every smaller iPhone, so it is the only iPhone
       slot to fill. The old "6.7" **and** 5.5"" pair is retired — 5.5" (iPhone 8 Plus)

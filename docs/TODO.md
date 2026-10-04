@@ -330,13 +330,15 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <details open>
 <summary><h2>➕ Open follow-ups</h2></summary>
 
-### Custom domain + email deliverability `[launch polish · partly URGENT]`
-- **Status:** prod email works but **lands in spam**. Sender is a `@gmail.com` address, and
-  `gmail.com` authorizes only Google's servers — SPF/DKIM can **never** align through Brevo.
-- **Fix (one task, three payoffs):** register a domain (~$10/yr) → authenticate in Brevo
-  (SPF/DKIM/DMARC — zero authenticated domains today) → send from `noreply@<domain>`.
-- **Also fixes:** the app URL (`dino-86y.pages.dev`) → then update Supabase Site URL +
-  redirects, edge `ALLOWED_ORIGINS`, and Google origins.
+### Custom domain `dinostudy.com` — console cutover `[launch polish · partly URGENT]`
+The domain serves the app; `dino-86y.pages.dev` stays live. Left, in this order:
+- **Origins:** edge `ALLOWED_ORIGINS += https://dinostudy.com` (keep `capacitor://localhost`)
+  · Supabase redirect URLs + Site URL · Google OAuth authorised origins.
+- **Email — prod auth mail lands in spam** (sender is `@gmail.com`, which can never align
+  through Brevo): authenticate `dinostudy.com` in Brevo (DKIM/DMARC) → Supabase SMTP sender
+  `noreply@dinostudy.com`.
+- **Cloudflare Email Routing:** `support@dinostudy.com` → the Gmail inbox. The Privacy
+  Policy already publishes that address.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
