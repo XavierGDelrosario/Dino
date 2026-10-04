@@ -69,6 +69,8 @@ fi
 # enabled. public.words precedes user_words because user_words FKs into it.
 TABLES=(
   public.users
+  # entitlements issued from the admin panel — append-only, FK is users
+  public.feature_grants
   public.user_limits
   public.translation_usage
   public.words
@@ -82,6 +84,9 @@ TABLES=(
   public.placement_answers
   # nightly confidence snapshots (profile history) — only FK is users
   public.user_confidence_daily
+  # the deletion audit: without it a restore resurrects a deleted account's rows with
+  # nothing left to say they must be deleted again. No FKs.
+  public.account_deletion_log
 )
 
 # UTC timestamp (matches the app's month-bucket convention) — sortable, tz-stable.

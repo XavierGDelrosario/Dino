@@ -3,6 +3,19 @@
 DINO bundles third-party data. This file records the required attributions and the
 licenses that govern redistribution of that data and our derivatives of it.
 
+## Japanese morphological dictionary — IPADIC (`public/dict/*.dat.gz`)
+
+The browser segments Japanese text with **kuromoji.js** (Apache-2.0), which ships a
+compiled copy of **mecab-ipadic-2.7.0-20070801**. We redistribute that dictionary from
+`/dict/` on the site and inside the iOS app bundle.
+
+- **Copyright 2000–2003 Nara Institute of Science and Technology. All Rights Reserved.**
+  Portions © 2000–2007 NTT / ICOT (the IPA dictionary resources).
+- Its licence permits use, reproduction and distribution provided every copy carries the
+  copyright notice and the licence paragraphs. The complete notice is kuromoji's
+  `NOTICE.md`; the build copies it next to the dictionary as **`/dict/NOTICE.md`**
+  (`npm run setup:static`), so the notice travels with the files it covers.
+
 ## Word frequency / difficulty (`data/frequency/*.tsv`)
 
 Our per-word difficulty signal is derived from **wordfreq**

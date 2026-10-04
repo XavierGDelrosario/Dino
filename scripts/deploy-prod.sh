@@ -11,7 +11,8 @@
 #   export SUPABASE_DB_PASSWORD='...'           # the password you set on create
 #   export CF_PROJECT='dino'                    # Cloudflare Pages project name
 #
-#   ./scripts/deploy-prod.sh supabase           # link + migrations+seed + edge fn + secrets
+#   ./scripts/deploy-prod.sh supabase           # link + migrations + edge fns (routine, re-runnable)
+#   FIRST_DEPLOY=1 ./scripts/deploy-prod.sh supabase   # ...plus the dictionary seed + secrets (new project only)
 #   ./scripts/deploy-prod.sh frontend           # build against cloud + deploy to Pages
 #   ./scripts/deploy-prod.sh lockdown <origins>  # REPLACE ALLOWED_ORIGINS (comma-separated list)
 #
@@ -48,29 +49,46 @@ deploy_supabase() {
   echo "==> [1/4] Linking CLI to project $SUPABASE_PROJECT_REF"
   sb link --project-ref "$SUPABASE_PROJECT_REF" -p "$SUPABASE_DB_PASSWORD" --yes
 
-  echo "==> [2/4] Applying migrations + loading dictionary seed (jmdict_* + embeddings)"
-  echo "    (the seed is ~145MB over the wire — give it a few minutes)"
-  sb db push --linked --include-seed -p "$SUPABASE_DB_PASSWORD" --yes
+  # ROUTINE vs FIRST deploy. Re-running this on a live project must change nothing but
+  # the schema and the functions: the seed is a stale common-subset dump (prod runs the
+  # full dictionary), and the secrets below would silently replace values set by hand.
+  if [ "${FIRST_DEPLOY:-}" = "1" ]; then
+    echo "==> [2/4] Applying migrations + loading dictionary seed (jmdict_* + embeddings)"
+    echo "    (the seed is ~145MB over the wire — give it a few minutes)"
+    sb db push --linked --include-seed -p "$SUPABASE_DB_PASSWORD" --yes
+  else
+    echo "==> [2/4] Applying migrations (no seed — FIRST_DEPLOY=1 loads it on a new project)"
+    sb db push --linked -p "$SUPABASE_DB_PASSWORD" --yes
+  fi
 
   echo "==> [3/4] Deploying edge functions (verify_jwt stays ON)"
   # --use-api bundles server-side (no local Docker required).
   sb functions deploy translate --use-api
   sb functions deploy delete-account --use-api
 
-  echo "==> [4/4] Setting edge secrets"
-  load_translation_key
+  echo "==> [4/4] Edge secrets"
+  # Only what was EXPLICITLY exported is written, so a routine deploy can't replace a
+  # live secret. A first deploy may also pick the MT key up from the local edge env.
+  [ "${FIRST_DEPLOY:-}" = "1" ] && load_translation_key
   if [ -n "${TRANSLATION_API_KEY:-}" ]; then
     sb secrets set "TRANSLATION_API_KEY=$TRANSLATION_API_KEY"
     echo "    TRANSLATION_API_KEY set (MT fallback enabled)"
   else
-    echo "    no TRANSLATION_API_KEY found — deploying JMdict-only (set it later to enable MT)"
+    echo "    TRANSLATION_API_KEY left as it is on the project"
   fi
-  sb secrets set "GLOBAL_MONTHLY_CHAR_QUOTA=${GLOBAL_MONTHLY_CHAR_QUOTA:-5000000}"
+  # Unset on the project = the edge's built-in 2,000,000 chars/month. This used to force
+  # 5,000,000 on every run, 2.5x the cap the cost reasoning in the docs assumes.
+  if [ -n "${GLOBAL_MONTHLY_CHAR_QUOTA:-}" ]; then
+    sb secrets set "GLOBAL_MONTHLY_CHAR_QUOTA=$GLOBAL_MONTHLY_CHAR_QUOTA"
+    echo "    GLOBAL_MONTHLY_CHAR_QUOTA=$GLOBAL_MONTHLY_CHAR_QUOTA"
+  else
+    echo "    GLOBAL_MONTHLY_CHAR_QUOTA left as it is on the project"
+  fi
   if [ -n "${ALLOWED_ORIGINS:-}" ]; then
     sb secrets set "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
     echo "    ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
   else
-    echo "    ALLOWED_ORIGINS not set yet → CORS open (*); run 'lockdown <url>' after the first Pages deploy"
+    echo "    ALLOWED_ORIGINS left as it is on the project (unset = the edge refuses every origin)"
   fi
 
   echo "==> Supabase phase done."
@@ -102,8 +120,29 @@ resolve_anon_key() {
   esac
 }
 
+# Production ships what is on origin/main and nothing else: no feature branch, no
+# uncommitted edit to a tracked file. Untracked files don't reach the bundle and are
+# ignored. ALLOW_UNMERGED=1 overrides, for a deliberate hotfix.
+require_main() {
+  [ "${ALLOW_UNMERGED:-}" = "1" ] && { echo "    (ALLOW_UNMERGED=1 — skipping the main-branch check)"; return; }
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  if [ "$branch" != "main" ]; then
+    echo "error: on branch '$branch' — production deploys from main (ALLOW_UNMERGED=1 to override)." >&2; exit 1
+  fi
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    echo "error: tracked files have uncommitted changes — commit or stash them first." >&2; exit 1
+  fi
+  git fetch -q origin main
+  if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+    echo "error: HEAD is not origin/main — pull (or push) first so the deploy matches a reviewed commit." >&2; exit 1
+  fi
+  echo "    deploying main @ $(git rev-parse --short HEAD)"
+}
+
 deploy_frontend() {
   require SUPABASE_PROJECT_REF "needed to build VITE_SUPABASE_URL"
+  require_main
   require CF_PROJECT "your Cloudflare Pages project name (e.g. dino)"
   resolve_anon_key
 

@@ -50,7 +50,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>DINO uses the microphone to capture your speech for voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>DINO turns your speech into text on your device so you can translate and save words.</string>
+	<string>DINO turns your speech into text so you can translate and save words.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

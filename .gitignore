@@ -7,6 +7,8 @@ dist-ssr/
 
 # kuromoji dictionary, copied from node_modules at predev/prebuild (see setup:dict)
 public/dict/
+# copied from the repo root by `npm run setup:static`, so the site can serve it
+public/ATTRIBUTION.md
 
 # Local env files (never commit secrets)
 .env
