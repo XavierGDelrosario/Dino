@@ -11,7 +11,7 @@ vi.mock("@/services/captcha", () => ({
 }));
 
 import { linkGoogleIdToken, signInWithGoogleIdToken, hasPendingGuestMerge } from "@/services/session";
-import { makeNonce } from "@/services/googleIdentity";
+import { emailFromIdToken, makeNonce } from "@/services/googleIdentity";
 
 let stub: SupabaseStub;
 function memoryStorage() {
@@ -96,6 +96,24 @@ describe("signInWithGoogleIdToken", () => {
       error: { message: "Database error saving new user", code: "unexpected_failure" },
     });
     await expect(signInWithGoogleIdToken(credential)).rejects.toMatchObject({ code: "unexpected_failure" });
+  });
+});
+
+describe("emailFromIdToken", () => {
+  const jwt = (claims: object) => {
+    const b64url = (s: string) =>
+      btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return `${b64url('{"alg":"RS256"}')}.${b64url(JSON.stringify(claims))}.sig`;
+  };
+
+  it("reads the email claim, including non-ASCII payloads", () => {
+    expect(emailFromIdToken(jwt({ email: "me@gmail.com", name: "山田 太郎" }))).toBe("me@gmail.com");
+  });
+
+  it("is null when there is no email or the token is junk", () => {
+    expect(emailFromIdToken(jwt({ sub: "123" }))).toBeNull();
+    expect(emailFromIdToken("not-a-jwt")).toBeNull();
+    expect(emailFromIdToken("")).toBeNull();
   });
 });
 

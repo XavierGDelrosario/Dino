@@ -25,7 +25,7 @@ import {
 } from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { onOAuthError, takeOAuthError, type OAuthReturnError } from "../services/oauthReturn";
-import { googleButtonEnabled, type GoogleCredential } from "../services/googleIdentity";
+import { emailFromIdToken, googleButtonEnabled, type GoogleCredential } from "../services/googleIdentity";
 import { GoogleSignInButton } from "../components/common/GoogleSignInButton";
 import { errorMessage } from "../lib/errorMessage";
 import { formatMethods, oauthErrorCopy, PROVIDER } from "../lib/authCopy";
@@ -181,7 +181,17 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       }
       navigate("/");
     } catch (e) {
+      // The one-method rule refused it (this email's account signs in another way).
+      // GoTrue reports that only as a generic failure — but unlike the redirect flow we
+      // hold the token, so we know the email and can NAME the method it uses.
+      const email = emailFromIdToken(credential.token);
+      const methods = email ? await getSignInMethods(email) : [];
+      if (methods.length && !methods.includes("google")) {
+        setErr(t("auth.existsWith", { methods: formatMethods(t, methods) }));
+        return;
+      }
       const code = (e as { code?: unknown } | null)?.code;
+      console.warn("Google sign-in failed:", code, e);
       setErr(
         oauthErrorCopy(t, {
           code: typeof code === "string" ? code : "unknown",
