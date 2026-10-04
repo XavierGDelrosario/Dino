@@ -330,15 +330,12 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <details open>
 <summary><h2>➕ Open follow-ups</h2></summary>
 
-### Custom domain `dinostudy.com` — console cutover `[launch polish · partly URGENT]`
-The domain serves the app; `dino-86y.pages.dev` stays live. Left, in this order:
-- **Origins:** edge `ALLOWED_ORIGINS += https://dinostudy.com` (keep `capacitor://localhost`)
-  · Supabase redirect URLs + Site URL · Google OAuth authorised origins.
-- **Email — prod auth mail lands in spam** (sender is `@gmail.com`, which can never align
-  through Brevo): authenticate `dinostudy.com` in Brevo (DKIM/DMARC) → Supabase SMTP sender
-  `noreply@dinostudy.com`.
-- **Cloudflare Email Routing:** `support@dinostudy.com` → the Gmail inbox. The Privacy
-  Policy already publishes that address.
+### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
+- **Google brand verification** — the consent screen says "continue to …supabase.co" until
+  the app is verified (Search Console TXT for `dinostudy.com` → Branding → submit). Do it
+  after the Privacy Policy naming the operator is deployed.
+- Confirm a prod password-reset email (now from `noreply@dinostudy.com`) lands in a Gmail
+  **inbox**, not spam.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
