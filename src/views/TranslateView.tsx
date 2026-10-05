@@ -346,7 +346,7 @@ export function TranslateView({
       <div className="translate__io">
         <div className="translate__inputwrap">
           <textarea
-            className={`textarea translate__box${t.input.trim() !== "" ? " translate__box--copy" : ""}`}
+            className="textarea translate__box"
             value={t.input}
             onChange={(e) => {
               t.setInput(e.target.value);
@@ -367,15 +367,13 @@ export function TranslateView({
               ✕ appears. See .io__gutter. */}
           <div className="io__gutter">
             <div className="io__tools">
-              {/* Order: clear · draw · mic · picture. Clear first because it acts on
-                  what's already there; then the three ways to PUT something in, in
-                  ascending order of how much screen they take over. */}
+              {/* Order: clear · copy · draw · mic · picture, ONE column. The first two
+                  act on what's already there (and only exist when something is); then
+                  the three ways to PUT something in, in ascending order of how much
+                  screen they take over. Copy is SECOND in both boxes — under the ✕
+                  here, under the flag on the output. */}
               {t.input.trim() !== "" && (
-                // Copy sits to the LEFT of clear, on the same top row: the two things
-                // you do to text that is already there. (.io__toprow lays them out;
-                // the textarea reserves the extra width — see .translate__box--copy.)
-                <div className="io__toprow">
-                  <CopyButton className="io__tool" text={t.input} />
+                <>
                   <button
                     className="io__tool"
                     onClick={() => {
@@ -387,7 +385,8 @@ export function TranslateView({
                   >
                     <XIcon />
                   </button>
-                </div>
+                  <CopyButton className="io__tool" text={t.input} />
+                </>
               )}
               {hwAvailable && (
                 <button
@@ -454,7 +453,7 @@ export function TranslateView({
         </div>
         <div className="translate__outwrap">
           <div
-            className={`translate__box translate__out text-selectable${outputIsMachine ? " translate__out--credited" : ""}${t.output && t.status !== "loading" ? " translate__box--copy" : ""}`}
+            className={`translate__box translate__out text-selectable${outputIsMachine ? " translate__out--credited" : ""}`}
             aria-label={tr("translate.outputAria")}
           >
             {t.status === "loading" ? (
@@ -465,11 +464,11 @@ export function TranslateView({
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
             )}
           </div>
-          {/* Top-right, the corner opposite read-aloud: copy the translation, then the
-              flag that reports it — the input together with what came back for it. */}
+          {/* Top-right, the corner opposite read-aloud, as a column: the flag that
+              reports the translation (the input together with what came back for it),
+              then copy under it — second, as on the input side. */}
           {t.status !== "loading" && (
             <div className="io__copy">
-              <CopyButton className="io__tool" text={t.output ?? ""} />
               {t.output && (
                 <ReportFlagButton
                   className="io__tool"
@@ -478,6 +477,7 @@ export function TranslateView({
                   label={tr("report.flagTranslation")}
                 />
               )}
+              <CopyButton className="io__tool" text={t.output ?? ""} />
             </div>
           )}
           {/* Google's badge, bottom-right, just left of the read-aloud button. */}
