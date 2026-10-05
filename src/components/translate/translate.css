@@ -191,6 +191,18 @@
   gap: 0.35rem;
 }
 
+/* "Name" beside a person's or company's name in the card — where a word has its "?". */
+.hovercard__name {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
 .hovercard__flag {
   display: inline-flex;
 }

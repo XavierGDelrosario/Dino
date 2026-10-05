@@ -29,7 +29,7 @@ import { findWordTranslations, findWordTranslationsBatch } from "@/services/word
 import { translate, translateBatch, glossSentences } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
-import { lookupWord, lookupWordsBatch, translateParagraph, studyView, wordKey } from "@/services/lookup";
+import { isNameSense, lookupWord, lookupWordsBatch, translateParagraph, studyView, wordKey } from "@/services/lookup";
 import { __clearWordsCache } from "@/services/words/cache";
 import type { Word } from "@/services/words/repository";
 
@@ -681,6 +681,38 @@ describe("translateParagraph — tokens the dictionary says are not vocabulary",
       [["倖", [makeWord({ input: "倖", translation: "Happiness", partOfSpeech: null })]]],
     );
     expect(res.meanings.get("倖")).toEqual([]);
+    expect(res.names?.size ?? 0).toBe(0);
+  });
+
+  // People and companies: off content POS (not vocabulary), never looked up or bought,
+  // but shown with a stand-in sense so they can be read and added by hand.
+  it("a PERSON's name gets its reading romanized, with no lookup at all", async () => {
+    const res = await read(
+      [{ text: "田中", start: 0, end: 2, reading: "たなか", lemma: "田中", pos: "人名", nameKind: "person" }],
+      [],
+    );
+    const [sense] = res.meanings.get("田中") ?? [];
+    expect(sense.translation).toBe("Tanaka");
+    expect(sense.inputReading).toBe("たなか");
+    expect(isNameSense(sense)).toBe(true);
+    expect(res.names?.has("田中")).toBe(true);
+  });
+
+  it("a COMPANY falls back to its romanization where there is no on-device translator", async () => {
+    const res = await read(
+      [{ text: "トヨタ", start: 0, end: 3, reading: "とよた", lemma: "トヨタ", pos: "組織", nameKind: "organization" }],
+      [],
+    );
+    expect(res.meanings.get("トヨタ")?.[0].translation).toBe("Toyota");
+    expect(res.names?.has("トヨタ")).toBe(true);
+  });
+
+  it("a name with no kana reading to romanize is left as plain text", async () => {
+    const res = await read(
+      [{ text: "ＡＢＣ", start: 0, end: 3, reading: null, lemma: null, pos: "組織", nameKind: "organization" }],
+      [],
+    );
+    expect(res.meanings.get("ＡＢＣ") ?? []).toEqual([]);
     expect(res.names?.size ?? 0).toBe(0);
   });
 
