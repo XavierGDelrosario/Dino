@@ -424,18 +424,24 @@ export function TranslateView({
           </div>
         </div>
         <div className="translate__outwrap">
-          <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
+          <div
+            className={`translate__box translate__out text-selectable${outputIsMachine ? " translate__out--credited" : ""}`}
+            aria-label={tr("translate.outputAria")}
+          >
             {t.status === "loading" ? (
               <span className="translate__placeholder"><Loading text={tr("translate.translating")} /></span>
             ) : t.output ? (
-              <>
-                {t.output}
-                {outputIsMachine && <GoogleBadge className="translate__credit" />}
-              </>
+              t.output
             ) : (
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
             )}
           </div>
+          {/* Google's badge, bottom-right, just left of the read-aloud button. */}
+          {outputIsMachine && t.status !== "loading" && (
+            <div className="translate__credit">
+              <GoogleBadge />
+            </div>
+          )}
           {/* The translation, in the TARGET language — the side it's written in. */}
           <div className="io__speak">
             <SpeakButton className="io__tool" text={t.output ?? ""} lang={t.target} />

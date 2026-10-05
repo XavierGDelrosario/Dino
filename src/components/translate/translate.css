@@ -903,12 +903,29 @@ textarea.translate__box::-webkit-scrollbar {
   position: static;
 }
 
-/* Google's badge under a machine translation, inside the output box so it scrolls with
-   the text instead of covering its last line. On its own line, clear of the text. */
+/* Google's badge on a machine translation: bottom-right of the output box, just left of
+   the read-aloud button and level with it. It is a strip in the box's own colour, not a
+   bare overlay, so a long translation scrolls BEHIND it instead of running through the
+   badge; the box keeps its last line clear of the strip with the padding below. Inset
+   1px to sit inside the box's border. The right padding is the button's corner:
+   0.4rem inset + 2rem button + a 0.5rem gap. */
 .translate__credit {
-  display: block;
-  width: fit-content;
-  margin-top: 0.6rem;
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 2.8rem;
+  padding-right: 2.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--surface);
+  border-radius: 0 0 11px 11px;
+  z-index: 1; /* under .io__speak (2), which shares the row */
+}
+
+.translate__out--credited {
+  padding-bottom: 3rem;
 }
 
 /* …and after each sentence's translation in an article (the reader's `glossCredit`),
