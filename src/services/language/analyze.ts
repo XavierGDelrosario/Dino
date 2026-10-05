@@ -323,6 +323,15 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
     if (pos === "動詞" && (t.pos_detail_1 === "非自立" || t.pos_detail_1 === "接尾")) {
       pos = "助動詞";
     }
+    // The NOMINALIZER の (and its contraction ん) is grammar too. IPADIC tags it
+    // 名詞-非自立 — "行くのが好き", "安いのを買った", "行くんです" — so it passed as a noun,
+    // and its lookup found the homophones (野 "field", 乃) and offered THOSE as the
+    // word. As a particle (私の本) it was already 助詞 and plain text; the same two
+    // characters read as vocabulary or not depending on the clause. Only の / ん: the
+    // other dependent nouns (こと, もの, ため, はず, わけ) are words a learner studies.
+    if (pos === "名詞" && t.pos_detail_1 === "非自立" && (t.surface_form === "の" || t.surface_form === "ん")) {
+      pos = "助詞";
+    }
     // Proper names — people (佐野, 山田太郎) and organizations (ソニー, 国連) → plain
     // text, not vocabulary. See PERSON_NAME_POS / ORGANIZATION_POS.
     if (pos === "名詞" && t.pos_detail_1 === "固有名詞") {

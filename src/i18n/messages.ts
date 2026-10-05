@@ -146,6 +146,8 @@ export const en = {
   "common.create": "Create",
   "common.close": "Close",
   "common.save": "Save",
+  "common.copy": "Copy",
+  "common.copied": "Copied",
 
   // lists surface
   "lists.allWords": "All words",
@@ -655,6 +657,8 @@ export const ja: Record<MessageKey, string> = {
   "common.create": "作成",
   "common.close": "閉じる",
   "common.save": "保存",
+  "common.copy": "コピー",
+  "common.copied": "コピーしました",
 
   "lists.allWords": "すべての単語",
   "sort.addedNewest": "最近追加した単語",
