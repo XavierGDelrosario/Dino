@@ -520,7 +520,7 @@ textarea.translate__box::-webkit-scrollbar {
   list-style: none;
   margin: 0;
   padding: 0.25rem;
-  /* A full session's worth of entries shouldn't run off the screen. */
+  /* Up to 200 entries are kept: the list scrolls rather than run off the screen. */
   max-height: 17rem;
   overflow-y: auto;
 }

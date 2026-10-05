@@ -1,5 +1,5 @@
-// The session-history dropdown: a clock button that opens the list of what you
-// translated this session (see services/translateHistory.ts — session only).
+// The history dropdown: a clock button that opens the list of what you translated on
+// this device (see services/translateHistory.ts — kept on the device only).
 //
 // It's a POPUP rather than an inline row because the history is a look-back, not
 // part of the translate flow: a chip row sat permanently between the input and the

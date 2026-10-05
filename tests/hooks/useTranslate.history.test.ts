@@ -48,6 +48,7 @@ import { analyze } from "@/services/language";
 import { resetStickyState } from "@/hooks/useStickyState";
 
 beforeEach(() => {
+  localStorage.clear(); // the history is kept on the device now — start each case clean
   vi.clearAllMocks();
   // The history lives in the sticky module cache, which is shared across cases.
   resetStickyState();
@@ -158,5 +159,40 @@ describe("useTranslate — session history", () => {
       result.current.clearHistory();
     });
     expect(result.current.history).toEqual([]);
+  });
+});
+
+// Kept on THIS DEVICE across restarts (services/translateHistory.ts), per user.
+describe("useTranslate — history survives a restart, on this device only", () => {
+  it("is still there when the app is opened again", async () => {
+    const first = renderHook(() => useTranslate("user-1"));
+    await echoSubmit(first.result, "hello");
+    await waitFor(() => expect(first.result.current.history).toHaveLength(1));
+    first.unmount();
+
+    const again = renderHook(() => useTranslate("user-1"));
+    expect(again.result.current.history.map((e) => e.text)).toEqual(["hello"]);
+  });
+
+  it("another user on the same device does not see it", async () => {
+    const first = renderHook(() => useTranslate("user-1"));
+    await echoSubmit(first.result, "hello");
+    await waitFor(() => expect(first.result.current.history).toHaveLength(1));
+    first.unmount();
+
+    const other = renderHook(() => useTranslate("user-2"));
+    expect(other.result.current.history).toEqual([]);
+  });
+
+  it("Clear erases it from the device, not just from the screen", async () => {
+    const first = renderHook(() => useTranslate("user-1"));
+    await echoSubmit(first.result, "hello");
+    await waitFor(() => expect(first.result.current.history).toHaveLength(1));
+    act(() => first.result.current.clearHistory());
+    expect(first.result.current.history).toEqual([]);
+    first.unmount();
+
+    const again = renderHook(() => useTranslate("user-1"));
+    expect(again.result.current.history).toEqual([]);
   });
 });
