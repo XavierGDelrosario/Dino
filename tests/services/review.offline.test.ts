@@ -10,10 +10,15 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
+vi.mock("@/services/network", () => ({
+  isOnWifi: vi.fn(async () => true),
+  onWifiConnected: vi.fn(() => () => {}),
+}));
 vi.mock("@/services/words/vocabularyLoader", () => ({ ensureVocabulary: vi.fn(async () => {}) }));
 vi.mock("@/services/words/vocabularyCache", async (orig) => ({
   ...(await orig<typeof import("@/services/words/vocabularyCache")>()),
   isReadable: vi.fn(() => true),
+  isFresh: vi.fn(() => false),
   wordsFor: vi.fn(() => []),
   membershipSnapshot: vi.fn(() => ({})),
 }));
@@ -33,7 +38,8 @@ import { setAnchor, type ClockAnchor } from "@/services/offline/clock";
 import { saveDeck } from "@/services/offline/deck";
 import { memStore } from "@test/offlineStore";
 import { ensureVocabulary } from "@/services/words/vocabularyLoader";
-import { isReadable, membershipSnapshot, wordsFor } from "@/services/words/vocabularyCache";
+import { isFresh, isReadable, membershipSnapshot, wordsFor } from "@/services/words/vocabularyCache";
+import { isOnWifi, onWifiConnected } from "@/services/network";
 import type { UserWord } from "@/services/words/userWords";
 
 
@@ -173,6 +179,8 @@ describe("the full offline deck", () => {
   beforeEach(() => {
     vi.mocked(ensureVocabulary).mockClear();
     vi.mocked(isReadable).mockReturnValue(true);
+    vi.mocked(isFresh).mockReturnValue(false);
+    vi.mocked(isOnWifi).mockResolvedValue(true);
     vi.mocked(wordsFor).mockReturnValue(VOCAB);
     vi.mocked(membershipSnapshot).mockReturnValue({ L1: ["a", "c"] });
   });
@@ -236,6 +244,38 @@ describe("the full offline deck", () => {
     vi.mocked(wordsFor).mockReturnValue([word("z", 1)]);
     expect(await refreshOfflineDeck("u")).toBe(false);
     expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
+  });
+
+  it("off Wi-Fi it downloads NOTHING — no vocabulary, not even the clock", async () => {
+    online();
+    vi.mocked(isOnWifi).mockResolvedValue(false);
+    expect(await refreshOfflineDeck("u")).toBe(false);
+    expect(ensureVocabulary).not.toHaveBeenCalled();
+    expect(stub.rpc).not.toHaveBeenCalled();
+  });
+
+  it("off Wi-Fi it still saves a vocabulary that is already in memory", async () => {
+    online();
+    vi.mocked(isOnWifi).mockResolvedValue(false);
+    vi.mocked(isFresh).mockReturnValue(true); // e.g. the Lists tab loaded it
+    expect(await refreshOfflineDeck("u")).toBe(true);
+    offline();
+    expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
+  });
+
+  it("catches up when the device joins Wi-Fi", async () => {
+    online();
+    vi.mocked(isOnWifi).mockResolvedValue(false);
+    const stop = watchOfflineDeck("u");
+    await vi.waitFor(() => expect(isOnWifi).toHaveBeenCalled());
+    expect(ensureVocabulary).not.toHaveBeenCalled();
+
+    vi.mocked(isOnWifi).mockResolvedValue(true);
+    const calls = vi.mocked(onWifiConnected).mock.calls;
+    const joined = calls[calls.length - 1][0];
+    joined();
+    await vi.waitFor(() => expect(ensureVocabulary).toHaveBeenCalledTimes(1));
+    stop();
   });
 
   it("a vocabulary that has not finished loading is not saved as the whole deck", async () => {

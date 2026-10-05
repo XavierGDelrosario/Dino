@@ -22,9 +22,10 @@ import { supabase } from "../config/supabaseClient";
 import { ServiceError, toServiceError } from "./errors";
 import { confidenceInputsOf, type UserWord } from "./words/userWords";
 import { findWordsByIds } from "./words/repository";
-import { membershipSnapshot, isReadable, wordsFor, writeWordById } from "./words/vocabularyCache";
+import { isFresh, isReadable, membershipSnapshot, wordsFor, writeWordById } from "./words/vocabularyCache";
 import { ensureVocabulary } from "./words/vocabularyLoader";
 import { displayConfidence } from "./confidence";
+import { isOnWifi, onWifiConnected } from "./network";
 import type { LangCode } from "./language";
 import { offlineStore } from "./offline/store";
 import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
@@ -302,12 +303,18 @@ async function cacheDeck(
  * cache the Lists tab already fills (and every write keeps current), so it usually
  * costs no request of its own; a few MB for a large vocabulary.
  *
+ * WI-FI ONLY for anything it has to download. Off Wi-Fi the vocabulary is never fetched
+ * for this: the deck is saved only when the vocabulary is ALREADY in memory and fresh
+ * (the user opened Lists, say), which costs one clock request and no download. Mobile
+ * data is the learner's to spend, and an offline copy is a convenience.
+ *
  * Best-effort and silent. The server's clock is asked FIRST and a failure stops here:
  * offline the in-memory cache would still "load", and saving it again would stamp an
  * old copy as freshly fetched.
  */
 export async function refreshOfflineDeck(userId: string): Promise<boolean> {
   try {
+    if (!(await isOnWifi()) && !isFresh(userId)) return false;
     const { data, error } = await supabase.rpc("server_now");
     const serverNow = error || !data ? NaN : Date.parse(data as string);
     if (!Number.isFinite(serverNow)) return false;
@@ -340,8 +347,8 @@ let deckOwner: string | null = null;
 let deckTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
- * Keep the full offline deck current for `userId`: saved now, on every reconnect, and
- * shortly after grades reach the server (below) — a deck saved BEFORE a session would
+ * Keep the full offline deck current for `userId`: saved now, on every reconnect, each
+ * time the device joins Wi-Fi, and shortly after grades reach the server (below) — a deck saved BEFORE a session would
  * otherwise rank that session's cards as if they had not been reviewed. Returns a teardown.
  */
 export function watchOfflineDeck(userId: string): () => void {
@@ -349,9 +356,11 @@ export function watchOfflineDeck(userId: string): () => void {
   const refresh = () => void refreshOfflineDeck(userId);
   refresh();
   if (typeof window !== "undefined") window.addEventListener("online", refresh);
+  const stopWifi = onWifiConnected(refresh); // a launch on mobile data catches up here
   return () => {
     if (deckOwner === userId) deckOwner = null;
     clearTimeout(deckTimer);
+    stopWifi();
     if (typeof window !== "undefined") window.removeEventListener("online", refresh);
   };
 }
