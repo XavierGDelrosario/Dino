@@ -22,6 +22,9 @@ PODS:
     - MLKitDigitalInkRecognition (~> 4.0.0)
   - GoogleMLKit/MLKitCore (5.0.0):
     - MLKitCommon (~> 10.0.0)
+  - GoogleMLKit/Translate (5.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitTranslate (~> 4.0.0)
   - GoogleToolboxForMac/DebugUtils (2.3.2):
     - GoogleToolboxForMac/Defines (= 2.3.2)
   - GoogleToolboxForMac/Defines (2.3.2)
@@ -34,6 +37,8 @@ PODS:
     - GoogleToolboxForMac/Defines (= 2.3.2)
     - "GoogleToolboxForMac/NSString+URLArguments (= 2.3.2)"
   - "GoogleToolboxForMac/NSString+URLArguments (2.3.2)"
+  - GoogleToolboxForMac/StringEncoding (2.3.2):
+    - GoogleToolboxForMac/Defines (= 2.3.2)
   - GoogleUtilities/Environment (7.13.3):
     - GoogleUtilities/Privacy
     - PromisesObjC (< 3.0, >= 1.2)
@@ -62,6 +67,16 @@ PODS:
     - SSZipArchive (< 3.0, >= 2.2.3)
   - MLKitMDD (6.0.0):
     - MLKitCommon (~> 10.0)
+  - MLKitNaturalLanguage (6.0.0):
+    - GoogleToolboxForMac/Logger (~> 2.1)
+    - "GoogleToolboxForMac/NSData+zlib (~> 2.1)"
+    - "GoogleToolboxForMac/NSDictionary+URLArguments (~> 2.1)"
+    - GoogleToolboxForMac/StringEncoding (~> 2.1)
+    - GTMSessionFetcher/Core (< 4.0, >= 1.1)
+    - MLKitCommon (~> 10.0)
+  - MLKitTranslate (4.0.0):
+    - MLKitNaturalLanguage (~> 6.0)
+    - SSZipArchive (< 3.0, >= 2.2.3)
   - nanopb (2.30910.0):
     - nanopb/decode (= 2.30910.0)
     - nanopb/encode (= 2.30910.0)
@@ -79,6 +94,7 @@ DEPENDENCIES:
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorNetwork (from `../../node_modules/@capacitor/network`)"
   - GoogleMLKit/DigitalInkRecognition
+  - GoogleMLKit/Translate
 
 SPEC REPOS:
   trunk:
@@ -92,6 +108,8 @@ SPEC REPOS:
     - MLKitCommon
     - MLKitDigitalInkRecognition
     - MLKitMDD
+    - MLKitNaturalLanguage
+    - MLKitTranslate
     - nanopb
     - PromisesObjC
     - SSZipArchive
@@ -130,10 +148,12 @@ SPEC CHECKSUMS:
   MLKitCommon: afcd11b6c0735066a0dde8b4bf2331f6197cbca2
   MLKitDigitalInkRecognition: 51411badefc7f60c5fc2f8606a4a4d9819752ffc
   MLKitMDD: ad94b775d9497b32af2dba0e104dc5695b310921
+  MLKitNaturalLanguage: b9a77b1811edf35bfba52ec1ce2c25a463aa45e0
+  MLKitTranslate: 52e52e7c4800e853c274711c9034306b80abba88
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   SSZipArchive: fe6a26b2a54d5a0890f2567b5cc6de5caa600aef
 
-PODFILE CHECKSUM: 1acb3256468d01b699abc4a34b010c1b800c6e2b
+PODFILE CHECKSUM: a1741fd3c9d498f5f9f1d0dd64d5e6e64c80006d
 
 COCOAPODS: 1.16.2

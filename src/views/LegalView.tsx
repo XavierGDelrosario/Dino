@@ -79,6 +79,11 @@ function Privacy() {
       <p>Handwriting recognition uses Google's ML Kit, which runs on your device. The first time
         you use it, it downloads its language model from Google, and it sends Google usage and
         diagnostic data about the kit itself (not what you write).</p>
+      <p>The iOS app can also translate sentences on your device, using Google's ML Kit: for
+        guests, and for anyone who has used up the month's online translations. The text
+        isn't sent anywhere. The first time it is needed, the kit downloads its language
+        models from Google (over Wi-Fi only), and it sends Google usage and diagnostic data
+        about the kit itself, not what you translate.</p>
       <p>So that you can review without a connection, the iOS app keeps a copy of your saved
         words on your device. It is downloaded over Wi-Fi only and is deleted when you delete
         the app.</p>

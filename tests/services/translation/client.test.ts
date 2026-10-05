@@ -7,7 +7,15 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import { translate, translateBatch } from "@/services/translation/client";
+// The on-device translator exists only in the iOS app; everywhere else it reports
+// "can't", and these tests switch it on case by case.
+const device = vi.hoisted(() => ({ can: vi.fn(() => false), translate: vi.fn() }));
+vi.mock("@/services/translation/onDevice", () => ({
+  canTranslateOnDevice: device.can,
+  translateOnDevice: device.translate,
+}));
+
+import { translate, translateBatch, translateSegments } from "@/services/translation/client";
 
 let stub: SupabaseStub;
 beforeEach(() => {
@@ -131,5 +139,88 @@ describe("translateBatch", () => {
     await expect(
       translateBatch({ inputs: ["猫"], sourceLang: "JA", targetLang: "EN" })
     ).rejects.toThrow("boom");
+  });
+});
+
+describe("translateSegments — where the gloss comes from", () => {
+  const PARAMS = { segments: ["猫が好き。", "犬も好き。"], sourceLang: "JA" as const, targetLang: "EN" as const };
+  const cloud = () =>
+    stub.functions.invoke.mockResolvedValue({ data: { glosses: ["cloud 1", "cloud 2"] }, error: null });
+  const refused = () =>
+    stub.functions.invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error("non-2xx"), {
+        name: "FunctionsHttpError",
+        context: new Response(JSON.stringify({ code: "user_quota" }), { status: 429 }),
+      }),
+    });
+  const signedInAs = (guest: boolean) =>
+    stub.auth.getSession.mockResolvedValue({ data: { session: { user: { id: "u", is_anonymous: guest } } }, error: null });
+
+  beforeEach(() => {
+    device.can.mockReset().mockReturnValue(false);
+    device.translate.mockReset().mockResolvedValue(["device 1", "device 2"]);
+    signedInAs(false);
+  });
+
+  it("on the web it is the cloud, and the device is never asked", async () => {
+    cloud();
+    signedInAs(true);
+    expect(await translateSegments(PARAMS)).toEqual(["cloud 1", "cloud 2"]);
+    expect(device.translate).not.toHaveBeenCalled();
+  });
+
+  it("a GUEST in the app is glossed on the device, spending nothing", async () => {
+    device.can.mockReturnValue(true);
+    signedInAs(true);
+    expect(await translateSegments(PARAMS)).toEqual(["device 1", "device 2"]);
+    expect(stub.functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it("a guest whose models aren't on the phone yet still gets the cloud gloss", async () => {
+    device.can.mockReturnValue(true);
+    device.translate.mockRejectedValue(new Error("language models are still downloading"));
+    signedInAs(true);
+    cloud();
+    expect(await translateSegments(PARAMS)).toEqual(["cloud 1", "cloud 2"]);
+  });
+
+  it("a MEMBER in the app gets the cloud translation while the quota allows", async () => {
+    device.can.mockReturnValue(true);
+    cloud();
+    expect(await translateSegments(PARAMS)).toEqual(["cloud 1", "cloud 2"]);
+    expect(device.translate).not.toHaveBeenCalled();
+  });
+
+  it("a member OVER QUOTA in the app falls back to the device instead of an error", async () => {
+    device.can.mockReturnValue(true);
+    refused();
+    expect(await translateSegments(PARAMS)).toEqual(["device 1", "device 2"]);
+  });
+
+  it("over quota with no usable device translator, the refusal is what the user sees", async () => {
+    device.can.mockReturnValue(true);
+    device.translate.mockRejectedValue(new Error("language models are still downloading"));
+    refused();
+    await expect(translateSegments(PARAMS)).rejects.toThrow(/reset next month/);
+  });
+
+  it("over quota on the web, the refusal stands", async () => {
+    refused();
+    await expect(translateSegments(PARAMS)).rejects.toThrow(/reset next month/);
+    expect(device.translate).not.toHaveBeenCalled();
+  });
+
+  it("any OTHER cloud failure is not papered over with a rougher translation", async () => {
+    device.can.mockReturnValue(true);
+    stub.functions.invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error("bad request"), {
+        name: "FunctionsHttpError",
+        context: new Response("{}", { status: 400 }),
+      }),
+    });
+    await expect(translateSegments(PARAMS)).rejects.toThrow();
+    expect(device.translate).not.toHaveBeenCalled();
   });
 });
