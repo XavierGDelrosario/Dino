@@ -1,7 +1,7 @@
 // The JLPT band rule shared by the JMdict ingest and the in-place re-level script.
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { bandForWriting, parseProficiency, PROFICIENCY_URL } from "../../scripts/lib/proficiency";
+import { bandForWriting, commonKanaOf, parseProficiency, PROFICIENCY_URL } from "../../scripts/lib/proficiency";
 
 const table = parseProficiency(
   ["為\tため\t2", "件\tけん\t3", "文\tぶん\t3", "何\tなに\t1", "何\tなん\t2", "あいにく\tあいにく\t3", "コンピューター\tコンピューター\t2"].join("\n"),
@@ -36,6 +36,40 @@ describe("bandForWriting", () => {
 
   it("is null for an unlisted writing", () => {
     expect(bandForWriting(table, "猫", ["ねこ"])).toBeNull();
+  });
+});
+
+// Quality report #42: the N5 すぎ (過ぎ) was also given to 須義, the cobia — a fish that
+// is "usually kana", so the app showed the fish as the N5 word and quizzed it.
+describe("bandForWriting — a kana spelling shared by homophones", () => {
+  const sugi = parseProficiency("すぎ\tすぎ\t1");
+  const rows = [
+    { text: "すぎ", common: true }, // 過ぎ
+    { text: "すぎ", common: false }, // 須義, the fish
+    { text: "ぴかぴか", common: false }, // spelled this way by no common entry
+  ];
+  const commonKana = commonKanaOf(rows);
+  const standing = (text: string, common: boolean) => ({ common, commonSpelling: commonKana.has(text) });
+
+  it("the common entry keeps the band", () => {
+    expect(bandForWriting(sugi, "すぎ", ["すぎ"], standing("すぎ", true))).toBe(1);
+  });
+
+  it("an uncommon homophone of a common word does not borrow it", () => {
+    expect(bandForWriting(sugi, "すぎ", ["すぎ"], standing("すぎ", false))).toBeNull();
+  });
+
+  it("an uncommon entry that is the spelling's only home keeps it", () => {
+    const t = parseProficiency("ぴかぴか\tぴかぴか\t3");
+    expect(bandForWriting(t, "ぴかぴか", ["ぴかぴか"], standing("ぴかぴか", false))).toBe(3);
+  });
+
+  it("never applies to a kanji writing — that is decided by its readings", () => {
+    expect(bandForWriting(table, "為", ["ため"], { common: false, commonSpelling: true })).toBe(2);
+  });
+
+  it("without a standing, the spelling match alone decides (callers that predate it)", () => {
+    expect(bandForWriting(sugi, "すぎ", ["すぎ"])).toBe(1);
   });
 });
 
