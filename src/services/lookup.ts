@@ -3,6 +3,7 @@
 // returns a whole-paragraph gloss (never persisted) plus a word → meanings lookup.
 // Saving is a separate, explicit step (userWords.saveDictionaryWord).
 
+import { getCuratedNames, mergeCuratedNames } from "./names";
 import { canTranslateOnDevice, translateOnDevice } from "./translation/onDevice";
 import { nameRomaji } from "./language/romaji";
 import {
@@ -529,6 +530,12 @@ export async function translateParagraph(params: {
   //    pointed at the original paragraph; for JA this also yields reading + lemma.
   let tokens = params.tokens ?? (await analyze(input, resolvedSource));
 
+  // 2a. CURATED NAMES first, before anything is looked up: a name the tokenizer splits
+  //     (大谷翔平 → 大谷 + 翔 + 平) becomes one name token, so its pieces are never
+  //     looked up as words (平 "flat") and the name shows as itself. See services/names.
+  const curated = await getCuratedNames(resolvedSource, targetLang);
+  tokens = mergeCuratedNames(tokens, curated);
+
   // 2b. Re-merge compounds kuromoji over-segmented, validated against the DICTIONARY
   //     (柔軟 ＋ 剤 → 柔軟剤). Without it the reader looks up the fragments and the
   //     word's meaning is lost — the top source of quality reports. Generalizes the
@@ -667,7 +674,8 @@ export async function translateParagraph(params: {
     nameTokens.push(token);
   }
   if (nameTokens.length > 0) {
-    const companies = nameTokens.filter((t) => t.nameKind === "organization");
+    // (A curated company already has its answer — nothing to ask the translator.)
+    const companies = nameTokens.filter((t) => t.nameKind === "organization" && !curated.has(nfc(t.text)));
     const translated = new Map<string, string>();
     if (companies.length > 0 && canTranslateOnDevice(resolvedSource, targetLang)) {
       try {
@@ -686,7 +694,9 @@ export async function translateParagraph(params: {
     }
     for (const token of nameTokens) {
       const key = wordKey(token);
-      const meaning = translated.get(key) ?? nameRomaji(token.reading ?? token.text);
+      // A curated name says what to show; otherwise the translation, else the reading.
+      const meaning =
+        curated.get(nfc(token.text))?.meaning ?? translated.get(key) ?? nameRomaji(token.reading ?? token.text);
       if (!meaning) continue; // nothing honest to show (a name with no kana reading)
       meanings.set(key, [nameSense(token, meaning, resolvedSource, targetLang)]);
       names.add(key);

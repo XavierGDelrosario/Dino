@@ -5,6 +5,13 @@ import type { AnalyzedToken } from "@/services/language";
 
 // lookup.ts is READ-only: it surfaces meanings and a display translation but
 // never writes to a user's lists. Mock the data + provider boundaries.
+// The curated-names table is read through the Supabase client, which this spec doesn't
+// stand up: keep the real merge, stub the read (empty unless a case fills it).
+vi.mock("@/config/supabaseClient", () => ({ supabase: {} }));
+vi.mock("@/services/names", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/names")>()),
+  getCuratedNames: vi.fn(async () => new Map()),
+}));
 vi.mock("@/services/words/repository", () => ({
   findWordTranslations: vi.fn(),
   findWordTranslationsBatch: vi.fn(),
@@ -30,6 +37,7 @@ import { translate, translateBatch, glossSentences } from "@/services/translatio
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
 import { isNameSense, lookupWord, lookupWordsBatch, translateParagraph, studyView, wordKey } from "@/services/lookup";
+import { getCuratedNames } from "@/services/names";
 import { __clearWordsCache } from "@/services/words/cache";
 import type { Word } from "@/services/words/repository";
 
@@ -714,6 +722,27 @@ describe("translateParagraph — tokens the dictionary says are not vocabulary",
     );
     expect(res.meanings.get("ＡＢＣ") ?? []).toEqual([]);
     expect(res.names?.size ?? 0).toBe(0);
+  });
+
+  // 大谷翔平: kuromoji gives 大谷 (read オオヤ) + 翔 + 平, and 平 alone is the word "flat".
+  it("a CURATED name is shown whole, with the curated reading and meaning", async () => {
+    vi.mocked(getCuratedNames).mockResolvedValueOnce(
+      new Map([["大谷翔平", { reading: "おおたにしょうへい", meaning: "Shohei Ohtani", kind: "person" as const }]]),
+    );
+    const res = await read(
+      [
+        { text: "大谷", start: 0, end: 2, reading: "おおや", lemma: "大谷", pos: "人名", nameKind: "person" },
+        { text: "翔", start: 2, end: 3, reading: "しょう", lemma: "翔", pos: "人名", nameKind: "person" },
+        { text: "平", start: 3, end: 4, reading: "ひら", lemma: "平", pos: "名詞" },
+      ],
+      [["平", [makeWord({ input: "平", translation: "flat", partOfSpeech: ["n"] })]]],
+    );
+    expect(res.tokens.map((t) => t.text)).toEqual(["大谷翔平"]);
+    const [sense] = res.meanings.get("大谷翔平") ?? [];
+    expect(sense.translation).toBe("Shohei Ohtani");
+    expect(sense.inputReading).toBe("おおたにしょうへい");
+    expect(res.names?.has("大谷翔平")).toBe(true);
+    expect(res.meanings.has("平")).toBe(false); // its pieces are never offered as words
   });
 
   it("studyView takes the names out of BOTH the tokens and the meanings", async () => {
