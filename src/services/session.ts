@@ -12,6 +12,7 @@ import { CURRENT_TERMS_VERSION, termsOutdated } from "../lib/terms";
 import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 import { resetVocabulary } from "./words/vocabularyCache";
+import { forgetHistory } from "./translateHistory";
 import { rememberOAuthIntent, type OAuthProvider } from "./oauthReturn";
 import { emailFromIdToken, type GoogleCredential, type GoogleFailure, type GoogleReturn } from "./googleIdentity";
 
@@ -398,8 +399,10 @@ export async function needsTermsAcceptance(userId: string): Promise<boolean> {
 export async function signOut(): Promise<string> {
   // `local`: the library default is GLOBAL, which revoked the account's sessions on
   // every other device — a phone dropped to an empty guest because a browser signed out.
+  const leaving = await getCurrentUserId().catch(() => null);
   await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   resetVocabulary(); // don't hold the last account's vocabulary in memory
+  forgetHistory(leaving); // nor leave what they looked up on a device they've left
   return ensureSession();
 }
 
@@ -429,10 +432,13 @@ export async function requestPasswordReset(email: string): Promise<void> {
  * guest. Irreversible.
  */
 export async function deleteAccount(): Promise<void> {
+  // Read BEFORE the account is gone: afterwards there may be no session to ask.
+  const deleted = await getCurrentUserId().catch(() => null);
   const { error } = await supabase.functions.invoke("delete-account", { body: {} });
   if (error) throw toServiceError(error, "Could not delete your account");
   await supabase.auth.signOut().catch(() => {});
   resetVocabulary();
+  forgetHistory(deleted); // erasure covers what the device kept, too
 }
 
 /** Set a new password for the user currently in a recovery session (after they
