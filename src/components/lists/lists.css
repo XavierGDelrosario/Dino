@@ -1098,6 +1098,32 @@
   gap: 0.3rem;
 }
 
+/* The field plus the "Revert to original" link under its bottom-right corner. It takes
+   the row's free width, as the bare field used to. */
+.listrow__editbox {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.listrow__revert {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.listrow__revert:hover {
+  text-decoration: underline;
+}
+
 /* The meaning editor. Auto-grown in JS (see ListRow), so scrollbars and the manual
    resize grip are both off — the box is always exactly as tall as its text. Inherits
    the row's font so what you edit looks like what you were reading. */
@@ -1230,6 +1256,13 @@
 
 .iconbtn:hover {
   border-color: var(--accent);
+}
+
+/* The edit pencil once the meaning has been edited: the brand colour marks "this is
+   your wording, not the dictionary's". */
+.iconbtn--edited,
+.iconbtn--edited:hover {
+  color: var(--accent);
 }
 
 .iconbtn--danger:hover {
@@ -1460,12 +1493,14 @@
   border-bottom: none;
   border-left: none;
   padding: 0.2rem 0.55rem 0.2rem 0;
-  color: var(--muted);
+  /* The brand colour: it is the way OUT of this screen, the one control on the line
+     that isn't a list. */
+  color: var(--accent);
   font: inherit;
   font-size: 0.9rem;
   cursor: pointer;
 }
 
 .lists__back:hover {
-  color: var(--text);
+  text-decoration: underline;
 }

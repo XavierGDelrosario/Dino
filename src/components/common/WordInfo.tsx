@@ -32,7 +32,9 @@ export function WordInfo({ word }: { word: WordInfoTarget }) {
   const pos = partOfSpeechCategory(word.partOfSpeech);
   const commonness = frequencyCommonness(word);
   return (
-    <>
+    // One rounded box behind the three facts about the WORD, so they read as a group
+    // apart from whatever rows a caller appends (a Lists row's dates).
+    <span className="wordinfo-facts">
       <span>
         {t("wordinfo.level")}: {prof ? prof.label : t("wordinfo.unknown")}
       </span>
@@ -43,7 +45,7 @@ export function WordInfo({ word }: { word: WordInfoTarget }) {
       <span>
         {t("wordinfo.pos")}: {pos ? t(POS_LABEL_KEY[pos]) : t("wordinfo.unknown")}
       </span>
-    </>
+    </span>
   );
 }
 
