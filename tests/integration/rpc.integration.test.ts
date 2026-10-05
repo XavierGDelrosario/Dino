@@ -2393,6 +2393,33 @@ describe.skipIf(!ENABLED)("rpc: report_quality_issue", () => {
     expect(row.description).toBe("wrong reading");
   });
 
+  // Migration 20260789 — the flag on Translate's output box.
+  it("stores the output with the input, trimmed, and clamps an oversized one", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("report_quality_issue", {
+      p_input: "猫が走った。",
+      p_output: "  The cat ran.  ",
+    });
+    expect(error).toBeNull();
+    expect((data as { output: string | null }).output).toBe("The cat ran.");
+
+    const big = await u.client.rpc("report_quality_issue", {
+      p_input: "あ".repeat(6000),
+      p_output: "a".repeat(6000),
+    });
+    expect(big.error).toBeNull();
+    const row = big.data as { input: string; output: string };
+    expect(row.input.length).toBe(5000);
+    expect(row.output.length).toBe(5000);
+  });
+
+  it("a word report (no output) still files, with output NULL", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("report_quality_issue", { p_input: "猫", p_description: "x" });
+    expect(error).toBeNull();
+    expect((data as { output: string | null }).output).toBeNull();
+  });
+
   it("rejects an empty target", async () => {
     const u = await makeUser();
     const { error } = await u.client.rpc("report_quality_issue", { p_input: "   " });

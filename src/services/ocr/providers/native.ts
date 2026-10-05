@@ -54,9 +54,8 @@ export const nativeRecognizer: OcrRecognizer = {
       const photo = await Camera.getPhoto({
         resultType: CameraResultType.Base64,
         // CameraSource.Photos opens the library picker directly. NOT `Prompt`, which
-        // is Capacitor's own "Camera or Photos?" action sheet — the two entry points
-        // are separate buttons in the UI, so a sheet would ask a question the user
-        // has already answered.
+        // is Capacitor's own "Camera or Photos?" action sheet — the UI asks that
+        // itself (Take photo / Select photo), so a sheet would ask it a second time.
         source: source === "library" ? CameraSource.Photos : CameraSource.Camera,
         correctOrientation: true,
         quality: 85,

@@ -117,7 +117,8 @@ export const en = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "Scan text from a photo",
-  "ocr.library": "Scan text from a saved image",
+  "ocr.takePhoto": "Take photo",
+  "ocr.selectPhoto": "Select photo",
   "ocr.cropHint": "Drag to select just the text you want.",
   "ocr.cropAria": "Crop selection",
   "ocr.photoAria": "Captured photo",
@@ -350,6 +351,7 @@ export const en = {
 
   // report an issue (the flag on a word / flashcard → quality_reports)
   "report.flag": "Report a problem with this word",
+  "report.flagTranslation": "Report a problem with this translation",
   "report.title": "Report an issue",
   "report.placeholder": "What's wrong with it? (optional)",
   "report.send": "Send",
@@ -634,7 +636,8 @@ export const ja: Record<MessageKey, string> = {
 
   // camera OCR (native, on-device)
   "ocr.capture": "写真から文字を読み取る",
-  "ocr.library": "保存した画像から文字を読み取る",
+  "ocr.takePhoto": "写真を撮る",
+  "ocr.selectPhoto": "写真を選ぶ",
   "ocr.cropHint": "読み取りたい部分をドラッグして選んでください。",
   "ocr.cropAria": "切り取り範囲",
   "ocr.photoAria": "撮影した写真",
@@ -838,6 +841,7 @@ export const ja: Record<MessageKey, string> = {
   "pos.expression": "表現",
 
   "report.flag": "この単語の問題を報告",
+  "report.flagTranslation": "この翻訳の問題を報告",
   "report.title": "問題を報告",
   "report.placeholder": "何が問題でしたか？（任意）",
   "report.send": "送信",

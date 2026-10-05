@@ -82,6 +82,14 @@
   font-size: 1.1rem;
 }
 
+/* The translation under report, beneath its input: dimmer, so the pair reads as
+   "this → that" without a label. */
+.reportdlg__output {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .reportdlg__box {
   min-height: 5.5rem;
   resize: none;

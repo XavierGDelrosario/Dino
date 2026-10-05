@@ -8,7 +8,7 @@
 import { isMachineOutput } from "../services/translation/attribution";
 import { GoogleBadge } from "../components/common/GoogleBadge";
 import { CopyButton } from "../components/common/CopyButton";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
@@ -18,7 +18,8 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { HistoryMenu } from "../components/translate/HistoryMenu";
-import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { ReportFlagButton } from "../components/common/ReportFlagButton";
 import { photoAccess as readPhotoAccess, type PhotoAccess } from "../services/photos/access";
 import { PhotoLibrarySheet } from "../components/translate/PhotoLibrarySheet";
 import { SpeakButton } from "../components/common/SpeakButton";
@@ -169,9 +170,34 @@ export function TranslateView({
     };
   }, [ocrAvailable]);
 
+  // ONE picture button, which asks "Take photo or Select photo?" (user, 2026-10-06).
+  // The library used to have a button of its own; two near-identical icons in a column
+  // that is already five tall cost more than the extra tap does. Our own menu rather
+  // than Capacitor's `CameraSource.Prompt`: the limited-access library below is an
+  // in-app sheet the system prompt knows nothing about.
+  const [cameraMenu, setCameraMenu] = useState(false);
+  const cameraWrap = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!cameraMenu) return;
+    // Same dismissal as PopoverMenu: a press anywhere else, or Escape.
+    const onOutside = (e: PointerEvent) => {
+      if (!cameraWrap.current?.contains(e.target as Node)) setCameraMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCameraMenu(false);
+    };
+    document.addEventListener("pointerdown", onOutside, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onOutside, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [cameraMenu]);
+
   /** Camera or photo library — identical from here on: crop, then recognize. The
-   *  source only decides which sheet opens, so the two buttons share this path. */
+   *  source only decides which sheet opens, so the two menu items share this path. */
   const onCamera = async (source: OcrSource = "camera") => {
+    setCameraMenu(false);
     // LIMITED ACCESS TAKES THE IN-APP GRID INSTEAD. The system picker shows the whole
     // library and quietly returns whatever is tapped, so it never reveals that the
     // app's own access is narrower — and there is nowhere in it to widen that. The
@@ -246,6 +272,15 @@ export function TranslateView({
     else if (t.status !== "done") setAddAllWords([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.status, t.mode, t.para]);
+
+  // What was translated, kept beside its answer for the output box's report flag. The
+  // box above stays editable after a result lands, so reading t.input at press time
+  // could pair the translation with text it was never the answer to.
+  const [translatedInput, setTranslatedInput] = useState("");
+  useEffect(() => {
+    if (t.status === "done") setTranslatedInput(t.input);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t.status, t.output]);
 
   // Quiz/review = full takeover. The normal .review column, NOT the wide .translate
   // breakout, so the card matches Review / Learn / Calibration.
@@ -384,30 +419,29 @@ export function TranslateView({
                 </button>
               )}
               {ocrAvailable && (
-                <>
+                <div className="io__menuwrap" ref={cameraWrap}>
                   <button
                     className="io__tool"
-                    onClick={() => void onCamera("camera")}
+                    onClick={() => setCameraMenu((v) => !v)}
                     disabled={ocrBusy}
+                    aria-haspopup="menu"
+                    aria-expanded={cameraMenu}
                     aria-label={tr("ocr.capture")}
                     title={tr("ocr.capture")}
                   >
                     {ocrBusy ? <LoadingDots /> : <CameraIcon />}
                   </button>
-                  {/* Photo LIBRARY gets its own button rather than an action sheet on
-                      the camera: most text worth scanning is already on the phone and
-                      can't be re-photographed, so hiding it behind a second step would
-                      bury the more common source behind the rarer one. */}
-                  <button
-                    className="io__tool"
-                    onClick={() => void onCamera("library")}
-                    disabled={ocrBusy}
-                    aria-label={tr("ocr.library")}
-                    title={tr("ocr.library")}
-                  >
-                    {ocrBusy ? <LoadingDots /> : <ImageIcon />}
-                  </button>
-                </>
+                  {cameraMenu && (
+                    <div className="io__menu" role="menu">
+                      <button type="button" role="menuitem" className="io__menuitem" onClick={() => void onCamera("camera")}>
+                        {tr("ocr.takePhoto")}
+                      </button>
+                      <button type="button" role="menuitem" className="io__menuitem" onClick={() => void onCamera("library")}>
+                        {tr("ocr.selectPhoto")}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             {/* Read-aloud, the gutter's BOTTOM cluster — the opposite end from the input
@@ -420,7 +454,7 @@ export function TranslateView({
         </div>
         <div className="translate__outwrap">
           <div
-            className={`translate__box translate__out text-selectable${outputIsMachine ? " translate__out--credited" : ""}`}
+            className={`translate__box translate__out text-selectable${outputIsMachine ? " translate__out--credited" : ""}${t.output && t.status !== "loading" ? " translate__box--copy" : ""}`}
             aria-label={tr("translate.outputAria")}
           >
             {t.status === "loading" ? (
@@ -431,10 +465,19 @@ export function TranslateView({
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
             )}
           </div>
-          {/* Copy the translation — top-right, the corner opposite read-aloud. */}
+          {/* Top-right, the corner opposite read-aloud: copy the translation, then the
+              flag that reports it — the input together with what came back for it. */}
           {t.status !== "loading" && (
             <div className="io__copy">
               <CopyButton className="io__tool" text={t.output ?? ""} />
+              {t.output && (
+                <ReportFlagButton
+                  className="io__tool"
+                  input={translatedInput || t.input}
+                  output={t.output}
+                  label={tr("report.flagTranslation")}
+                />
+              )}
             </div>
           )}
           {/* Google's badge, bottom-right, just left of the read-aloud button. */}

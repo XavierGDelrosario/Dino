@@ -26,6 +26,24 @@ describe("reportQualityIssue", () => {
     });
   });
 
+  // The flag on Translate's output box reports a TRANSLATION: what was typed, and what
+  // came back for it.
+  it("sends the output with the input when the report is about a translation", async () => {
+    await reportQualityIssue({ input: " 猫が走った。 ", output: " The cat ran. " });
+
+    expect(stub.rpc).toHaveBeenCalledWith("report_quality_issue", {
+      p_input: "猫が走った。",
+      p_description: undefined,
+      p_word_id: undefined,
+      p_output: "The cat ran.",
+    });
+  });
+
+  it("a word report sends no p_output at all", async () => {
+    await reportQualityIssue({ input: "猫", output: "  " });
+    expect(stub.rpc.mock.calls[0][1]).not.toHaveProperty("p_output");
+  });
+
   // The whole point of the flag: the signal is "this word is wrong", which the surface
   // already knows. Requiring prose would lose most reports, so an empty box still files.
   it("files with NO description — the box is optional", async () => {

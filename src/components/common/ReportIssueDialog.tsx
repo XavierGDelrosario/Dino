@@ -26,6 +26,7 @@ const CLOSE_AFTER_MS = 900;
 export function ReportIssueDialog({
   input,
   wordId,
+  output,
   onClose,
 }: {
   /** The word being reported — shown back to the user so they can see what they're
@@ -33,6 +34,9 @@ export function ReportIssueDialog({
   input: string;
   /** The exact sense, when the surface knows it. */
   wordId?: string | null;
+  /** The translation being reported, when the target is a translation and not a word
+   *  — shown under the input, and sent with it. */
+  output?: string | null;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -58,7 +62,7 @@ export function ReportIssueDialog({
     setBusy(true);
     setError(null);
     try {
-      await reportQualityIssue({ input, description: text, wordId });
+      await reportQualityIssue({ input, description: text, wordId, output });
       setSent(true);
       setTimeout(onClose, CLOSE_AFTER_MS);
     } catch (e) {
@@ -92,6 +96,9 @@ export function ReportIssueDialog({
         </button>
         <h3 className="reportdlg__title">{t("report.title")}</h3>
         <p className="reportdlg__target ellipsis" title={input}>{input}</p>
+        {output && (
+          <p className="reportdlg__output ellipsis" title={output}>{output}</p>
+        )}
 
         {sent ? (
           <p className="reportdlg__sent">{t("report.sent")}</p>

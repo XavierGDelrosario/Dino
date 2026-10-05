@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Google's badge on the reader's sentence translations. An article's reading mode has
-// no output box, so each translation carries the badge itself (`glossCredit`); the
-// Translate tab leaves it off, because its output box shows the same translation with
-// the badge once.
+// Google's badge on the reader's sentence translations: ONCE, at the bottom-right of the
+// reader, whenever one of its machine translations is on screen — in every host
+// (Translate, the live reader, an article's reading mode). It used to trail every
+// sentence, and only in an article.
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { LocaleProvider } from "@/i18n";
@@ -22,15 +22,14 @@ const SENTENCES: SentenceGloss[] = [
 ];
 const MEANINGS = new Map([["猫", [makeWord({ input: "猫", translation: "cat" })]]]);
 
-const reader = (glossCredit: boolean) =>
+const reader = (sentences: SentenceGloss[] = SENTENCES, text = TEXT) =>
   render(
     <LocaleProvider>
       <ParagraphReader
-        text={TEXT}
+        text={text}
         tokens={TOKENS}
         meaningsByWord={MEANINGS}
-        sentences={SENTENCES}
-        glossCredit={glossCredit}
+        sentences={sentences}
         saved={new Set()}
         confidence={new Map()}
         lists={[]}
@@ -44,28 +43,35 @@ const badges = () => screen.queryAllByRole("link", { name: "Translated by Google
 afterEach(cleanup);
 
 describe("ParagraphReader — Google's badge on translations", () => {
-  it("with glossCredit, every shown translation carries one, linked to Google Translate", () => {
-    reader(true);
+  it("one badge at the reader's foot while translations show, none before or after", () => {
+    const { container } = reader();
     expect(badges()).toHaveLength(0); // nothing translated on screen yet
 
     fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
-    expect(badges()).toHaveLength(2);
-    expect(badges()[0].getAttribute("href")).toBe("https://translate.google.com");
-    expect(badges()[0].closest(".reader__gloss")?.textContent).toContain("The cat ran.");
-  });
-
-  it("without it (the Translate tab), the reader shows none", () => {
-    reader(false);
-    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
     expect(screen.getByText("The cat ran.")).toBeTruthy();
+    expect(badges()).toHaveLength(1); // two sentences, ONE badge
+    expect(badges()[0].getAttribute("href")).toBe("https://translate.google.com");
+    expect(badges()[0].closest(".reader__credit")).not.toBeNull();
+    // Inside the reader's body, after the text — the bottom-right corner in CSS.
+    expect(container.querySelector(".reader__body > .reader + .reader__credit")).not.toBeNull();
+    expect(container.querySelector(".reader__gloss .gbadge")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
     expect(badges()).toHaveLength(0);
   });
 
-  it("the badge is Google's own artwork in all three official variants", () => {
-    const { container } = reader(true);
+  it("the unpunctuated layout (one block under the text) carries it too", () => {
+    reader([{ text: "猫が走った", start: 0, end: 5, gloss: "The cat ran" }], "猫が走った");
+    fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
+    expect(screen.getByText("The cat ran")).toBeTruthy();
+    expect(badges()).toHaveLength(1);
+  });
+
+  it("the badge is Google's own artwork in the official variants", () => {
+    const { container } = reader();
     fireEvent.click(screen.getByRole("button", { name: /Show translation/ }));
     const srcs = [...container.querySelectorAll(".gbadge img")].map((i) => i.getAttribute("src") ?? "");
-    expect(srcs.some((s) => s.includes("greyscale"))).toBe(true); // light theme, repeated
+    expect(srcs.some((s) => s.includes("greyscale"))).toBe(true); // light theme
     expect(srcs.some((s) => s.includes("white"))).toBe(true); // dark theme
   });
 });
