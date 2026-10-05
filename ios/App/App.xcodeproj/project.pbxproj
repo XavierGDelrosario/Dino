@@ -7,40 +7,80 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0632A808849081152BD6D928 /* DailyWordWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0109DEE0EC33C9D6D000735B /* DailyWordWidget.swift */; };
+		1DCAE2F96D4B32343C2ED6EE /* DailyWordStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A254222E49DAAE550E25B4D /* DailyWordStore.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
-		504EC3211FED79650016851F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3201FED79650016851F /* PrivacyInfo.xcprivacy */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
+		504EC3211FED79650016851F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3201FED79650016851F /* PrivacyInfo.xcprivacy */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		74E55F4744465F265F01C0D1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E3DA99AE684419715614A573 /* Foundation.framework */; };
 		8D66C8632FF11AF300748F27 /* TextOcrPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D66C8622FF11AF300748F27 /* TextOcrPlugin.swift */; };
-		8DA1C0022FF2B00100AA0002 /* PhotoAccessPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA1C0012FF2B00100AA0001 /* PhotoAccessPlugin.swift */; };
-		8DA1C0042FF2B00100AA0004 /* OnDeviceTranslatePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA1C0032FF2B00100AA0003 /* OnDeviceTranslatePlugin.swift */; };
 		8D70DFBE2FF087F100CC285D /* DigitalInkPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D70DFBD2FF087F100CC285D /* DigitalInkPlugin.swift */; };
 		8D70DFC02FF08CEC00CC285D /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D70DFBF2FF08CEC00CC285D /* MainViewController.swift */; };
+		8DA1C0022FF2B00100AA0002 /* PhotoAccessPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA1C0012FF2B00100AA0001 /* PhotoAccessPlugin.swift */; };
+		8DA1C0042FF2B00100AA0004 /* OnDeviceTranslatePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA1C0032FF2B00100AA0003 /* OnDeviceTranslatePlugin.swift */; };
+		8EBEE5DAFCF1829A1123895F /* DailyWordStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A254222E49DAAE550E25B4D /* DailyWordStore.swift */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
+		AC9D30D2682F312FA6697D42 /* DailyWordWidgetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D36CAC493D0D1A73C723EB /* DailyWordWidgetPlugin.swift */; };
+		BE7D020AE385AB575C7E78B4 /* DailyWordWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0ADBA192B5C340B74B6B35C6 /* DailyWordWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F516DD7E77B427C182CF5193 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4D8FE23BE2749F3C12FD52D4 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		3AC5E9A817FFA9FA178BC64B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F77AB9AFCAA80DE0DD7108AE;
+			remoteInfo = DailyWordWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		86BB7901C5E2FD14AE2C3C01 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BE7D020AE385AB575C7E78B4 /* DailyWordWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		00D36CAC493D0D1A73C723EB /* DailyWordWidgetPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyWordWidgetPlugin.swift; sourceTree = "<group>"; };
+		0109DEE0EC33C9D6D000735B /* DailyWordWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyWordWidget.swift; sourceTree = "<group>"; };
+		0ADBA192B5C340B74B6B35C6 /* DailyWordWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyWordWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		4D8FE23BE2749F3C12FD52D4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		504EC3201FED79650016851F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		504EC3201FED79650016851F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		5A254222E49DAAE550E25B4D /* DailyWordStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyWordStore.swift; sourceTree = "<group>"; };
 		8D66C8622FF11AF300748F27 /* TextOcrPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextOcrPlugin.swift; sourceTree = "<group>"; };
-		8DA1C0012FF2B00100AA0001 /* PhotoAccessPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAccessPlugin.swift; sourceTree = "<group>"; };
-		8DA1C0032FF2B00100AA0003 /* OnDeviceTranslatePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceTranslatePlugin.swift; sourceTree = "<group>"; };
 		8D70DFBD2FF087F100CC285D /* DigitalInkPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalInkPlugin.swift; sourceTree = "<group>"; };
 		8D70DFBF2FF08CEC00CC285D /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		8DA1C0012FF2B00100AA0001 /* PhotoAccessPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAccessPlugin.swift; sourceTree = "<group>"; };
+		8DA1C0032FF2B00100AA0003 /* OnDeviceTranslatePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceTranslatePlugin.swift; sourceTree = "<group>"; };
+		90FEEDFE4DDE6D91FB383978 /* DailyWordWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = DailyWordWidget.entitlements; sourceTree = "<group>"; };
+		A8CD3868042B3DA10B6D09C3 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
+		BBEAAE86D24F43DFCCE11A6E /* App.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		E3DA99AE684419715614A573 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -53,13 +93,43 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		782F83CAB6C6C99D86BBBF62 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				74E55F4744465F265F01C0D1 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		18365EB9461ED3A5384D50E8 /* DailyWordWidget */ = {
+			isa = PBXGroup;
+			children = (
+				0109DEE0EC33C9D6D000735B /* DailyWordWidget.swift */,
+				A8CD3868042B3DA10B6D09C3 /* Info.plist */,
+				90FEEDFE4DDE6D91FB383978 /* DailyWordWidget.entitlements */,
+				4D8FE23BE2749F3C12FD52D4 /* PrivacyInfo.xcprivacy */,
+			);
+			name = DailyWordWidget;
+			path = DailyWordWidget;
+			sourceTree = "<group>";
+		};
+		235E64CB2013D3DDC5DD9E35 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				5A254222E49DAAE550E25B4D /* DailyWordStore.swift */,
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		27E2DDA53C4D2A4D1A88CE4A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */,
+				541F8846D2CAB2A765D30C35 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -71,6 +141,8 @@
 				504EC3051FED79650016851F /* Products */,
 				7F8756D8B27F46E3366F6CEA /* Pods */,
 				27E2DDA53C4D2A4D1A88CE4A /* Frameworks */,
+				235E64CB2013D3DDC5DD9E35 /* Shared */,
+				18365EB9461ED3A5384D50E8 /* DailyWordWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -78,6 +150,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				0ADBA192B5C340B74B6B35C6 /* DailyWordWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -99,8 +172,18 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				00D36CAC493D0D1A73C723EB /* DailyWordWidgetPlugin.swift */,
+				BBEAAE86D24F43DFCCE11A6E /* App.entitlements */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		541F8846D2CAB2A765D30C35 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				E3DA99AE684419715614A573 /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		7F8756D8B27F46E3366F6CEA /* Pods */ = {
@@ -123,17 +206,36 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				86BB7901C5E2FD14AE2C3C01 /* Embed Foundation Extensions */,
 				9592DBEFFC6D2A0C8D5DEB22 /* [CP] Embed Pods Frameworks */,
 				B8EF1FE31613647C14753325 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				DC3AA93170340E9C9353504D /* PBXTargetDependency */,
 			);
 			name = App;
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		F77AB9AFCAA80DE0DD7108AE /* DailyWordWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E18D39FF4AC78966209129EB /* Build configuration list for PBXNativeTarget "DailyWordWidget" */;
+			buildPhases = (
+				98B67AFD07EDE53949D0AE5B /* Sources */,
+				782F83CAB6C6C99D86BBBF62 /* Frameworks */,
+				C59AC4B18544EE3E1A84C88F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DailyWordWidget;
+			productName = DailyWordWidget;
+			productReference = 0ADBA192B5C340B74B6B35C6 /* DailyWordWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -166,6 +268,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				F77AB9AFCAA80DE0DD7108AE /* DailyWordWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -182,6 +285,14 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C59AC4B18544EE3E1A84C88F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F516DD7E77B427C182CF5193 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,10 +360,30 @@
 				8DA1C0022FF2B00100AA0002 /* PhotoAccessPlugin.swift in Sources */,
 				8DA1C0042FF2B00100AA0004 /* OnDeviceTranslatePlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				AC9D30D2682F312FA6697D42 /* DailyWordWidgetPlugin.swift in Sources */,
+				8EBEE5DAFCF1829A1123895F /* DailyWordStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98B67AFD07EDE53949D0AE5B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0632A808849081152BD6D928 /* DailyWordWidget.swift in Sources */,
+				1DCAE2F96D4B32343C2ED6EE /* DailyWordStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DC3AA93170340E9C9353504D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = DailyWordWidget;
+			target = F77AB9AFCAA80DE0DD7108AE /* DailyWordWidget */;
+			targetProxy = 3AC5E9A817FFA9FA178BC64B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -274,6 +405,32 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		443678E5A13193D84D591368 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = DailyWordWidget/DailyWordWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DR9SR5J274;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DailyWordWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xaviergdelrosario.dino.DailyWordWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 		504EC3141FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -395,6 +552,7 @@
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = DR9SR5J274;
@@ -419,6 +577,7 @@
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = DR9SR5J274;
@@ -434,6 +593,33 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E8396EAC39A0A70EDF65E550 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = DailyWordWidget/DailyWordWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = DR9SR5J274;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DailyWordWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xaviergdelrosario.dino.DailyWordWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -454,6 +640,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E18D39FF4AC78966209129EB /* Build configuration list for PBXNativeTarget "DailyWordWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E8396EAC39A0A70EDF65E550 /* Release */,
+				443678E5A13193D84D591368 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

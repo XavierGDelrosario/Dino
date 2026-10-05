@@ -165,6 +165,17 @@ export async function getReviewQueue(params: QueueParams): Promise<ReviewQueueIt
 }
 
 /**
+ * The head of the live queue for something that only wants to LOOK at it (the daily
+ * word widget) — same ranking as a session, but online-only and never cached: caching
+ * would overwrite the last real session the offline fallback deals from.
+ */
+export async function peekReviewQueue(params: { userId: string; limit: number }): Promise<ReviewQueueItem[]> {
+  const res = await fetchQueue(params);
+  if ("error" in res) throw toServiceError(res.error);
+  return res.items;
+}
+
+/**
  * A session from the device, or null when nothing usable is cached.
  *
  * Dealt from the FULL deck — the whole vocabulary (`refreshOfflineDeck`) — ranked HERE,

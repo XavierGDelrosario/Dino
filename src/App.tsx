@@ -10,6 +10,7 @@ import { warmJapaneseAnalyzer } from "./services/language";
 import { Capacitor } from "@capacitor/core";
 import { watchForReconnect } from "./services/offline/sync";
 import { watchOfflineDeck } from "./services/review";
+import { watchDailyWordWidget } from "./services/widget/dailyWord";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
@@ -91,6 +92,12 @@ export function App() {
   useEffect(() => {
     if (!userId || !Capacitor.isNativePlatform()) return;
     return watchOfflineDeck(userId);
+  }, [userId]);
+
+  // Hand the home-screen widgets their daily words (services/widget). Inert on the web.
+  useEffect(() => {
+    if (!userId) return;
+    return watchDailyWordWidget(userId);
   }, [userId]);
 
   const [needsTerms, setNeedsTerms] = useState(false);

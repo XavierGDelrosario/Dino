@@ -27,7 +27,8 @@
 
   Accessed API: user defaults, which the WebView and Capacitor use to persist
   preferences and the session — reason CA92.1 (access to information stored by the
-  app itself).
+  app itself). Also reason 1C8F.1 (App Group): the app writes the daily-word
+  schedule its home-screen widgets read (Shared/DailyWordStore.swift).
 
   KEEP THIS IN SYNC with the App Store Connect privacy labels — Apple compares the
   two, and a mismatch is a rejection. Re-check when a feature starts sending
@@ -123,6 +124,7 @@
       <key>NSPrivacyAccessedAPITypeReasons</key>
       <array>
         <string>CA92.1</string>
+        <string>1C8F.1</string>
       </array>
     </dict>
   </array>
