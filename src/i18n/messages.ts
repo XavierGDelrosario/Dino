@@ -353,7 +353,7 @@ export const en = {
   "report.flag": "Report a problem with this word",
   "report.flagTranslation": "Report a problem with this translation",
   "report.title": "Report an issue",
-  "report.placeholder": "What's wrong with it? (optional)",
+  "report.placeholder": "What's wrong with it?",
   "report.send": "Send",
   "report.sent": "Thanks — sent to our quality reports.",
 
@@ -843,7 +843,7 @@ export const ja: Record<MessageKey, string> = {
   "report.flag": "この単語の問題を報告",
   "report.flagTranslation": "この翻訳の問題を報告",
   "report.title": "問題を報告",
-  "report.placeholder": "何が問題でしたか？（任意）",
+  "report.placeholder": "何が問題でしたか？",
   "report.send": "送信",
   "report.sent": "ありがとうございます — 品質レポートに送信しました。",
   "quiz.back": "← リーダーに戻る",

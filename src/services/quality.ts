@@ -6,10 +6,11 @@
 // flashcard. Distinct file because nothing here is admin-only, and importing the admin
 // service from an ordinary reading surface would invite the two to blur.
 //
-// WHAT MAKES A GOOD REPORT here is the WORD, not the prose. The surface fills `input`
-// (and `wordId` when it knows the exact sense) from what the user was looking at, so a
-// report carries a precise target even when the user types nothing at all — which is
-// the common case, and why the description is optional (migration 20260757).
+// The surface fills `input` (and `wordId` when it knows the exact sense, or `output` for
+// a translation) from what the user was looking at, so a report always carries a
+// precise target. The NOTE is the user's and is required: a bare flag is too easy to
+// send by accident and gives triage nothing to act on. (The RPC itself still accepts a
+// blank one — migration 20260757 — so builds already installed keep working.)
 // =========================================================
 
 import { supabase } from "../config/supabaseClient";
@@ -31,8 +32,8 @@ const REPORT_LIMIT_SQLSTATE = "54000";
 export interface QualityReportInput {
   /** What was being looked at — the headword, filled in by the calling surface. */
   input: string;
-  /** The user's optional note. Blank/whitespace is stored as NULL, not "". */
-  description?: string;
+  /** The user's note — what is wrong. Required; blank/whitespace is refused. */
+  description: string;
   /** The exact dictionary sense, when the surface knows it. Sharpens triage: 辛い has
    *  two senses and usually only one of them is wrong. */
   wordId?: string | null;
@@ -56,10 +57,13 @@ export async function reportQualityIssue(params: QualityReportInput): Promise<vo
     throw new ServiceError("Nothing to report — no word was given.", "validation");
   }
   const description = nfcTrim(params.description ?? "").slice(0, REPORT_MAX_CHARS);
+  if (!description) {
+    throw new ServiceError("Say what's wrong before sending the report.", "validation");
+  }
   const output = nfcTrim(params.output ?? "").slice(0, REPORT_TEXT_MAX_CHARS);
   const { error } = await supabase.rpc("report_quality_issue", {
     p_input: input,
-    p_description: description || undefined,
+    p_description: description,
     p_word_id: params.wordId ?? undefined,
     // Left out entirely for a word report, so those calls are unchanged.
     ...(output ? { p_output: output } : {}),

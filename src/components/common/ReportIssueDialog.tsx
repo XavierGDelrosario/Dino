@@ -5,9 +5,10 @@
 // the report is the same act in both places; only the target differs, and that arrives
 // as props. A second copy would drift the moment one of them gained a field.
 //
-// The text box is OPTIONAL and says so. The valuable signal is "this word is wrong",
-// which the surface already knows — demanding a sentence before recording it would
-// lose most of the reports. Send is therefore enabled with the box empty.
+// The text box is REQUIRED: Send stays disabled until something is written (user,
+// 2026-10-06). It used to be optional, on the theory that the flagged word is the whole
+// signal — but a one-tap report is also a one-tap accident, and a queue of bare flags
+// with nothing to act on is spam whoever sent it.
 //
 // It confirms and closes itself rather than leaving the user to dismiss a success
 // state: filing a report is an aside from reading or quizzing, and the flow should
@@ -46,8 +47,8 @@ export function ReportIssueDialog({
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Focus the box on open (typing is optional, but a user who wants to type shouldn't
-  // have to aim first), and let Escape back out — this is a transient aside.
+  // Focus the box on open (a note is required, so the user shouldn't have to aim
+  // first), and let Escape back out — this is a transient aside.
   useEffect(() => {
     boxRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -58,7 +59,7 @@ export function ReportIssueDialog({
   }, [onClose]);
 
   const send = async () => {
-    if (busy || sent) return;
+    if (busy || sent || !text.trim()) return;
     setBusy(true);
     setError(null);
     try {
@@ -116,9 +117,9 @@ export function ReportIssueDialog({
             <ErrorText message={error} />
             {/* One action, centred — with Cancel gone there is nothing to balance it
                 against, and a lone right-aligned button reads as unfinished.
-                Enabled with an empty box on purpose (see the header). */}
+                Disabled until there is a note (see the header). */}
             <div className="reportdlg__actions">
-              <button type="button" className="btn" onClick={() => void send()} disabled={busy}>
+              <button type="button" className="btn" onClick={() => void send()} disabled={busy || !text.trim()}>
                 {busy ? <LoadingDots /> : t("report.send")}
               </button>
             </div>

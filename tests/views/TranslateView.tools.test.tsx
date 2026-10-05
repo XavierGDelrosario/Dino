@@ -100,11 +100,26 @@ describe("TranslateView — the output box's report flag", () => {
     translate.value = { ...base(), input: "猫が走った。", output: "The cat ran.", status: "done", mode: "paragraph" };
     view();
     fireEvent.click(flag()!);
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    // A note is required: Send is dead until something is written.
+    const send = screen.getByRole("button", { name: "Send" }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    fireEvent.change(screen.getByRole("textbox", { name: "What's wrong with it?" }), { target: { value: "   " } });
+    expect(send.disabled).toBe(true);
+    fireEvent.change(screen.getByRole("textbox", { name: "What's wrong with it?" }), { target: { value: "wrong tense" } });
+    fireEvent.click(send);
     await waitFor(() =>
       expect(reportQualityIssue).toHaveBeenCalledWith(
-        expect.objectContaining({ input: "猫が走った。", output: "The cat ran." }),
+        expect.objectContaining({ input: "猫が走った。", output: "The cat ran.", description: "wrong tense" }),
       ),
     );
+  });
+
+  it("copy is second in both boxes: under the ✕ on the input, under the flag on the output", () => {
+    translate.value = { ...base(), input: "猫が走った。", output: "The cat ran.", status: "done", mode: "paragraph" };
+    const { container } = view();
+    const names = (sel: string) =>
+      [...container.querySelectorAll(`${sel} > button`)].slice(0, 2).map((b) => b.getAttribute("aria-label"));
+    expect(names(".io__tools")).toEqual(["Clear input", "Copy"]);
+    expect(names(".io__copy")).toEqual(["Report a problem with this translation", "Copy"]);
   });
 });
