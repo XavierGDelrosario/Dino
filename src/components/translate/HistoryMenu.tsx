@@ -79,6 +79,9 @@ export function HistoryMenu({
               className="thistory__clear"
               aria-label={t("translate.historyClearAria")}
               onClick={() => {
+                // It erases up to 200 lookups kept across restarts, and there is no
+                // undo — the same confirm the Lists deletes ask for.
+                if (!confirm(t("translate.historyClearConfirm"))) return;
                 onClear();
                 onClose();
               }}
