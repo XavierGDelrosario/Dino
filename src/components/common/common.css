@@ -762,8 +762,10 @@ main:has([data-no-footer]) .app__footer {
   width: auto;
 }
 
+/* As small as it stays readable: at 10px the "translated by" lettering is about 7px
+   tall, and Google's rule is that the badge remains "full and clearly visible". */
 .gbadge--small .gbadge__img {
-  height: 11px;
+  height: 10px;
 }
 
 .gbadge__img--light {

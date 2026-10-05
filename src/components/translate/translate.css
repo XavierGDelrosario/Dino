@@ -564,19 +564,6 @@ textarea.translate__box::-webkit-scrollbar {
   color: var(--muted);
 }
 
-/* "I'm learning: [lang]" — the study target selector below the Translate button. */
-.learnpick {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-  /* Compact + centered, not stretched to the wide boxes. */
-  max-width: 22rem;
-  margin-inline: auto;
-}
-
 /* The study area below the Translate button: add/quiz/review + the reader. */
 .study {
   display: flex;

@@ -27,7 +27,7 @@ import { fetchLearnWords } from "../services/learn";
 import { saveDictionaryWord } from "../services/words/userWords";
 import { getDifficulty } from "../services/difficulty";
 import { proficiencyFrameworkFor, labelForBand } from "../services/proficiency";
-import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE, type LangCode } from "../services/language";
+import { defaultLanguagePair, type LangCode } from "../services/language";
 import { errorMessage as message } from "../lib/errorMessage";
 import type { Word } from "../services/words/repository";
 
@@ -73,10 +73,7 @@ export function useCalibration(
   const learningPref = langs?.learning;
   const nativePref = langs?.native;
 
-  const langsRef = useRef<{ learning: LangCode; native: LangCode }>({
-    learning: DEFAULT_LEARNING_LANGUAGE,
-    native: DEFAULT_NATIVE_LANGUAGE,
-  });
+  const langsRef = useRef<{ learning: LangCode; native: LangCode }>(defaultLanguagePair());
   const maxBand = useRef(1);
   const baseline = useRef<PlacementRating[]>([]); // answers from earlier sessions
   const session = useRef<PlacementRating[]>([]); // this session's swipes

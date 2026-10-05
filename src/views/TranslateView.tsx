@@ -24,7 +24,7 @@ import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText, type OcrSource } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
-import { targetOptions, AUTO_DETECT, resolveSourceLanguage } from "../services/language";
+import { AUTO_DETECT, resolveSourceLanguage } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
@@ -439,7 +439,7 @@ export function TranslateView({
           {/* Google's badge, bottom-right, just left of the read-aloud button. */}
           {outputIsMachine && t.status !== "loading" && (
             <div className="translate__credit">
-              <GoogleBadge />
+              <GoogleBadge size="small" />
             </div>
           )}
           {/* The translation, in the TARGET language — the side it's written in. */}
@@ -509,24 +509,6 @@ export function TranslateView({
           {t.status === "loading" ? <LoadingDots /> : tr("translate.submit")}
         </button>
       </div>
-
-      {/* The language you're learning: the study section below always targets it
-          (its words get added/quizzed), whether you typed it or it's the output. */}
-      <label className="learnpick">
-        {tr("translate.learning")}
-        <select
-          className="select select--sm"
-          value={t.learning}
-          onChange={(e) => t.setLearning(e.target.value)}
-          aria-label={tr("translate.learningAria")}
-        >
-          {targetOptions().map((o) => (
-            <option key={o.code} value={o.code}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <ErrorText message={t.error} />
       <ErrorText message={ocrError} />

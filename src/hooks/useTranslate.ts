@@ -27,8 +27,7 @@ import {
   isAlreadyIn,
   searchTermFor,
   SUPPORTED_LANGUAGES,
-  DEFAULT_LEARNING_LANGUAGE,
-  DEFAULT_NATIVE_LANGUAGE,
+  defaultLanguagePair,
   type LangCode,
   type SourceSelection,
 } from "../services/language";
@@ -61,8 +60,8 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // profile effect below pins both once prefs load; both stay changeable in the LangBar.
   // …unless this instance is PINNED, in which case these are never read — see the
   // derived `source`/`target`/`learning` below.
-  const [sourceState, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
-  const [targetState, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
+  const [sourceState, setSource] = useState<SourceSelection>(() => defaultLanguagePair().learning);
+  const [targetState, setTarget] = useState<LangCode>(() => defaultLanguagePair().native);
   // Sticky: what you typed survives a tab switch. The RESULTS deliberately don't —
   // they'd be a stale mirror of saved/confidence state.
   const [input, setInput] = useStickyState(userId, "translate.input", "");
@@ -85,7 +84,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // language's words — the input when the user types it, else the OUTPUT, so typing
   // English while learning JA studies the Japanese translation's words. Independent of
   // the translate direction: swapping languages doesn't change what you're learning.
-  const [learningState, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
+  const [learningState, setLearning] = useState<LangCode>(() => defaultLanguagePair().learning);
   // The plain translation in the output box. Set by submit; distinct from study data.
   const [output, setOutput] = useState("");
 
@@ -189,8 +188,9 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   }, [prefs, pinnedLearning, pinnedNative]);
 
   /**
-   * Change the language being studied — and PERSIST it, because "I'm learning: X" is
-   * the profile's learning language, not a per-tab setting.
+   * Change the language being studied — and PERSIST it, because it IS the profile's
+   * learning language, not a per-tab setting. (Translate no longer has a picker for it;
+   * the profile page is where it is chosen.)
    *
    * It used to be local state seeded from the profile and never written back, so the
    * app held two answers to one question: this picker, and the profile row that Learn,
