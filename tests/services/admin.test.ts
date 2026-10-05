@@ -99,6 +99,7 @@ describe("write RPCs pass args + propagate errors", () => {
     expect((await listQualityReports())[0]).toEqual({
       id: 3, reportedAt: "t", reportedBy: "u1", input: "辛い", description: "wrong sense",
       source: "admin", dictionaryWordId: null,
+      output: null, // a row in the pre-20260789 shape carries no such field
       status: "resolved", resolvedAt: "r", resolvedBy: "u2",
     });
     expect(stub.rpc).toHaveBeenCalledWith("admin_quality_reports", {});

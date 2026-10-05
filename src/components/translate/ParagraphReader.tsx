@@ -67,7 +67,6 @@ function ParagraphReaderImpl({
   onTranslateSentence,
   glossLoading = false,
   openGloss = false,
-  glossCredit = false,
   glossToggle = "request",
   names,
   saved,
@@ -95,11 +94,6 @@ function ParagraphReaderImpl({
    *  translation" press on the reader it replaced, which would otherwise come up
    *  hiding the gloss it just paid for. */
   openGloss?: boolean;
-  /** Put Google's badge after each sentence's translation. For a host with NO output
-   *  box (an article's reading mode): there the reader is the only place the
-   *  translation is shown, so its attribution has to be here. The Translate tab leaves
-   *  this off — its output box carries the badge for the same translation. */
-  glossCredit?: boolean;
   /**
    * When the "Show translation" switch is offered.
    *   "request"  (default) — whenever there is a translation to show OR a way to fetch
@@ -355,7 +349,6 @@ function ParagraphReaderImpl({
             parts.push(
               <span className="reader__gloss" key={`${key}-gloss-${idx}`}>
                 {gloss}
-                {glossCredit && <GoogleBadge tone="quiet" size="small" />}
               </span>,
             );
           local = cut;
@@ -394,7 +387,7 @@ function ParagraphReaderImpl({
       if (cursor < to) out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
       return out;
     },
-    [text, tokens, meaningsByWord, names, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, glossCredit, tr],
+    [text, tokens, meaningsByWord, names, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, tr],
   );
 
   // The paragraph flows as one block, EXCEPT that a sentence showing its English is
@@ -424,7 +417,6 @@ function ParagraphReaderImpl({
         parts.push(
           <span className="reader__gloss" key={`s${i}-gloss-own`}>
             {ownGloss}
-            {glossCredit && <GoogleBadge tone="quiet" size="small" />}
           </span>,
         );
       out.push(
@@ -440,8 +432,12 @@ function ParagraphReaderImpl({
     });
     if (cursor < text.length) out.push(<span key="tail">{text.slice(cursor)}</span>);
     return out;
-  }, [spans, sentences, text, visibleGloss, glossCredit]);
+  }, [spans, sentences, text, visibleGloss]);
   const hasGloss = sentences.some((s) => s.gloss);
+  /** Is a machine translation actually drawn right now (inline or as the whole block)? */
+  const glossShowing = inlineGloss
+    ? sentences.some((_, i) => visibleGloss(i) !== null)
+    : showGloss && wholeGloss !== "";
   // Anything still unanswered? The gate used to be "no gloss at all", which meant a
   // text with ONE sentence tapped never asked for the rest — and, now that the press
   // runs the full submit, never ran it either.
@@ -566,15 +562,19 @@ function ParagraphReaderImpl({
       )}
       {/* ONE flowing paragraph, always: translations are injected under the sentence
           they belong to (see `gap`), so only glossed lines break. */}
-      <p className="reader">{flat}</p>
-      {/* Unpunctuated text has nowhere to put a per-sentence English, so it all goes
-          here in one block. */}
-      {!inlineGloss && showGloss && wholeGloss && (
-        <p className="reader__whole">
-          {wholeGloss}
-          {glossCredit && <GoogleBadge tone="quiet" size="small" />}
-        </p>
-      )}
+      <div className="reader__body">
+        <p className="reader">{flat}</p>
+        {/* Unpunctuated text has nowhere to put a per-sentence English, so it all goes
+            here in one block. */}
+        {!inlineGloss && showGloss && wholeGloss && <p className="reader__whole">{wholeGloss}</p>}
+        {/* Google's badge, ONCE, bottom-right — whenever any of its translations is on
+            screen here, whichever layout drew it. */}
+        {glossShowing && (
+          <div className="reader__credit">
+            <GoogleBadge tone="quiet" size="small" />
+          </div>
+        )}
+      </div>
       {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"

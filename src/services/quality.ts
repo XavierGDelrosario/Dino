@@ -21,6 +21,10 @@ import { nfcTrim } from "../lib/text";
  *  feedback; the value is not security-critical (the report is the user's own text). */
 export const REPORT_MAX_CHARS = 500;
 
+/** Cap on the reported input / output themselves — a pasted paragraph, not a word, when
+ *  the flag is the one on Translate's output box. Mirrors c_max_text in 20260789. */
+export const REPORT_TEXT_MAX_CHARS = 5000;
+
 /** SQLSTATE the RPC raises when a user passes its 30-per-24h cap (migration 20260757). */
 const REPORT_LIMIT_SQLSTATE = "54000";
 
@@ -32,6 +36,10 @@ export interface QualityReportInput {
   /** The exact dictionary sense, when the surface knows it. Sharpens triage: 辛い has
    *  two senses and usually only one of them is wrong. */
   wordId?: string | null;
+  /** What the app answered, when the report is about a TRANSLATION rather than a word
+   *  (the flag on Translate's output box). Stored as shown: a sentence's machine
+   *  translation is never cached, so it could not be looked up again later. */
+  output?: string | null;
 }
 
 /**
@@ -43,15 +51,18 @@ export interface QualityReportInput {
  * here as a ServiceError the dialog can show verbatim.
  */
 export async function reportQualityIssue(params: QualityReportInput): Promise<void> {
-  const input = nfcTrim(params.input);
+  const input = nfcTrim(params.input).slice(0, REPORT_TEXT_MAX_CHARS);
   if (!input) {
     throw new ServiceError("Nothing to report — no word was given.", "validation");
   }
   const description = nfcTrim(params.description ?? "").slice(0, REPORT_MAX_CHARS);
+  const output = nfcTrim(params.output ?? "").slice(0, REPORT_TEXT_MAX_CHARS);
   const { error } = await supabase.rpc("report_quality_issue", {
     p_input: input,
     p_description: description || undefined,
     p_word_id: params.wordId ?? undefined,
+    // Left out entirely for a word report, so those calls are unchanged.
+    ...(output ? { p_output: output } : {}),
   });
   if (error) {
     // The daily cap is the one failure here a user can act on, so it gets copy of its

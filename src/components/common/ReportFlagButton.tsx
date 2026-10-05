@@ -13,12 +13,18 @@ import "./report.css";
 export function ReportFlagButton({
   input,
   wordId,
+  output,
+  label,
   className = "iconbtn",
   size,
 }: {
   /** The word being reported. Rendering is skipped when there's nothing to report. */
   input: string;
   wordId?: string | null;
+  /** The translation shown for `input`, when THAT is what's being reported. */
+  output?: string | null;
+  /** Accessible name / tooltip; defaults to the word wording. */
+  label?: string;
   className?: string;
   size?: number;
 }) {
@@ -31,8 +37,8 @@ export function ReportFlagButton({
       <button
         type="button"
         className={`${className} reportbtn`}
-        aria-label={t("report.flag")}
-        title={t("report.flag")}
+        aria-label={label ?? t("report.flag")}
+        title={label ?? t("report.flag")}
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
@@ -41,7 +47,7 @@ export function ReportFlagButton({
         <FlagIcon size={size} />
       </button>
       {open && (
-        <ReportIssueDialog input={input} wordId={wordId} onClose={() => setOpen(false)} />
+        <ReportIssueDialog input={input} wordId={wordId} output={output} onClose={() => setOpen(false)} />
       )}
     </>
   );

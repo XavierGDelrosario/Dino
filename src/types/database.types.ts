@@ -796,7 +796,7 @@ export type Database = {
         Returns: { term: string; words: Json }[]
       }
       report_quality_issue: {
-        Args: { p_input: string; p_description?: string; p_word_id?: string }
+        Args: { p_input: string; p_description?: string; p_word_id?: string; p_output?: string }
         Returns: {
           id: number
           reported_at: string
@@ -808,6 +808,7 @@ export type Database = {
           resolved_by: string | null
           source: string
           dictionary_word_id: string | null
+          output: string | null
         }
       }
       admin_report_quality_issue: {
@@ -837,6 +838,8 @@ export type Database = {
           resolved_by: string | null
           source: string
           dictionary_word_id: string | null
+          // Migration 20260789 — what the Translate output box held; null for word reports.
+          output: string | null
         }[]
       }
       admin_set_quality_report_status: {
