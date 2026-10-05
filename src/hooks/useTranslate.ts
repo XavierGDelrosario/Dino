@@ -20,6 +20,7 @@ import { orderSensesByContextReading } from "../services/analyze/senseOrder";
 import {
   analyze,
   splitSentences,
+  withFinalStop,
   isSingleWord,
   isContentPos,
   dictionaryFormOf,
@@ -246,7 +247,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     /** Skip the whole-paragraph MT gloss (media summary page — reader only). */
     skipGloss?: boolean;
   }) => {
-    const text = (override?.text ?? input).trim();
+    let text = (override?.text ?? input).trim();
     if (!text || status === "loading" || readerLoading) return;
     const src = override?.source ?? source;
     const tgt = override?.target ?? target;
@@ -255,6 +256,25 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     setReaderLoading(false);
     setError(null);
     try {
+      // A SENTENCE LEFT OPEN GETS ITS FULL STOP (user, 2026-10-06). Pressing Translate
+      // on text that runs out on a word closes it, in the box too, so what is studied
+      // and what is shown are the same string. Only for the box's own text — an
+      // override (OCR, swap, history, an article) is someone else's text — and only
+      // for a sentence: a single word must stay a lookup (猫 → senses; 猫。 would be a
+      // one-word paragraph). Whole-string romaji is a word-ish query too, and a "."
+      // would stop it converting, so it is left alone.
+      if (override?.text === undefined) {
+        const closed = withFinalStop(text);
+        if (closed !== text && searchTermFor(text, src) === text) {
+          const lang = resolveSourceLanguage(text, src);
+          if (!isSingleWord(await analyze(text, lang), lang)) {
+            text = closed;
+            pendingEntry.current = { text, source: src, target: tgt };
+            setInput(closed);
+          }
+        }
+      }
+
       // ROMAJI → KANA, for the LOOKUP only. Typing "neko" while the source says Japanese
       // found nothing: jmdict_lookup misses on Latin, and the edge's off-script guard
       // then (correctly) refuses to buy an MT translation of Latin submitted as JA — so
@@ -463,7 +483,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
       setStatus("error");
       setReaderLoading(false);
     }
-  }, [input, source, target, status, readerLoading, userId, limits, learning]);
+  }, [input, setInput, source, target, status, readerLoading, userId, limits, learning]);
 
   // EMPTYING the box drops the result it produced. Without this a submitted paragraph
   // outlived its text: status stayed "done", so the stale reader kept its place and

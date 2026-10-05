@@ -54,6 +54,31 @@ export function endsSentence(span: string): boolean {
 }
 
 /**
+ * `text` with a full stop added when it runs out on a word — 「雨です」 → 「雨です。」,
+ * "It rained" → "It rained." — and unchanged otherwise.
+ *
+ * WHY: every unit downstream is a sentence, and a last sentence with no terminator has
+ * no mark for the reader to hang its translation on. Dictation is the common source:
+ * iOS places the closing 。 only once the NEXT words arrive, so the final sentence of
+ * anything spoken ends bare.
+ *
+ * Only after a LETTER or DIGIT. Text ending on any punctuation — a terminator, a comma,
+ * a bracket, a dash — is left as its writer had it: a second mark there is a guess.
+ * The mark follows the script of that last character: 。 after kana/kanji, `.` otherwise
+ * (Latin, and Korean, which writes a Western full stop). Trailing whitespace is dropped.
+ *
+ * The CALLER decides whether the text is a sentence at all — a single word must not
+ * get one (猫 is a lookup, 猫。 is a paragraph). PURE.
+ */
+export function withFinalStop(text: string): string {
+  const body = text.replace(/\s+$/u, "");
+  const last = Array.from(body).pop();
+  if (!last || !/[\p{L}\p{N}]/u.test(last)) return text;
+  const cjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]/u.test(last);
+  return body + (cjk ? "。" : ".");
+}
+
+/**
  * Split `text` into sentences, keeping each one's offsets in the source.
  *
  * Terminators: 。！？!?… , a `.` that is not a decimal point, and — conditionally —

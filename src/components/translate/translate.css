@@ -918,27 +918,6 @@ textarea.translate__box::-webkit-scrollbar {
   gap: 0.35rem;
 }
 
-/* The gutter's TOP ROW when there is text: copy, then clear, side by side — copy to the
-   LEFT of the ✕. The row is two buttons wide, so the rest of the column (draw / mic /
-   picture, one button wide) hugs the right edge under the ✕ rather than centring. */
-.io__toprow {
-  display: flex;
-  flex-direction: row;
-  gap: 0.35rem;
-}
-
-.io__gutter:has(.io__toprow),
-.io__tools:has(.io__toprow) {
-  align-items: flex-end;
-}
-
-/* …and the textarea gives up a second button's width on the right while that row is
-   there, so typed text never runs under the copy button: the usual 2.8rem plus a
-   2rem button and its 0.35rem gap. With no text there is nothing to reflow. */
-.translate__box--copy {
-  padding-right: 5.15rem;
-}
-
 /* Copy the translation: TOP-right of the output box, the corner opposite read-aloud.
    Anchored to the wrapper for the same reason .io__speak is. The box already reserves
    the right gutter, so the translation never runs under it. */
@@ -947,9 +926,10 @@ textarea.translate__box::-webkit-scrollbar {
   right: 0.4rem;
   top: 0.4rem;
   z-index: 2;
-  /* Copy, then the report flag: the same two-wide row as the input's copy + clear, and
-     the box reserves the same width for it (.translate__box--copy). */
+  /* The report flag, then copy under it: one column, the same width as the input's
+     gutter, so the box's ordinary right padding already clears it. */
   display: flex;
+  flex-direction: column;
   gap: 0.35rem;
 }
 
