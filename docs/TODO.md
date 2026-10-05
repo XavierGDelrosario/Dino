@@ -221,11 +221,6 @@ Fix VOLUME first, then price.
   fallback entirely (`skipGlossFallback`), because the EN pool only emits surfaces WordNet
   can translate. That fixed A1/A2 placement timing out.
 
-### Pre-publish QA (2026-10-05) — the findings that could not be settled from code
-- **`delete-account` edge function** reads only the legacy `SUPABASE_ANON_KEY` /
-  `SUPABASE_SERVICE_ROLE_KEY`, which are disabled on prod → deletion may fail. Test with a
-  throwaway account; if it does, mirror `translate`'s `SERVICE_ROLE_SECRET`.
-
 ### Test coverage
 - **Edge error-log e2e** — the sink contract is covered; driving a real failing edge path
   isn't (not deterministically forceable over HTTP).
