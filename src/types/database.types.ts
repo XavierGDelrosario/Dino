@@ -935,6 +935,10 @@ export type Database = {
         Args: { p_source_lang: string; p_target_lang: string; p_max_band: number }
         Returns: { band: number; pool: number; unsaved: number; known: number }[]
       }
+      refresh_placement_pool: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       profile_history: {
         Args: { p_tz?: string }
         Returns: Json
