@@ -19,7 +19,7 @@ export function LanguageMenu({
   const { t, locale, setLocale } = useI18n();
 
   return (
-    <PopoverMenu icon="🌐" ariaLabel={t("ui.language")} open={open} onToggle={onToggle}>
+    <PopoverMenu icon="🌐" ariaLabel={t("ui.language")} open={open} onToggle={onToggle} onClose={onClose}>
       {LOCALES.map((l) => (
         <button
           key={l.code}

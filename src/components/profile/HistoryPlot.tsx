@@ -83,6 +83,16 @@ function niceMax(v: number): number {
   return 10 * p;
 }
 
+/** Whole-number ticks for a zoomed ACTIVITY window (counts): about four, on a 1-2-5 step. */
+function countTicks(y0: number, y1: number): number[] {
+  const raw = Math.max(1, (y1 - y0) / 4);
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = Math.max(1, [1, 2, 5, 10].map((m) => m * pow).find((c) => c >= raw) ?? 10 * pow);
+  const out: number[] = [];
+  for (let v = Math.ceil(y0 / step - 1e-9) * step; v <= y1 + 1e-9; v += step) out.push(v);
+  return out;
+}
+
 export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const { t, locale } = useI18n();
   const [metric, setMetric] = useState<PlotMetric>("added");
@@ -132,13 +142,20 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const yMax = isConf ? 5 : niceMax(Math.max(0, ...series.flatMap((s) => s.points.map((p) => p.value ?? 0))));
   const shown = isConf ? series.filter((s) => !hidden.has(s.id)) : series;
 
-  // Zoom is confidence-only; the activity plots always show the whole range.
-  const bounds: Bounds = { xMax: Math.max(0, n - 1), yMin: 0, yMax, minX: Math.min(2, Math.max(0, n - 1)), minY: 0.5 };
+  // Every metric zooms and pans. The smallest Y window is half a point of confidence,
+  // or a twentieth of an activity plot's range (never less than one whole count).
+  const bounds: Bounds = {
+    xMax: Math.max(0, n - 1),
+    yMin: 0,
+    yMax,
+    minX: Math.min(2, Math.max(0, n - 1)),
+    minY: isConf ? 0.5 : Math.max(1, yMax / 20),
+  };
   /** A stored window resolved against the current data (null = everything). */
   const resolve = (w: View | null) => (w ? clampView(w, bounds) : fullView(bounds));
-  const v = isConf ? resolve(view) : fullView(bounds);
+  const v = resolve(view);
   const zoomed = !isFullView(v, bounds);
-  const ticks = isConf ? niceTicks(v.y0, v.y1) : [0, yMax / 2, yMax];
+  const ticks = isConf ? niceTicks(v.y0, v.y1) : zoomed ? countTicks(v.y0, v.y1) : [0, yMax / 2, yMax];
 
   const x = (i: number) => M.left + (v.x1 - v.x0 <= 0 ? PW / 2 : ((i - v.x0) / (v.x1 - v.x0)) * PW);
   const y = (val: number) => M.top + PH - ((val - v.y0) / (v.y1 - v.y0)) * PH;
@@ -185,7 +202,7 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
   // niceTicks already rounds to the step, so the plain number prints right (1, 0.5, 0.25).
   const fmtTick = (val: number) => String(isConf ? val : Math.round(val));
 
-  // ── Pointer: hover to inspect; with confidence, drag to pan and pinch to zoom ──
+  // ── Pointer: hover to inspect; drag to pan and pinch to zoom ──
   const hit = useRef<SVGRectElement>(null);
   /** Active pointers (touch fingers / a held mouse button), by id → last position. */
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -202,7 +219,6 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
 
   const onPointerDown = (e: PointerEvent<SVGRectElement>) => {
     pickIndex(e.clientX);
-    if (!isConf) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 1) press.current = { x: e.clientX, y: e.clientY, dragging: false };
@@ -263,18 +279,32 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
     const el = svgRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (!isConf || !(e.ctrlKey || e.metaKey)) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
       const box = hit.current?.getBoundingClientRect();
       if (!box) return;
       e.preventDefault();
       zoomBy(Math.exp(e.deltaY * 0.01), (e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
     };
+    // A two-finger gesture on the plot is OURS (pinch to zoom), not the page's. The
+    // SVG's `touch-action: pan-y` keeps a one-finger swipe scrolling the page, but it
+    // also lets the browser claim two fingers moving vertically as a scroll and cancel
+    // the pointers mid-pinch — so pinching only worked once the plot was already zoomed.
+    // Non-passive, like the wheel: React's touch handlers can't preventDefault either.
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    el.addEventListener("touchstart", onTouch, { passive: false });
+    el.addEventListener("touchmove", onTouch, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouch);
+      el.removeEventListener("touchmove", onTouch);
+    };
   });
 
   const onKey = (e: KeyboardEvent<SVGSVGElement>) => {
-    if (isConf && (e.key === "+" || e.key === "=" || e.key === "-" || e.key === "0")) {
+    if (e.key === "+" || e.key === "=" || e.key === "-" || e.key === "0") {
       e.preventDefault();
       if (e.key === "0") resetView();
       else zoomBy(e.key === "-" ? 1 / ZOOM_STEP : ZOOM_STEP);
@@ -318,7 +348,7 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
             </option>
           ))}
         </select>
-        {isConf && hasData && (
+        {hasData && (
           <div className="hist__seg hist-plot__zoom" role="group" aria-label={t("history.zoomAria")}>
             <button type="button" className="hist__segbtn" onClick={() => zoomBy(1 / ZOOM_STEP)} disabled={!zoomed} aria-label={t("history.zoomOut")} title={t("history.zoomOut")}>
               −
@@ -333,9 +363,9 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
         )}
       </div>
 
-      {isConf && (
+      {(isConf || hasData) && (
         <p className="hist__note">
-          {t("history.confidenceNote")} {hasData && t("history.zoomHint")}
+          {isConf && t("history.confidenceNote")} {hasData && t("history.zoomHint")}
         </p>
       )}
 
@@ -346,7 +376,7 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
         <div className="hist-plot__frame">
           <svg
             ref={svgRef}
-            className={`hist-plot__svg${isConf && zoomed ? " hist-plot__svg--zoomed" : ""}`}
+            className={`hist-plot__svg${zoomed ? " hist-plot__svg--zoomed" : ""}`}
             viewBox={`0 0 ${W} ${H}`}
             role="img"
             aria-label={`${t(METRICS.find((m) => m.value === metric)!.label)} — ${t(
@@ -427,7 +457,7 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
               width={PW}
               height={PH}
               fill="transparent"
-              className={isConf ? "hist-plot__hit--pan" : undefined}
+              className="hist-plot__hit--pan"
               onPointerMove={onPointerMove}
               onPointerDown={onPointerDown}
               onPointerUp={endPointer}

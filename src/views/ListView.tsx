@@ -354,7 +354,7 @@ export function ListView({
         {L.words.length > 0 && (
           <>
             <button
-              className="btn btn--sm lists__reviewbtn"
+              className="btn btn--sm btn--primary lists__reviewbtn"
               onClick={() =>
                 selectedList
                   ? // A sub-list: quiz its (filtered) words as an explicit set, capped —

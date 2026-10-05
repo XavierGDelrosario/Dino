@@ -217,7 +217,7 @@
   background: none;
 }
 
-/* Confidence: the plot can be dragged — a grab cursor says so. Zoomed in, a one-finger
+/* The plot can be dragged — a grab cursor says so. Zoomed in, a one-finger
    drag pans instead of scrolling the page (touch-action). */
 .hist-plot__hit--pan {
   cursor: grab;

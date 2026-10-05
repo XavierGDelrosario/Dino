@@ -71,6 +71,14 @@
   --lvl-4: #c98500;
   --lvl-5: #d55181;
   --lvl-6: #9085e9;
+  /* Part-of-speech chips (WordInfo): a hue per open class, one for the grammatical
+     categories, one for the rest. Tints + outlines only, never text. */
+  --pos-noun: #4f9be8;
+  --pos-verb: #e0733a;
+  --pos-adjective: #2fae7d;
+  --pos-adverb: #d2a01e;
+  --pos-grammar: #a79bf2;
+  --pos-other: #8b95a5;
 
   /* Semantic status colours. --danger-* are the destructive set (delete account,
      errors); --success is the affirmative one (a saved word, a "known" swipe). */
@@ -133,6 +141,12 @@
   --lvl-4: #eda100;
   --lvl-5: #e87ba4;
   --lvl-6: #4a3aa7;
+  --pos-noun: #2a78d6;
+  --pos-verb: #e0622a;
+  --pos-adjective: #1a9c6c;
+  --pos-adverb: #c98a00;
+  --pos-grammar: #5b4bc4;
+  --pos-other: #6b7482;
 
   --danger: #b3261e;
   --danger-text: #a3200f;

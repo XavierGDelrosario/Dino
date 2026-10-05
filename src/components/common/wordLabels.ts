@@ -34,3 +34,26 @@ export const POS_LABEL_KEY: Record<PosCategory, MessageKey> = {
   determiner: "pos.determiner",
   expression: "pos.expression",
 };
+
+/**
+ * Coarse POS category → its chip colour (a theme token; see common.css `--pos-*`).
+ * The four open classes get a hue each; the closed-class / grammatical categories share
+ * one, and the leftovers another — fifteen distinct hues would be noise, not signal.
+ */
+export const POS_COLOR: Record<PosCategory, string> = {
+  noun: "var(--pos-noun)",
+  verb: "var(--pos-verb)",
+  adjective: "var(--pos-adjective)",
+  adverb: "var(--pos-adverb)",
+  particle: "var(--pos-grammar)",
+  conjunction: "var(--pos-grammar)",
+  auxiliary: "var(--pos-grammar)",
+  determiner: "var(--pos-grammar)",
+  prefix: "var(--pos-grammar)",
+  suffix: "var(--pos-grammar)",
+  pronoun: "var(--pos-other)",
+  counter: "var(--pos-other)",
+  numeric: "var(--pos-other)",
+  interjection: "var(--pos-other)",
+  expression: "var(--pos-other)",
+};
