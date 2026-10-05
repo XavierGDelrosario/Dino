@@ -31,7 +31,7 @@ export function ProfileMenu({
   const close = onClose;
 
   return (
-    <PopoverMenu icon="👤" ariaLabel={t("profile.menuAria")} open={open} onToggle={onToggle}>
+    <PopoverMenu icon="👤" ariaLabel={t("profile.menuAria")} open={open} onToggle={onToggle} onClose={onClose}>
       {!isAnonymous && email && <div className="profilemenu__email ellipsis">{email}</div>}
       {/* The account's own destination leads — a guest's sign-in/create path, a
           member's profile + history — ABOVE the theme row: this is the ACCOUNT menu,

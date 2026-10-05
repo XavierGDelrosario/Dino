@@ -6,11 +6,12 @@
 //
 // A TAP-toggle panel, not a native `title` tooltip: tooltips don't fire on touch
 // (this app targets iOS) — same rationale as the original ListRow "?".
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { getProficiency } from "../../services/proficiency";
 import { frequencyCommonness } from "../../services/difficulty";
 import { partOfSpeechCategory, type LangCode } from "../../services/language";
-import { COMMONNESS_LABEL_KEY, POS_LABEL_KEY } from "./wordLabels";
+import { COMMONNESS_LABEL_KEY, POS_COLOR, POS_LABEL_KEY } from "./wordLabels";
+import { ordinalColor } from "../../services/analyze/palette";
 import { useI18n } from "../../i18n";
 import "./wordinfo.css";
 
@@ -25,6 +26,20 @@ export interface WordInfoTarget {
   frequency: number | null;
 }
 
+/**
+ * A value on a rounded rectangle in its own colour — the level's, the commonness
+ * ramp's, the part of speech's — the same colours the charts give those values. The
+ * colour is a TINT behind the text plus the outline, never the text colour itself:
+ * these are chart fills, and several are too light to read as text on either theme.
+ */
+function Chip({ color, children }: { color: string; children: ReactNode }) {
+  return (
+    <span className="wordinfo-chip" style={{ "--chip": color } as CSSProperties}>
+      {children}
+    </span>
+  );
+}
+
 /** The Level + Commonness + Part-of-Speech rows — the shared panel CONTENT. */
 export function WordInfo({ word }: { word: WordInfoTarget }) {
   const { t } = useI18n();
@@ -32,20 +47,23 @@ export function WordInfo({ word }: { word: WordInfoTarget }) {
   const pos = partOfSpeechCategory(word.partOfSpeech);
   const commonness = frequencyCommonness(word);
   return (
-    // One rounded box behind the three facts about the WORD, so they read as a group
-    // apart from whatever rows a caller appends (a Lists row's dates).
-    <span className="wordinfo-facts">
+    <>
       <span>
-        {t("wordinfo.level")}: {prof ? prof.label : t("wordinfo.unknown")}
+        {t("wordinfo.level")}: {prof ? <Chip color={`var(--lvl-${prof.band})`}>{prof.label}</Chip> : t("wordinfo.unknown")}
       </span>
       <span>
         {t("wordinfo.usage")}:{" "}
-        {commonness ? t(COMMONNESS_LABEL_KEY[commonness]) : t("wordinfo.unknown")}
+        {commonness ? (
+          // The same common → rare ramp the charts use (five bands across it).
+          <Chip color={ordinalColor((commonness - 1) / 4)}>{t(COMMONNESS_LABEL_KEY[commonness])}</Chip>
+        ) : (
+          t("wordinfo.unknown")
+        )}
       </span>
       <span>
-        {t("wordinfo.pos")}: {pos ? t(POS_LABEL_KEY[pos]) : t("wordinfo.unknown")}
+        {t("wordinfo.pos")}: {pos ? <Chip color={POS_COLOR[pos]}>{t(POS_LABEL_KEY[pos])}</Chip> : t("wordinfo.unknown")}
       </span>
-    </span>
+    </>
   );
 }
 
