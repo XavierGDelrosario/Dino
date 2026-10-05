@@ -108,23 +108,25 @@
   /* Inverse of the dark split: on white the LIGHT lavender is the unreadable one
      (~1.9:1), so the saturated brand purple becomes the text/UI colour and white
      is what sits on top of it. */
-  --accent: #6d28d9;
-  --accent-strong: #5b21b6;
+  --accent: #7b3ae1;
+  --accent-strong: #6320cc;
   --on-accent: #ffffff;
-  --word-new: #1d63d1;
+  --word-new: #206de5;
   --border: #d7dae4;
 
-  --conf-0: #d3261d;
-  --conf-1: #b45309;
-  --conf-2: #8a6d00;
-  --conf-3: #59760d;
-  --conf-4: #1e7a33;
-  --conf-5: #0b7248;
+  /* Brightened a step on 2026-10-06 (lighter + a touch more saturated, same hues), each
+     held at ≥ 4.5:1 on white so the ramp still reads as TEXT. */
+  --conf-0: #e4281f;
+  --conf-1: #c15707;
+  --conf-2: #917300;
+  --conf-3: #61810c;
+  --conf-4: #1e8837;
+  --conf-5: #098050;
   /* 4.33:1 on white — the same weight #d15b5d carries on the dark surface. */
   --conf-lost: #d9443d;
 
-  --ord-common: #1f9d5c;
-  --ord-rare: #2148ac;
+  --ord-common: #1fa660;
+  --ord-rare: #214dbe;
   --lvl-1: #2a78d6;
   --lvl-2: #eb6834;
   --lvl-3: #1baf7a;
@@ -136,7 +138,7 @@
   --danger-text: #a3200f;
   --danger-bg: #fdecea;
   --danger-border: #f0b9b4;
-  --success: #0b7248;
+  --success: #098050;
 
   --hover: #e2e5ee;
 
@@ -431,7 +433,10 @@ body {
   font-size: 0.85rem;
   color: var(--muted);
 }
-.btn--danger {
+/* `.btn.btn--danger`, not `.btn--danger`: this rule sits ABOVE `.btn` in the file, and
+   at equal weight the later `.btn` painted every "danger" button the plain grey — the
+   Lists select bar's Delete looked exactly like the buttons beside it. */
+.btn.btn--danger {
   background: var(--danger);
   border-color: var(--danger);
   /* Literal white, not a token: this label sits on the solid danger red in BOTH
@@ -439,7 +444,9 @@ body {
   color: #fff;
 }
 
-.btn--danger:hover {
+.btn.btn--danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
   filter: brightness(1.12);
 }
 /* The shared top-bar icon button — the globe and the person both use it, so they read as one row of controls (see .app__menus). */

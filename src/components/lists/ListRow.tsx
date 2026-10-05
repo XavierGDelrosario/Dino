@@ -10,6 +10,7 @@ import type { List } from "../../services/lists";
 import { TagListButton } from "../common/TagListButton";
 import { WordRow } from "../common/WordRow";
 import { PencilIcon, TrashIcon } from "../common/icons";
+import { isMeaningEdited } from "../../services/words/userWords";
 import { WordInfoButton } from "../common/WordInfo";
 import { ConfidenceDots } from "../common/ConfidenceDots";
 import { useI18n, type Locale } from "../../i18n";
@@ -29,6 +30,7 @@ export function ListRow({
   word,
   lists,
   onEdit,
+  onRevert,
   onDelete,
   onTag,
   onCreateList,
@@ -41,6 +43,9 @@ export function ListRow({
   word: UserWord;
   lists: List[];
   onEdit: (translation: string) => void;
+  /** Drop an edited meaning for the dictionary's. Offered only on a word whose
+   *  meaning HAS been edited; omit and the editor has no "Revert to original". */
+  onRevert?: () => void;
   onDelete: () => void;
   onTag: (listId: string) => void;
   /** Create a sub-list and tag this word into it (the on-the-fly "New list…").
@@ -59,6 +64,8 @@ export function ListRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(word.translation);
   const editRef = useRef<HTMLTextAreaElement>(null);
+  // The meaning shown is the user's own, replacing the dictionary's.
+  const edited = isMeaningEdited(word);
   const { t, locale } = useI18n();
   const added = fmtDate(word.originallyTranslatedDate, locale, t("lists.never"));
   const reviewed = fmtDate(word.lastReviewedDate, locale, t("lists.never"));
@@ -141,10 +148,15 @@ export function ListRow({
           {!editing && (
             <>
               <button
-                className="iconbtn"
-                onClick={() => setEditing(true)}
-                aria-label={t("lists.editMeaningTitle")}
-                title={t("lists.editMeaningTitle")}
+                // Purple once the meaning is the user's own — the row otherwise gives
+                // no sign that what it shows is no longer the dictionary's.
+                className={`iconbtn${edited ? " iconbtn--edited" : ""}`}
+                onClick={() => {
+                  setDraft(word.translation); // the row may have changed since (a revert)
+                  setEditing(true);
+                }}
+                aria-label={t(edited ? "lists.editMeaningEditedTitle" : "lists.editMeaningTitle")}
+                title={t(edited ? "lists.editMeaningEditedTitle" : "lists.editMeaningTitle")}
               >
                 <PencilIcon size={16} />
               </button>
@@ -190,14 +202,30 @@ export function ListRow({
                 scrolling sideways. Enter inserts a newline and never saves — a
                 Japanese IME uses Enter to confirm kanji, so saving on it would commit
                 mid-conversion (same rule as the translate box); ✓ commits. */}
-            <textarea
-              ref={editRef}
-              className="input input--sm listrow__editfield"
-              rows={1}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              aria-label={t("lists.editMeaningAria")}
-            />
+            <span className="listrow__editbox">
+              <textarea
+                ref={editRef}
+                className="input input--sm listrow__editfield"
+                rows={1}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                aria-label={t("lists.editMeaningAria")}
+              />
+              {/* Under the field's bottom-right corner, and only when there is an
+                  original to go back to (an edited dictionary word). */}
+              {edited && onRevert && (
+                <button
+                  type="button"
+                  className="listrow__revert"
+                  onClick={() => {
+                    onRevert();
+                    setEditing(false);
+                  }}
+                >
+                  {t("lists.revertMeaning")}
+                </button>
+              )}
+            </span>
             <button
               className="iconbtn"
               onClick={() => {

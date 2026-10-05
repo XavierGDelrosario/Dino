@@ -49,6 +49,16 @@
   padding: 0.4rem 0.6rem;
   box-shadow: var(--shadow);
 }
+/* Level · Commonness · Part of speech, grouped on a rounded box inside the panel. */
+.wordinfo-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem 0.55rem;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+
 .wordinfo-panel--right {
   right: 0;
 }

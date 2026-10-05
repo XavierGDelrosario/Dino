@@ -368,6 +368,36 @@ export async function editUserWord(params: {
 }
 
 /**
+ * Drop the user's own meaning and go back to the DICTIONARY's — the undo of
+ * `editUserWord`. Only for a word that came from the dictionary: a word the user
+ * created has no original to go back to (and the `user_words_has_meaning` check
+ * refuses a row with neither meaning).
+ */
+export async function revertUserWord(params: { userWordId: string }): Promise<UserWord> {
+  const data = await readWithDictionary<UserWordRow>((columns) =>
+    supabase
+      .from("user_words")
+      .update({ custom_translation: null })
+      .eq("user_word_id", params.userWordId)
+      .not("dictionary_word_id", "is", null)
+      .select<string, UserWordRow>(`*, words(${columns})`)
+      .single(),
+  ).catch((e) => {
+    throw toServiceError(e, "Failed to revert word");
+  });
+  if (!data) throw new ServiceError("Failed to revert word");
+  const reverted = toUserWord(data);
+  vocabulary.writeWordById(reverted.userWordId, reverted);
+  return reverted;
+}
+
+/** Has the user replaced this dictionary word's meaning with their own? (A word they
+ *  CREATED also has a custom meaning, but it is the only one — nothing was replaced.) */
+export function isMeaningEdited(w: Pick<UserWord, "customTranslation" | "dictionaryWordId">): boolean {
+  return w.customTranslation != null && w.dictionaryWordId != null;
+}
+
+/**
  * Deletes a word from the vocabulary: removes it from ALL and EVERY sub-list
  * (list_words cascades). Re-adding later starts fresh at confidence 0. The global
  * dictionary row is never touched.
