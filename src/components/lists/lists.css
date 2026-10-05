@@ -297,8 +297,9 @@
   padding: 0.5rem 1rem;
 }
 
-.filtermenu__btn--on,
-.filtermenu__btn[aria-expanded="true"] {
+/* Filters applied, panel closed: an outline in the brand colour. (Open, the button is
+   .btn--primary like its neighbours — see FilterButton.) */
+.filtermenu__btn--on {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -310,6 +311,12 @@
   border-radius: 999px;
   background: var(--accent);
   color: var(--surface);
+}
+
+/* On the solid (open) button the badge inverts, or it would vanish into the fill. */
+.btn--primary .filtermenu__badge {
+  background: var(--bg);
+  color: var(--accent);
 }
 
 /* In the PAGE FLOW, directly under the actions row — not a floating/hover card. It
