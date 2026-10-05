@@ -24,10 +24,11 @@ import type { ReviewQueueItem } from "../review";
 
 /**
  * Two decks, because they answer different questions and must not overwrite each other:
- *   session — the last session dealt online, in whatever scope it had (ALL or one list).
- *   full    — a much deeper cut of the whole vocabulary's queue, fetched ahead of need
- *             (review.ts `refreshOfflineDeck`) so an offline learner has more than the
- *             one session they happened to open last.
+ *   session — the last session dealt online, in whatever scope it had (ALL or one list),
+ *             already ranked by the server.
+ *   full    — the WHOLE vocabulary plus which words each list holds, fetched ahead of
+ *             need (review.ts `refreshOfflineDeck`). Unranked: an offline session is
+ *             dealt from it on the device, weakest recall first.
  */
 export type DeckSlot = "session" | "full";
 const KEYS: Record<DeckSlot, string> = { session: "review-deck", full: "review-deck-full" };
@@ -36,17 +37,31 @@ const KEYS: Record<DeckSlot, string> = { session: "review-deck", full: "review-d
  *  the ranking it was built from is too old to be honest about. */
 export const DECK_TTL_MS = 36 * 60 * 60 * 1000;
 
+/** The full deck carries no ranking to go stale — it is ranked when dealt — so it keeps
+ *  far longer. What ages is everything done on ANOTHER device since: a word deleted
+ *  there is still dealt here, and its grade is refused on sync. */
+export const FULL_DECK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const TTL: Record<DeckSlot, number> = { session: DECK_TTL_MS, full: FULL_DECK_TTL_MS };
+
 interface CachedDeck {
   userId: string;
   listId: string | null;
   fetchedAt: number;
   anchor: ClockAnchor;
   items: ReviewQueueItem[];
+  /** Full deck only: listId → the userWordIds tagged into it. */
+  membership?: Record<string, string[]>;
 }
 
 export async function saveDeck(
   store: OfflineStore,
-  deck: { userId: string; listId: string | null; anchor: ClockAnchor; items: ReviewQueueItem[] },
+  deck: {
+    userId: string;
+    listId: string | null;
+    anchor: ClockAnchor;
+    items: ReviewQueueItem[];
+    membership?: Record<string, string[]>;
+  },
   slot: DeckSlot = "session",
 ): Promise<void> {
   await store.set<CachedDeck>(KEYS[slot], { ...deck, fetchedAt: deck.anchor.serverNow });
@@ -60,13 +75,14 @@ export async function saveDeck(
 export async function loadDeck(
   store: OfflineStore,
   params: { userId: string; listId: string | null; now?: number; slot?: DeckSlot },
-): Promise<{ items: ReviewQueueItem[]; anchor: ClockAnchor } | null> {
-  const cached = await store.get<CachedDeck>(KEYS[params.slot ?? "session"]);
+): Promise<{ items: ReviewQueueItem[]; anchor: ClockAnchor; membership?: Record<string, string[]> } | null> {
+  const slot = params.slot ?? "session";
+  const cached = await store.get<CachedDeck>(KEYS[slot]);
   if (!cached) return null;
   if (cached.userId !== params.userId) return null;
   if ((cached.listId ?? null) !== (params.listId ?? null)) return null;
-  if ((params.now ?? Date.now()) - cached.fetchedAt > DECK_TTL_MS) return null;
-  return { items: cached.items, anchor: cached.anchor };
+  if ((params.now ?? Date.now()) - cached.fetchedAt > TTL[slot]) return null;
+  return { items: cached.items, anchor: cached.anchor, membership: cached.membership };
 }
 
 /** Drop the decks. On sign-out, and whenever a live queue supersedes them. */

@@ -188,6 +188,16 @@ export function wordsFor(userId: string, listId: string | null, now = Date.now()
   return out;
 }
 
+/** Which words each list holds, as plain data (for the offline deck), or null until
+ *  the membership has loaded. */
+export function membershipSnapshot(userId: string): Record<string, string[]> | null {
+  const m = current(userId)?.membership;
+  if (!m) return null;
+  const out: Record<string, string[]> = {};
+  for (const [listId, ids] of m) out[listId] = [...ids];
+  return out;
+}
+
 export function cachedLists(userId: string): List[] | null {
   return current(userId)?.lists ?? null;
 }

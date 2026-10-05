@@ -79,6 +79,9 @@ function Privacy() {
       <p>Handwriting recognition uses Google's ML Kit, which runs on your device. The first time
         you use it, it downloads its language model from Google, and it sends Google usage and
         diagnostic data about the kit itself (not what you write).</p>
+      <p>So that you can review without a connection, the iOS app keeps a copy of your saved
+        words on your device. It is downloaded over Wi-Fi only and is deleted when you delete
+        the app.</p>
       <p>In a web browser, the live transcript uses your browser's built-in speech recognition.
         Some browsers (including Chrome) send the audio to their own servers — Google's, for
         Chrome — to do this. We never receive or store the audio.</p>
