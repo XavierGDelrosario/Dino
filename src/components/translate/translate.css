@@ -1055,6 +1055,25 @@ textarea.translate__box::-webkit-scrollbar {
   font-size: 0.85rem;
 }
 
+/* What has been written so far, where the hint was. One line; a long word scrolls
+   sideways and the component keeps it at its END, so the newest character is always in
+   view. No scrollbar: it would sit under the text as a stray line in a 2rem-tall bar. */
+.hw__written {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: 0.5rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.hw__written::-webkit-scrollbar {
+  display: none;
+}
+
 /* Pad and ink are a PAIR, and both come from the theme (--hw-pad / --hw-ink in
    common.css). In dark that pair is a slate darker than --surface with white ink —
    deliberately not var(--surface), so the pad reads as a writing surface distinct
@@ -1073,10 +1092,16 @@ textarea.translate__box::-webkit-scrollbar {
   border-radius: 8px;
   touch-action: none;
   cursor: crosshair;
+  /* Belt and braces against the iOS loupe / callout (the touch is also cancelled in JS). */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hw__controls {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }

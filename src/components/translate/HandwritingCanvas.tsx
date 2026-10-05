@@ -81,6 +81,16 @@ export function HandwritingCanvas({
   const [candidates, setCandidates] = useState<RecognitionCandidate[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // What has been written so far in THIS sitting: each confirmed candidate, in order.
+  // The pad covers the input box, so this is the only place the writer can see it.
+  const [written, setWritten] = useState("");
+  const writtenRef = useRef<HTMLSpanElement | null>(null);
+  // Keep the NEWEST characters in view: a long word scrolls off to the left, never the
+  // end the writer is adding to.
+  useEffect(() => {
+    const el = writtenRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [written]);
 
   // Repaint the committed strokes whenever they change (undo/clear/new stroke) —
   // and whenever the THEME changes, which is what re-inks work already on the pad
@@ -93,6 +103,25 @@ export function HandwritingCanvas({
     setPen(ctx, ink.current);
     for (const s of strokes) drawStroke(ctx, s.points);
   }, [strokes, theme]);
+
+  // iOS still raised its magnifying loupe over the pad now and then: a finger that rests
+  // before it moves is a long-press, and the loupe belongs to that gesture, not to
+  // selection — so the `is-drawing` rule below can't stop it. Cancelling the touch at the
+  // canvas does. Native + non-passive: React's touch handlers can't preventDefault.
+  // Pointer events (what the drawing uses) still fire.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const cancel = (e: Event) => e.preventDefault();
+    el.addEventListener("touchstart", cancel, { passive: false });
+    el.addEventListener("touchmove", cancel, { passive: false });
+    el.addEventListener("contextmenu", cancel);
+    return () => {
+      el.removeEventListener("touchstart", cancel);
+      el.removeEventListener("touchmove", cancel);
+      el.removeEventListener("contextmenu", cancel);
+    };
+  }, []);
 
   // Selection is OFF across the document for as long as the pad is open — a stroke
   // is a drag, and a drag that leaves the canvas sweeps a selection through whatever
@@ -183,7 +212,15 @@ export function HandwritingCanvas({
   return (
     <div className="hw">
       <div className="hw__bar">
-        <span className="hw__hint">{tr("handwriting.hint")}</span>
+        {written ? (
+          // The characters confirmed so far, in place of the hint. One line that scrolls
+          // sideways and is kept at its END (see the effect above).
+          <span className="hw__written" ref={writtenRef} aria-label={tr("handwriting.writtenAria")}>
+            {written}
+          </span>
+        ) : (
+          <span className="hw__hint">{tr("handwriting.hint")}</span>
+        )}
         <button
           className="btn btn--ghost btn--sm"
           onClick={onClose}
@@ -226,6 +263,7 @@ export function HandwritingCanvas({
               className="hw__cand"
               onClick={() => {
                 onPick(c.text);
+                setWritten((w) => w + c.text);
                 clear();
               }}
             >

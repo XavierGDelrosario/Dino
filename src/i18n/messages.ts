@@ -99,6 +99,7 @@ export const en = {
   // handwriting input (native, on-device)
   "handwriting.draw": "✍️ Draw",
   "handwriting.hint": "Draw a character",
+  "handwriting.writtenAria": "Written so far",
   "handwriting.padAria": "Handwriting input area",
   "handwriting.candidatesAria": "Recognized characters",
   "handwriting.undo": "Undo",
@@ -613,6 +614,7 @@ export const ja: Record<MessageKey, string> = {
   // handwriting input (native, on-device)
   "handwriting.draw": "✍️ 手書き",
   "handwriting.hint": "文字を書いてください",
+  "handwriting.writtenAria": "これまでに書いた文字",
   "handwriting.padAria": "手書き入力エリア",
   "handwriting.candidatesAria": "認識された文字",
   "handwriting.undo": "元に戻す",
