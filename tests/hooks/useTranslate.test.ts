@@ -44,7 +44,7 @@ import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
 import { getUserProfile, updateUserLanguages } from "@/services/session";
 import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE, analyze } from "@/services/language";
-import { translateParagraph } from "@/services/lookup";
+import { lookupWord, translateParagraph } from "@/services/lookup";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -175,6 +175,66 @@ describe("useTranslate — emptying the box drops its result", () => {
     });
     await waitFor(() => expect(result.current.para).not.toBeNull());
     expect(result.current.status).toBe("done");
+  });
+});
+
+// Pressing Translate closes a sentence left open — dictation in particular ends bare,
+// because iOS only places the last 。 once more words arrive.
+describe("useTranslate — Translate closes an open sentence with a full stop", () => {
+  const SENTENCE = [
+    { text: "猫", start: 0, end: 1, reading: null, lemma: "猫", pos: "名詞" },
+    { text: "走っ", start: 2, end: 4, reading: null, lemma: "走る", pos: "動詞" },
+  ];
+  const paragraph = () =>
+    vi.mocked(translateParagraph).mockResolvedValue({ input: "", tokens: SENTENCE, meanings: new Map(), sentences: [] } as never);
+
+  beforeEach(() => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    vi.mocked(analyze).mockResolvedValue(SENTENCE as never);
+    paragraph();
+  });
+
+  it("adds 。 to the box and studies the closed text", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput("猫が走った"));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.input).toBe("猫が走った。");
+    expect(result.current.analyzedInput).toBe("猫が走った。");
+  });
+
+  it("leaves a sentence that already ends alone", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput("猫が走った？"));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.input).toBe("猫が走った？");
+  });
+
+  it("never punctuates a single word — that would turn a lookup into a paragraph", async () => {
+    vi.mocked(analyze).mockResolvedValue([SENTENCE[0]] as never);
+    vi.mocked(lookupWord).mockResolvedValue({ input: "猫", meanings: [] } as never);
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput("猫"));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.input).toBe("猫");
+    expect(result.current.mode).toBe("word");
+  });
+
+  it("leaves text handed in by override (an article, OCR, history) as it came", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.submit({ text: "猫が走った", skipGloss: true });
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.analyzedInput).toBe("猫が走った");
   });
 });
 

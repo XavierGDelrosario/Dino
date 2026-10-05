@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitSentences } from "@/services/language/sentences";
+import { splitSentences, withFinalStop } from "@/services/language/sentences";
 
 /** Every returned span must slice back to its own text, so the reader can use
  *  the offsets to group tokens without re-deriving anything. */
@@ -85,5 +85,30 @@ describe("splitSentences", () => {
   it("returns non-overlapping spans in reading order", () => {
     const out = splitSentences("一。二。三。");
     for (let i = 1; i < out.length; i++) expect(out[i].start).toBeGreaterThanOrEqual(out[i - 1].end);
+  });
+});
+
+describe("withFinalStop", () => {
+  it("closes Japanese with 。 and Latin-script text with a full stop", () => {
+    expect(withFinalStop("今日は雨です")).toBe("今日は雨です。");
+    expect(withFinalStop("ラーメンを食べたー")).toBe("ラーメンを食べたー。");
+    expect(withFinalStop("It rained today")).toBe("It rained today.");
+    expect(withFinalStop("room 12")).toBe("room 12.");
+    expect(withFinalStop("비가 왔어요")).toBe("비가 왔어요.");
+  });
+
+  it("the mark follows the LAST character's script, not the text's", () => {
+    expect(withFinalStop("私はiPhone")).toBe("私はiPhone.");
+    expect(withFinalStop("I like 寿司")).toBe("I like 寿司。");
+  });
+
+  it("only the END is touched, and trailing whitespace goes", () => {
+    expect(withFinalStop("雨です。明日は晴れ \n")).toBe("雨です。明日は晴れ。");
+  });
+
+  it("leaves text that already ends on punctuation exactly as written", () => {
+    for (const t of ["雨です。", "本当？", "Really?", "彼は「行くよ。」", "明日は、", "wait...", "(see below)", "えっ…", ""]) {
+      expect(withFinalStop(t)).toBe(t);
+    }
   });
 });
