@@ -21,7 +21,7 @@ export interface UserProfile {
   dateCreated: string;
   /** Native language → default translation OUTPUT (target). null = app default. */
   nativeLanguage: string | null;
-  /** Language being studied → default "I'm learning" + input. null = app default. */
+  /** Language being studied → what Translate studies + its default input. null = app default. */
   learningLanguage: string | null;
   /** When the user last accepted the Terms/Privacy (null = never, e.g. a guest). */
   termsAgreedAt: string | null;

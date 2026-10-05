@@ -31,8 +31,7 @@ import { CalibrationView } from "./CalibrationView";
 // whether the surface is visible.
 const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.MediaView })));
 import {
-  DEFAULT_LEARNING_LANGUAGE,
-  DEFAULT_NATIVE_LANGUAGE,
+  otherLanguage,
   type LangCode,
 } from "../services/language";
 import { TextQuizView } from "./TextQuizView";
@@ -69,15 +68,9 @@ export function LearnView({ userId }: { userId: string }) {
    * A pair needs two different languages, and the edge rejects `source === target` with
    * a 400 raised before the learn branch — reported only as "Edge Function returned a
    * non-2xx status code", with nothing in error_log because the request never reaches
-   * the part that logs. Falls back to the registry defaults (the other one of the pair)
-   * rather than scanning the registry by position.
+   * the part that logs. Falls back to the other supported language (`otherLanguage`).
    */
-  const explainIn: LangCode =
-    native !== learning
-      ? native
-      : learning !== DEFAULT_NATIVE_LANGUAGE
-        ? DEFAULT_NATIVE_LANGUAGE
-        : DEFAULT_LEARNING_LANGUAGE;
+  const explainIn: LangCode = native !== learning ? native : otherLanguage(learning);
 
   const framework: ProficiencyFramework | null = proficiencyFrameworkFor(learning);
 

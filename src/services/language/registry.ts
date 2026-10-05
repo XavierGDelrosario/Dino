@@ -65,8 +65,9 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
 export const DEFAULT_LANGUAGE: LangCode = "EN";
 
 /**
- * Default translate directions for a user who hasn't set them on the Profile page
- * (a fresh guest, whose `users.native_language` / `learning_language` are NULL).
+ * The LAST-RESORT pair, for when the device's language can't be read or isn't one we
+ * support. A user who hasn't set a pair on the Profile page gets `defaultLanguagePair()`
+ * below — the device's language as native — not these directly.
  * NATIVE = the language you type in (translate SOURCE); LEARNING = the language you
  * study (TARGET). These are the SINGLE source of truth shared by the Profile page's
  * dropdowns and the translate hook, so the input language always matches what the
@@ -74,6 +75,55 @@ export const DEFAULT_LANGUAGE: LangCode = "EN";
  */
 export const DEFAULT_NATIVE_LANGUAGE: LangCode = "EN";
 export const DEFAULT_LEARNING_LANGUAGE: LangCode = "JA";
+
+/** The device's language as a supported code, or null (unsupported, or no browser). */
+export function systemLanguage(): LangCode | null {
+  if (typeof navigator === "undefined") return null;
+  const tag = navigator.languages?.[0] ?? navigator.language ?? "";
+  const code = tag.slice(0, 2).toUpperCase();
+  return SUPPORTED_LANGUAGES.some((l) => l.code === code) ? code : null;
+}
+
+/**
+ * The supported language that ISN'T `lang`.
+ *
+ * ⚠️ Only meaningful while there are exactly TWO supported languages — "the other one"
+ * is how a pair is completed today. A third language makes this a guess (it would hand
+ * back whichever is listed first), so adding one means replacing every caller with a
+ * real choice: see docs/TODO.md (Cross-cutting).
+ */
+export function otherLanguage(lang: LangCode): LangCode {
+  return SUPPORTED_LANGUAGES.find((l) => l.code !== lang)?.code ?? lang;
+}
+
+/**
+ * The pair for a user who has saved neither language: NATIVE is the device's language
+ * (English when the device is in something we don't support), and LEARNING is the
+ * other one. So a phone in Japanese opens on English study, explained in Japanese,
+ * with no setup.
+ */
+export function defaultLanguagePair(): { native: LangCode; learning: LangCode } {
+  const native = systemLanguage() ?? DEFAULT_NATIVE_LANGUAGE;
+  return { native, learning: otherLanguage(native) };
+}
+
+/**
+ * A saved profile pair with whatever is unset filled in. A saved value always wins;
+ * a missing side is completed so the two can never be the same language.
+ */
+export function resolveLanguagePair(
+  saved: { learningLanguage: string | null; nativeLanguage: string | null } | null,
+): { native: LangCode; learning: LangCode } {
+  const learning = saved?.learningLanguage ?? null;
+  const native = saved?.nativeLanguage ?? null;
+  if (learning && native) return { native, learning };
+  if (native) return { native, learning: otherLanguage(native) };
+  if (learning) {
+    const system = systemLanguage() ?? DEFAULT_NATIVE_LANGUAGE;
+    return { learning, native: system !== learning ? system : otherLanguage(learning) };
+  }
+  return defaultLanguagePair();
+}
 
 /**
  * True if `code` is a supported language.

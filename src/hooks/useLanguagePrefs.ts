@@ -1,6 +1,7 @@
 // The user's language pair — the LEARNING language (what they study) and their
-// NATIVE one (the language meanings are explained in) — read from the profile, with
-// the registry defaults for a fresh guest who has saved no prefs.
+// NATIVE one (the language meanings are explained in) — read from the profile. A fresh
+// guest who has saved neither gets the device's language as native and the other
+// supported language to learn (services/language `defaultLanguagePair`).
 //
 // Every surface that opens on a direction needs exactly this (Translate, the Lists
 // add form, Learn, calibration), and each had grown its own copy of the same
@@ -11,11 +12,7 @@
 // place, so the surface still works rather than blocking on a preference.
 import { useEffect, useState } from "react";
 import { getUserProfile } from "../services/session";
-import {
-  DEFAULT_LEARNING_LANGUAGE,
-  DEFAULT_NATIVE_LANGUAGE,
-  type LangCode,
-} from "../services/language";
+import { defaultLanguagePair, resolveLanguagePair, type LangCode } from "../services/language";
 
 export interface LanguagePrefs {
   /** The language the user is studying. */
@@ -33,28 +30,19 @@ export interface LanguagePrefs {
 }
 
 /**
- * Map a loaded profile (or null) to the language pair, applying the registry
- * defaults for any pref the user hasn't set. The ONE place the `?? DEFAULT → cast`
- * policy lives, so every surface that opens on a direction agrees — including the
+ * Map a loaded profile (or null) to the language pair, filling in any pref the user
+ * hasn't set (`resolveLanguagePair`). The ONE place that policy lives, so every surface that opens on a direction agrees — including the
  * ones (calibration) that read the profile alongside other columns and can't use
  * the hook verbatim.
  */
 export function profileToLangs(
   p: { learningLanguage: string | null; nativeLanguage: string | null } | null,
 ): LanguagePrefs {
-  return {
-    learning: (p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE) as LangCode,
-    native: (p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE) as LangCode,
-    ready: true,
-  };
+  return { ...resolveLanguagePair(p), ready: true };
 }
 
 export function useLanguagePrefs(userId: string): LanguagePrefs {
-  const [prefs, setPrefs] = useState<LanguagePrefs>({
-    learning: DEFAULT_LEARNING_LANGUAGE,
-    native: DEFAULT_NATIVE_LANGUAGE,
-    ready: false,
-  });
+  const [prefs, setPrefs] = useState<LanguagePrefs>(() => ({ ...defaultLanguagePair(), ready: false }));
 
   useEffect(() => {
     let live = true;

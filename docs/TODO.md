@@ -322,6 +322,12 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - **Per-sense axis** (JA+EN) — the biggest lever that costs engineering, not money.
 - **KO/ZH support** — a new language = its own dictionary source + `<source>_lookup()`.
   Checklist: `docs/Adding_A_Language.md`.
+- **Language pair assumes exactly TWO languages** — must change before a third ships.
+  The learning language defaults to "the other one" than native (`otherLanguage`,
+  `defaultLanguagePair`, `resolveLanguagePair` in `services/language/registry.ts`), and
+  Translate has no picker for it. With three there is no "other one": new users need a
+  real choice of what to learn (an onboarding step or a picker), and every
+  `otherLanguage` caller needs revisiting.
 
 </details>
 
