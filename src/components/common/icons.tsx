@@ -70,6 +70,25 @@ export function XIcon({ size }: { size?: number }) {
   );
 }
 
+/** Copy — the standard two overlapping sheets. */
+export function CopyIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </Svg>
+  );
+}
+
+/** Done — a tick (the copy button shows it once the text is on the clipboard). */
+export function CheckIcon({ size }: { size?: number }) {
+  return (
+    <Svg size={size}>
+      <polyline points="20 6 9 17 4 12" />
+    </Svg>
+  );
+}
+
 /** Back — a bare chevron. The arrow-with-shaft version read as a heavy action
  *  button; navigation should sit quietly at the edge of the bar. */
 export function BackIcon({ size }: { size?: number }) {

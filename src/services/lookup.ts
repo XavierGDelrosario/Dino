@@ -3,6 +3,9 @@
 // returns a whole-paragraph gloss (never persisted) plus a word → meanings lookup.
 // Saving is a separate, explicit step (userWords.saveDictionaryWord).
 
+import { getCuratedNames, mergeCuratedNames } from "./names";
+import { canTranslateOnDevice, translateOnDevice } from "./translation/onDevice";
+import { nameRomaji } from "./language/romaji";
 import {
   resolveSourceLanguage,
   analyze,
@@ -22,6 +25,7 @@ import {
   findWordTranslationsBatch,
   type Word,
 } from "./words/repository";
+import { SYNTHETIC_WORD_ID_PREFIX, isSyntheticWordId } from "./words/syntheticId";
 import {
   setCachedSenses,
   isKnownDictionaryMiss,
@@ -159,6 +163,42 @@ export interface ParagraphTranslation {
    * out — "Add all", the quizzes, and every summary or word table (`studyMeanings`).
    */
   names?: ReadonlySet<string>;
+}
+
+/** Is this sense a name's stand-in rather than a dictionary row? It has no `words`
+ *  row behind it, so it is saved as the user's OWN word, never by id. */
+export function isNameSense(word: Pick<Word, "wordId">): boolean {
+  return isSyntheticWordId(word.wordId);
+}
+
+/**
+ * The one "sense" shown for a person's or a company's name: the name, how it is read,
+ * and `meaning` (its romanization, or a translation). Not a dictionary row — the id is
+ * synthetic, it is never cached or sent anywhere, and adding it creates a custom word.
+ */
+function nameSense(token: AnalyzedToken, meaning: string, sourceLang: LangCode, targetLang: LangCode): Word {
+  return {
+    wordId: `${SYNTHETIC_WORD_ID_PREFIX}${sourceLang}:${nfc(token.text)}`,
+    input: token.text,
+    translation: meaning,
+    sourceLang,
+    targetLang,
+    inputReading: token.reading && token.reading !== token.text ? token.reading : null,
+    translationReading: null,
+    partOfSpeech: null,
+    frequency: null,
+    difficultyOverride: null,
+    proficiencyBand: null,
+    estimatedBand: null,
+    jmdictEntryId: null,
+    jmdictSensePos: null,
+    isCommon: null,
+    isVerified: false,
+    example: null,
+    exampleGloss: null,
+    definitionSource: null,
+    exampleReading: null,
+  } as unknown as Word;
 }
 
 /**
@@ -490,6 +530,12 @@ export async function translateParagraph(params: {
   //    pointed at the original paragraph; for JA this also yields reading + lemma.
   let tokens = params.tokens ?? (await analyze(input, resolvedSource));
 
+  // 2a. CURATED NAMES first, before anything is looked up: a name the tokenizer splits
+  //     (大谷翔平 → 大谷 + 翔 + 平) becomes one name token, so its pieces are never
+  //     looked up as words (平 "flat") and the name shows as itself. See services/names.
+  const curated = await getCuratedNames(resolvedSource, targetLang);
+  tokens = mergeCuratedNames(tokens, curated);
+
   // 2b. Re-merge compounds kuromoji over-segmented, validated against the DICTIONARY
   //     (柔軟 ＋ 剤 → 柔軟剤). Without it the reader looks up the fragments and the
   //     word's meaning is lost — the top source of quality reports. Generalizes the
@@ -606,6 +652,54 @@ export async function translateParagraph(params: {
         (isNameFragment(token) && isMtOnly(senses));
       meanings.set(key, drop ? [] : senses);
       if (!drop && isUnknownName(token, senses)) names.add(key);
+    }
+  }
+
+  // 5. PEOPLE and COMPANIES. The analyser took these off content POS (nobody studies
+  //    佐野 or ソニー), so no lookup ran for them and none is bought here. They still
+  //    get ONE stand-in sense so the reader can show the name and let it be added by
+  //    hand:
+  //      · a person  → the reading, romanized (たなか → Tanaka). A translator given a
+  //                    bare surname translates the WORD (林 → "forest").
+  //      · a company → the on-device translation where the iOS app has one (ソニー →
+  //                    Sony; a romanization would say "Soni"), else the romanization.
+  //    Free on every path: the on-device translator costs nothing, and the web simply
+  //    doesn't have it. Flagged in `names`, so nothing automatic counts or adds them.
+  const nameTokens: AnalyzedToken[] = [];
+  for (const token of tokens) {
+    if (!token.nameKind) continue;
+    const key = wordKey(token);
+    if (meanings.has(key) && (meanings.get(key)?.length ?? 0) > 0) continue;
+    if (nameTokens.some((t) => wordKey(t) === key)) continue;
+    nameTokens.push(token);
+  }
+  if (nameTokens.length > 0) {
+    // (A curated company already has its answer — nothing to ask the translator.)
+    const companies = nameTokens.filter((t) => t.nameKind === "organization" && !curated.has(nfc(t.text)));
+    const translated = new Map<string, string>();
+    if (companies.length > 0 && canTranslateOnDevice(resolvedSource, targetLang)) {
+      try {
+        const out = await translateOnDevice({
+          segments: companies.map((t) => t.text),
+          sourceLang: resolvedSource,
+          targetLang,
+        });
+        companies.forEach((t, i) => {
+          const text = out[i]?.trim();
+          if (text && text !== t.text) translated.set(wordKey(t), text);
+        });
+      } catch {
+        /* models not on the phone yet — the romanization stands in */
+      }
+    }
+    for (const token of nameTokens) {
+      const key = wordKey(token);
+      // A curated name says what to show; otherwise the translation, else the reading.
+      const meaning =
+        curated.get(nfc(token.text))?.meaning ?? translated.get(key) ?? nameRomaji(token.reading ?? token.text);
+      if (!meaning) continue; // nothing honest to show (a name with no kana reading)
+      meanings.set(key, [nameSense(token, meaning, resolvedSource, targetLang)]);
+      names.add(key);
     }
   }
 

@@ -28,7 +28,6 @@ export const en = {
   // reads the Wikinews edition of that language, so its intro can't say "Japanese".
   "lang.JA": "Japanese",
   "lang.EN": "English",
-  "media.intro": "Study real {lang} from the news. Pick an article to read it word-by-word.",
   "media.loading": "Loading news…",
   "media.refresh": "Refresh",
   "media.study": "Study",
@@ -147,6 +146,8 @@ export const en = {
   "common.create": "Create",
   "common.close": "Close",
   "common.save": "Save",
+  "common.copy": "Copy",
+  "common.copied": "Copied",
 
   // lists surface
   "lists.allWords": "All words",
@@ -164,6 +165,7 @@ export const en = {
   // "Forgot" — the reader's one-notch confidence drop. The label is the user's own
   // thought ("I forgot this"), not the mechanism; the aria/title says what it does.
   "reader.forgot": "Forgot",
+  "reader.nameTag": "Name",
   "reader.forgotAria": "I forgot this word — lower its confidence by one",
   "reader.forgotDone": "−1 ✓",
   // The mic dictates into the input box; there is no listening SCREEN any more, so
@@ -544,7 +546,6 @@ export const ja: Record<MessageKey, string> = {
   "tabs.review": "復習",
   "lang.JA": "日本語",
   "lang.EN": "英語",
-  "media.intro": "ニュースで本物の{lang}を学ぼう。記事を選んで単語ごとに読めます。",
   "media.loading": "ニュースを読み込み中…",
   "media.refresh": "更新",
   "media.study": "学習",
@@ -656,6 +657,8 @@ export const ja: Record<MessageKey, string> = {
   "common.create": "作成",
   "common.close": "閉じる",
   "common.save": "保存",
+  "common.copy": "コピー",
+  "common.copied": "コピーしました",
 
   "lists.allWords": "すべての単語",
   "sort.addedNewest": "最近追加した単語",
@@ -676,6 +679,7 @@ export const ja: Record<MessageKey, string> = {
   "lists.reviewAllTitle": "これら{n}語すべてを復習（20語の上限なし）",
   "reader.translateSentence": "この文を翻訳",
   "reader.forgot": "忘れた",
+  "reader.nameTag": "名前",
   "reader.forgotAria": "この単語を忘れた — 自信度を1つ下げる",
   "reader.forgotDone": "−1 ✓",
   "listen.tool": "音声で入力する",

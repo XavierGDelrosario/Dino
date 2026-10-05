@@ -423,6 +423,20 @@ describe("getAllUserWords (the virtual ALL list)", () => {
 });
 
 describe("getUserWordStates", () => {
+  it("never sends a NAME's stand-in id to the database — it would fail the whole read", async () => {
+    stub.queueFrom("user_words", { data: [], error: null });
+    const states = await getUserWordStates({ userId: "u", dictionaryWordIds: ["name:JA:田中", "w1"] });
+    expect(stub.callsFor("user_words", "in")[0]?.args[1]).toEqual(["w1"]);
+    // …but the caller still gets an answer for it: not saved.
+    expect(states.get("name:JA:田中")).toMatchObject({ tracked: false, confidenceRating: 0 });
+  });
+
+  it("makes no request at all when every id is a stand-in", async () => {
+    const states = await getUserWordStates({ userId: "u", dictionaryWordIds: ["name:JA:田中"] });
+    expect(stub.callsFor("user_words", "select")).toHaveLength(0);
+    expect(states.get("name:JA:田中")?.tracked).toBe(false);
+  });
+
   it("marks saved dictionary senses tracked, others new (confidence 0)", async () => {
     // Confidence is computed LIVE from the strength columns (services/confidence.ts),
     // not read off `confidence_rating` — that column is only a write-time snapshot, so

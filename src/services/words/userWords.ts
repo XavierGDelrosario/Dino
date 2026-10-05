@@ -19,6 +19,7 @@ import * as vocabulary from "./vocabularyCache";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
+import { isSyntheticWordId } from "./syntheticId";
 
 /** A word in a user's personal vocabulary (camelCase domain shape). */
 export interface UserWord {
@@ -561,14 +562,19 @@ export async function getUserWordStates(params: {
   dictionaryWordIds: string[];
 }): Promise<Map<string, UserWordState>> {
   const { userId } = params;
-  const uniqueIds = [...new Set(params.dictionaryWordIds)];
+  const allIds = [...new Set(params.dictionaryWordIds)];
 
   const states = new Map<string, UserWordState>(
-    uniqueIds.map((id) => [
+    allIds.map((id) => [
       id,
       { tracked: false, userWordId: null, confidenceRating: 0, lastReviewedDate: null },
     ])
   );
+  // Only real dictionary ids go to the database. A reader can also hold a NAME's
+  // stand-in sense (lookup.ts `nameSense`, id "name:…"), which has no row to find — and
+  // one non-uuid in the filter makes Postgres reject the whole read (22P02), which
+  // would leave every word on the page looking unsaved.
+  const uniqueIds = allIds.filter((id) => !isSyntheticWordId(id));
   if (uniqueIds.length === 0) return states;
 
   // CHUNK the `.in()` filter: the id set is unbounded (one EN→JA word can carry

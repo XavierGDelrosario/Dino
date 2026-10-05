@@ -303,6 +303,86 @@ describe("analyze — specific short words (今 / これ / 単語)", () => {
   );
 });
 
+// People and companies stay off content POS, but are TAGGED so the reader can show them
+// as names (highlightable, addable by hand) instead of dead text.
+describe("analyze — names are tagged, not vocabulary", () => {
+  it(
+    "a person's name: not content, tagged person, with its reading",
+    async () => {
+      const tok = (await analyze("田中さんは元気です。", "JA")).find((t) => t.text === "田中")!;
+      expect(isContentPos(tok.pos)).toBe(false);
+      expect(tok.nameKind).toBe("person");
+      expect(tok.reading).toBe("たなか");
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "a company: not content, tagged organization",
+    async () => {
+      const tok = (await analyze("トヨタの車を買った。", "JA")).find((t) => t.text === "トヨタ")!;
+      expect(isContentPos(tok.pos)).toBe(false);
+      expect(tok.nameKind).toBe("organization");
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "an ordinary word carries no name tag",
+    async () => {
+      const tok = (await analyze("森で遊んだ。", "JA")).find((t) => t.text === "森")!;
+      expect(tok.nameKind).toBeUndefined();
+      expect(isContentPos(tok.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+});
+
+// The nominalizer の / ん. IPADIC tags it 名詞-非自立, so it passed as a noun and its
+// lookup offered the homophones (野 "field") as the word.
+describe("analyze — の is grammar in every role", () => {
+  const no = async (src: string, surface = "の") =>
+    (await analyze(src, "JA")).filter((t) => t.text === surface).map((t) => isContentPos(t.pos));
+
+  it(
+    "the nominalizer is not vocabulary (行くのが好き, 安いのを買った, 彼のだ)",
+    async () => {
+      expect(await no("行くのが好きです。")).toEqual([false]);
+      expect(await no("安いのを買った。")).toEqual([false]);
+      expect(await no("彼のだ。")).toEqual([false]);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "nor is its contraction ん (行くんです)",
+    async () => {
+      expect(await no("行くんです。", "ん")).toEqual([false]);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "the particle uses were already plain text, and stay so (私の本, 美味しいの？)",
+    async () => {
+      expect(await no("私の本です。")).toEqual([false]);
+      expect(await no("美味しいの？")).toEqual([false]);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "other dependent nouns are still words to study (こと, もの, ため)",
+    async () => {
+      const content = async (src: string, surface: string) =>
+        (await analyze(src, "JA")).filter((t) => t.text === surface).map((t) => isContentPos(t.pos));
+      expect(await content("行くことができる。", "こと")).toEqual([true]);
+      expect(await content("子供のために働く。", "ため")).toEqual([true]);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+});
+
 // Japanese counter (助数詞) readings — kuromoji splits a number+counter into two tokens
 // and gives each its CITATION reading; the counters/ resolver rewrites them in analyze's
 // post-pass (euphonic 本→ぼん/ぽん, irregular 一人→ひとり). See src/services/language/counters/.

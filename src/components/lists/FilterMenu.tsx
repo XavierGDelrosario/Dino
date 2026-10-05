@@ -186,7 +186,12 @@ export function FilterButton({
   return (
     <button
       type="button"
-      className={`btn lists__addtoggle filtermenu__btn${active > 0 ? " filtermenu__btn--on" : ""}`}
+      // Open = the same solid fill Add word / Select / Summary take when THEIR panel is
+      // open. Closed with filters applied = the outline + count, so a filtered list
+      // never looks unfiltered.
+      className={`btn lists__addtoggle filtermenu__btn${
+        open ? " btn--primary" : active > 0 ? " filtermenu__btn--on" : ""
+      }`}
       aria-expanded={open}
       // Fuller than the visible "Filter", but CONTAINS it (label-in-name), so voice
       // control still matches what a user reads on screen.
