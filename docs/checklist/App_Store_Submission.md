@@ -96,8 +96,8 @@ text excerpt and the user id). The last three come from Google ML Kit, bundled f
 handwriting — **re-check Google's ML Kit data-disclosure page before submitting**; that
 list is Google's and can change.
 
-Everything else: **not collected**. Microphone audio is recognised on the device where
-iOS supports it for the language, otherwise by Apple — never sent to us.
+Everything else: **not collected**. Microphone audio is recognised by iOS's speech
+recognizer, which may send it to Apple — never sent to us.
 
 ## 3. Age rating questionnaire
 
@@ -193,8 +193,8 @@ declares mild profanity.
 - **Tracking is No everywhere**: no ad SDK, no data broker, no identifier joined with
   third-party data.
 - **Not collected by us**: photos and handwriting strokes are processed on device and
-  never uploaded; microphone audio is recognised on device where iOS supports it (the
-  speech plugin is patched to require it), otherwise by Apple. A paragraph sent for
+  never uploaded; microphone audio is recognised by iOS's speech recognizer, which may
+  send it to Apple (on-device is not required — it punctuates far less) — never to us. A paragraph sent for
   translation is not stored (`persist: false`); a failed lookup IS logged with a short
   excerpt, which is the Diagnostics row above.
 - **Profanity → Infrequent/Mild** because JMdict is a complete dictionary and will

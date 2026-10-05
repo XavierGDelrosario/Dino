@@ -13,7 +13,7 @@ index a80565c..d2f08c9 100644
 +    addsPunctuation?: boolean;
  }
 diff --git a/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift b/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift
-index 5d1b35b..32016bf 100644
+index 5d1b35b..b1fe0c0 100644
 --- a/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift
 +++ b/node_modules/@capacitor-community/speech-recognition/ios/Plugin/Plugin.swift
 @@ -54,6 +54,7 @@ public class SpeechRecognition: CAPPlugin {
@@ -24,21 +24,13 @@ index 5d1b35b..32016bf 100644
  
              if self.recognitionTask != nil {
                  self.recognitionTask?.cancel()
-@@ -79,6 +80,18 @@ public class SpeechRecognition: CAPPlugin {
+@@ -79,6 +80,10 @@ public class SpeechRecognition: CAPPlugin {
  
              self.recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
              self.recognitionRequest?.shouldReportPartialResults = partialResults
 +            // DINO patch: let the recognizer punctuate from the audio (iOS 16+).
 +            if #available(iOS 16.0, *) {
 +                self.recognitionRequest?.addsPunctuation = addsPunctuation
-+            }
-+            // DINO patch: keep the audio ON THE DEVICE whenever the recognizer can do
-+            // this language locally. Without it iOS is free to send the audio to
-+            // Apple's servers even when an on-device model exists.
-+            if #available(iOS 13.0, *) {
-+                if self.speechRecognizer?.supportsOnDeviceRecognition == true {
-+                    self.recognitionRequest?.requiresOnDeviceRecognition = true
-+                }
 +            }
  
              let inputNode: AVAudioInputNode = self.audioEngine!.inputNode

@@ -7,8 +7,8 @@
 // argue for the native backend on a phone:
 //
 //   · NOT on-device. Chrome ships the audio to Google's servers. It costs nothing
-//     and needs no infra, but it is neither private nor offline — unlike iOS's
-//     SFSpeechRecognizer with requiresOnDeviceRecognition. Treat this as the
+//     and needs no infra, but it is neither private nor offline. (iOS's
+//     recognizer may send audio to Apple too.) Treat this as the
 //     development and desktop path, not the answer for a phone in someone's pocket.
 //   · Chrome (and Chromium/Edge). Safari and Firefox don't implement it usefully,
 //     so `available()` is false there and the registry falls through.

@@ -72,9 +72,8 @@ function Privacy() {
 
       <h3>Photos, microphone and handwriting</h3>
       <p>In the iOS app, photos, camera images and handwriting are turned into text <b>on your
-        device</b> and are never uploaded. Speech is recognised on your device where your iPhone
-        supports that for the language; where it doesn't, iOS sends the audio to Apple to
-        recognise it. We never receive or store audio, images or handwriting. Only the
+        device</b> and are never uploaded. Speech is recognised by iOS's built-in speech
+        recognition, which may send the audio to Apple to recognise it. We never receive or store audio, images or handwriting. Only the
         resulting text is looked up, and only if you ask for it.</p>
       <p>Handwriting recognition uses Google's ML Kit, which runs on your device. The first time
         you use it, it downloads its language model from Google, and it sends Google usage and
