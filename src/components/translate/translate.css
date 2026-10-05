@@ -903,6 +903,21 @@ textarea.translate__box::-webkit-scrollbar {
   position: static;
 }
 
+/* Google's badge under a machine translation, inside the output box so it scrolls with
+   the text instead of covering its last line. On its own line, clear of the text. */
+.translate__credit {
+  display: block;
+  width: fit-content;
+  margin-top: 0.6rem;
+}
+
+/* …and after each sentence's translation in an article (the reader's `glossCredit`),
+   where it trails the English on the same line rather than adding a row per sentence. */
+.reader__gloss .gbadge,
+.reader__whole .gbadge {
+  margin-left: 0.5rem;
+}
+
 /* Wraps the output box so .io__speak has something to pin to (mirrors
    .translate__inputwrap on the input side). */
 .translate__outwrap {

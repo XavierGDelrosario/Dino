@@ -150,6 +150,8 @@ export function ArticleView({
           onLoadGloss={t.loadGloss}
           onTranslateSentence={t.loadSentenceGloss}
           glossLoading={t.glossLoading}
+          // No output box here, so each translation carries Google's badge itself.
+          glossCredit
           saved={t.saved}
           confidence={t.confidence}
           lists={t.lists}

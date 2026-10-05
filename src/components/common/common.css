@@ -744,3 +744,36 @@ main:has([data-no-footer]) .app__footer {
   color: var(--accent);
   letter-spacing: 0.1em;
 }
+
+/* Google's "translated by Google" badge (GoogleBadge.tsx). The artwork is Google's and
+   is never recoloured: the theme only picks WHICH official variant shows — white on the
+   dark theme, the colour or greyscale one on the light. 16px tall is its native size. */
+.gbadge {
+  display: inline-block;
+  line-height: 0;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.gbadge__img {
+  display: block;
+  height: 16px;
+  width: auto;
+}
+
+.gbadge--small .gbadge__img {
+  height: 11px;
+}
+
+.gbadge__img--light {
+  display: none;
+}
+
+:root[data-theme="light"] .gbadge__img--light {
+  display: block;
+}
+
+:root[data-theme="light"] .gbadge__img--dark {
+  display: none;
+}

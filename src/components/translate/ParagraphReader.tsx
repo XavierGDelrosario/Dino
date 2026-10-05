@@ -4,6 +4,7 @@
 // meaning; saved senses show confidence (✓ n/5), and a word the app claims you know
 // carries a top-right "Forgot" that drops it one bucket. State lives in the parent
 // (useTranslate).
+import { GoogleBadge } from "../common/GoogleBadge";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
 import { ReportFlagButton } from "../common/ReportFlagButton";
@@ -65,6 +66,7 @@ function ParagraphReaderImpl({
   onTranslateSentence,
   glossLoading = false,
   openGloss = false,
+  glossCredit = false,
   saved,
   confidence,
   lists,
@@ -90,6 +92,11 @@ function ParagraphReaderImpl({
    *  translation" press on the reader it replaced, which would otherwise come up
    *  hiding the gloss it just paid for. */
   openGloss?: boolean;
+  /** Put Google's badge after each sentence's translation. For a host with NO output
+   *  box (an article's reading mode): there the reader is the only place the
+   *  translation is shown, so its attribution has to be here. The Translate tab leaves
+   *  this off — its output box carries the badge for the same translation. */
+  glossCredit?: boolean;
   saved: Set<string>;
   confidence: Map<string, number>;
   lists: List[];
@@ -329,6 +336,7 @@ function ParagraphReaderImpl({
             parts.push(
               <span className="reader__gloss" key={`${key}-gloss-${idx}`}>
                 {gloss}
+                {glossCredit && <GoogleBadge tone="quiet" size="small" />}
               </span>,
             );
           local = cut;
@@ -367,7 +375,7 @@ function ParagraphReaderImpl({
       if (cursor < to) out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
       return out;
     },
-    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, tr],
+    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, glossCredit, tr],
   );
 
   // The paragraph flows as one block, EXCEPT that a sentence showing its English is
@@ -397,6 +405,7 @@ function ParagraphReaderImpl({
         parts.push(
           <span className="reader__gloss" key={`s${i}-gloss-own`}>
             {ownGloss}
+            {glossCredit && <GoogleBadge tone="quiet" size="small" />}
           </span>,
         );
       out.push(
@@ -412,7 +421,7 @@ function ParagraphReaderImpl({
     });
     if (cursor < text.length) out.push(<span key="tail">{text.slice(cursor)}</span>);
     return out;
-  }, [spans, sentences, text, visibleGloss]);
+  }, [spans, sentences, text, visibleGloss, glossCredit]);
   const hasGloss = sentences.some((s) => s.gloss);
   // Anything still unanswered? The gate used to be "no gloss at all", which meant a
   // text with ONE sentence tapped never asked for the rest — and, now that the press
@@ -539,7 +548,12 @@ function ParagraphReaderImpl({
       <p className="reader">{flat}</p>
       {/* Unpunctuated text has nowhere to put a per-sentence English, so it all goes
           here in one block. */}
-      {!inlineGloss && showGloss && wholeGloss && <p className="reader__whole">{wholeGloss}</p>}
+      {!inlineGloss && showGloss && wholeGloss && (
+        <p className="reader__whole">
+          {wholeGloss}
+          {glossCredit && <GoogleBadge tone="quiet" size="small" />}
+        </p>
+      )}
       {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"
