@@ -1652,6 +1652,59 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup_many", () => {
 // Sources UNSEEN headwords at a proficiency band from JMdict. Self-skips unless
 // BOTH JMdict is ingested AND the proficiency wordlist has been joined in (bands
 // are NULL otherwise → no candidates).
+// ── placement_pool (migration 20260786; needs the JLPT bands ingested, else self-skips) ──
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_pool", () => {
+  it("counts the band's pool, what the caller holds, and what is left to swipe", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const other = await makeUser();
+    type Row = { band: number; pool: number; unsaved: number; known: number };
+    const counts = async (client: typeof u.client): Promise<Row[]> => {
+      const r = await client.rpc("placement_pool", { p_source_lang: "JA", p_target_lang: "EN", p_max_band: 5 });
+      expect(r.error).toBeNull();
+      return (r.data ?? []) as Row[];
+    };
+
+    const before = await counts(u.client);
+    expect(before.map((r) => r.band)).toEqual([1, 2, 3, 4, 5]);
+    const target = before.find((r) => r.pool >= 2);
+    if (!target) return; // proficiency not ingested → no pool to count
+    // A fresh user has saved nothing: the whole pool is still to swipe.
+    expect(target.unsaved).toBe(target.pool);
+    expect(target.known).toBe(0);
+
+    // Save two pool words through the real path: one HELD (the quiz's "know" seed), one cold.
+    const draw = (((await svc.rpc("learn_words_at_band", {
+      p_source: "JA", p_target: "EN", p_band: target.band, p_user_id: u.userId, p_limit: 2,
+    })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+    expect(draw).toHaveLength(2);
+    for (const [i, headword] of draw.entries()) {
+      const seeded = await svc.from("words").insert({
+        input: headword, translation: `pool-seed-${Date.now()}-${i}`, source_lang: "JA", target_lang: "EN",
+        is_verified: true,
+      }).select("word_id").single();
+      expect(seeded.error).toBeNull();
+      const saved = await u.client.rpc("save_dictionary_word", {
+        p_user_id: u.userId,
+        p_dictionary_word_id: (seeded.data as { word_id: string }).word_id,
+        ...(i === 0 ? { p_initial_stability: 40 } : {}),
+      });
+      expect(saved.error).toBeNull();
+    }
+
+    const after = (await counts(u.client)).find((r) => r.band === target.band)!;
+    expect(after.pool).toBe(target.pool); // the pool is the band, not the user
+    expect(after.unsaved).toBe(target.pool - 2);
+    expect(after.known).toBe(1); // the cold save is saved but not held
+
+    // Scoped to the caller: someone else's vocabulary changes nothing.
+    const theirs = (await counts(other.client)).find((r) => r.band === target.band)!;
+    expect(theirs.unsaved).toBe(target.pool);
+    expect(theirs.known).toBe(0);
+  });
+});
+
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
   it("is NOT callable by a client (no EXECUTE grant)", async () => {
     const u = await makeUser();

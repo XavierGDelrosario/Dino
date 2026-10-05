@@ -13,12 +13,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserProfile } from "../services/session";
 import { profileToLangs } from "./useLanguagePrefs";
 import {
+  getPlacementPool,
   getPlacementRatings,
   levelFromRatings,
   recordPlacementAnswer,
   setUserLevel,
   setUserProficiencyBand,
   type PlacementLevel,
+  type PlacementPool,
   type PlacementRating,
 } from "../services/calibration";
 import { fetchLearnWords } from "../services/learn";
@@ -78,6 +80,9 @@ export function useCalibration(
   const maxBand = useRef(1);
   const baseline = useRef<PlacementRating[]>([]); // answers from earlier sessions
   const session = useRef<PlacementRating[]>([]); // this session's swipes
+  // Each band's pool counts as they stood when the quiz OPENED. Deliberately a snapshot:
+  // this session's swipes are a sample of that unsaved remainder, so the two belong together.
+  const pool = useRef<PlacementPool>(new Map());
   const shown = useRef<Set<string>>(new Set()); // word ids offered this session
   const fetching = useRef(false);
 
@@ -92,7 +97,7 @@ export function useCalibration(
   const [error, setError] = useState<string | null>(null);
 
   const recompute = useCallback((): PlacementLevel => {
-    const l = levelFromRatings([...baseline.current, ...session.current], maxBand.current);
+    const l = levelFromRatings([...baseline.current, ...session.current], maxBand.current, pool.current);
     setLive(l);
     return l;
   }, []);
@@ -158,12 +163,13 @@ export function useCalibration(
       }
       baseline.current = base.ratings;
       maxBand.current = base.maxBand;
+      pool.current = await getPlacementPool({ ...langsRef.current, maxBand: base.maxBand });
       session.current = [];
       shown.current = new Set();
       setKnown(0);
       setUnknown(0);
       setTagged(new Set());
-      const l = levelFromRatings(base.ratings, base.maxBand);
+      const l = levelFromRatings(base.ratings, base.maxBand, pool.current);
       setLive(l);
       const start = l.band > 0 ? l.band : Math.ceil(base.maxBand / 2);
       const batch = await fetchAround(start);
