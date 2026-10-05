@@ -331,9 +331,6 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <summary><h2>➕ Open follow-ups</h2></summary>
 
 ### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
-- **`pages.dev` Google redirect** — `https://dino-86y.pages.dev/auth/google` was rejected by
-  Google (`redirect_uri_mismatch`) when last checked; fix the Authorised redirect URI or
-  retire that origin, else Google sign-in fails for anyone still on the old URL.
 - **Google brand verification** — shows the app name and logo on Google's screen (Search
   Console TXT for `dinostudy.com` → Branding → submit). iOS still uses the redirect flow,
   so it reads "continue to …supabase.co" there until then.
