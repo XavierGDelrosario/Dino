@@ -26,7 +26,7 @@
 // =========================================================
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
-import { bandForWriting, loadProficiency } from "./lib/proficiency";
+import { bandForWriting, commonKanaOf, loadProficiency } from "./lib/proficiency";
 
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
@@ -164,6 +164,10 @@ async function main(): Promise<void> {
   const senses: unknown[][] = [];
   const senseGlosses: JMGloss[][] = []; // parallel to `senses`
 
+  // Which kana spellings some entry carries as a COMMON writing — an uncommon homophone
+  // gives its band up to that entry (scripts/lib/proficiency.ts, the homophone exception).
+  const commonKana = commonKanaOf(words.flatMap((w) => w.kana));
+
   for (const w of words) {
     entries.push([w.id]);
     const readings = w.kana.map((k) => k.text);
@@ -172,7 +176,11 @@ async function main(): Promise<void> {
       kanji.push([w.id, nfc(k.text), k.common, freqOf(k.text), bandOf(k.text), i])
     );
     w.kana.forEach((k, i) =>
-      kana.push([w.id, nfc(k.text), k.common, k.appliesToKanji ?? ["*"], freqOf(k.text), bandOf(k.text), i])
+      kana.push([
+        w.id, nfc(k.text), k.common, k.appliesToKanji ?? ["*"], freqOf(k.text),
+        bandForWriting(prof, k.text, readings, { common: k.common, commonSpelling: commonKana.has(nfc(k.text)) }),
+        i,
+      ])
     );
     w.sense.forEach((s, i) => {
       senses.push([

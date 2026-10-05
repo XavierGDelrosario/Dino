@@ -18,7 +18,19 @@
 // THE RULE:
 //   · a KANJI writing takes the band only if its entry has a kana reading the list
 //     gives for that spelling (easiest such band wins);
-//   · a KANA writing is its own reading, so it matches by surface as before.
+//   · a KANA writing is its own reading, so it matches by surface — EXCEPT an UNCOMMON
+//     entry's kana, when a COMMON entry is spelled the same way (below).
+//
+// WHY THE EXCEPTION. A kana spelling is shared by homophones just as a kanji is shared
+// by readings, and the list means the everyday one. Matching by surface alone gave the
+// N5 すぎ (過ぎ, "past; too much") to 須義 as well — the cobia, a fish — and because that
+// entry is "usually kana", the fish is what the app SHOWED as the N5 word, and dealt as
+// an N5 quiz card (quality report #42). Measured on prod 2026-10-06: 137 uncommon
+// kana-shown entries carried a band a common homophone owns — ない "earthquake" (N5),
+// する "to pickpocket" (N5), バス "bass (fish)" (N5), アルバイト "albite" (N4).
+// JMdict's `common` flag is what tells them apart: where a common entry has the spelling
+// the listed word is that one, and an uncommon entry only keeps the band when it is the
+// spelling's ONLY home (111 such entries, left alone).
 // =========================================================
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -73,19 +85,39 @@ export function loadProficiency(lang: string): ProficiencyTable {
   return parseProficiency(raw);
 }
 
+/** What a KANA writing needs known about it to be levelled (see the header). */
+export interface KanaStanding {
+  /** This kana writing's own JMdict `common` flag. */
+  common: boolean;
+  /** Does ANY entry carry this spelling as a common kana writing? (`commonKanaOf`) */
+  commonSpelling: boolean;
+}
+
+/** The kana spellings that some entry carries as a COMMON writing. */
+export function commonKanaOf(rows: Iterable<{ text: string; common: boolean }>): Set<string> {
+  const out = new Set<string>();
+  for (const r of rows) if (r.common) out.add(nfc(r.text));
+  return out;
+}
+
 /**
  * The band for one JMdict writing, or null.
  *
  * @param surface      the writing (a jmdict_kanji or jmdict_kana text)
  * @param entryReadings every kana reading of the writing's ENTRY
+ * @param kana         for a KANA writing: its standing among its homophones. Omitted,
+ *                     the spelling match alone decides (the rule before 2026-10-06).
  */
 export function bandForWriting(
   table: ProficiencyTable,
   surface: string,
   entryReadings: readonly string[],
+  kana?: KanaStanding,
 ): number | null {
   const listed = table.get(nfc(surface));
   if (!listed) return null;
+  // An uncommon entry spelled like a common one: the list means the common one.
+  if (kana && !HAS_KANJI.test(surface) && !kana.common && kana.commonSpelling) return null;
   // A kana writing IS a reading, so the spelling match is the whole test.
   const candidates = HAS_KANJI.test(surface) ? entryReadings.map((r) => toHiragana(nfc(r))) : [...listed.keys()];
   let best: number | null = null;
