@@ -16,6 +16,9 @@
 /* "Learn new words" heading above the N5…N1 level tabs. */
 .learn__bandstitle {
   margin: 0 0 0.5rem;
+  /* Centred: these two headings ("Learn new words", "Articles") title the sections
+     below them, and the level buttons under the first are a centred row. */
+  text-align: center;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);

@@ -46,9 +46,6 @@ import { Loading, LoadingDots } from "../components/common/Loading";
 
 const SITE: WikiSite = "wikinews";
 
-/** Learning language → its LOCALIZED name, for the intro line ("Study real X…"). */
-const LANG_NAME: Record<string, MessageKey> = { JA: "lang.JA", EN: "lang.EN" };
-
 type Tab = "browse" | "favorites";
 
 /** "all" is the whole-wiki random draw; anything else browses one Wikinews category. */
@@ -253,15 +250,6 @@ export function MediaView({
     <section className="review media">
       {/* No language picker and no back button: this is embedded in Learn, which owns
           both — one picker for the tab, and the way out is the tab itself. */}
-      <div className="media__head">
-        <p className="review__scope">{t("media.intro", { lang: t(LANG_NAME[lang] ?? "lang.JA") })}</p>
-        {tab === "browse" && (
-          <button className="btn btn--sm" type="button" onClick={() => void load(true)} disabled={loading}>
-            {loading ? <LoadingDots /> : t("media.refresh")}
-          </button>
-        )}
-      </div>
-
       <div className="media__tabs" role="tablist">
         <button
           type="button"
@@ -281,6 +269,18 @@ export function MediaView({
         >
           {t("media.tabFavorites", { n: favorites.items?.length ?? 0 })}
         </button>
+        {/* Refresh sits beside the two tabs it belongs with — it redraws Browse, so it is
+            only there on Browse. Not a tab itself (it isn't in the tablist's selection). */}
+        {tab === "browse" && (
+          <button
+            className="btn btn--sm media__refresh"
+            type="button"
+            onClick={() => void load(true)}
+            disabled={loading}
+          >
+            {loading ? <LoadingDots /> : t("media.refresh")}
+          </button>
+        )}
       </div>
 
       {tab === "browse" && topics.length > 0 && (
