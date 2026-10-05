@@ -1,5 +1,5 @@
 // Native speech recognizer — @capacitor-community/speech-recognition over iOS
-// SFSpeechRecognizer (on-device, free, Japanese supported). A proper npm Capacitor
+// SFSpeechRecognizer (free, Japanese supported). A proper npm Capacitor
 // plugin, so this is a thin wrapper with no native code of our own. iOS-only today:
 // available() is false on web/desktop, so the registry falls through and the mic hides.
 
@@ -25,7 +25,8 @@ const HEALTH_MS = 5_000;
 const RESTART_DELAY_MS = 400;
 
 /**
- * Let iOS punctuate. On iOS 16+ SFSpeechRecognizer places 。、？ from the AUDIO itself —
+ * Let iOS punctuate (this needs the SERVER recognizer to work well — see startStream).
+ * On iOS 16+ SFSpeechRecognizer places 。、？ from the AUDIO itself —
  * pauses and question intonation included — which is the only honest source of
  * punctuation for speech (the English gloss can't be mapped back: one spoken line may
  * become several English sentences, in a different order). Earlier iOS ignores it and
@@ -121,8 +122,11 @@ export const nativeRecognizer: SpeechRecognizer = {
   },
 
   /**
-   * CONTINUOUS listening — on-device and offline, with no audio leaving the phone
-   * (unlike the web backend, which is Chrome shipping audio to Google).
+   * CONTINUOUS listening through iOS's own recognizer. iOS decides where the audio is
+   * recognised and may send it to Apple: on-device recognition is deliberately NOT
+   * required (it was, briefly — 2026-10-05), because the on-device model stopped
+   * placing 。 between sentences, and sentence breaks are what the reader translates
+   * and checks one by one. The audio never reaches us either way.
    *
    * `partialResults: true` makes start() return immediately and fire a hypothesis
    * rewritten on every syllable. There is no "final" event, so the UTTERANCE BOUNDARY
