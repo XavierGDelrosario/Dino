@@ -18,6 +18,7 @@ import {
   saveDictionaryWord,
   createCustomWord,
   editUserWord,
+  revertUserWord,
   deleteUserWord,
   deleteUserWords,
   addUserWordsToList,
@@ -136,6 +137,15 @@ export function useLists(userId: string) {
     (userWordId: string, translation: string) =>
       guard(async () => {
         await editUserWord({ userWordId, translation });
+      }),
+    [guard]
+  );
+
+  /** "Revert to original": drop the user's own meaning for the dictionary's. */
+  const revertWord = useCallback(
+    (userWordId: string) =>
+      guard(async () => {
+        await revertUserWord({ userWordId });
       }),
     [guard]
   );
@@ -267,6 +277,7 @@ export function useLists(userId: string) {
     lookupDictionary,
     saveSenseToList,
     editWord,
+    revertWord,
     softenWord,
     deleteWord,
     deleteWords,

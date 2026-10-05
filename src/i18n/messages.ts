@@ -243,6 +243,8 @@ export const en = {
   // row
   "lists.editMeaningAria": "Edit meaning",
   "lists.editMeaningTitle": "Edit meaning",
+  "lists.editMeaningEditedTitle": "Edit meaning (edited)",
+  "lists.revertMeaning": "Revert to original",
   "lists.addToList": "Add to a list",
   "lists.select": "Select",
   "lists.selectDone": "Done",
@@ -734,6 +736,8 @@ export const ja: Record<MessageKey, string> = {
   "lists.otherMeanings": "他の意味（{n}）",
   "lists.editMeaningAria": "意味を編集",
   "lists.editMeaningTitle": "意味を編集",
+  "lists.editMeaningEditedTitle": "意味を編集（編集済み）",
+  "lists.revertMeaning": "元の意味に戻す",
   "lists.addToList": "リストに追加",
   "lists.select": "選択",
   "lists.selectDone": "完了",

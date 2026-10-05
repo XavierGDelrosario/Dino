@@ -633,6 +633,7 @@ export function ListView({
               selected={picked.has(w.userWordId)}
               onToggleSelect={() => toggleOne(w.userWordId)}
               onEdit={(translation) => L.editWord(w.userWordId, translation)}
+              onRevert={() => L.revertWord(w.userWordId)}
               onDelete={() => {
                 // Only reachable from ALL — a sub-list shows "remove from list"
                 // (onRemoveFromList) instead of delete-from-vocabulary.

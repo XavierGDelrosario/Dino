@@ -98,3 +98,60 @@ describe("ListRow — editing the meaning", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 });
+
+describe("ListRow — an edited meaning", () => {
+  beforeEach(cleanup);
+  afterEach(cleanup);
+
+  const row = (w: ReturnType<typeof makeUserWord>, onRevert = vi.fn()) =>
+    render(
+      <LocaleProvider>
+        <ul>
+          <ListRow
+            word={w}
+            lists={[]}
+            onEdit={vi.fn()}
+            onRevert={onRevert}
+            onDelete={vi.fn()}
+            onTag={vi.fn()}
+            onCreateList={vi.fn().mockResolvedValue(undefined)}
+          />
+        </ul>
+      </LocaleProvider>,
+    );
+  const dictionary = makeUserWord({ input: "猫", translation: "cat", dictionaryWordId: "w1", customTranslation: null });
+  const edited = makeUserWord({ input: "猫", translation: "kitty", dictionaryWordId: "w1", customTranslation: "kitty" });
+  const created = makeUserWord({ input: "ねこ", translation: "my cat", dictionaryWordId: null, customTranslation: "my cat" });
+  const pencil = () => screen.getByRole("button", { name: /Edit meaning/ });
+
+  it("the pencil is marked once the meaning is the user's own, and only then", () => {
+    row(dictionary);
+    expect(pencil().className).not.toContain("iconbtn--edited");
+    cleanup();
+    row(edited);
+    expect(pencil().className).toContain("iconbtn--edited");
+    expect(pencil().getAttribute("aria-label")).toBe("Edit meaning (edited)");
+  });
+
+  it("a word the user CREATED is not 'edited' — there is no original behind it", () => {
+    row(created);
+    expect(pencil().className).not.toContain("iconbtn--edited");
+    fireEvent.click(pencil());
+    expect(screen.queryByRole("button", { name: "Revert to original" })).toBeNull();
+  });
+
+  it("editing an edited meaning offers Revert to original, which reverts and closes the editor", () => {
+    const onRevert = vi.fn();
+    row(edited, onRevert);
+    fireEvent.click(pencil());
+    fireEvent.click(screen.getByRole("button", { name: "Revert to original" }));
+    expect(onRevert).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("textbox", { name: "Edit meaning" })).toBeNull();
+  });
+
+  it("an unedited dictionary word has nothing to revert", () => {
+    row(dictionary);
+    fireEvent.click(pencil());
+    expect(screen.queryByRole("button", { name: "Revert to original" })).toBeNull();
+  });
+});

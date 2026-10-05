@@ -12,6 +12,8 @@ import {
   saveDictionaryWords,
   createCustomWord,
   editUserWord,
+  revertUserWord,
+  isMeaningEdited,
   deleteUserWord,
   deleteUserWords,
   addUserWordToList,
@@ -254,6 +256,30 @@ describe("editUserWord", () => {
     expect(stub.callsFor("user_words", "upsert")).toHaveLength(0);
     expect(stub.callsFor("user_words", "insert")).toHaveLength(0);
     expect(res.translation).toBe("new meaning");
+  });
+});
+
+describe("revertUserWord / isMeaningEdited", () => {
+  it("clears the user's own meaning, only on a word that has a dictionary one behind it", async () => {
+    stub.queueFrom("user_words", { data: uwRow({ custom_translation: null }), error: null });
+
+    await revertUserWord({ userWordId: "uw1" });
+
+    expect(stub.callsFor("user_words", "update")[0]?.args[0]).toEqual({ custom_translation: null });
+    // The guard: a created word (no dictionary sense) must never be left with no meaning.
+    expect(stub.callsFor("user_words", "not")[0]?.args).toEqual(["dictionary_word_id", "is", null]);
+    expect(stub.callsFor("user_words", "delete")).toHaveLength(0);
+  });
+
+  it("surfaces a failure instead of pretending the word was reverted", async () => {
+    stub.queueFrom("user_words", { data: null, error: { code: "PGRST116", message: "no rows" } });
+    await expect(revertUserWord({ userWordId: "uw1" })).rejects.toThrow();
+  });
+
+  it("edited = a dictionary word whose meaning the user replaced", () => {
+    expect(isMeaningEdited({ customTranslation: "mine", dictionaryWordId: "w1" })).toBe(true);
+    expect(isMeaningEdited({ customTranslation: null, dictionaryWordId: "w1" })).toBe(false);
+    expect(isMeaningEdited({ customTranslation: "mine", dictionaryWordId: null })).toBe(false); // created
   });
 });
 
