@@ -96,6 +96,8 @@ export const en = {
   "handwriting.close": "Close handwriting",
   "handwriting.noMatch": "No match — try drawing more clearly.",
   "handwriting.error": "Couldn’t recognize. Try again.",
+  "handwriting.modelPending":
+    "Still downloading the handwriting model. It downloads over Wi-Fi only — connect to Wi-Fi and try again.",
 
   // voice input (native, on-device speech)
 
@@ -595,6 +597,8 @@ export const ja: Record<MessageKey, string> = {
   "handwriting.close": "手書きを閉じる",
   "handwriting.noMatch": "一致なし — もっとはっきり書いてください。",
   "handwriting.error": "認識できませんでした。もう一度お試しください。",
+  "handwriting.modelPending":
+    "手書きモデルをダウンロード中です。Wi-Fi接続時のみダウンロードされます — Wi-Fiに接続して、もう一度お試しください。",
 
   // voice input (native, on-device speech)
 

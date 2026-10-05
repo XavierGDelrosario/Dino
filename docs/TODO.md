@@ -221,15 +221,10 @@ Fix VOLUME first, then price.
   fallback entirely (`skipGlossFallback`), because the EN pool only emits surfaces WordNet
   can translate. That fixed A1/A2 placement timing out.
 
-### Pre-publish QA (2026-10-05) — the three findings that could not be settled from code
+### Pre-publish QA (2026-10-05) — the findings that could not be settled from code
 - **`delete-account` edge function** reads only the legacy `SUPABASE_ANON_KEY` /
   `SUPABASE_SERVICE_ROLE_KEY`, which are disabled on prod → deletion may fail. Test with a
   throwaway account; if it does, mirror `translate`'s `SERVICE_ROLE_SECRET`.
-- **Offline review on Safari / iOS** — `isUnreachable` matches Chrome's wording; WebKit's
-  "Load failed" likely isn't recognised, so grades aren't queued. Classify by shape
-  (empty `code`, status 0).
-- **Handwriting model on mobile data** — `allowsCellularAccess: false` with no timeout, so
-  the draw pad can spin forever off wifi. Add a timeout + a "connect to Wi-Fi" message.
 
 ### Test coverage
 - **Edge error-log e2e** — the sink contract is covered; driving a real failing edge path
@@ -365,12 +360,6 @@ the SRS ease already does), then drop the column + its grants (`20260704`).
 ### Proficiency label axis — remaining `[#8]`
 - **Drop the read-time level-estimate pieces** (`language_level_estimate`, `estimated_band()`, `measure_level_estimate()`, `level_estimate_bins()` + its `build:leveling` call) once no installed client calls `level_estimate_bins()` at startup (anything built before PR for 20260779).
 - **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
-
-### Account-linking collisions — rollout `[#13]`
-**Gates the captcha rollout.** `20260782` is live on staging + prod; left:
-- Live-verify with real Google (local can't), web + iOS: password account → "Continue with
-  Google" is denied with the funnel copy; sign-up link on an already-registered Google
-  account falls back to sign-in and merges the guest.
 
 ### Placement + review-log — after `20260783` / `20260784`
 - Finish "Find my level" once on each real account — the stored band predates the fix.

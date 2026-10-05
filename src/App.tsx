@@ -7,7 +7,9 @@ import { useSession } from "./hooks/useSession";
 import { completeGoogleSignIn, needsTermsAcceptance } from "./services/session";
 import { hasGoogleReturn, recordGoogleFailure, takeGoogleReturn } from "./services/googleIdentity";
 import { warmJapaneseAnalyzer } from "./services/language";
+import { Capacitor } from "@capacitor/core";
 import { watchForReconnect } from "./services/offline/sync";
+import { watchOfflineDeck } from "./services/review";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
@@ -81,6 +83,14 @@ export function App() {
   useEffect(() => {
     if (!userId) return;
     return watchForReconnect();
+  }, [userId]);
+
+  // Keep a deep review deck on the device so Review still deals cards with no network.
+  // The APP only: offline study is a native use case, and on the web this would be an
+  // extra ranked query on every page load for a deck nobody opens.
+  useEffect(() => {
+    if (!userId || !Capacitor.isNativePlatform()) return;
+    return watchOfflineDeck(userId);
   }, [userId]);
 
   const [needsTerms, setNeedsTerms] = useState(false);

@@ -52,3 +52,15 @@ export interface HandwritingRecognizer {
   supports(lang: LangCode): boolean;
   recognize(input: InkInput): Promise<RecognitionCandidate[]>;
 }
+
+/**
+ * The recognizer's language model is not on the device yet and did not arrive in time.
+ * NOT a recognition failure: the download carries on in the background, so the same
+ * drawing works once it lands. The UI says so instead of "couldn't recognize".
+ */
+export class HandwritingModelPendingError extends Error {
+  constructor() {
+    super("Handwriting model is still downloading");
+    this.name = "HandwritingModelPendingError";
+  }
+}

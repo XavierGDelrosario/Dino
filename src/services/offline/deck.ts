@@ -22,7 +22,15 @@ import type { OfflineStore } from "./store";
 import type { ClockAnchor } from "./clock";
 import type { ReviewQueueItem } from "../review";
 
-const KEY = "review-deck";
+/**
+ * Two decks, because they answer different questions and must not overwrite each other:
+ *   session — the last session dealt online, in whatever scope it had (ALL or one list).
+ *   full    — a much deeper cut of the whole vocabulary's queue, fetched ahead of need
+ *             (review.ts `refreshOfflineDeck`) so an offline learner has more than the
+ *             one session they happened to open last.
+ */
+export type DeckSlot = "session" | "full";
+const KEYS: Record<DeckSlot, string> = { session: "review-deck", full: "review-deck-full" };
 
 /** How long a cached deck may be dealt from. A day's study is the use case; past that
  *  the ranking it was built from is too old to be honest about. */
@@ -39,8 +47,9 @@ interface CachedDeck {
 export async function saveDeck(
   store: OfflineStore,
   deck: { userId: string; listId: string | null; anchor: ClockAnchor; items: ReviewQueueItem[] },
+  slot: DeckSlot = "session",
 ): Promise<void> {
-  await store.set<CachedDeck>(KEY, { ...deck, fetchedAt: deck.anchor.serverNow });
+  await store.set<CachedDeck>(KEYS[slot], { ...deck, fetchedAt: deck.anchor.serverNow });
 }
 
 /**
@@ -50,9 +59,9 @@ export async function saveDeck(
  */
 export async function loadDeck(
   store: OfflineStore,
-  params: { userId: string; listId: string | null; now?: number },
+  params: { userId: string; listId: string | null; now?: number; slot?: DeckSlot },
 ): Promise<{ items: ReviewQueueItem[]; anchor: ClockAnchor } | null> {
-  const cached = await store.get<CachedDeck>(KEY);
+  const cached = await store.get<CachedDeck>(KEYS[params.slot ?? "session"]);
   if (!cached) return null;
   if (cached.userId !== params.userId) return null;
   if ((cached.listId ?? null) !== (params.listId ?? null)) return null;
@@ -60,7 +69,7 @@ export async function loadDeck(
   return { items: cached.items, anchor: cached.anchor };
 }
 
-/** Drop the deck. On sign-out, and whenever a live queue supersedes it. */
+/** Drop the decks. On sign-out, and whenever a live queue supersedes them. */
 export async function clearDeck(store: OfflineStore): Promise<void> {
-  await store.del(KEY);
+  await Promise.all(Object.values(KEYS).map((key) => store.del(key)));
 }
