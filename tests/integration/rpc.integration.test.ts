@@ -1652,7 +1652,7 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup_many", () => {
 // Sources UNSEEN headwords at a proficiency band from JMdict. Self-skips unless
 // BOTH JMdict is ingested AND the proficiency wordlist has been joined in (bands
 // are NULL otherwise → no candidates).
-// ── placement_pool (migration 20260786; needs the JLPT bands ingested, else self-skips) ──
+// ── placement_pool (migrations 20260786 + 20260787; needs the JLPT bands ingested, else self-skips) ──
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_pool", () => {
   it("counts the band's pool, what the caller holds, and what is left to swipe", async () => {
     const svc = serviceClient();
@@ -1665,6 +1665,13 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_pool", () => {
       expect(r.error).toBeNull();
       return (r.data ?? []) as Row[];
     };
+
+    // The pool's word list is stored (20260787) and CI ingests after migrating, so
+    // measure it now — the step a real environment runs after its ingests.
+    expect((await svc.rpc("refresh_placement_pool")).error).toBeNull();
+    // Server-only: a client can neither rebuild it nor read the list.
+    expect((await u.client.rpc("refresh_placement_pool")).error).not.toBeNull();
+    expect((await u.client.from("placement_pool_words").select("surface").limit(1)).data ?? []).toEqual([]);
 
     const before = await counts(u.client);
     expect(before.map((r) => r.band)).toEqual([1, 2, 3, 4, 5]);

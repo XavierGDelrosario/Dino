@@ -139,6 +139,12 @@ npm run ingest:english-proficiency   # data/proficiency/en.tsv -> english_profic
 npm run build:leveling -- JA         # JLPT anchors + JMdict POS offsets (needs jmdict + proficiency)
 npm run build:leveling -- EN         # CEFR anchors only (English has no POS source yet)
 
+# PLACEMENT POOL — the stored word list behind "Find my level"'s pool counts
+# (placement_pool_words, migration 20260787). Like the leveling profile it is measured
+# from the ingested data, so re-run after any re-ingest AND after any migration that
+# changes learn_words_at_band's rules. Unpopulated = the quiz places from swipes alone.
+#   SQL (service role / postgres):  SELECT refresh_placement_pool();
+
 # Backups — off-site export of the IRREPLACEABLE user tables (NOT the reproducible
 # dictionary; that's db:dump-seed). The in-repo half of Launch-Checklist #6 / §2:
 npm run db:backup          # pg_dump users/user_words/lists/list_words/review_log/
