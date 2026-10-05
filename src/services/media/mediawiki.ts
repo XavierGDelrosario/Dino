@@ -32,6 +32,8 @@ const SUBLANG: Record<string, string> = { JA: "ja", EN: "en", KO: "ko", ZH: "zh"
 const langSub = (lang: string) => SUBLANG[lang.toUpperCase()] ?? "ja";
 const host = (site: WikiSite, lang: string) => `${langSub(lang)}.${SITES[site].segment}.org`;
 const apiBase = (site: WikiSite, lang: string) => `https://${host(site, lang)}/w/api.php`;
+/** The project's API endpoint, for the other clients of the same wiki (topics.ts). */
+export const wikiApiBase = apiBase;
 
 /** Source attribution for studied media text — a credit label + link-back. */
 export interface MediaSource {

@@ -22,6 +22,38 @@ describe("browseKey", () => {
   });
 });
 
+describe("topics", () => {
+  const base = { userId: "u", site: "wikinews" as const, lang: "JA", now: new Date(2026, 8, 28) };
+
+  it("'all' is the plain key, so batches kept before topics existed still read", () => {
+    expect(browseKey({ ...base, topic: "all" })).toBe(browseKey(base));
+    expect(browseKey({ ...base, topic: "sports" })).toBe("u|wikinews|JA|2026-09-28|sports");
+  });
+
+  it("each topic keeps its own batch for the day — switching and back shows the same stories", () => {
+    const all = browseKey(base);
+    const sports = browseKey({ ...base, topic: "sports" });
+    writeBrowse(all, batch("a"));
+    writeBrowse(sports, batch("s"));
+    expect(readBrowse(all)).toEqual(batch("a"));
+    expect(readBrowse(sports)).toEqual(batch("s"));
+    __resetBrowseMemory(); // and across an app restart
+    expect(readBrowse(all)).toEqual(batch("a"));
+    expect(readBrowse(sports)).toEqual(batch("s"));
+  });
+
+  it("a new day drops every topic's batch from the day before", () => {
+    writeBrowse(browseKey({ ...base, topic: "sports" }), batch("s"));
+    writeBrowse(browseKey({ ...base, now: new Date(2026, 8, 29) }), batch("n"));
+    expect(readBrowse(browseKey({ ...base, topic: "sports" }))).toBeNull();
+  });
+
+  it("reads a batch stored in the pre-topics shape", () => {
+    localStorage.setItem("dino.media.browse", JSON.stringify({ key: browseKey(base), items: batch("old") }));
+    expect(readBrowse(browseKey(base))).toEqual(batch("old"));
+  });
+});
+
 describe("readBrowse / writeBrowse", () => {
   it("returns the kept batch for the same key only", () => {
     writeBrowse("k1", batch("a"));

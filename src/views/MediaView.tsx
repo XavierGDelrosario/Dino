@@ -23,7 +23,7 @@
 // unrecoverable once refreshed away — the star is how a user keeps one. Only the
 // pointer is stored (title/url/snippet + the re-fetch coordinates), so opening a
 // favourite re-reads the live article; see services/media/favorites.ts.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { browseKey, readBrowse, writeBrowse } from "../services/media/browseCache";
 import {
   randomHeadlines,
@@ -32,7 +32,9 @@ import {
   type Article,
   type WikiSite,
 } from "../services/media/mediawiki";
+import { topicHeadlines, topicsFor, type Topic } from "../services/media/topics";
 import { useFavorites } from "../hooks/useFavorites";
+import { useStickyState } from "../hooks/useStickyState";
 import { type LangCode } from "../services/language";
 import { FavoriteStar } from "../components/media/FavoriteStar";
 import { ArticleView } from "./ArticleView";
@@ -48,6 +50,20 @@ const SITE: WikiSite = "wikinews";
 const LANG_NAME: Record<string, MessageKey> = { JA: "lang.JA", EN: "lang.EN" };
 
 type Tab = "browse" | "favorites";
+
+/** "all" is the whole-wiki random draw; anything else browses one Wikinews category. */
+type TopicChoice = Topic | "all";
+const TOPIC_LABEL: Record<TopicChoice, MessageKey> = {
+  all: "media.topic.all",
+  sports: "media.topic.sports",
+  weather: "media.topic.weather",
+  disasters: "media.topic.disasters",
+  politics: "media.topic.politics",
+  economy: "media.topic.economy",
+  culture: "media.topic.culture",
+  crime: "media.topic.crime",
+  science: "media.topic.science",
+};
 
 export function MediaView({
   userId,
@@ -85,6 +101,14 @@ export function MediaView({
   // body text.
   const [openedFrom, setOpenedFrom] = useState<Headline | null>(null);
   const favorites = useFavorites(userId, SITE, lang);
+  // Sticky: the host unmounts this view whenever a quiz takes the tab, and coming back
+  // to "All" after picking Sports reads as the choice being lost.
+  const [picked, setTopic] = useStickyState<TopicChoice>(userId, "media.topic", "all");
+  const topics = topicsFor(SITE, lang);
+  const topic: TopicChoice = picked !== "all" && topics.includes(picked) ? picked : "all";
+  /** The batch on screen, so a topic switch can clear it instead of showing the old
+   *  topic's stories under the new chip while the new ones load. */
+  const shownKey = useRef<string | null>(null);
 
   /** Show today's kept batch, or draw a new one. `fresh` (the Refresh button) always
    *  draws, and the new batch is what's kept for the rest of the day. */
@@ -93,9 +117,11 @@ export function MediaView({
     // on a FAILED profile read too, so an unreachable profile falls back to the
     // default language instead of leaving the tab spinning forever.
     if (!ready) return;
-    const key = browseKey({ userId, site: SITE, lang });
+    const key = browseKey({ userId, site: SITE, lang, topic });
     const kept = fresh ? null : readBrowse(key);
     setError(null);
+    if (shownKey.current !== key) setItems(null);
+    shownKey.current = key;
     if (kept) {
       setItems(kept);
       setLoading(false);
@@ -103,15 +129,19 @@ export function MediaView({
     }
     setLoading(true);
     try {
-      const drawn = await randomHeadlines({ site: SITE, lang, limit: 12 });
+      const drawn =
+        topic === "all"
+          ? await randomHeadlines({ site: SITE, lang, limit: 12 })
+          : await topicHeadlines({ site: SITE, lang, topic, limit: 12 });
+      if (shownKey.current !== key) return; // another topic was picked meanwhile
       writeBrowse(key, drawn);
       setItems(drawn);
     } catch (e) {
-      setError(errorMessage(e));
+      if (shownKey.current === key) setError(errorMessage(e));
     } finally {
-      setLoading(false);
+      if (shownKey.current === key) setLoading(false);
     }
-  }, [lang, ready, userId]);
+  }, [lang, ready, userId, topic]);
 
   // Re-runs when the learning language resolves or changes — a new corpus needs a
   // new batch, and the old one's headlines aren't studiable in the new direction.
@@ -252,6 +282,22 @@ export function MediaView({
           {t("media.tabFavorites", { n: favorites.items?.length ?? 0 })}
         </button>
       </div>
+
+      {tab === "browse" && topics.length > 0 && (
+        <div className="media__topics" role="group" aria-label={t("media.topicsAria")}>
+          {(["all", ...topics] as TopicChoice[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={topic === c}
+              className={`media__tab${topic === c ? " media__tab--on" : ""}`}
+              onClick={() => setTopic(c)}
+            >
+              {t(TOPIC_LABEL[c])}
+            </button>
+          ))}
+        </div>
+      )}
 
       <ErrorText message={error ?? favorites.error} />
 

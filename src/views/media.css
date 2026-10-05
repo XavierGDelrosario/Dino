@@ -38,6 +38,25 @@
   font-weight: 600;
 }
 
+/* Topic picker — ONE line that scrolls sideways, never wraps (nine chips would
+   otherwise push the headlines down by three rows on a phone). */
+.media__topics {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.media__topics::-webkit-scrollbar {
+  display: none;
+}
+
+.media__topics .media__tab {
+  flex: none;
+  white-space: nowrap;
+}
+
 .media__list {
   list-style: none;
   margin: 0;
