@@ -259,7 +259,6 @@ Where OUTPUT quality is **capped** — ceilings, not bugs. Each: what's lacking 
   - A blanket curated list is **ruled out** (~4,169 ambiguous frequent words). Extend by hand only.
   - Long-term UX for single-kanji lookups is **multi-reading display** (top 2–3), not one
     guess. In-sentence is already fine — kuromoji has context.
-  - Note the override applies in `lookupWord`, not `lookupWordsBatch`.
 - **Per-sense granularity** — frequency is per-surface, proficiency per-entry and
   reading-matched (`20260740`, `apply:proficiency`), never per-sense. A homograph gets one blended band/frequency. Unlock is
   engineering, not money. **The biggest lever on this list.**

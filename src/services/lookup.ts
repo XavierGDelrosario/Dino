@@ -114,6 +114,13 @@ export async function lookupWordsBatch(params: {
       /* edge failure is non-fatal — the cached candidates still resolve */
     }
   }
+  // The same hand-verified primary fixes lookupWord applies, so a word's default
+  // meaning is the same looked up alone or met in a sentence (すぎ led with a fish in
+  // the reader long after ところ was fixed for single lookups).
+  for (const [key, senses] of byWord) {
+    const fixed = applyWritingOverride(key, applyReadingOverride(key, senses));
+    if (fixed !== senses) byWord.set(key, fixed);
+  }
   return byWord;
 }
 

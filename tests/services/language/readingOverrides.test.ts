@@ -56,9 +56,9 @@ describe("applyReadingOverride", () => {
     expect(out.map((s) => s.id)).toEqual(["kare-0", "kare-1", "are-0", "are-1"]);
   });
 
-  it("every override reading is hiragana and every surface is a single kanji", () => {
+  it("every override reading is hiragana and every surface is written in kanji", () => {
     for (const [surface, reading] of Object.entries(SINGLE_WORD_READING_OVERRIDES)) {
-      expect(surface).toMatch(/^[一-鿿]$/);        // one kanji
+      expect(surface).toMatch(/^[一-鿿]+$/);       // kanji only
       expect(reading).toMatch(/^[ぁ-ゖー]+$/);      // hiragana
     }
   });
@@ -92,5 +92,27 @@ describe("applyWritingOverride (wrong-word-from-kana)", () => {
     for (const surface of Object.keys(SINGLE_WORD_WRITING_OVERRIDES)) {
       expect(reading.has(surface)).toBe(false);
     }
+  });
+});
+
+// Quality reports #42 / #43 (2026-10-04), reproduced against the prod dictionary.
+describe("quality reports #42–#43", () => {
+  it("#43 下手 leads with へた (unskillful), not したて — three entries tied on frequency", () => {
+    const senses = [
+      sense("したて", "shitate-0"),
+      sense("したて", "shitate-1"),
+      sense("へた", "heta-0"),
+      sense("へた", "heta-1"),
+      sense("しもて", "shimote-0"),
+    ];
+    expect(applyReadingOverride("下手", senses).map((s) => s.id)).toEqual([
+      "heta-0", "heta-1", "shitate-0", "shitate-1", "shimote-0",
+    ]);
+  });
+
+  it("#42 すぎ leads with 過ぎ (past; too much), not the fish that borrows the kana's frequency", () => {
+    // 須義 (cobia) is "usually kana", so its HEADWORD is すぎ and it took the kana's frequency.
+    const senses = [wsense("すぎ", "cobia"), wsense("過ぎ", "past"), wsense("過ぎ", "too-much"), wsense("杉", "cedar")];
+    expect(applyWritingOverride("すぎ", senses).map((s) => s.id)).toEqual(["past", "too-much", "cobia", "cedar"]);
   });
 });

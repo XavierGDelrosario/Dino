@@ -20,9 +20,11 @@
 // right), 間(both あいだ/ま are words), 日本(にほん already fine), names (宮城→みやぎ),
 // register-only picks (後→のち). Context-dependent kanji (日=ひ/にち) never qualify.
 //
-// This only reorders which sense is PRIMARY for a single-word lookup; it adds no
-// data and changes no identity. Applied client-side in lookupWord, so it covers
-// both the cache-hit and edge paths in one place. Remove/extend freely — it's a
+// This only reorders which sense is PRIMARY; it adds no data and changes no identity.
+// Applied client-side in lookupWord AND lookupWordsBatch (the reader), so it covers the
+// cache-hit and edge paths, and a word reads the same looked up alone or in a sentence.
+// In a sentence the reader's context reading is applied AFTER this and wins, so a 下手
+// that kuromoji reads したて still leads with したて. Remove/extend freely — it's a
 // bounded stopgap, not the general reading model.
 // =========================================================
 
@@ -41,6 +43,8 @@ export const SINGLE_WORD_READING_OVERRIDES: Readonly<Record<string, string>> = {
   裏: "うら",   // back / reverse  (not うち/り)
   字: "じ",     // character       (not あざ)
   市: "し",     // city            (not いち, the archaic "market"; tied at f=567)
+  下手: "へた", // unskillful      (not したて "humble position" / しもて "stage right";
+                //                  three entries tied at f=445, へた is the N5 word)
 };
 
 /**
@@ -71,11 +75,14 @@ export function applyReadingOverride<T extends { inputReading: string | null }>(
 //   もの   → 物 (thing)  — not 者 (person); both read もの (frequency can't split them)
 //   ところ → 所 (place)  — not 野老 (a rare yam that's "usually kana", so it inherits
 //                          the common ところ string's frequency and outranks 所)
+//   すぎ   → 過ぎ (past; too much) — not 須義 (cobia, a fish: "usually kana", so it
+//                          takes the kana's f=553 and beats 過ぎ at 518 and 杉 at 407)
 
 /** surface (NFC kana) → its correct default WRITING (kanji headword). */
 export const SINGLE_WORD_WRITING_OVERRIDES: Readonly<Record<string, string>> = {
   もの: "物",
   ところ: "所",
+  すぎ: "過ぎ",
 };
 
 /**

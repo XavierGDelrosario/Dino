@@ -92,4 +92,23 @@ describe("nextLearnBatch (the prefetched next quiz)", () => {
   it("returns fewer (possibly none) when the level is running out", () => {
     expect(nextLearnBatch([card("猫")], [card("猫")])).toEqual([]);
   });
+
+  it("leads each card with the curated primary — N5's すぎ is not a fish (quality report #42)", async () => {
+    const w = (wordId: string, input: string, inputReading: string | null) =>
+      ({ wordId, input, inputReading, translation: wordId }) as never;
+    stub.functions.invoke.mockResolvedValue({
+      data: {
+        cards: [
+          [w("cobia", "すぎ", "須義"), w("past", "過ぎ", "すぎ"), w("cedar", "杉", "すぎ")],
+          [w("shitate", "下手", "したて"), w("heta", "下手", "へた")],
+          [w("neko", "猫", "ねこ")],
+        ],
+      },
+      error: null,
+    });
+
+    const cards = await fetchLearnWords({ band: 1, source: "JA", target: "EN" });
+    expect(cards.map((c) => c[0].wordId)).toEqual(["past", "heta", "neko"]);
+    expect(cards[0].map((x) => x.wordId)).toEqual(["past", "cobia", "cedar"]); // nothing dropped
+  });
 });

@@ -413,6 +413,33 @@ describe("translateParagraph", () => {
   });
 });
 
+describe("lookupWordsBatch — the curated primary fixes reach the reader too", () => {
+  it("applies the same writing/reading overrides lookupWord does", async () => {
+    // Quality report #42: in a sentence, すぎ led with the fish — the override only ran
+    // for a single-word lookup.
+    mockFindBatch.mockResolvedValue(
+      new Map([
+        ["すぎ", [
+          makeWord({ wordId: "cobia", input: "すぎ", inputReading: "須義", translation: "cobia" }),
+          makeWord({ wordId: "past", input: "過ぎ", inputReading: "すぎ", translation: "past; after" }),
+          makeWord({ wordId: "cedar", input: "杉", inputReading: "すぎ", translation: "Japanese cedar" }),
+        ]],
+        ["下手", [
+          makeWord({ wordId: "shitate", input: "下手", inputReading: "したて", translation: "humble position" }),
+          makeWord({ wordId: "heta", input: "下手", inputReading: "へた", translation: "unskillful" }),
+        ]],
+        ["猫", [makeWord({ wordId: "neko", input: "猫", translation: "cat" })]],
+      ]),
+    );
+
+    const map = await lookupWordsBatch({ inputs: ["すぎ", "下手", "猫"], sourceLang: "JA", targetLang: "EN" });
+
+    expect(map.get("すぎ")?.map((w) => w.wordId)).toEqual(["past", "cobia", "cedar"]);
+    expect(map.get("下手")?.map((w) => w.wordId)).toEqual(["heta", "shitate"]);
+    expect(map.get("猫")?.map((w) => w.wordId)).toEqual(["neko"]);
+  });
+});
+
 describe("lookupWordsBatch (EN→JA fan-out stage 2)", () => {
   it("merges cached words with edge-seeded misses in ONE batch each", async () => {
     // バット cached; 蝙蝠 missing → seeded via the batched edge call.
