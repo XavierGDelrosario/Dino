@@ -7,6 +7,7 @@
 // takeover, so nothing can interfere mid-session.
 import { isMachineOutput } from "../services/translation/attribution";
 import { GoogleBadge } from "../components/common/GoogleBadge";
+import { CopyButton } from "../components/common/CopyButton";
 import { useEffect, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
@@ -310,7 +311,7 @@ export function TranslateView({
       <div className="translate__io">
         <div className="translate__inputwrap">
           <textarea
-            className="textarea translate__box"
+            className={`textarea translate__box${t.input.trim() !== "" ? " translate__box--copy" : ""}`}
             value={t.input}
             onChange={(e) => {
               t.setInput(e.target.value);
@@ -335,17 +336,23 @@ export function TranslateView({
                   what's already there; then the three ways to PUT something in, in
                   ascending order of how much screen they take over. */}
               {t.input.trim() !== "" && (
-                <button
-                  className="io__tool"
-                  onClick={() => {
-                    t.setInput("");
-                    setCredit(null);
-                  }}
-                  aria-label={tr("translate.clearInput")}
-                  title={tr("translate.clearInput")}
-                >
-                  <XIcon />
-                </button>
+                // Copy sits to the LEFT of clear, on the same top row: the two things
+                // you do to text that is already there. (.io__toprow lays them out;
+                // the textarea reserves the extra width — see .translate__box--copy.)
+                <div className="io__toprow">
+                  <CopyButton className="io__tool" text={t.input} />
+                  <button
+                    className="io__tool"
+                    onClick={() => {
+                      t.setInput("");
+                      setCredit(null);
+                    }}
+                    aria-label={tr("translate.clearInput")}
+                    title={tr("translate.clearInput")}
+                  >
+                    <XIcon />
+                  </button>
+                </div>
               )}
               {hwAvailable && (
                 <button
@@ -424,6 +431,12 @@ export function TranslateView({
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
             )}
           </div>
+          {/* Copy the translation — top-right, the corner opposite read-aloud. */}
+          {t.status !== "loading" && (
+            <div className="io__copy">
+              <CopyButton className="io__tool" text={t.output ?? ""} />
+            </div>
+          )}
           {/* Google's badge, bottom-right, just left of the read-aloud button. */}
           {outputIsMachine && t.status !== "loading" && (
             <div className="translate__credit">
