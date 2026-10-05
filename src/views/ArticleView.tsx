@@ -208,10 +208,12 @@ export function ArticleView({
                 className="btn btn--primary"
                 onClick={() => setQuiz(quizRows.map((r) => r.senses))}
               >
-                {tr(hasNew ? "media.recommendedQuiz" : "media.reviewQuiz", { n: quizRows.length })}
+                {tr(hasNew ? "media.recommendedQuiz" : "media.reviewQuiz")}
               </button>
             )}
-            <button className="btn btn--ghost" onClick={() => setReading(true)}>
+            {/* A plain bordered button, not a ghost: beside the solid quiz button a
+                ghost read as a caption, and reading is half of what this page is for. */}
+            <button className="btn" onClick={() => setReading(true)}>
               {tr("media.readArticle")}
             </button>
           </div>

@@ -59,8 +59,8 @@ export const en = {
   "media.backToAnalysis": "Back to analysis",
   "media.analyzing": "Analyzing the article…",
   "media.noWords": "No dictionary words found in this article.",
-  "media.recommendedQuiz": "Recommended quiz · {n} words",
-  "media.reviewQuiz": "Review quiz · {n} words",
+  "media.recommendedQuiz": "Recommended quiz",
+  "media.reviewQuiz": "Review quiz",
   "media.readArticle": "Read article",
   // word list — sort + filter
   "media.filterStatus": "Filter by status",
@@ -573,8 +573,8 @@ export const ja: Record<MessageKey, string> = {
   "media.backToAnalysis": "分析に戻る",
   "media.analyzing": "記事を分析中…",
   "media.noWords": "この記事に辞書の単語が見つかりませんでした。",
-  "media.recommendedQuiz": "おすすめクイズ · {n}語",
-  "media.reviewQuiz": "復習クイズ · {n}語",
+  "media.recommendedQuiz": "おすすめクイズ",
+  "media.reviewQuiz": "復習クイズ",
   "media.readArticle": "記事を読む",
   // word list — sort + filter
   "media.filterStatus": "状態で絞り込み",
