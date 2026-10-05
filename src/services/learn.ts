@@ -13,6 +13,7 @@
 // (service role) can read the server-only JMdict tables and write the cache.
 // =========================================================
 
+import { applyReadingOverride, applyWritingOverride } from "./language/readingOverrides";
 import { supabase } from "../config/supabaseClient";
 import { ServiceError, toServiceError } from "./errors";
 import type { LangCode } from "./language";
@@ -61,7 +62,13 @@ export async function fetchLearnWords(params: {
   });
   if (error) throw toServiceError(error);
   if (!data) throw new ServiceError("Empty response from translate function");
-  return data.cards ?? [];
+  // The curated primary fixes (readingOverrides.ts), keyed on the headword the card was
+  // dealt for. The edge builds a card from the dictionary's own order, so without this
+  // the N5 card for すぎ asked about a fish and 下手's about a "humble position".
+  return (data.cards ?? []).map((card) => {
+    const headword = card[0]?.input;
+    return headword ? applyWritingOverride(headword, applyReadingOverride(headword, card)) : card;
+  });
 }
 
 /** Words per level quiz. Matches the edge's DEFAULT_LEARN_LIMIT (supabase/functions/
