@@ -903,6 +903,24 @@ textarea.translate__box::-webkit-scrollbar {
   position: static;
 }
 
+/* Google's mark under a machine translation, inside the output box so it scrolls with
+   the text instead of covering its last line. Not part of the translation: it is left
+   out of a selection, so copying the output copies only the output. */
+.translate__credit {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted);
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.translate__credit:hover {
+  text-decoration: underline;
+}
+
 /* Wraps the output box so .io__speak has something to pin to (mirrors
    .translate__inputwrap on the input side). */
 .translate__outwrap {

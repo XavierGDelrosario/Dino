@@ -5,6 +5,7 @@
 //
 // Submit is a BUTTON, never Enter (IME safety). A quiz/review session is a FULL
 // takeover, so nothing can interfere mid-session.
+import { isMachineOutput } from "../services/translation/attribution";
 import { useEffect, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
@@ -281,6 +282,14 @@ export function TranslateView({
   const hasActions =
     addAllWords.length > 0 || t.addableCount > 0 || t.reviewableCount > 0 || !!paraStudy;
 
+  // Google's attribution rules ask for its mark beside a machine translation.
+  const outputIsMachine = isMachineOutput({
+    mode: t.mode,
+    input: t.input,
+    output: t.output,
+    meanings: t.meanings,
+  });
+
   return (
     <section className="translate">
       {/* The history clock is absolutely positioned so .langbar keeps its own centring:
@@ -418,7 +427,19 @@ export function TranslateView({
             {t.status === "loading" ? (
               <span className="translate__placeholder"><Loading text={tr("translate.translating")} /></span>
             ) : t.output ? (
-              t.output
+              <>
+                {t.output}
+                {outputIsMachine && (
+                  <a
+                    className="translate__credit"
+                    href="https://translate.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {tr("translate.poweredByGoogle")}
+                  </a>
+                )}
+              </>
             ) : (
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
             )}
