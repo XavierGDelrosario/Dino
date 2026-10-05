@@ -1,6 +1,8 @@
 // Required data-source attribution (legal must-before-public, #15) + the legal-page
 // links. Credits the dictionary (JMdict/EDRDG), the frequency data (wordfreq,
-// CC-BY-SA), and the semantic EN→JA source (Japanese WordNet + Princeton WordNet).
+// CC-BY-SA), the semantic EN→JA source (Japanese WordNet + Princeton WordNet), and the
+// machine-translation fallback (Google Translate — its attribution rules ask that users be
+// told when a translation is Google's; the disclaimer itself is in the Terms).
 // Full detail + license terms live in ATTRIBUTION.md, which the build copies into the
 // site root (npm `setup:static`) so the "all data sources" link below resolves. Rendered
 // by the app shell on every route — guests included.
@@ -47,7 +49,13 @@ export function AttributionFooter() {
         Princeton WordNet
       </a>
       . Japanese text analysis by kuromoji with the IPADIC dictionary, © Nara Institute of
-      Science and Technology.{" "}
+      Science and Technology. Sentence translations, and words our dictionary lacks, are
+      automatic translations powered by{" "}
+      {/* Google's attribution rules: say it is Google Translate, and link there. */}
+      <a href="https://translate.google.com" target="_blank" rel="noopener noreferrer">
+        Google Translate
+      </a>
+      .{" "}
       {/* A static file, not a route — and ABSOLUTE + new tab, so the native WebView hands
           it to the browser instead of navigating itself to a page with no way back. */}
       <a href="https://dinostudy.com/ATTRIBUTION.md" target="_blank" rel="noopener noreferrer">
