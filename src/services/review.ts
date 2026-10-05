@@ -65,6 +65,12 @@ function isUnreachable(error: unknown, status?: number): boolean {
   return /fetch|network|offline|connection|load failed/i.test(e.message ?? "");
 }
 
+/** Did this THROWN review error mean "no answer" rather than "the answer was no"?
+ *  For the offline drain, which only sees what `sendReview` threw. */
+export function isUnreachableError(error: unknown): boolean {
+  return isUnreachable(error);
+}
+
 /**
  * The request got no response. Thrown by `sendReview`, which sees the response status;
  * `recordReview` only sees what was thrown, and a ServiceError keeps no status.
