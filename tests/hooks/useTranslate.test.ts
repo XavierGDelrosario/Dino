@@ -18,6 +18,7 @@ vi.mock("@/services/translation", () => ({ translate: vi.fn(), MAX_TRANSLATION_C
 vi.mock("@/services/words/userWords", () => ({
   saveDictionaryWord: vi.fn(),
   saveDictionaryWords: vi.fn(),
+  createCustomWord: vi.fn(),
   getUserWordStates: vi.fn(),
 }));
 vi.mock("@/services/lists", () => ({ listUserLists: vi.fn(), createList: vi.fn() }));
@@ -37,7 +38,7 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { useTranslate } from "@/hooks/useTranslate";
-import { getUserWordStates } from "@/services/words/userWords";
+import { createCustomWord, getUserWordStates, saveDictionaryWords } from "@/services/words/userWords";
 import { listUserLists } from "@/services/lists";
 import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
@@ -232,6 +233,45 @@ describe("useTranslate — names are never added or quizzed automatically", () =
     );
     const result = await open();
     await waitFor(() => expect(result.current.reviewablePrimaries.map((w) => w.wordId)).toEqual(["w-daito"]));
+  });
+});
+
+// A person's or company's name has no dictionary row: adding it creates the user's OWN
+// word (the name + its romanization), never a save-by-id.
+describe("useTranslate — adding a name by hand", () => {
+  const name = {
+    wordId: "name:JA:田中", input: "田中", translation: "Tanaka", inputReading: "たなか",
+    sourceLang: "JA", targetLang: "EN",
+  } as never;
+  const neko = { wordId: "w-neko", input: "猫", translation: "cat", sourceLang: "JA", targetLang: "EN" } as never;
+
+  beforeEach(() => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    vi.mocked(createCustomWord).mockResolvedValue({ userWordId: "uw-name", confidenceRating: 0 } as never);
+    vi.mocked(saveDictionaryWords).mockResolvedValue([
+      { userWordId: "uw-neko", dictionaryWordId: "w-neko", confidenceRating: 0 },
+    ] as never);
+  });
+
+  it("saves it as a custom word and marks it saved", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.addWords([name], "list-1");
+    });
+    expect(createCustomWord).toHaveBeenCalledWith({
+      userId: "user-1", input: "田中", translation: "Tanaka", sourceLang: "JA", targetLang: "EN", listId: "list-1",
+    });
+    expect(saveDictionaryWords).not.toHaveBeenCalled();
+    expect(result.current.saved.has("name:JA:田中")).toBe(true);
+  });
+
+  it("a mixed add sends each kind down its own path", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.addWords([name, neko]);
+    });
+    expect(createCustomWord).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveDictionaryWords).mock.calls[0][0].words).toEqual([neko]);
   });
 });
 

@@ -361,3 +361,23 @@ describe.skipIf(!ENABLED)("RLS: media favourites are per-user (migration 2026074
     expect(data ?? []).toHaveLength(1);
   });
 });
+
+// curated_names (migration 20260788): public reference data — anyone reads, nobody writes.
+describe.skipIf(!ENABLED)("RLS: curated names are read-only reference data", () => {
+  it("a client can read them, and the seeded names are there", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.from("curated_names").select("surface, meaning").eq("surface", "大谷翔平");
+    expect(error).toBeNull();
+    expect(data).toEqual([{ surface: "大谷翔平", meaning: "Shohei Ohtani" }]);
+  });
+
+  it("a client cannot add, change or remove one", async () => {
+    const u = await makeUser();
+    const ins = await u.client.from("curated_names").insert({ surface: "__x__", meaning: "x" });
+    expect(ins.error).not.toBeNull();
+    const upd = await u.client.from("curated_names").update({ meaning: "hacked" }).eq("surface", "大谷翔平").select();
+    expect(upd.error !== null || (upd.data ?? []).length === 0).toBe(true);
+    const del = await u.client.from("curated_names").delete().eq("surface", "大谷翔平").select();
+    expect(del.error !== null || (del.data ?? []).length === 0).toBe(true);
+  });
+});

@@ -7,9 +7,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
 import { loadHistory, pushEntry, saveHistory, type TranslateHistoryEntry } from "../services/translateHistory";
 import { nfc, nfcTrim } from "../lib/text";
-import { lookupWord, lookupWordsBatch, translateParagraph, wordKey, type ParagraphTranslation } from "../services/lookup";
+import { isNameSense, lookupWord, lookupWordsBatch, translateParagraph, wordKey, type ParagraphTranslation } from "../services/lookup";
 import { translate, glossSentences, getCachedGloss } from "../services/translation";
-import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
+import { createCustomWord, saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { canSoften, softenConfidence } from "../services/review";
@@ -695,15 +695,32 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   const addWords = useCallback(
     async (words: Word[], listId?: string) => {
       setError(null);
+      // A NAME's stand-in sense (lookup.ts `nameSense`) is not a dictionary row, so it
+      // is saved as the user's OWN word — the name, with its romanization/translation
+      // as a meaning they can edit. Idempotent: re-adding returns the same word.
+      const nameWords = words.filter(isNameSense);
+      const dictWords = words.filter((w) => !isNameSense(w));
+      for (const word of nameWords) {
+        const uw = await createCustomWord({
+          userId,
+          input: word.input,
+          translation: word.translation,
+          sourceLang: word.sourceLang,
+          targetLang: word.targetLang,
+          listId,
+        });
+        markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
+      }
+      if (dictWords.length === 0) return;
       // One batched RPC instead of N saves (all-or-nothing in a single transaction).
       const saved = await saveDictionaryWords({
         userId,
-        words,
+        words: dictWords,
         listId,
         seedFor: (w) => seedStability(getDifficulty(w).level, level),
       });
       const byId = new Map(saved.map((uw) => [uw.dictionaryWordId, uw]));
-      for (const word of words) {
+      for (const word of dictWords) {
         const uw = byId.get(word.wordId);
         if (uw) markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
       }

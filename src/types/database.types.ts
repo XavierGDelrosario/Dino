@@ -276,6 +276,33 @@ export type Database = {
           },
         ]
       }
+      curated_names: {
+        Row: {
+          kind: string
+          meaning: string
+          reading: string | null
+          source_lang: string
+          surface: string
+          target_lang: string
+        }
+        Insert: {
+          kind?: string
+          meaning: string
+          reading?: string | null
+          source_lang?: string
+          surface: string
+          target_lang?: string
+        }
+        Update: {
+          kind?: string
+          meaning?: string
+          reading?: string | null
+          source_lang?: string
+          surface?: string
+          target_lang?: string
+        }
+        Relationships: []
+      }
       media_favorites: {
         Row: {
           created_at: string
