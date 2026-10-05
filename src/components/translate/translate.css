@@ -509,7 +509,8 @@ textarea.translate__box::-webkit-scrollbar {
   appearance: none;
   background: none;
   border: none;
-  color: var(--muted);
+  /* The danger TEXT colour: it erases the history and cannot be undone. */
+  color: var(--danger-text);
   font-size: 0.8rem;
   cursor: pointer;
   padding: 0.1rem 0.2rem;

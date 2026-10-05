@@ -14,7 +14,7 @@ afterEach(() => {
 const ENTRIES = [{ text: "猫", source: "JA", target: "EN" }] as TranslateHistoryEntry[];
 
 function menu(answer: boolean) {
-  const confirmSpy = vi.fn(() => answer);
+  const confirmSpy = vi.fn((_message?: string) => answer);
   vi.stubGlobal("confirm", confirmSpy);
   const onClear = vi.fn();
   const onClose = vi.fn();
@@ -40,5 +40,25 @@ describe("HistoryMenu — Clear", () => {
     const { onClear, onClose } = menu(false);
     expect(onClear).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("HistoryMenu — dates", () => {
+  const open = (entries: TranslateHistoryEntry[]) =>
+    render(
+      <LocaleProvider>
+        <HistoryMenu entries={entries} open onToggle={vi.fn()} onClose={vi.fn()} onPick={vi.fn()} onClear={vi.fn()} />
+      </LocaleProvider>,
+    );
+
+  it("prints the day beside the direction", () => {
+    const at = new Date(new Date().getFullYear(), 9, 6, 12).getTime(); // Oct 6, this year
+    const { container } = open([{ text: "猫", source: "JA", target: "EN", at }] as TranslateHistoryEntry[]);
+    expect(container.querySelector(".thistory__dir")?.textContent).toMatch(/JA → EN · .*6/);
+  });
+
+  it("an entry kept before dates were stored shows the direction alone", () => {
+    const { container } = open(ENTRIES);
+    expect(container.querySelector(".thistory__dir")?.textContent?.trim()).toBe("JA → EN");
   });
 });

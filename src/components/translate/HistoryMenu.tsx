@@ -11,7 +11,7 @@
 import { useEffect, useRef } from "react";
 import { HistoryIcon } from "../common/icons";
 import { useI18n } from "../../i18n";
-import type { TranslateHistoryEntry } from "../../services/translateHistory";
+import { entryDate, type TranslateHistoryEntry } from "../../services/translateHistory";
 
 export function HistoryMenu({
   entries,
@@ -31,7 +31,7 @@ export function HistoryMenu({
   /** A translation is in flight — replaying now would race it. */
   disabled?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const wrapRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -109,6 +109,7 @@ export function HistoryMenu({
                   <span className="thistory__text">{entry.text}</span>
                   <span className="thistory__dir" aria-hidden="true">
                     {entry.source} → {entry.target}
+                    {entryDate(entry, locale) && ` · ${entryDate(entry, locale)}`}
                   </span>
                 </button>
               </li>
