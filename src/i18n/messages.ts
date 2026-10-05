@@ -165,6 +165,7 @@ export const en = {
   // "Forgot" — the reader's one-notch confidence drop. The label is the user's own
   // thought ("I forgot this"), not the mechanism; the aria/title says what it does.
   "reader.forgot": "Forgot",
+  "reader.nameTag": "Name",
   "reader.forgotAria": "I forgot this word — lower its confidence by one",
   "reader.forgotDone": "−1 ✓",
   // The mic dictates into the input box; there is no listening SCREEN any more, so
@@ -678,6 +679,7 @@ export const ja: Record<MessageKey, string> = {
   "lists.reviewAllTitle": "これら{n}語すべてを復習（20語の上限なし）",
   "reader.translateSentence": "この文を翻訳",
   "reader.forgot": "忘れた",
+  "reader.nameTag": "名前",
   "reader.forgotAria": "この単語を忘れた — 自信度を1つ下げる",
   "reader.forgotDone": "−1 ✓",
   "listen.tool": "音声で入力する",

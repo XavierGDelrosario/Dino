@@ -133,3 +133,72 @@ export function searchTermFor(input: string, lang: string): string {
   if (lang.toUpperCase() !== "JA") return input;
   return toHiragana(input) ?? input;
 }
+
+// ── Kana → romaji (the other direction) ─────────────────────────────────────
+// For NAMES only: a person's name has no meaning to show, just how it is read, and a
+// learner who can't yet read kana quickly wants that in Latin letters. Hepburn, with
+// long vowels collapsed the way names are usually written (さとう → Sato, おおたに →
+// Otani), and the first letter capitalised. It is exactly as right as the reading it
+// is given — and a name's reading is the tokenizer's guess.
+
+const KANA_ROMAJI: Record<string, string> = {
+  あ: "a", い: "i", う: "u", え: "e", お: "o",
+  か: "ka", き: "ki", く: "ku", け: "ke", こ: "ko",
+  さ: "sa", し: "shi", す: "su", せ: "se", そ: "so",
+  た: "ta", ち: "chi", つ: "tsu", て: "te", と: "to",
+  な: "na", に: "ni", ぬ: "nu", ね: "ne", の: "no",
+  は: "ha", ひ: "hi", ふ: "fu", へ: "he", ほ: "ho",
+  ま: "ma", み: "mi", む: "mu", め: "me", も: "mo",
+  や: "ya", ゆ: "yu", よ: "yo",
+  ら: "ra", り: "ri", る: "ru", れ: "re", ろ: "ro",
+  わ: "wa", ゐ: "i", ゑ: "e", を: "o", ん: "n",
+  が: "ga", ぎ: "gi", ぐ: "gu", げ: "ge", ご: "go",
+  ざ: "za", じ: "ji", ず: "zu", ぜ: "ze", ぞ: "zo",
+  だ: "da", ぢ: "ji", づ: "zu", で: "de", ど: "do",
+  ば: "ba", び: "bi", ぶ: "bu", べ: "be", ぼ: "bo",
+  ぱ: "pa", ぴ: "pi", ぷ: "pu", ぺ: "pe", ぽ: "po",
+  ゔ: "vu",
+  ぁ: "a", ぃ: "i", ぅ: "u", ぇ: "e", ぉ: "o",
+};
+/** Small ゃ/ゅ/ょ after an い-row kana: き+ゃ → kya, し+ゃ → sha, ち+ゃ → cha, じ+ゃ → ja. */
+const YOON: Record<string, string> = { ゃ: "a", ゅ: "u", ょ: "o" };
+
+/**
+ * A kana reading as a romanized NAME ("たなか" → "Tanaka"), or null when it holds
+ * anything that isn't kana (so a caller never shows half-converted text).
+ */
+export function nameRomaji(reading: string | null | undefined): string | null {
+  if (!reading) return null;
+  // Katakana → hiragana, so one table serves both.
+  const kana = reading.normalize("NFC").replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  let out = "";
+  let double = false; // a pending っ: doubles the next consonant
+  for (let i = 0; i < kana.length; i++) {
+    const c = kana[i];
+    if (c === "っ") {
+      double = true;
+      continue;
+    }
+    if (c === "ー") continue; // the long mark: dropped, like the collapsed vowels below
+    let syllable = KANA_ROMAJI[c];
+    if (syllable === undefined) return null;
+    const y = YOON[kana[i + 1]];
+    if (y && syllable.endsWith("i") && syllable.length > 1) {
+      // shi+ya → sha, chi+yu → chu, ji+yo → jo; ki+ya → kya, ri+yo → ryo.
+      const stem = syllable.slice(0, -1);
+      syllable = /^(sh|ch|j)$/.test(stem) ? stem + y : `${stem}y${y}`;
+      i++;
+    }
+    if (double) {
+      syllable = (syllable.startsWith("ch") ? "t" : syllable[0]) + syllable;
+      double = false;
+    }
+    // ん before a vowel or y would read as な/にゃ: mark the break.
+    if (out.endsWith("n") && kana[i - (y ? 2 : 1)] === "ん" && /^[aiueoy]/.test(syllable)) out += "'";
+    out += syllable;
+  }
+  if (!out) return null;
+  // Long vowels as names are written: ou/oo → o, uu → u.
+  out = out.replace(/o[ou]/g, "o").replace(/uu/g, "u");
+  return out[0].toUpperCase() + out.slice(1);
+}

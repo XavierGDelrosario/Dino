@@ -303,6 +303,41 @@ describe("analyze — specific short words (今 / これ / 単語)", () => {
   );
 });
 
+// People and companies stay off content POS, but are TAGGED so the reader can show them
+// as names (highlightable, addable by hand) instead of dead text.
+describe("analyze — names are tagged, not vocabulary", () => {
+  it(
+    "a person's name: not content, tagged person, with its reading",
+    async () => {
+      const tok = (await analyze("田中さんは元気です。", "JA")).find((t) => t.text === "田中")!;
+      expect(isContentPos(tok.pos)).toBe(false);
+      expect(tok.nameKind).toBe("person");
+      expect(tok.reading).toBe("たなか");
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "a company: not content, tagged organization",
+    async () => {
+      const tok = (await analyze("トヨタの車を買った。", "JA")).find((t) => t.text === "トヨタ")!;
+      expect(isContentPos(tok.pos)).toBe(false);
+      expect(tok.nameKind).toBe("organization");
+    },
+    KUROMOJI_TIMEOUT,
+  );
+
+  it(
+    "an ordinary word carries no name tag",
+    async () => {
+      const tok = (await analyze("森で遊んだ。", "JA")).find((t) => t.text === "森")!;
+      expect(tok.nameKind).toBeUndefined();
+      expect(isContentPos(tok.pos)).toBe(true);
+    },
+    KUROMOJI_TIMEOUT,
+  );
+});
+
 // The nominalizer の / ん. IPADIC tags it 名詞-非自立, so it passed as a noun and its
 // lookup offered the homophones (野 "field") as the word.
 describe("analyze — の is grammar in every role", () => {

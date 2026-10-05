@@ -4,7 +4,7 @@
 // meaning; saved senses show confidence (✓ n/5), and a word the app claims you know
 // carries a top-right "Forgot" that drops it one bucket. State lives in the parent
 // (useTranslate).
-import { studyView } from "../../services/lookup";
+import { isNameSense, studyView } from "../../services/lookup";
 import { GoogleBadge } from "../common/GoogleBadge";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
@@ -289,7 +289,10 @@ function ParagraphReaderImpl({
   const spans = useCallback(
     (from: number, to: number, key: string): JSX.Element[] => {
       const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
-        const senses = isContentPos(token.pos) ? meaningsByWord.get(wordKey(token)) ?? [] : [];
+        // A person's or company's name is off content POS (it is not vocabulary) but
+        // still has its stand-in sense to show — `names` is what lets it through.
+        const key = wordKey(token);
+        const senses = isContentPos(token.pos) || names?.has(key) ? meaningsByWord.get(key) ?? [] : [];
         if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
         const savedSenses = senses.filter((s) => saved.has(s.wordId));
         if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
@@ -391,7 +394,7 @@ function ParagraphReaderImpl({
       if (cursor < to) out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
       return out;
     },
-    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, glossCredit, tr],
+    [text, tokens, meaningsByWord, names, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, glossCredit, tr],
   );
 
   // The paragraph flows as one block, EXCEPT that a sentence showing its English is
@@ -608,7 +611,8 @@ function ParagraphReaderImpl({
             <span className="hovercard__flag">
               <ReportFlagButton
                 input={hover.word}
-                wordId={hoveredSenses.length === 1 ? hoveredSenses[0].wordId : null}
+                // A name's stand-in sense is not a dictionary row: report the text only.
+                wordId={hoveredSenses.length === 1 && !isNameSense(hoveredSenses[0]) ? hoveredSenses[0].wordId : null}
                 size={14}
               />
             </span>
@@ -626,7 +630,14 @@ function ParagraphReaderImpl({
             {/* Level · Commonness · Part of speech for the hovered word — the "?" every
                 other word surface carries. Sense 0 speaks for the headword (the level is
                 the headword's), matching the Translate result head. */}
-            {hoveredSenses[0] && <WordInfoButton word={hoveredSenses[0]} align="left" />}
+            {hoveredSenses[0] &&
+              (isNameSense(hoveredSenses[0]) ? (
+                // No level, commonness or part of speech to show for a name — say what
+                // it is instead, so a romanization isn't mistaken for a meaning.
+                <span className="hovercard__name">{tr("reader.nameTag")}</span>
+              ) : (
+                <WordInfoButton word={hoveredSenses[0]} align="left" />
+              ))}
           </div>
           <ul className="hovercard__senses">
             {hoveredSenses.map((s) => (

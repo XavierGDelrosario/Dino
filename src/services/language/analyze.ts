@@ -45,6 +45,11 @@ export interface AnalyzedToken extends WordToken {
    *  catch-all — so the reader can drop a name the DICTIONARY doesn't know either
    *  (lookup.ts, isUnknownName). Absent on every other token. */
   properNoun?: boolean;
+  /** Set on a token demoted off content POS because it is a PERSON's or an
+   *  ORGANIZATION's name (PERSON_NAME_POS / ORGANIZATION_POS). It is still not
+   *  vocabulary — nothing counts it or adds it automatically — but the reader shows it
+   *  as a name with its reading, and it can be added by hand (lookup.ts, `names`). */
+  nameKind?: "person" | "organization";
   /** True when kuromoji had NO dictionary entry for the token (word_type UNKNOWN). A
    *  lone unknown kanji is almost always a name fragment or a variant glyph — 倖田來未
    *  lattices as 倖 田 來 未 with 倖 and 來 unknown (quality reports #34/#35) — so the
@@ -347,6 +352,8 @@ async function analyzeJapanese(text: string): Promise<AnalyzedToken[]> {
       lemma,
       pos,
       ...(t.pos === "名詞" && t.pos_detail_1 === "固有名詞" ? { properNoun: true } : {}),
+      ...(pos === PERSON_NAME_POS ? { nameKind: "person" as const } : {}),
+      ...(pos === ORGANIZATION_POS ? { nameKind: "organization" as const } : {}),
       ...(t.word_type === "UNKNOWN" ? { unknownWord: true } : {}),
       ...(isCounterToken(t) ? { counter: true } : {}),
     });
