@@ -22,7 +22,9 @@ import { supabase } from "../config/supabaseClient";
 import { ServiceError, toServiceError } from "./errors";
 import { confidenceInputsOf, type UserWord } from "./words/userWords";
 import { findWordsByIds } from "./words/repository";
-import { writeWordById } from "./words/vocabularyCache";
+import { membershipSnapshot, isReadable, wordsFor, writeWordById } from "./words/vocabularyCache";
+import { ensureVocabulary } from "./words/vocabularyLoader";
+import { displayConfidence } from "./confidence";
 import type { LangCode } from "./language";
 import { offlineStore } from "./offline/store";
 import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
@@ -164,26 +166,50 @@ export async function getReviewQueue(params: QueueParams): Promise<ReviewQueueIt
 /**
  * A session from the device, or null when nothing usable is cached.
  *
- * The whole vocabulary prefers the FULL deck (`refreshOfflineDeck`); a list only has
- * the last session dealt in that list. Cards with a grade still waiting in the offline
- * queue are skipped, so a second offline session deals the NEXT cards down the ranking
- * instead of the ones just graded — and an empty answer means the deck is used up.
- * An explicit id set keeps its old behaviour: it names its words, there is no ranking
- * to walk down.
+ * Dealt from the FULL deck — the whole vocabulary (`refreshOfflineDeck`) — ranked HERE,
+ * weakest recall first, with the same curve the server ranks on. Deliberately NOT the
+ * online mix (due first, then a tuned fill): offline is a plainer session and the UI
+ * says so. Nothing is scheduled on the device either; the grades queue and the server
+ * works out the schedule when they arrive, so a card keeps the confidence it had.
+ *
+ * Cards with a grade still waiting in the offline queue are skipped, so each word comes
+ * up once per offline stretch, and an empty answer means the vocabulary is used up. An
+ * explicit id set ("Retry quiz") names its words and gets exactly those back.
+ *
+ * Without a full deck (the web, or an app that has not fetched one yet) it falls back
+ * to the last session dealt online in the same scope.
  */
 async function dealOffline(params: QueueParams): Promise<ReviewQueueItem[] | null> {
   const store = offlineStore();
-  const scope = { userId: params.userId, listId: params.listId ?? null };
+  const listId = params.listId ?? null;
   const limit = Math.max(0, params.limit);
 
-  const session = await loadDeck(store, scope);
-  if (params.userWordIds !== undefined) return session ? session.items.slice(0, limit) : null;
+  const full = await loadDeck(store, { userId: params.userId, listId: null, slot: "full" });
+  if (full) {
+    const now = Date.now();
+    const live = (w: ReviewQueueItem): ReviewQueueItem => ({
+      ...w,
+      confidenceRating: w.confidenceInputs ? displayConfidence(w.confidenceInputs, now) : w.confidenceRating,
+      retrievability: retrievability(w.stability, w.lastReviewedDate, w.originallyTranslatedDate, now),
+    });
+    if (params.userWordIds !== undefined) {
+      const wanted = new Set(params.userWordIds);
+      return full.items.filter((w) => wanted.has(w.userWordId)).slice(0, limit).map(live);
+    }
+    const inList = listId === null ? null : new Set(full.membership?.[listId] ?? []);
+    const graded = new Set((await pending(store)).map((e) => e.userWordId));
+    return full.items
+      .filter((w) => !graded.has(w.userWordId) && (!inList || inList.has(w.userWordId)))
+      .map(live)
+      .sort((x, y) => x.retrievability - y.retrievability) // stable: ties keep newest-first
+      .slice(0, limit);
+  }
 
-  const full = scope.listId === null ? await loadDeck(store, { ...scope, slot: "full" }) : null;
-  const deck = full ?? session;
-  if (!deck) return null;
+  const session = await loadDeck(store, { userId: params.userId, listId });
+  if (!session) return null;
+  if (params.userWordIds !== undefined) return session.items.slice(0, limit);
   const graded = new Set((await pending(store)).map((e) => e.userWordId));
-  return deck.items.filter((i) => !graded.has(i.userWordId)).slice(0, limit);
+  return session.items.filter((i) => !graded.has(i.userWordId)).slice(0, limit);
 }
 
 /** The live queue with its cards' examples, or the failure exactly as the client reported it. */
@@ -270,20 +296,38 @@ async function cacheDeck(
   }
 }
 
-/** How deep the prefetched offline deck goes — ~15 sessions, a few hundred KB on disk. */
-export const OFFLINE_DECK_SIZE = 300;
-
 /**
- * Fetch the FULL offline deck: the top OFFLINE_DECK_SIZE of the whole vocabulary's
- * queue, still ranked and dealt by the server, so the device holds no second copy of
- * the due/fill rules — only a longer answer from the one that exists. Best-effort and
- * silent: offline, or on any failure, the deck already on the device stays as it is.
+ * Put the WHOLE vocabulary on the device for offline review, with which words each list
+ * holds, so any scope can be dealt with no network. It rides the session vocabulary
+ * cache the Lists tab already fills (and every write keeps current), so it usually
+ * costs no request of its own; a few MB for a large vocabulary.
+ *
+ * Best-effort and silent. The server's clock is asked FIRST and a failure stops here:
+ * offline the in-memory cache would still "load", and saving it again would stamp an
+ * old copy as freshly fetched.
  */
 export async function refreshOfflineDeck(userId: string): Promise<boolean> {
   try {
-    const res = await fetchQueue({ userId, limit: OFFLINE_DECK_SIZE });
-    if ("error" in res) return false;
-    await cacheDeck("full", userId, null, res.items);
+    const { data, error } = await supabase.rpc("server_now");
+    const serverNow = error || !data ? NaN : Date.parse(data as string);
+    if (!Number.isFinite(serverNow)) return false;
+
+    await ensureVocabulary(userId);
+    if (!isReadable(userId, null)) return false;
+    const anchor = anchorAt(serverNow);
+    setAnchor(anchor);
+    await saveDeck(
+      offlineStore(),
+      {
+        userId,
+        listId: null,
+        anchor,
+        // Ranked when dealt; the stored score is a placeholder.
+        items: wordsFor(userId, null).map((w) => ({ ...w, retrievability: 0 })),
+        membership: membershipSnapshot(userId) ?? {},
+      },
+      "full",
+    );
     return true;
   } catch {
     return false;
@@ -296,9 +340,9 @@ let deckOwner: string | null = null;
 let deckTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
- * Keep the full offline deck current for `userId`: fetched now, on every reconnect,
- * and shortly after grades reach the server (below) — a deck fetched BEFORE a session
- * would otherwise deal that session's cards again offline. Returns a teardown.
+ * Keep the full offline deck current for `userId`: saved now, on every reconnect, and
+ * shortly after grades reach the server (below) — a deck saved BEFORE a session would
+ * otherwise rank that session's cards as if they had not been reviewed. Returns a teardown.
  */
 export function watchOfflineDeck(userId: string): () => void {
   deckOwner = userId;

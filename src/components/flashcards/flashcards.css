@@ -27,6 +27,12 @@
   justify-content: center;
 }
 
+/* Under those buttons, when this session's grades are waiting to sync. */
+.review__offline {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
 /* Footer row (e.g. the text-quiz "back to reader" link). */
 .review__foot {
   display: flex;

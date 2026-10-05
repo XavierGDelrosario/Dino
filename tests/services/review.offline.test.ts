@@ -10,13 +10,20 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
+vi.mock("@/services/words/vocabularyLoader", () => ({ ensureVocabulary: vi.fn(async () => {}) }));
+vi.mock("@/services/words/vocabularyCache", async (orig) => ({
+  ...(await orig<typeof import("@/services/words/vocabularyCache")>()),
+  isReadable: vi.fn(() => true),
+  wordsFor: vi.fn(() => []),
+  membershipSnapshot: vi.fn(() => ({})),
+}));
+
 import {
   getReviewQueue,
   recordReview,
   refreshOfflineDeck,
   sendReview,
   watchOfflineDeck,
-  OFFLINE_DECK_SIZE,
   __resetDirectionProbe,
   type ReviewQueueItem,
 } from "@/services/review";
@@ -25,6 +32,9 @@ import { pending } from "@/services/offline/queue";
 import { setAnchor, type ClockAnchor } from "@/services/offline/clock";
 import { saveDeck } from "@/services/offline/deck";
 import { memStore } from "@test/offlineStore";
+import { ensureVocabulary } from "@/services/words/vocabularyLoader";
+import { isReadable, membershipSnapshot, wordsFor } from "@/services/words/vocabularyCache";
+import type { UserWord } from "@/services/words/userWords";
 
 
 let stub: SupabaseStub;
@@ -137,41 +147,42 @@ describe("getReviewQueue — unreachable, as the client reports it", () => {
 });
 
 describe("the full offline deck", () => {
-  const row = (id: string) => ({
-    user_word_id: id, user_id: "u", input: id, source_lang: "JA", target_lang: "EN",
-    dictionary_word_id: null, custom_translation: "x", translation: "x",
-    input_reading: null, translation_reading: null, proficiency_band: null,
-    part_of_speech: null, frequency: null, stability: 3, confidence_rating: 2,
-    last_reviewed_date: null, originally_translated_date: "2026-08-01T00:00:00Z",
-    retrievability: 0.5,
-  });
-  const IDS = ["a", "b", "c", "d", "e"];
-  /** The server, online: the queue honours p_limit / p_list_id like review_queue does. */
+  const DAY = 86_400_000;
+  /** A saved word last reviewed `daysAgo` days back at stability 10 (null = never reviewed). */
+  const word = (id: string, daysAgo: number | null): UserWord =>
+    ({
+      userWordId: id, userId: "u", input: id, translation: id, confidenceRating: 2,
+      stability: daysAgo == null ? null : 10,
+      lastReviewedDate: daysAgo == null ? null : new Date(Date.now() - daysAgo * DAY).toISOString(),
+      originallyTranslatedDate: "2026-08-01T00:00:00Z",
+    }) as UserWord;
+  // Recall, weakest first: d (never reviewed) · c (20d) · b (5d) · e (2d) · a (1d).
+  const VOCAB = [word("a", 1), word("b", 5), word("c", 20), word("d", null), word("e", 2)];
+
+  /** The server, online. review_queue deals a short, server-ranked session. */
   const online = () =>
-    stub.rpc.mockImplementation(async (fn: string, args: { p_limit: number; p_list_id?: string }) => {
-      if (fn === "server_now") return { data: new Date().toISOString(), error: null, status: 200 };
-      const ids = args.p_list_id ? ["L1", "L2"] : IDS;
-      return { data: ids.slice(0, args.p_limit).map(row), error: null, status: 200 };
-    });
+    stub.rpc.mockImplementation(async (fn: string) =>
+      fn === "server_now"
+        ? { data: new Date().toISOString(), error: null, status: 200 }
+        : fn === "record_review"
+          ? { data: { user_word_id: "a", stability: 1, confidence_rating: 1, last_reviewed_date: "x" }, error: null, status: 200 }
+          : { data: [], error: null, status: 200 });
   const offline = () => stub.rpc.mockResolvedValue(noResponse("Load failed"));
   const ids = (deck: ReviewQueueItem[]) => deck.map((c) => c.userWordId);
 
-  it("asks the server for a deep cut of the whole vocabulary", async () => {
-    online();
-    expect(await refreshOfflineDeck("u")).toBe(true);
-    const [fn, args] = stub.rpc.mock.calls[0];
-    expect(fn).toBe("review_queue");
-    expect(args).toMatchObject({ p_user_id: "u", p_limit: OFFLINE_DECK_SIZE });
-    expect(args.p_list_id).toBeUndefined();
+  beforeEach(() => {
+    vi.mocked(ensureVocabulary).mockClear();
+    vi.mocked(isReadable).mockReturnValue(true);
+    vi.mocked(wordsFor).mockReturnValue(VOCAB);
+    vi.mocked(membershipSnapshot).mockReturnValue({ L1: ["a", "c"] });
   });
 
-  it("an online session does not shrink it to that one session", async () => {
+  it("deals the WHOLE vocabulary offline, weakest recall first", async () => {
     online();
-    await refreshOfflineDeck("u");
-    await getReviewQueue({ userId: "u", limit: 2 }); // caches a 2-card session deck
-
+    expect(await refreshOfflineDeck("u")).toBe(true);
     offline();
-    expect(ids(await getReviewQueue({ userId: "u", limit: 4 }))).toEqual(["a", "b", "c", "d"]);
+    expect(ids(await getReviewQueue({ userId: "u", limit: 10 }))).toEqual(["d", "c", "b", "e", "a"]);
+    expect(ids(await getReviewQueue({ userId: "u", limit: 2 }))).toEqual(["d", "c"]);
   });
 
   it("a second offline session deals the NEXT cards, not the ones just graded", async () => {
@@ -182,62 +193,71 @@ describe("the full offline deck", () => {
     const first = await getReviewQueue({ userId: "u", limit: 2 });
     for (const card of first) await recordReview({ userWordId: card.userWordId, grade: 4 });
 
-    expect(ids(await getReviewQueue({ userId: "u", limit: 2 }))).toEqual(["c", "d"]);
+    expect(ids(await getReviewQueue({ userId: "u", limit: 2 }))).toEqual(["b", "e"]);
   });
 
-  it("is EMPTY, not an error, once every cached card has been graded", async () => {
+  it("is EMPTY, not an error, once every word has been graded", async () => {
     online();
     await refreshOfflineDeck("u");
     offline();
-    for (const id of IDS) await recordReview({ userWordId: id, grade: 4 });
+    for (const w of VOCAB) await recordReview({ userWordId: w.userWordId, grade: 4 });
 
     expect(await getReviewQueue({ userId: "u", limit: 2 })).toEqual([]);
   });
 
-  it("never deals the whole-vocabulary deck into a LIST", async () => {
+  it("deals a LIST from the same deck, by its membership", async () => {
     online();
     await refreshOfflineDeck("u");
     offline();
-    await expect(getReviewQueue({ userId: "u", listId: "list-1", limit: 2 })).rejects.toThrow();
+    expect(ids(await getReviewQueue({ userId: "u", listId: "L1", limit: 5 }))).toEqual(["c", "a"]);
+    expect(await getReviewQueue({ userId: "u", listId: "no-such-list", limit: 5 })).toEqual([]);
   });
 
-  it("a list still gets the last session dealt in it", async () => {
+  it("'Retry quiz' offline gets exactly its words back, graded or not", async () => {
     online();
     await refreshOfflineDeck("u");
-    await getReviewQueue({ userId: "u", listId: "list-1", limit: 2 });
     offline();
-    expect(ids(await getReviewQueue({ userId: "u", listId: "list-1", limit: 2 }))).toEqual(["L1", "L2"]);
+    await recordReview({ userWordId: "a", grade: 4 });
+    const deck = await getReviewQueue({ userId: "u", limit: 5, userWordIds: ["a", "e"] });
+    expect(ids(deck).sort()).toEqual(["a", "e"]);
   });
 
-  it("a failed refresh leaves the deck on the device alone", async () => {
+  it("never deals another user's deck", async () => {
     online();
     await refreshOfflineDeck("u");
     offline();
+    await expect(getReviewQueue({ userId: "someone-else", limit: 5 })).rejects.toThrow();
+  });
+
+  it("offline, a refresh saves nothing — the old copy must not be stamped as fresh", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+    vi.mocked(wordsFor).mockReturnValue([word("z", 1)]);
     expect(await refreshOfflineDeck("u")).toBe(false);
-    expect(ids(await getReviewQueue({ userId: "u", limit: 2 }))).toEqual(["a", "b"]);
+    expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
   });
 
-  it("re-fetches shortly after grades reach the server, once per burst", async () => {
+  it("a vocabulary that has not finished loading is not saved as the whole deck", async () => {
+    online();
+    vi.mocked(isReadable).mockReturnValue(false);
+    expect(await refreshOfflineDeck("u")).toBe(false);
+  });
+
+  it("is saved again shortly after grades reach the server, once per burst", async () => {
     vi.useFakeTimers();
     try {
       online();
       const stop = watchOfflineDeck("u");
       await vi.advanceTimersByTimeAsync(0);
-      const queueCalls = () => stub.rpc.mock.calls.filter(([fn]) => fn === "review_queue").length;
-      expect(queueCalls()).toBe(1); // the fetch at start
+      expect(ensureVocabulary).toHaveBeenCalledTimes(1); // at start
 
-      stub.rpc.mockImplementation(async (fn: string) =>
-        fn === "record_review"
-          ? { data: { user_word_id: "a", stability: 1, confidence_rating: 1, last_reviewed_date: "x" }, error: null, status: 200 }
-          : fn === "server_now"
-            ? { data: new Date().toISOString(), error: null, status: 200 }
-            : { data: [], error: null, status: 200 });
       await sendReview({ userWordId: "a", grade: 4 });
       await sendReview({ userWordId: "b", grade: 4 });
-      expect(queueCalls()).toBe(1);
+      expect(ensureVocabulary).toHaveBeenCalledTimes(1);
 
       await vi.advanceTimersByTimeAsync(30_000);
-      expect(queueCalls()).toBe(2);
+      expect(ensureVocabulary).toHaveBeenCalledTimes(2);
       stop();
     } finally {
       vi.useRealTimers();
