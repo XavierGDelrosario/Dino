@@ -12,6 +12,7 @@
 
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { LangCode } from "../../language";
+import { HandwritingModelPendingError } from "../types";
 import type { HandwritingRecognizer, InkInput, RecognitionCandidate } from "../types";
 
 interface NativeStroke {
@@ -51,6 +52,48 @@ function toInkLanguageTag(lang: LangCode): string | null {
   }
 }
 
+/** How long a drawing waits for the model before the pad says it is still downloading. */
+export const MODEL_WAIT_MS = 8000;
+
+/**
+ * Model downloads in flight, per ink tag. The native side downloads over Wi-Fi ONLY
+ * (`allowsCellularAccess: false`) and ML Kit reports nothing while it waits for a
+ * network it may use — off Wi-Fi the call simply never settles, and the pad spun
+ * forever. So the wait is bounded here, measured from when the download was first
+ * asked for: every stroke shares the one native call, and once the wait is spent a
+ * later stroke is told at once rather than spinning for another full wait.
+ */
+const downloads = new Map<string, { done: Promise<void>; startedAt: number }>();
+
+/** Test hook: the map above is module-global. */
+export function __resetModelDownloads(): void {
+  downloads.clear();
+}
+
+async function ensureModel(tag: string): Promise<void> {
+  let download = downloads.get(tag);
+  if (!download) {
+    const done = DigitalInk.ensureModel({ lang: tag }).then(
+      () => { downloads.delete(tag); },
+      (e) => { downloads.delete(tag); throw e; }, // a failed download is retried by the next stroke
+    );
+    done.catch(() => {}); // a waiter that already timed out must not leave it unhandled
+    download = { done, startedAt: Date.now() };
+    downloads.set(tag, download);
+  }
+  const left = MODEL_WAIT_MS - (Date.now() - download.startedAt);
+  if (left <= 0) throw new HandwritingModelPendingError();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new HandwritingModelPendingError()), left);
+  });
+  try {
+    await Promise.race([download.done, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const nativeRecognizer: HandwritingRecognizer = {
   id: "mlkit-digital-ink",
 
@@ -67,7 +110,7 @@ export const nativeRecognizer: HandwritingRecognizer = {
   async recognize(input: InkInput): Promise<RecognitionCandidate[]> {
     const tag = toInkLanguageTag(input.lang);
     if (!tag) return [];
-    await DigitalInk.ensureModel({ lang: tag });
+    await ensureModel(tag);
     const { candidates } = await DigitalInk.recognize({
       lang: tag,
       width: input.width,

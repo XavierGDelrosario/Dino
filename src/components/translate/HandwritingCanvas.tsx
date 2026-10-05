@@ -10,6 +10,7 @@
 // =========================================================
 import { useEffect, useRef, useState } from "react";
 import {
+  HandwritingModelPendingError,
   recognizeHandwriting,
   type InkPoint,
   type RecognitionCandidate,
@@ -168,8 +169,10 @@ export function HandwritingCanvas({
         setCandidates(out);
         if (out.length === 0) setError(tr("handwriting.noMatch"));
       })
-      .catch(() => {
-        if (seq === latest.current) setError(tr("handwriting.error"));
+      .catch((e) => {
+        if (seq !== latest.current) return;
+        const pending = e instanceof HandwritingModelPendingError;
+        setError(tr(pending ? "handwriting.modelPending" : "handwriting.error"));
       })
       .finally(() => {
         if (seq === latest.current) setBusy(false);

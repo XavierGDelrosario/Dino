@@ -19,15 +19,15 @@
 // already-fuzzed stability.
 
 import { supabase } from "../config/supabaseClient";
-import { toServiceError } from "./errors";
+import { ServiceError, toServiceError } from "./errors";
 import { confidenceInputsOf, type UserWord } from "./words/userWords";
 import { findWordsByIds } from "./words/repository";
 import { writeWordById } from "./words/vocabularyCache";
 import type { LangCode } from "./language";
 import { offlineStore } from "./offline/store";
 import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
-import { enqueue, newId } from "./offline/queue";
-import { loadDeck, saveDeck } from "./offline/deck";
+import { enqueue, newId, pending } from "./offline/queue";
+import { loadDeck, saveDeck, type DeckSlot } from "./offline/deck";
 
 /** 1–5 self-rated recall (1 = forgot … 5 = easy). No separate "again". */
 export const REVIEW_GRADES = [1, 2, 3, 4, 5] as const;
@@ -45,16 +45,31 @@ const MS_PER_DAY = 86_400_000;
  * surface, or the queue would retry a permanent failure forever and the reader would
  * silently deal cards from a stale deck instead of showing the error.
  *
- * PostgREST errors carry a SQLSTATE `code`; a dropped connection is a bare TypeError
- * from fetch with none. Anything that reached the database is a verdict.
+ * PostgREST errors carry a SQLSTATE `code`; a request that never completed carries
+ * none. Anything that reached the database is a verdict.
+ *
+ * Classified by SHAPE, not wording. supabase-js does not throw a failed fetch — it
+ * resolves `{ error, status: 0 }` with the browser's own text in `message`, and that
+ * text is per-engine: Chrome says "Failed to fetch", WebKit (Safari, and the iOS app's
+ * WKWebView) says "Load failed". Matching the words alone left the app unable to queue
+ * a grade offline. `status: 0` is the client's "no response at all" on every engine;
+ * the wording check stays only for errors that arrive without a response to read.
  */
-function isUnreachable(error: unknown): boolean {
-  if (error instanceof TypeError) return true; // fetch itself failed
+function isUnreachable(error: unknown, status?: number): boolean {
+  if (error instanceof TypeError || error instanceof UnreachableError) return true; // fetch itself failed
+  if (status === 0) return true;
+  if (typeof status === "number" && status > 0) return false; // it answered
   const e = error as { code?: string; status?: number; message?: string } | null;
   if (!e) return false;
   if (e.code || (typeof e.status === "number" && e.status > 0)) return false;
-  return /fetch|network|offline|connection/i.test(e.message ?? "");
+  return /fetch|network|offline|connection|load failed/i.test(e.message ?? "");
 }
+
+/**
+ * The request got no response. Thrown by `sendReview`, which sees the response status;
+ * `recordReview` only sees what was thrown, and a ServiceError keeps no status.
+ */
+class UnreachableError extends ServiceError {}
 
 /**
  * Current recall probability R(t) ∈ [0,1] = exp(-Δdays / stability).
@@ -110,33 +125,73 @@ interface ReviewQueueRow {
  * given, else the whole vocabulary. Ranking + LIMIT run in the `review_queue` function,
  * so only ≤ `limit` cards cross the wire.
  */
-export async function getReviewQueue(params: {
+interface QueueParams {
   userId: string;
   listId?: string | null;
   limit: number;
   /** Restrict to EXACTLY these ids (the Lists filtered subset); [] = empty queue. */
   userWordIds?: string[];
-}): Promise<ReviewQueueItem[]> {
-  const { data, error } = await supabase.rpc("review_queue", {
+}
+
+export async function getReviewQueue(params: QueueParams): Promise<ReviewQueueItem[]> {
+  const res = await fetchQueue(params);
+  if ("error" in res) {
+    // Unreachable → deal from a cached deck. Any other error is a real failure and
+    // must surface: an offline fallback that swallowed, say, an RLS denial would show
+    // a stale session's cards instead of an error.
+    if (isUnreachable(res.error, res.status)) {
+      const cached = await dealOffline(params);
+      if (cached) return cached;
+    }
+    throw toServiceError(res.error);
+  }
+
+  // Only the UNRESTRICTED queue is cached. An explicit `userWordIds` set is the Lists
+  // filtered-subset path — a transient selection, not the session someone would come
+  // back to offline, and caching it would let a stale filter deal the wrong cards.
+  if (params.userWordIds === undefined) {
+    await cacheDeck("session", params.userId, params.listId ?? null, res.items);
+  }
+  return res.items;
+}
+
+/**
+ * A session from the device, or null when nothing usable is cached.
+ *
+ * The whole vocabulary prefers the FULL deck (`refreshOfflineDeck`); a list only has
+ * the last session dealt in that list. Cards with a grade still waiting in the offline
+ * queue are skipped, so a second offline session deals the NEXT cards down the ranking
+ * instead of the ones just graded — and an empty answer means the deck is used up.
+ * An explicit id set keeps its old behaviour: it names its words, there is no ranking
+ * to walk down.
+ */
+async function dealOffline(params: QueueParams): Promise<ReviewQueueItem[] | null> {
+  const store = offlineStore();
+  const scope = { userId: params.userId, listId: params.listId ?? null };
+  const limit = Math.max(0, params.limit);
+
+  const session = await loadDeck(store, scope);
+  if (params.userWordIds !== undefined) return session ? session.items.slice(0, limit) : null;
+
+  const full = scope.listId === null ? await loadDeck(store, { ...scope, slot: "full" }) : null;
+  const deck = full ?? session;
+  if (!deck) return null;
+  const graded = new Set((await pending(store)).map((e) => e.userWordId));
+  return deck.items.filter((i) => !graded.has(i.userWordId)).slice(0, limit);
+}
+
+/** The live queue with its cards' examples, or the failure exactly as the client reported it. */
+async function fetchQueue(
+  params: QueueParams,
+): Promise<{ items: ReviewQueueItem[] } | { error: { message: string; code?: string }; status: number }> {
+  const { data, error, status } = await supabase.rpc("review_queue", {
     p_user_id: params.userId,
     p_limit: Math.max(0, params.limit),
     p_list_id: params.listId ?? undefined,
     // undefined → no restriction; [] → matches nothing.
     p_user_word_ids: params.userWordIds ?? undefined,
   });
-  if (error) {
-    // Unreachable → deal from the cached deck. Any other error is a real failure and
-    // must surface: an offline fallback that swallowed, say, an RLS denial would show
-    // a stale session's cards instead of an error.
-    if (isUnreachable(error)) {
-      const cached = await loadDeck(offlineStore(), {
-        userId: params.userId,
-        listId: params.listId ?? null,
-      });
-      if (cached) return cached.items.slice(0, Math.max(0, params.limit));
-    }
-    throw toServiceError(error);
-  }
+  if (error) return { error, status };
 
   const rows = (data ?? []) as ReviewQueueRow[];
   const items = rows.map((r) => ({
@@ -186,28 +241,78 @@ export async function getReviewQueue(params: {
     console.warn("[review] couldn't load card examples; continuing without them.", e);
   }
 
-  // Cache the deck for a later offline session, anchored to the SERVER's clock so an
-  // offline grade can be timestamped without ever reading the device's (see clock.ts).
-  // Best-effort: a storage failure must not fail a review that is working fine online.
-  //
-  // Only the UNRESTRICTED queue is cached. An explicit `userWordIds` set is the Lists
-  // filtered-subset path — a transient selection, not the session someone would come
-  // back to offline, and caching it would let a stale filter deal the wrong cards.
-  if (params.userWordIds === undefined) {
-    try {
-      const anchor = anchorAt(await serverTime());
-      setAnchor(anchor); // in-memory; see the note in clock.ts on why it isn't persisted
-      await saveDeck(offlineStore(), {
-        userId: params.userId,
-        listId: params.listId ?? null,
-        anchor,
-        items,
-      });
-    } catch {
-      /* deck caching is an enhancement; never fail the online path for it */
-    }
+  return { items };
+}
+
+/**
+ * Cache a deck for a later offline session, anchored to the SERVER's clock so an
+ * offline grade can be timestamped without ever reading the device's (see clock.ts).
+ * Best-effort: a storage failure must not fail a review that is working fine online.
+ */
+async function cacheDeck(
+  slot: DeckSlot,
+  userId: string,
+  listId: string | null,
+  items: ReviewQueueItem[],
+): Promise<void> {
+  try {
+    const anchor = anchorAt(await serverTime());
+    setAnchor(anchor); // in-memory; see the note in clock.ts on why it isn't persisted
+    await saveDeck(offlineStore(), { userId, listId, anchor, items }, slot);
+  } catch {
+    /* deck caching is an enhancement; never fail the online path for it */
   }
-  return items;
+}
+
+/** How deep the prefetched offline deck goes — ~15 sessions, a few hundred KB on disk. */
+export const OFFLINE_DECK_SIZE = 300;
+
+/**
+ * Fetch the FULL offline deck: the top OFFLINE_DECK_SIZE of the whole vocabulary's
+ * queue, still ranked and dealt by the server, so the device holds no second copy of
+ * the due/fill rules — only a longer answer from the one that exists. Best-effort and
+ * silent: offline, or on any failure, the deck already on the device stays as it is.
+ */
+export async function refreshOfflineDeck(userId: string): Promise<boolean> {
+  try {
+    const res = await fetchQueue({ userId, limit: OFFLINE_DECK_SIZE });
+    if ("error" in res) return false;
+    await cacheDeck("full", userId, null, res.items);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Quiet period after the last grade reaches the server before the deck is re-fetched. */
+const DECK_REFRESH_DELAY_MS = 30_000;
+let deckOwner: string | null = null;
+let deckTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Keep the full offline deck current for `userId`: fetched now, on every reconnect,
+ * and shortly after grades reach the server (below) — a deck fetched BEFORE a session
+ * would otherwise deal that session's cards again offline. Returns a teardown.
+ */
+export function watchOfflineDeck(userId: string): () => void {
+  deckOwner = userId;
+  const refresh = () => void refreshOfflineDeck(userId);
+  refresh();
+  if (typeof window !== "undefined") window.addEventListener("online", refresh);
+  return () => {
+    if (deckOwner === userId) deckOwner = null;
+    clearTimeout(deckTimer);
+    if (typeof window !== "undefined") window.removeEventListener("online", refresh);
+  };
+}
+
+/** A grade just landed, so the cached ranking is out of date. Debounced: a session's
+ *  worth of grades costs one re-fetch. No-op unless a deck is being kept (the app). */
+function scheduleDeckRefresh(): void {
+  const owner = deckOwner;
+  if (!owner) return;
+  clearTimeout(deckTimer);
+  deckTimer = setTimeout(() => void refreshOfflineDeck(owner), DECK_REFRESH_DELAY_MS);
 }
 
 /**
@@ -300,18 +405,22 @@ export async function sendReview(params: {
       p_reversed: withDirection ? params.reversed : undefined,
     });
   const hasDirection = directionSupported && params.reversed !== undefined;
-  let { data, error } = await send(hasDirection);
+  let { data, error, status } = await send(hasDirection);
   // PGRST202 = no function with these argument names. Only the direction is new.
   if (error?.code === "PGRST202" && hasDirection) {
     directionSupported = false;
     console.warn("review: record_review has no p_reversed (migration 20260784 not applied)");
-    ({ data, error } = await send(false));
+    ({ data, error, status } = await send(false));
+  }
+  if (error && isUnreachable(error, status)) {
+    throw new UnreachableError(error.message, "unknown", { cause: error });
   }
   if (error || !data) throw toServiceError(error, "Failed to record review");
 
   // RETURNS user_words → a single row (PostgREST may wrap it in an array).
   const row = (Array.isArray(data) ? data[0] : data) as ReturnedRow;
   cacheReviewed(row);
+  scheduleDeckRefresh();
   return {
     userWordId: row.user_word_id,
     stability: row.stability,
