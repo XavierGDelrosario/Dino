@@ -84,6 +84,9 @@ function Privacy() {
         isn't sent anywhere. The first time it is needed, the kit downloads its language
         models from Google (over Wi-Fi only), and it sends Google usage and diagnostic data
         about the kit itself, not what you translate.</p>
+      <p>Your recent translations (up to 200) are kept on your device so you can run them
+        again. They are never sent to us, don't sync between devices, and are erased when
+        you tap Clear, sign out or delete your account.</p>
       <p>So that you can review without a connection, the iOS app keeps a copy of your saved
         words on your device. It is downloaded over Wi-Fi only and is deleted when you delete
         the app.</p>

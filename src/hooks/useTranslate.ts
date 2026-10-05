@@ -5,7 +5,7 @@
 // the meaning you want), plus "Add all" for every new word's primary.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
-import { pushEntry, type TranslateHistoryEntry } from "../services/translateHistory";
+import { loadHistory, pushEntry, saveHistory, type TranslateHistoryEntry } from "../services/translateHistory";
 import { nfc, nfcTrim } from "../lib/text";
 import { lookupWord, lookupWordsBatch, translateParagraph, wordKey, type ParagraphTranslation } from "../services/lookup";
 import { translate, glossSentences, getCachedGloss } from "../services/translation";
@@ -67,10 +67,18 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   const [input, setInput] = useStickyState(userId, "translate.input", "");
   // Recorded on SUCCESS only (see the effect below), so a failed submit (429, 413,
   // network) doesn't leave an entry that replays straight back into the same error.
-  const [history, setHistory] = useStickyState<TranslateHistoryEntry[]>(
-    userId,
-    "translate.history",
-    [],
+  // Kept on THIS DEVICE across restarts (services/translateHistory.ts), per user: read
+  // once on mount — the views are keyed on userId, so a user switch remounts and reads
+  // the right list — and written through on every change.
+  const [history, setHistoryState] = useState<TranslateHistoryEntry[]>(() => loadHistory(userId));
+  const setHistory = useCallback(
+    (next: (prev: TranslateHistoryEntry[]) => TranslateHistoryEntry[]) =>
+      setHistoryState((prev) => {
+        const list = next(prev);
+        saveHistory(userId, list);
+        return list;
+      }),
+    [userId],
   );
   // Set at submit, consumed at status "done". A ref, not state: it must not re-render,
   // and submit has several success exits — capturing once at the top covers them all
@@ -507,7 +515,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     [setInput, submit],
   );
 
-  const clearHistory = useCallback(() => setHistory([]), [setHistory]);
+  const clearHistory = useCallback(() => setHistory(() => []), [setHistory]);
 
   /**
    * Fetch the sentence-by-sentence translation for the ALREADY-analyzed paragraph and
