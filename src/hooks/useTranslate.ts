@@ -784,7 +784,9 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);
-        else { addable.push(primary); cards.push(senses); }
+        // A NAME is never added or quizzed automatically (lookup.ts `names`) — only
+        // by hand, from its card. Once it IS saved it reviews like any other word.
+        else if (!para.names?.has(wordKey(tok))) { addable.push(primary); cards.push(senses); }
       }
     }
     return { addablePrimaries: addable, reviewablePrimaries: reviewable, addableCards: cards };

@@ -4,6 +4,7 @@
 // meaning; saved senses show confidence (✓ n/5), and a word the app claims you know
 // carries a top-right "Forgot" that drops it one bucket. State lives in the parent
 // (useTranslate).
+import { studyView } from "../../services/lookup";
 import { GoogleBadge } from "../common/GoogleBadge";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
@@ -67,6 +68,7 @@ function ParagraphReaderImpl({
   glossLoading = false,
   openGloss = false,
   glossCredit = false,
+  names,
   saved,
   confidence,
   lists,
@@ -97,6 +99,9 @@ function ParagraphReaderImpl({
    *  translation is shown, so its attribution has to be here. The Translate tab leaves
    *  this off — its output box carries the badge for the same translation. */
   glossCredit?: boolean;
+  /** Words that are NAMES (lookup.ts `ParagraphTranslation.names`). Highlighted and
+   *  addable from their card like any word, but left out of the summary's counts. */
+  names?: ReadonlySet<string>;
   saved: Set<string>;
   confidence: Map<string, number>;
   lists: List[];
@@ -152,8 +157,8 @@ function ParagraphReaderImpl({
   // so the charts stay live.
   const [showSummary, setShowSummary] = useState(false);
   const summary = useMemo(
-    () => summarizeReader({ tokens, meaningsByWord, saved, confidence }),
-    [tokens, meaningsByWord, saved, confidence],
+    () => summarizeReader({ ...studyView({ tokens, meaningsByWord, names }), saved, confidence }),
+    [tokens, meaningsByWord, names, saved, confidence],
   );
   const canSummarize = summary.total >= SUMMARY_MIN_WORDS;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

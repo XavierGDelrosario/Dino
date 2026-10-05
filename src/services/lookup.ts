@@ -149,6 +149,44 @@ export interface ParagraphTranslation {
   tokens: AnalyzedToken[];
   /** Lookup from a word's text to all its known meanings (verified first). */
   meanings: Map<string, Word[]>;
+  /**
+   * The keys of `meanings` that are NAMES — a person, place or company the dictionary
+   * doesn't know, whose only "meaning" is machine translation (大東 → "Daito").
+   *
+   * They stay in `meanings`, so the reader still highlights them and its card still
+   * offers ＋: someone who wants a name in their vocabulary can put it there. But a
+   * name is not study material anyone asked for, so everything AUTOMATIC leaves it
+   * out — "Add all", the quizzes, and every summary or word table (`studyMeanings`).
+   */
+  names?: ReadonlySet<string>;
+}
+
+/**
+ * A paragraph as STUDY MATERIAL: its tokens and meanings with the names taken out, for
+ * the summaries, the word table and anything else that counts words. Tokens go too, not
+ * just meanings — a name left in the tokens would be counted as a word with no entry.
+ */
+export function studyView(p: {
+  tokens: AnalyzedToken[];
+  meaningsByWord: Map<string, Word[]>;
+  names: ReadonlySet<string> | undefined;
+}): { tokens: AnalyzedToken[]; meaningsByWord: Map<string, Word[]> } {
+  if (!p.names || p.names.size === 0) return { tokens: p.tokens, meaningsByWord: p.meaningsByWord };
+  return {
+    tokens: p.tokens.filter((t) => !p.names!.has(wordKey(t))),
+    meaningsByWord: studyMeanings(p.meaningsByWord, p.names),
+  };
+}
+
+/** `meanings` without the names: what "Add all", the quizzes and the summaries count. */
+export function studyMeanings(
+  meanings: Map<string, Word[]>,
+  names: ReadonlySet<string> | undefined,
+): Map<string, Word[]> {
+  if (!names || names.size === 0) return meanings;
+  const out = new Map<string, Word[]>();
+  for (const [key, senses] of meanings) if (!names.has(key)) out.set(key, senses);
+  return out;
 }
 
 /**
@@ -200,17 +238,20 @@ function isJunkKatakana(surface: string, senses: Word[]): boolean {
  * True for a PROPER NOUN the dictionary does not know — every sense is machine
  * translation (no POS; see isJunkKatakana for why "no POS" identifies MT here).
  * Quality reports #25–#28: 大東, 東島, 琉球新報 were offered as vocabulary with an MT
- * "meaning" that is just the romanized name ("Daito"). A place the dictionary DOES know
+ * "meaning" that is just the romanized name ("Daito"). Such a word is now KEPT but
+ * flagged (`ParagraphTranslation.names`): the reader shows it and it can be added by
+ * hand, while nothing automatic counts or adds it. A place the dictionary DOES know
  * (東京, アメリカ) has POS'd senses and stays; so does a real word IPADIC mis-tags as a
  * name, as long as JMdict has it. Gated on the analyzer's proper-noun tag, so a real
  * word left MT-only by the dev `-common-` subset (唐揚げ) is untouched.
  */
 function isUnknownName(token: AnalyzedToken, senses: Word[]): boolean {
-  return (
-    (token.properNoun === true || isNameFragment(token)) &&
-    senses.length > 0 &&
-    senses.every((s) => !s.partOfSpeech?.length)
-  );
+  return token.properNoun === true && isMtOnly(senses);
+}
+
+/** Every sense is machine translation (see isJunkKatakana for why "no POS" says so). */
+function isMtOnly(senses: Word[]): boolean {
+  return senses.length > 0 && senses.every((s) => !s.partOfSpeech?.length);
 }
 
 const HAS_KANJI = /\p{Script=Han}/u;
@@ -551,13 +592,20 @@ export async function translateParagraph(params: {
   // 4. Key by the shared wordKey (lemma, lowercased) so every surface of one word —
   //    "Cats", "cats", "cat" — resolves to a single entry. Callers use the same helper.
   const meanings = new Map<string, Word[]>();
+  const names = new Set<string>();
   for (const token of tokens) {
     const key = wordKey(token);
     if (!meanings.has(key)) {
       let senses = (meaningsByKey.get(keyOf(token)) ?? []).filter((s) => !isNamedEntitySense(s));
       if (token.composite) senses = [...senses.filter((s) => !isPrefixOnly(s)), ...senses.filter(isPrefixOnly)];
-      const drop = isJunkKatakana(token.text, senses) || isGrammarOnly(senses) || isUnknownName(token, senses);
+      // A lone unknown kanji (倖 of 倖田來未) is a FRAGMENT of a name, not a name: it is
+      // still dropped. A whole name stays, flagged.
+      const drop =
+        isJunkKatakana(token.text, senses) ||
+        isGrammarOnly(senses) ||
+        (isNameFragment(token) && isMtOnly(senses));
       meanings.set(key, drop ? [] : senses);
+      if (!drop && isUnknownName(token, senses)) names.add(key);
     }
   }
 
@@ -572,5 +620,6 @@ export async function translateParagraph(params: {
     targetLang,
     tokens,
     meanings,
+    names,
   };
 }
