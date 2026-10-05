@@ -531,6 +531,7 @@ export function TranslateView({
             text={live.analyzed}
             tokens={live.para.tokens}
             meaningsByWord={live.para.meanings}
+            names={live.para.names}
             sentences={live.para.sentences}
             // The live reader buys its OWN English, exactly like the conversation
             // listener: tap one sentence, or take the lot. These used to point at
@@ -631,6 +632,7 @@ export function TranslateView({
                 text={t.analyzedInput}
                 tokens={t.para.tokens}
                 meaningsByWord={t.para.meanings}
+                names={t.para.names}
                 sentences={t.para.sentences}
                 onLoadGloss={t.loadGloss}
                 onTranslateSentence={t.loadSentenceGloss}

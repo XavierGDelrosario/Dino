@@ -29,7 +29,7 @@ import { findWordTranslations, findWordTranslationsBatch } from "@/services/word
 import { translate, translateBatch, glossSentences } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
-import { lookupWord, lookupWordsBatch, translateParagraph , wordKey} from "@/services/lookup";
+import { lookupWord, lookupWordsBatch, translateParagraph, studyView, wordKey } from "@/services/lookup";
 import { __clearWordsCache } from "@/services/words/cache";
 import type { Word } from "@/services/words/repository";
 
@@ -664,12 +664,42 @@ describe("translateParagraph — tokens the dictionary says are not vocabulary",
 
   // Quality reports #25–#28: 大東 / 東島 / 琉球新報 offered with an MT "meaning" that is
   // just the romanized name.
-  it("drops a proper noun whose only meaning is machine translation", async () => {
+  // …and since 2026-10-06 they are KEPT but flagged: the reader shows the name and it can
+  // be added by hand, while nothing automatic (Add all, quizzes, summaries) counts it.
+  it("keeps a proper noun whose only meaning is machine translation, flagged as a NAME", async () => {
     const res = await read(
       [{ text: "大東", start: 0, end: 2, reading: "だいとう", lemma: "大東", pos: "名詞", properNoun: true }],
       [["大東", [makeWord({ input: "大東", translation: "Daito", partOfSpeech: null })]]],
     );
-    expect(res.meanings.get("大東")).toEqual([]);
+    expect(res.meanings.get("大東")?.[0].translation).toBe("Daito");
+    expect([...(res.names ?? [])]).toEqual(["大東"]);
+  });
+
+  it("a name FRAGMENT (a lone unknown kanji) is still dropped, and is not a name", async () => {
+    const res = await read(
+      [{ text: "倖", start: 0, end: 1, reading: null, lemma: null, pos: "名詞", unknownWord: true }],
+      [["倖", [makeWord({ input: "倖", translation: "Happiness", partOfSpeech: null })]]],
+    );
+    expect(res.meanings.get("倖")).toEqual([]);
+    expect(res.names?.size ?? 0).toBe(0);
+  });
+
+  it("studyView takes the names out of BOTH the tokens and the meanings", async () => {
+    const res = await read(
+      [
+        { text: "大東", start: 0, end: 2, reading: "だいとう", lemma: "大東", pos: "名詞", properNoun: true },
+        { text: "猫", start: 2, end: 3, reading: "ねこ", lemma: "猫", pos: "名詞" },
+      ],
+      [
+        ["大東", [makeWord({ input: "大東", translation: "Daito", partOfSpeech: null })]],
+        ["猫", [makeWord({ input: "猫", translation: "cat", partOfSpeech: ["n"] })]],
+      ],
+    );
+    const study = studyView({ tokens: res.tokens, meaningsByWord: res.meanings, names: res.names });
+    expect(study.tokens.map((t) => t.text)).toEqual(["猫"]);
+    expect([...study.meaningsByWord.keys()]).toEqual(["猫"]);
+    // The reader's own view is untouched: the name is still there to tap and add.
+    expect(res.meanings.has("大東")).toBe(true);
   });
 
   it("keeps a proper noun the dictionary knows (東京 is vocabulary)", async () => {
@@ -678,6 +708,7 @@ describe("translateParagraph — tokens the dictionary says are not vocabulary",
       [["東京", [makeWord({ input: "東京", translation: "Tokyo", partOfSpeech: ["n"] })]]],
     );
     expect(res.meanings.get("東京")?.[0].translation).toBe("Tokyo");
+    expect(res.names?.has("東京") ?? false).toBe(false); // ordinary vocabulary, not flagged
   });
 
   it("keeps an MT-only word that is NOT a proper noun (唐揚げ on the -common- subset)", async () => {

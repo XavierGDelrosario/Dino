@@ -177,6 +177,64 @@ describe("useTranslate — emptying the box drops its result", () => {
   });
 });
 
+// Names (a person, place or company the dictionary doesn't know) stay in the reader and
+// can be added by hand, but nothing AUTOMATIC touches them.
+describe("useTranslate — names are never added or quizzed automatically", () => {
+  const TEXT = "大東で猫を見た。";
+  const TOKENS = [
+    { text: "大東", start: 0, end: 2, reading: null, lemma: "大東", pos: "名詞", properNoun: true },
+    { text: "猫", start: 3, end: 4, reading: null, lemma: "猫", pos: "名詞" },
+  ];
+  const word = (wordId: string, input: string, translation: string) =>
+    ({ wordId, input, translation, inputReading: null, sourceLang: "JA", targetLang: "EN" }) as never;
+  const paragraph = () => ({
+    input: TEXT,
+    tokens: TOKENS,
+    meanings: new Map([
+      ["大東", [word("w-daito", "大東", "Daito")]],
+      ["猫", [word("w-neko", "猫", "cat")]],
+    ]),
+    names: new Set(["大東"]),
+    sentences: [],
+  });
+
+  beforeEach(() => {
+    vi.mocked(analyze).mockResolvedValue(TOKENS as never);
+    vi.mocked(translateParagraph).mockResolvedValue(paragraph() as never);
+  });
+
+  const open = async () => {
+    const hook = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await hook.result.current.submit({ text: TEXT, skipGloss: true });
+    });
+    await waitFor(() => expect(hook.result.current.para).not.toBeNull());
+    return hook.result;
+  };
+
+  it("'Add all' and 'Quiz new words' leave the name out", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    const result = await open();
+    expect(result.current.addablePrimaries.map((w) => w.wordId)).toEqual(["w-neko"]);
+    expect(result.current.addableCards.map((c) => c[0].wordId)).toEqual(["w-neko"]);
+    expect(result.current.addableCount).toBe(1);
+  });
+
+  it("the reader still has it — highlightable, with its meaning to add by hand", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    const result = await open();
+    expect(result.current.para?.meanings.get("大東")?.[0].translation).toBe("Daito");
+  });
+
+  it("once the user HAS saved a name, it reviews like any other word", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(
+      new Map([["w-daito", { tracked: true, userWordId: "uw1", confidenceRating: 2, lastReviewedDate: null }]]) as never,
+    );
+    const result = await open();
+    await waitFor(() => expect(result.current.reviewablePrimaries.map((w) => w.wordId)).toEqual(["w-daito"]));
+  });
+});
+
 describe("useTranslate — applyReview", () => {
   it("marks a sense saved at the given confidence and records its user_word id", async () => {
     const { result } = renderHook(() => useTranslate("user-1"));
