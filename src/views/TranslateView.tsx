@@ -6,6 +6,7 @@
 // Submit is a BUTTON, never Enter (IME safety). A quiz/review session is a FULL
 // takeover, so nothing can interfere mid-session.
 import { isMachineOutput } from "../services/translation/attribution";
+import { GoogleBadge } from "../components/common/GoogleBadge";
 import { useEffect, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
@@ -429,16 +430,7 @@ export function TranslateView({
             ) : t.output ? (
               <>
                 {t.output}
-                {outputIsMachine && (
-                  <a
-                    className="translate__credit"
-                    href="https://translate.google.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {tr("translate.poweredByGoogle")}
-                  </a>
-                )}
+                {outputIsMachine && <GoogleBadge className="translate__credit" />}
               </>
             ) : (
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
