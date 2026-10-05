@@ -27,6 +27,9 @@ export interface TranslateHistoryEntry {
   /** Source as CHOSEN (may be auto-detect), so a replay resolves the same way. */
   source: SourceSelection;
   target: LangCode;
+  /** When it was translated (epoch ms), for the date shown beside it. Optional: an
+   *  entry stored before dates were kept has none, and simply shows no date. */
+  at?: number;
 }
 
 /**
@@ -35,6 +38,19 @@ export interface TranslateHistoryEntry {
  * limit is under 1 MB of the ~5 MB a site gets.
  */
 export const MAX_HISTORY = 200;
+
+/** The local calendar day an entry was translated on, as the menu prints it ("Oct 6",
+ *  with the year once it isn't this one), or "" for an entry with no date. */
+export function entryDate(entry: TranslateHistoryEntry, locale?: string, now: Date = new Date()): string {
+  if (entry.at == null) return "";
+  const d = new Date(entry.at);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
 
 /** Identity of an entry — text AND direction (see the header note). */
 export function entryKey(entry: TranslateHistoryEntry): string {
@@ -56,11 +72,14 @@ export function pushEntry(
   list: readonly TranslateHistoryEntry[],
   entry: TranslateHistoryEntry,
   cap: number = MAX_HISTORY,
+  now: number = Date.now(),
 ): TranslateHistoryEntry[] {
   const text = entry.text.trim();
   if (!text) return [...list];
 
-  const next: TranslateHistoryEntry = { ...entry, text };
+  // Stamped HERE unless the caller already dated it: a re-translated entry moves to the
+  // front with today's date, which is what "most recent first" promises.
+  const next: TranslateHistoryEntry = { ...entry, text, at: entry.at ?? now };
   const key = entryKey(next);
   return [next, ...list.filter((e) => entryKey(e) !== key)].slice(0, Math.max(0, cap));
 }
@@ -74,7 +93,13 @@ const keyFor = (userId: string) => `dino.translateHistory.${userId}`;
 
 function isEntry(v: unknown): v is TranslateHistoryEntry {
   const e = v as Partial<TranslateHistoryEntry> | null;
-  return !!e && typeof e.text === "string" && typeof e.source === "string" && typeof e.target === "string";
+  return (
+    !!e &&
+    typeof e.text === "string" &&
+    typeof e.source === "string" &&
+    typeof e.target === "string" &&
+    (e.at === undefined || typeof e.at === "number")
+  );
 }
 
 /** The history kept on this device for `userId` (newest first), or [] . */

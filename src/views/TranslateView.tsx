@@ -236,10 +236,6 @@ export function TranslateView({
     void syncSenseState(ids);
   }, [live.para, syncSenseState]);
 
-  // Whether the reader comes up with its English already showing — set only when the
-  // user asked via "Show translation" (see askForTranslation), so the plain Translate
-  // button leaves the reader source-first.
-  const [openGloss, setOpenGloss] = useState(false);
   // Snapshot a paragraph's NEW words ONCE when its result arrives: the live
   // addablePrimaries empties as words save, which would unmount the "Add all" button
   // mid-interaction, so it is deliberately excluded from the deps.
@@ -272,14 +268,6 @@ export function TranslateView({
   const wordStudy = t.status === "done" && t.mode === "word" && t.meanings.length > 0;
   const paraStudy = t.status === "done" && t.mode === "paragraph" && t.para;
 
-  /** "Show translation" on the live reader: run the same submit the button runs.
-   *  The live reader is replaced by the submitted one, so remember that the English
-   *  was ASKED for — otherwise the reader that arrives hides the gloss it just
-   *  bought, and the press reads as having done nothing. */
-  const askForTranslation = async () => {
-    setOpenGloss(true);
-    await t.submit();
-  };
   const hasActions =
     addAllWords.length > 0 || t.addableCount > 0 || t.reviewableCount > 0 || !!paraStudy;
 
@@ -500,10 +488,7 @@ export function TranslateView({
       <div className="translate__submit">
         <button
           className="btn"
-          onClick={() => {
-            setOpenGloss(false); // Japanese-first; the reader's own toggle reveals it
-            void t.submit();
-          }}
+          onClick={() => void t.submit()}
           disabled={t.status === "loading" || !t.input.trim()}
         >
           {t.status === "loading" ? <LoadingDots /> : tr("translate.submit")}
@@ -523,8 +508,8 @@ export function TranslateView({
 
       {/* EXPERIMENT — the live reader. Sits between the input and the study section:
           it is what you get for free while typing, and it disappears the moment a
-          submitted result takes over. No gloss is fetched here, so the "Show
-          translation" toggle inside it is the first thing that ever costs money. */}
+          submitted result takes over. No gloss is fetched here; tapping a sentence's
+          punctuation is the only thing in it that costs anything. */}
       {!paraStudy && live.para && live.analyzed && (
         <div className="study study--live">
           <ParagraphReader
@@ -540,16 +525,11 @@ export function TranslateView({
             // bought here. Both paths share the sentence cache, so tapping a few
             // and then pressing the toggle pays only for what's left.
             onTranslateSentence={live.translateSentence}
-            // "Show translation" IS Translate. It used to buy only the gloss, which
-            // left it visibly weaker than the button beside it: no output box, and
-            // words still uncoloured because the saved/confidence state is loaded by
-            // submit. Same work now, so the only difference is that this one opens
-            // the English (and can put it away again).
-            //
-            // No double spend: submit's paragraph gloss and this toggle both go
-            // through glossSentences, which is content-addressed by sentence, so
-            // whichever runs second pays for nothing.
-            onLoadGloss={askForTranslation}
+            // No "Show translation" switch here: Translate is the button that
+            // translates, and the switch only appears on the result once every
+            // sentence has its translation (glossToggle="complete"). A single
+            // sentence can still be translated by tapping its punctuation.
+            glossToggle="complete"
             glossLoading={t.status === "loading"}
             saved={t.saved}
             confidence={t.confidence}
@@ -636,8 +616,9 @@ export function TranslateView({
                 sentences={t.para.sentences}
                 onLoadGloss={t.loadGloss}
                 onTranslateSentence={t.loadSentenceGloss}
-                glossLoading={t.glossLoading}
-                openGloss={openGloss}
+                glossLoading={t.glossLoading || t.readerLoading}
+                // Offered only once the whole text is translated — never part-way.
+                glossToggle="complete"
                 saved={t.saved}
                 confidence={t.confidence}
                 lists={t.lists}
