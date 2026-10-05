@@ -361,16 +361,6 @@ the SRS ease already does), then drop the column + its grants (`20260704`).
 ### Placement + review-log — after `20260783` / `20260784`
 - Finish "Find my level" once on each real account — the stored band predates the fix.
 
-### Daily word widgets `[iOS]`
-- **Verify on device** — code compiles for the Simulator only. Add both widgets (New word ·
-  Review word; small, medium, lock screen) and check they fill after opening the app once.
-- **App Group** `group.com.xaviergdelrosario.dino` must be on the provisioning profile of
-  BOTH targets (App + DailyWordWidget). Automatic signing registers it on the first Xcode
-  build; an empty widget that never fills is this.
-- **Tap does nothing specific** — it opens the app. Deep-link to the word (New) / the Review
-  tab (Review) via `widgetURL` + the existing URL scheme.
-- Widget chrome follows the DEVICE language and appearance, not the in-app choices.
-
 ### App Store submission `[iOS release]`
 Code is done: Sign in with Apple (needs a Services ID + a .p8-signed secret that **expires
 ≤6 months**), account deletion, EDRDG attribution, `PrivacyInfo.xcprivacy` (**keep it in

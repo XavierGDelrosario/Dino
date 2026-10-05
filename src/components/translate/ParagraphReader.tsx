@@ -68,6 +68,7 @@ function ParagraphReaderImpl({
   glossLoading = false,
   openGloss = false,
   glossCredit = false,
+  glossToggle = "request",
   names,
   saved,
   confidence,
@@ -99,6 +100,16 @@ function ParagraphReaderImpl({
    *  translation is shown, so its attribution has to be here. The Translate tab leaves
    *  this off — its output box carries the badge for the same translation. */
   glossCredit?: boolean;
+  /**
+   * When the "Show translation" switch is offered.
+   *   "request"  (default) — whenever there is a translation to show OR a way to fetch
+   *              one; the first press buys what is missing. An article's reading mode.
+   *   "complete" — only once EVERY sentence has its translation and nothing is still
+   *              loading; it shows and hides, and never fetches. The Translate tab: the
+   *              Translate button is what translates, and a switch offered before that
+   *              has finished opens onto a half-translated text.
+   */
+  glossToggle?: "request" | "complete";
   /** Words that are NAMES (lookup.ts `ParagraphTranslation.names`). Highlighted and
    *  addable from their card like any word, but left out of the summary's counts. */
   names?: ReadonlySet<string>;
@@ -432,11 +443,13 @@ function ParagraphReaderImpl({
   // text with ONE sentence tapped never asked for the rest — and, now that the press
   // runs the full submit, never ran it either.
   const needsGloss = sentences.length === 0 || sentences.some((s) => !s.gloss);
-  // Offer the toggle when there's a translation to show OR a way to fetch one.
-  const canShowGloss = hasGloss || !!onLoadGloss;
+  // Offer the toggle when there's a translation to show OR a way to fetch one — or, in
+  // "complete" mode, only when the whole text is translated (see `glossToggle`).
+  const canShowGloss =
+    glossToggle === "complete" ? !needsGloss && !glossLoading : hasGloss || !!onLoadGloss;
   // First press buys the translation; later presses just show/hide what we hold.
   const toggleGloss = () => {
-    if (needsGloss && onLoadGloss && !glossLoading) void onLoadGloss();
+    if (glossToggle === "request" && needsGloss && onLoadGloss && !glossLoading) void onLoadGloss();
     setShowGloss((v) => {
       // Turning it OFF clears individually-tapped lines too — they're the same answer
       // by another route, and leaving them on screen makes the toggle look broken.
