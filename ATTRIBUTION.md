@@ -149,3 +149,15 @@ the UD annotation contributed by the UD community.
 
 We ship only the derived weights. The treebank is downloaded at build time by whoever
 runs the trainer and is not committed to this repository.
+
+## Machine translation (Google Cloud Translation)
+
+Whole-sentence translations, and the meanings of words the dictionary lacks, are
+automatic translations from **Google Translate** (Cloud Translation API). Per Google's
+attribution requirements (https://cloud.google.com/translate/attribution), the app says so
+in its footer and its Terms carry the required disclaimer:
+
+> THIS SERVICE MAY CONTAIN TRANSLATIONS POWERED BY GOOGLE. GOOGLE DISCLAIMS ALL WARRANTIES
+> RELATED TO THE TRANSLATIONS, EXPRESS OR IMPLIED, INCLUDING ANY WARRANTIES OF ACCURACY,
+> RELIABILITY, AND ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+> PURPOSE AND NONINFRINGEMENT.

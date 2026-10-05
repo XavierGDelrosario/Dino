@@ -221,6 +221,14 @@ function Terms() {
       <p>DINO relies on third parties (hosting, sign-in, machine translation, the App Store,
         Wikimedia). Their own terms apply to their part, and we aren't responsible for their
         outages or changes. Articles are loaded from Wikinews and may change or disappear.</p>
+      <p>Sentence translations, and the meanings of words our dictionary doesn't have, are
+        automatic translations from{" "}
+        <a href="https://translate.google.com" target="_blank" rel="noopener noreferrer">
+          Google Translate
+        </a>. THIS SERVICE MAY CONTAIN TRANSLATIONS POWERED BY GOOGLE. GOOGLE DISCLAIMS ALL
+        WARRANTIES RELATED TO THE TRANSLATIONS, EXPRESS OR IMPLIED, INCLUDING ANY WARRANTIES OF
+        ACCURACY, RELIABILITY, AND ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+        PARTICULAR PURPOSE AND NONINFRINGEMENT.</p>
       <p>If you believe something in DINO infringes your rights, email{" "}
         <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with enough detail for us to
         find it, and we will review it.</p>
