@@ -931,6 +931,10 @@ export type Database = {
         Args: { p_source_lang: string }
         Returns: { band: number | null; frequency: number | null; known: boolean }[]
       }
+      placement_pool: {
+        Args: { p_source_lang: string; p_target_lang: string; p_max_band: number }
+        Returns: { band: number; pool: number; unsaved: number; known: number }[]
+      }
       profile_history: {
         Args: { p_tz?: string }
         Returns: Json

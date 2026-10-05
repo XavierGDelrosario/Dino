@@ -29,8 +29,9 @@ import type { Word } from "./words/repository";
  * pair returns empty (migration 20260745).
  *
  * `excludeSeen` (default true) omits words already in the user's vocabulary — the
- * LEARN quiz wants only new words. The CALIBRATION quiz passes false to sample the
- * whole band (it estimates how much of the band the user knows, saved or not).
+ * LEARN quiz wants only new words. The CALIBRATION quiz excludes them too, so its
+ * swipes sample the UNSAVED remainder of a band; what the user already holds is counted
+ * separately (services/calibration `getPlacementPool`).
  */
 export async function fetchLearnWords(params: {
   band: number;

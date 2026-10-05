@@ -291,6 +291,68 @@ describe("levelFromRatings", () => {
     expect(r.band).toBe(4);
   });
 
+  // THE BAR IS A SHARE OF THE POOL (migration 20260786). The quiz only deals words that
+  // are not in the vocabulary, so a learner who studies through the app kept being
+  // measured on the part of the band they had never touched, and never moved.
+  describe("with pool counts", () => {
+    const N5 = bandWords(1, 10, 10);
+    const pool = (b: { pool: number; unsaved: number; known: number }) => new Map([[2, b]]);
+
+    it("holding 600 of a 1,000 pool against an 80% bar needs 50% of the swipes, not 80%", () => {
+      // maxBand 2 → band 2 is the hardest, bar 0.75; use the exact example at band 4 of 5 too.
+      const p = new Map([[4, { pool: 1000, unsaved: 400, known: 600 }]]);
+      const base = [...N5, ...bandWords(2, 10, 10), ...bandWords(3, 12, 12)];
+      // N2's bar is 0.7875 → 787.5 of the pool → 187.5 of the 400 unsaved = 46.9%.
+      const at = levelFromRatings([...base, ...bandWords(4, 20, 10)], 5, p); // 50% swipes
+      expect(at.band).toBe(4);
+      expect(at.perBand[3].estimate).toBeCloseTo(0.8, 5);
+      expect(at.perBand[3].requiredRate).toBeCloseTo(0.46875, 5);
+      const under = levelFromRatings([...base, ...bandWords(4, 20, 8)], 5, p); // 40% swipes
+      expect(under.band).toBe(3);
+    });
+
+    it("the same swipes that fail on their own pass once what is held counts", () => {
+      const swipes = [...N5, ...bandWords(2, 20, 12)]; // 60% of N4 swipes, bar 0.8625
+      expect(levelFromRatings(swipes, 5).band).toBe(1);
+      expect(levelFromRatings(swipes, 5, pool({ pool: 500, unsaved: 100, known: 400 })).band).toBe(2);
+    });
+
+    it("saved-but-not-held words count against the band, not for it", () => {
+      // 400 saved, only 100 held: (100 + 0.9·100) / 500 = 38%, however good the swipes are.
+      const swipes = [...N5, ...bandWords(2, 20, 18)];
+      const r = levelFromRatings(swipes, 5, pool({ pool: 500, unsaved: 100, known: 100 }));
+      expect(r.band).toBe(1);
+      expect(r.perBand[1].requiredRate).toBeGreaterThan(1); // out of reach by swiping alone
+    });
+
+    it("a band with nothing left to swipe is decided by what is held, with no sample", () => {
+      const held = levelFromRatings(N5, 5, pool({ pool: 500, unsaved: 0, known: 450 }));
+      expect(held.band).toBe(2);
+      const notHeld = levelFromRatings(N5, 5, pool({ pool: 500, unsaved: 0, known: 300 }));
+      expect(notHeld.band).toBe(1);
+    });
+
+    it("a band still needs its sample while there are words left to swipe", () => {
+      // 3 answers is under N4's trust threshold (7): held words alone don't place it.
+      const r = levelFromRatings([...N5, ...bandWords(2, 3, 3)], 5, pool({ pool: 500, unsaved: 50, known: 450 }));
+      expect(r.band).toBe(1);
+    });
+
+    it("counts that disagree are clamped: held can never exceed what is saved", () => {
+      const r = levelFromRatings([...N5, ...bandWords(2, 10, 0)], 5, pool({ pool: 100, unsaved: 90, known: 500 }));
+      expect(r.perBand[1].estimate).toBeCloseTo(0.1, 5); // 10 saved at most
+    });
+
+    it("no counts for a band → exactly the swipe rule", () => {
+      const swipes = [...N5, ...bandWords(2, 14, 13), ...bandWords(3, 12, 6)];
+      const without = levelFromRatings(swipes, 5);
+      const withOther = levelFromRatings(swipes, 5, new Map([[5, { pool: 100, unsaved: 100, known: 0 }]]));
+      expect(withOther.band).toBe(without.band);
+      expect(without.perBand[1].estimate).toBe(without.perBand[1].knownFraction);
+      expect(without.perBand[1].requiredRate).toBeNull();
+    });
+  });
+
   it("credits N1 on evidence a real session can produce (18 words)", () => {
     const r = levelFromRatings(
       [...bandWords(1, 10, 10), ...bandWords(2, 10, 10), ...bandWords(3, 12, 11),
