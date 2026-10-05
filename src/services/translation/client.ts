@@ -3,11 +3,16 @@
 // The browser cannot translate, only ASK the server to: the API key and the provider
 // call live in the `translate` edge function, so there is no provider here to swap,
 // mock, or extract from the bundle. Swapping the provider never touches this file.
+//
+// ONE exception, and only for DISPLAY-ONLY sentence glosses: the iOS app can translate
+// on the device (./onDevice). See `translateSegments` for when it does. Words still go
+// to the server, always — a word's meaning is a verified row only the server may write.
 
 import { supabase } from "../../config/supabaseClient";
 import { ServiceError, toServiceError } from "../errors";
 import type { LangCode } from "../language";
 import type { Word } from "../words/repository";
+import { canTranslateOnDevice, translateOnDevice } from "./onDevice";
 
 /** Max concurrent translate() calls when translating many words at once. */
 export const MAX_TRANSLATION_CONCURRENCY = 6;
@@ -53,6 +58,11 @@ const QUOTA_COPY: Record<string, string> = {
     "Translation is busy right now — please try again later. Dictionary lookups still work.",
 };
 
+/** A translate call refused because a paid-translation allowance is spent. A
+ *  ServiceError like any other to the UI; the type is what lets a caller with a free
+ *  alternative (the on-device translator) use it instead of showing the refusal. */
+export class QuotaError extends ServiceError {}
+
 /** A quota refusal (429 with a known `code`) as a readable ServiceError, else null. */
 async function quotaError(error: { context?: unknown }): Promise<ServiceError | null> {
   const res = error?.context as { status?: number; clone?: () => { json: () => Promise<unknown> } } | undefined;
@@ -60,7 +70,7 @@ async function quotaError(error: { context?: unknown }): Promise<ServiceError | 
   try {
     const body = (await res.clone().json()) as { code?: string } | null;
     const copy = body?.code ? QUOTA_COPY[body.code] : undefined;
-    return copy ? new ServiceError(copy, "permission", { cause: error }) : null;
+    return copy ? new QuotaError(copy, "permission", { cause: error }) : null;
   } catch {
     return null;
   }
@@ -149,6 +159,14 @@ export async function translateBatch(params: {
  * Display-only like the paragraph gloss: nothing is cached, the dictionary path is
  * skipped, and it meters as ONE paid request (the edge dedupes repeats before billing).
  * A `null` entry means that segment came back empty — render its source instead.
+ *
+ * IN THE iOS APP the gloss can come from the device instead (./onDevice), which is free:
+ *   · a GUEST's glosses are on-device from the start — guests are minted at launch, and
+ *     their glosses are the cheapest way to drain the global cap;
+ *   · a MEMBER's are cloud (the better translation) until the quota refuses, then
+ *     on-device rather than an error.
+ * Either way the cloud is the fallback's fallback: a device that can't translate yet
+ * (models still downloading, an unsupported pair) behaves exactly as it did before.
  */
 export async function translateSegments(params: {
   segments: string[];
@@ -156,6 +174,41 @@ export async function translateSegments(params: {
   targetLang: LangCode;
 }): Promise<(string | null)[]> {
   if (params.segments.length === 0) return [];
+  const onDevice = canTranslateOnDevice(params.sourceLang, params.targetLang);
+
+  if (onDevice && (await isGuest())) {
+    try {
+      return await translateOnDevice(params);
+    } catch {
+      /* not ready (or it failed) — the cloud still answers */
+    }
+  }
+  try {
+    return await cloudSegments(params);
+  } catch (e) {
+    if (!(e instanceof QuotaError) || !onDevice) throw e;
+    try {
+      return await translateOnDevice(params);
+    } catch {
+      throw e; // nothing better to offer: the refusal is the honest answer
+    }
+  }
+}
+
+/** Is the signed-in user an anonymous guest? A local session read — no network. */
+async function isGuest(): Promise<boolean> {
+  try {
+    return (await supabase.auth.getSession()).data.session?.user.is_anonymous === true;
+  } catch {
+    return false;
+  }
+}
+
+async function cloudSegments(params: {
+  segments: string[];
+  sourceLang: LangCode;
+  targetLang: LangCode;
+}): Promise<(string | null)[]> {
   const data = await invokeTranslate<{ glosses?: (string | null)[] }>(params);
   const glosses = data.glosses ?? [];
   // Never let a short/garbled response shift the alignment — pad to the request.
