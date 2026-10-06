@@ -1087,9 +1087,12 @@
   overflow-wrap: anywhere;
 }
 
-/* The edit field is the meaning's stand-in, so it claims the same space. */
+/* The edit field is the meaning's stand-in — but it claims a FULL line of the foot,
+   not the meaning's share of one: beside the speak and 例 buttons on a phone it was a
+   ~200px box, which is what made a long meaning unreadable while editing. The buttons
+   wrap under it for as long as the field is open. */
 .listrow__foot .listrow__editing {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
   min-width: 0;
 }
 
@@ -1138,10 +1141,22 @@
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
+  /* Two lines at least, whatever the text — a field that opens as a thin strip
+     the colour of the card is easy to miss. It still grows to fit (the effect). */
+  min-height: 3.4rem;
   font-family: inherit;
+  font-size: 1rem;
   line-height: 1.4;
   resize: none;
   overflow: hidden;
+  /* Editing state is UNMISTAKABLE: the page background (not the card's near-identical
+     surface) inside an accent border. */
+  background: var(--bg);
+  border-color: var(--accent);
+}
+.listrow__editfield:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .listrow__meta {

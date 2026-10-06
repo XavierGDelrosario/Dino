@@ -75,10 +75,18 @@ export function ListRow({
   // scrollHeight only ever ratchets up as the text shrinks. Runs on open and on every
   // keystroke; jsdom reports scrollHeight 0, which the guard turns into a no-op.
   useEffect(() => {
-    const el = editRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
+    const fit = () => {
+      const el = editRef.current;
+      if (!el) return;
+      el.style.height = "auto";
+      if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    // iOS WebKit can report the pre-layout scrollHeight on the open render (the
+    // field had not yet taken its full-width line), which left a long meaning in a
+    // one-line box. Measure again once layout has settled.
+    const raf = requestAnimationFrame(fit);
+    return () => cancelAnimationFrame(raf);
   }, [draft, editing]);
 
   // In select mode the row itself IS the control (no checkbox) — but it still carries
@@ -206,7 +214,8 @@ export function ListRow({
               <textarea
                 ref={editRef}
                 className="input input--sm listrow__editfield"
-                rows={1}
+                rows={2}
+                autoFocus
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 aria-label={t("lists.editMeaningAria")}
