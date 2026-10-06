@@ -6,8 +6,15 @@
 // never inserts a line break: a break per breath chopped the box into fragments
 // that looked nothing like the sentence being said.
 //
-// NO GUESSED PUNCTUATION EITHER. A pause is evidence the speaker stopped, not of
-// which mark belongs there, and a wrong 。 is baked into text the user then saves.
+// NO GUESSED PUNCTUATION — WITH ONE ENGLISH EXCEPTION. A pause is evidence the
+// speaker stopped, not of which mark belongs there, and a wrong 。 is baked into text
+// the user then saves. Japanese keeps that rule. ENGLISH (any Latin-script utterance)
+// gets a full stop when a pause ends an utterance that has no mark of its own
+// (closeLatinUtterance, founder call 2026-10-06): iOS delivers English punctuation
+// almost only in the FINAL result, which continuous dictation never sees — partials
+// carry the capital letters but not the periods — and a period at a pause is right
+// far more often than wrong in English. The one guard: no period after a pause on a
+// function word ("I went to the … store"), where the sentence is plainly unfinished.
 // So unpunctuated speech arrives as one unpunctuated run; because the text lands in
 // an EDITABLE box, anyone who wants a boundary can type one.
 //
@@ -77,7 +84,31 @@ function join(base: string, text: string): string {
 export function commitUtterance(base: string, utterance: string): string {
   const moved = reattachLeadingMarks(base, utterance.trim());
   if (!moved.text) return moved.base;
-  return join(moved.base, moved.text);
+  return join(moved.base, closeLatinUtterance(moved.text));
+}
+
+/** Ends in a Latin letter or a digit — a sentence the recognizer left open. */
+const OPEN_LATIN = /[A-Za-z0-9\u00C0-\u024F]$/u;
+
+/** Words a sentence does not end on. A pause after one is a breath, not a full stop. */
+const UNFINISHED = new Set([
+  "a", "an", "the", "to", "of", "in", "on", "at", "for", "from", "by", "with", "about",
+  "into", "onto", "than", "as", "and", "or", "but", "so", "if", "because", "when",
+  "while", "is", "are", "was", "were", "be", "been", "am", "do", "does", "did", "have",
+  "has", "had", "will", "would", "can", "could", "should", "my", "your", "his", "her",
+  "its", "our", "their", "this", "that", "these", "those", "very", "not", "no", "i",
+]);
+
+/**
+ * A Latin-script utterance that ends on a word gets a full stop; one that already ends
+ * on a mark (the recognizer's own, or a comma that holds the sentence open) is kept as
+ * is, and so is one whose last word says the sentence is not finished.
+ */
+export function closeLatinUtterance(text: string): string {
+  if (!OPEN_LATIN.test(text)) return text;
+  const last = text.slice(text.search(/\S+$/u)).toLowerCase();
+  if (UNFINISHED.has(last)) return text;
+  return text + ".";
 }
 
 /**
