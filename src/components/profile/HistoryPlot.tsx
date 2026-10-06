@@ -33,7 +33,7 @@ import {
   type Point,
   type ProfileHistory,
 } from "../../services/history";
-import { clampView, fullView, goalPerBucket, isFullView, niceTicks, panBy, zoomAt, type Bounds, type View } from "./plotView";
+import { clampView, fitAxis, fullView, goalPerBucket, isFullView, niceTicks, panBy, zoomAt, type Bounds, type View } from "./plotView";
 import type { Goals } from "../../services/goals";
 import "./history.css";
 
@@ -76,13 +76,6 @@ const ZOOM_STEP = 0.7;
 /** Pointer travel (px) before a press becomes a drag rather than a tap-to-inspect. */
 const DRAG_SLOP = 4;
 
-/** A "nice" axis ceiling ≥ v (1, 2, 5 × 10^k), so gridlines land on round numbers. */
-function niceMax(v: number): number {
-  if (v <= 0) return 1;
-  const p = 10 ** Math.floor(Math.log10(v));
-  for (const m of [1, 2, 5, 10]) if (m * p >= v) return m * p;
-  return 10 * p;
-}
 
 /** Whole-number ticks for a zoomed ACTIVITY window (counts): about four, on a 1-2-5 step. */
 function countTicks(y0: number, y1: number): number[] {
@@ -143,16 +136,25 @@ export function HistoryPlot({ history, goals }: { history: ProfileHistory; goals
   // The goal line (dashed, in the streak colour) sits at the goal for this bucket size;
   // the axis grows to include it so a goal above every bar is still on screen.
   const goal = goalPerBucket(goals, metric, RANGES[range].granularity);
-  const yMax = isConf
-    ? 5
-    : niceMax(Math.max(0, goal ?? 0, ...series.flatMap((s) => s.points.map((p) => p.value ?? 0))));
   const shown = isConf ? series.filter((s) => !hidden.has(s.id)) : series;
+  // THE AXIS FITS THE DATA IN VIEW (founder call 2026-10-07). A fixed 0–5 confidence
+  // axis put every level's line in the same middle band of a tall box — the whole plot
+  // read as flat — and an activity axis anchored at 0 flattened a 150–200 range the same
+  // way. So the window is the plotted minimum to maximum, padded, snapped to the tick
+  // grid, clamped to what the metric can mean (0–5, or ≥ 0), and kept wide enough that a
+  // flat line isn't a single pixel-high band. The goal line is part of the fit. Hiding a
+  // confidence line refits, since what is shown is what should be readable; zoom and
+  // pan still work within this window, and Reset returns to it.
+  const { yMin, yMax } = fitAxis(
+    shown.flatMap((s) => s.points.map((p) => p.value)).filter((v): v is number => v != null),
+    { confidence: isConf, include: goal },
+  );
 
   // Every metric zooms and pans. The smallest Y window is half a point of confidence,
   // or a twentieth of an activity plot's range (never less than one whole count).
   const bounds: Bounds = {
     xMax: Math.max(0, n - 1),
-    yMin: 0,
+    yMin,
     yMax,
     minX: Math.min(2, Math.max(0, n - 1)),
     minY: isConf ? 0.5 : Math.max(1, yMax / 20),
@@ -161,7 +163,7 @@ export function HistoryPlot({ history, goals }: { history: ProfileHistory; goals
   const resolve = (w: View | null) => (w ? clampView(w, bounds) : fullView(bounds));
   const v = resolve(view);
   const zoomed = !isFullView(v, bounds);
-  const ticks = isConf ? niceTicks(v.y0, v.y1) : zoomed ? countTicks(v.y0, v.y1) : [0, yMax / 2, yMax];
+  const ticks = isConf ? niceTicks(v.y0, v.y1) : countTicks(v.y0, v.y1);
 
   const x = (i: number) => M.left + (v.x1 - v.x0 <= 0 ? PW / 2 : ((i - v.x0) / (v.x1 - v.x0)) * PW);
   const y = (val: number) => M.top + PH - ((val - v.y0) / (v.y1 - v.y0)) * PH;

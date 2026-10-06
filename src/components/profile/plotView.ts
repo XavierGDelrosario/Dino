@@ -96,3 +96,31 @@ export function goalPerBucket(
   if (perDay == null) return null;
   return granularity === "day" ? perDay : granularity === "week" ? perDay * 7 : null;
 }
+
+/**
+ * The y window that fits `values` (plus `include`, the goal): padded by a tenth of the
+ * span, snapped outward to the tick grid (quarter points of confidence, whole counts),
+ * clamped to the metric's meaning (0–5 for confidence, ≥ 0 for counts) and never
+ * narrower than one confidence point / one count, so a flat line still has room.
+ */
+export function fitAxis(values: number[], opts: { confidence: boolean; include?: number | null }): { yMin: number; yMax: number } {
+  const all = opts.include != null ? [...values, opts.include] : values;
+  if (all.length === 0) return opts.confidence ? { yMin: 0, yMax: 5 } : { yMin: 0, yMax: 1 };
+  const lo = Math.min(...all);
+  const hi = Math.max(...all);
+  const pad = Math.max(opts.confidence ? 0.25 : 1, (hi - lo) * 0.1);
+  if (opts.confidence) {
+    const q = 0.25;
+    let yMin = Math.max(0, Math.floor((lo - pad) / q) * q);
+    let yMax = Math.min(5, Math.ceil((hi + pad) / q) * q);
+    if (yMax - yMin < 1) {
+      yMax = Math.min(5, yMin + 1);
+      yMin = Math.max(0, yMax - 1);
+    }
+    return { yMin, yMax };
+  }
+  const yMin = Math.max(0, Math.floor(lo - pad));
+  const yMax = Math.max(yMin + 1, Math.ceil(hi + pad));
+  return { yMin, yMax };
+}
+

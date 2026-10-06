@@ -1,7 +1,7 @@
 // The History plot's zoom/pan window (plotView.ts): the data under the cursor stays put
 // while zooming, the window never leaves the data, and never collapses to nothing.
 import { describe, it, expect } from "vitest";
-import { clampView, fullView, goalPerBucket, isFullView, niceTicks, panBy, zoomAt, type Bounds } from "@/components/profile/plotView";
+import { clampView, fitAxis, fullView, goalPerBucket, isFullView, niceTicks, panBy, zoomAt, type Bounds } from "@/components/profile/plotView";
 
 const b: Bounds = { xMax: 29, yMin: 0, yMax: 5, minX: 2, minY: 0.5 };
 
@@ -64,5 +64,25 @@ describe("goalPerBucket", () => {
     expect(goalPerBucket(goals, "total", "day")).toBeNull();
     expect(goalPerBucket(goals, "confidence", "day")).toBeNull();
     expect(goalPerBucket(null, "added", "day")).toBeNull();
+  });
+});
+
+describe("fitAxis", () => {
+  it("fits confidence to the data on quarter-point steps, clamped to 0–5", () => {
+    expect(fitAxis([2.1, 2.6, 3.2], { confidence: true })).toEqual({ yMin: 1.75, yMax: 3.5 });
+    expect(fitAxis([4.8, 5], { confidence: true })).toEqual({ yMin: 4, yMax: 5 });
+    expect(fitAxis([0, 0.2], { confidence: true })).toEqual({ yMin: 0, yMax: 1 });
+  });
+  it("never narrower than one point / one count, so a flat line has room", () => {
+    expect(fitAxis([3, 3, 3], { confidence: true })).toEqual({ yMin: 2.75, yMax: 3.75 });
+    expect(fitAxis([7, 7], { confidence: false })).toEqual({ yMin: 6, yMax: 8 });
+  });
+  it("fits counts to their range above zero, with the goal in frame", () => {
+    expect(fitAxis([150, 180, 200], { confidence: false })).toEqual({ yMin: 145, yMax: 205 });
+    expect(fitAxis([2, 3], { confidence: false, include: 20 })).toEqual({ yMin: 0, yMax: 22 });
+  });
+  it("has a sane window with no data", () => {
+    expect(fitAxis([], { confidence: true })).toEqual({ yMin: 0, yMax: 5 });
+    expect(fitAxis([], { confidence: false })).toEqual({ yMin: 0, yMax: 1 });
   });
 });
