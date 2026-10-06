@@ -5,6 +5,8 @@
 // carries a top-right "Forgot" that drops it one bucket. State lives in the parent
 // (useTranslate).
 import { isNameSense, studyView } from "../../services/lookup";
+import { orderSensesForToken } from "../../services/analyze/senseOrder";
+import { contextWindows } from "../../services/analyze/senseOrderEn";
 import { GoogleBadge } from "../common/GoogleBadge";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
@@ -121,7 +123,7 @@ function ParagraphReaderImpl({
   // `key` is the token's wordKey, carried so the card looks its senses up exactly as
   // the inline word did — a capitalised or inflected surface would otherwise hover empty.
   const [hover, setHover] = useState<
-    { word: string; key: string; reading: string | null; rect: DOMRect } | null
+    { word: string; key: string; reading: string | null; rect: DOMRect; token?: AnalyzedToken } | null
   >(null);
   // Inline translation: OFF by default — the reader is for reading the Japanese.
   // Toggling it prints each sentence's English directly beneath it, so the eye never
@@ -176,11 +178,11 @@ function ParagraphReaderImpl({
   // `reading` is the TOKEN's reading — the right furigana for THIS occurrence of a
   // homograph (君 → きみ here), not an arbitrary sense's reading.
   const showNow = useCallback(
-    (word: string, key: string, reading: string | null, el: HTMLElement) => {
+    (word: string, key: string, reading: string | null, el: HTMLElement, token?: AnalyzedToken) => {
       clearTimeout(hideTimer.current);
       clearTimeout(switchTimer.current);
       anchorEl.current = el;
-      setHover({ word, key, reading, rect: el.getBoundingClientRect() });
+      setHover({ word, key, reading, rect: el.getBoundingClientRect(), token });
     },
     [],
   );
@@ -192,11 +194,11 @@ function ParagraphReaderImpl({
   // the way into the card (whose mouseenter cancels the switch) keeps the card.
   const switchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const show = useCallback(
-    (word: string, key: string, reading: string | null, el: HTMLElement) => {
-      if (!openRef.current || anchorEl.current === el) return showNow(word, key, reading, el);
+    (word: string, key: string, reading: string | null, el: HTMLElement, token?: AnalyzedToken) => {
+      if (!openRef.current || anchorEl.current === el) return showNow(word, key, reading, el, token);
       clearTimeout(hideTimer.current); // keep the open card while deciding
       clearTimeout(switchTimer.current);
-      switchTimer.current = setTimeout(() => showNow(word, key, reading, el), SWITCH_DELAY_MS);
+      switchTimer.current = setTimeout(() => showNow(word, key, reading, el, token), SWITCH_DELAY_MS);
     },
     [showNow],
   );
@@ -234,7 +236,7 @@ function ParagraphReaderImpl({
     armed.current = openRef.current && anchorEl.current === el;
   }, []);
   const clickToken = useCallback(
-    (word: string, key: string, reading: string | null, el: HTMLElement) => {
+    (word: string, key: string, reading: string | null, el: HTMLElement, token?: AnalyzedToken) => {
       if (armed.current) {
         armed.current = false;
         clearTimeout(hideTimer.current);
@@ -248,7 +250,7 @@ function ParagraphReaderImpl({
       // nothing and the word would read as dead. `show` is idempotent, so calling it
       // here costs nothing on the taps where mouseenter did fire. `showNow`, not the
       // hover-intent `show`: a tap is a decision, never a pass-through.
-      showNow(word, key, reading, el);
+      showNow(word, key, reading, el, token);
     },
     [showNow],
   );
@@ -374,10 +376,10 @@ function ParagraphReaderImpl({
           <span
             key={`${key}-tok-${i}`}
             className={cls}
-            onMouseEnter={interactive ? (e) => show(head, wordKey(t), headReading, e.currentTarget) : undefined}
+            onMouseEnter={interactive ? (e) => show(head, wordKey(t), headReading, e.currentTarget, t) : undefined}
             onMouseLeave={interactive ? scheduleHide : undefined}
             onPointerDown={interactive ? (e) => armToggle(e.currentTarget) : undefined}
-            onClick={interactive ? (e) => clickToken(head, wordKey(t), headReading, e.currentTarget) : undefined}
+            onClick={interactive ? (e) => clickToken(head, wordKey(t), headReading, e.currentTarget, t) : undefined}
           >
             {t.text}
           </span>
@@ -457,9 +459,17 @@ function ParagraphReaderImpl({
     });
   };
 
+  // The card leads with the sense the CONTEXT picked for this occurrence — the same
+  // order the quiz card and the word list use (analyze/senseOrder) — so what the
+  // reader shows under the word is what it would add.
+  const context = useMemo(() => contextWindows(tokens), [tokens]);
   // Cap at MAX_SENSES (the same cap as the lookup). The hovercard is transient, so
   // there's no "show more" — just trim the noisy tail.
-  const hoveredSenses = (hover ? meaningsByWord.get(hover.key) ?? [] : []).slice(0, MAX_SENSES);
+  const hoveredSenses = (() => {
+    if (!hover) return [] as Word[];
+    const all = meaningsByWord.get(hover.key) ?? [];
+    return (hover.token ? orderSensesForToken(all, hover.token, context.get(hover.token)) : all).slice(0, MAX_SENSES);
+  })();
 
   // ── "Forgot" (top-right of the card) ────────────────────────────────────────
   // Offered only for senses the app currently claims you know: below
