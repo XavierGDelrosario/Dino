@@ -465,11 +465,12 @@ function ParagraphReaderImpl({
   const context = useMemo(() => contextWindows(tokens), [tokens]);
   // Cap at MAX_SENSES (the same cap as the lookup). The hovercard is transient, so
   // there's no "show more" — just trim the noisy tail.
-  const hoveredSenses = (() => {
+  const hoveredSenses = useMemo(() => {
     if (!hover) return [] as Word[];
     const all = meaningsByWord.get(hover.key) ?? [];
-    return (hover.token ? orderSensesForToken(all, hover.token, context.get(hover.token)) : all).slice(0, MAX_SENSES);
-  })();
+    const ordered = hover.token ? orderSensesForToken({ senses: all, token: hover.token, context: context.get(hover.token) }) : all;
+    return ordered.slice(0, MAX_SENSES);
+  }, [hover, meaningsByWord, context]);
 
   // ── "Forgot" (top-right of the card) ────────────────────────────────────────
   // Offered only for senses the app currently claims you know: below

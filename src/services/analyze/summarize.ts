@@ -11,6 +11,8 @@
 // a proficiency framework.
 
 import { isContentPos, type AnalyzedToken, type LangCode } from "../language";
+import { orderSensesForToken } from "./senseOrder";
+import { contextWindows } from "./senseOrderEn";
 import { wordKey } from "../lookup";
 import { getProficiency, labelForBand, proficiencyFrameworkFor } from "../proficiency";
 import type { Word } from "../words/repository";
@@ -137,13 +139,15 @@ export function summarizeReader(input: ReaderAnalysisInput): ReaderSummary {
   const freqCounts = new Map<string, Tally>();
   let sourceLang: LangCode | null = null;
 
+  const context = contextWindows(tokens);
   for (const t of tokens) {
     if (!isContentPos(t.pos) || seen.has(wordKey(t))) continue;
     seen.add(wordKey(t)); // the SAME key as the check — 行った…行った is one word, not two
 
-    const senses = meaningsByWord.get(wordKey(t)) ?? [];
-    if (senses.length === 0) continue; // no dictionary entry — counted in `total`, not the pie
-    const primary = senses[0];
+    const all = meaningsByWord.get(wordKey(t)) ?? [];
+    if (all.length === 0) continue; // no dictionary entry — counted in `total`, not the pie
+    const senses = orderSensesForToken({ senses: all, token: t, context: context.get(t) });
+    const primary = senses[0]; // the context primary, as every other consumer sees it
     if (!sourceLang) sourceLang = primary.sourceLang;
 
     const savedSenses = senses.filter((s) => saved.has(s.wordId));

@@ -13,17 +13,26 @@
 //      the strong, cheap half: it never needs the sentence's words.
 //   2. DEFINITION OVERLAP (Lesk). Each EN→JA sense carries its synset's English
 //      definition (20260764). The sense whose definition shares the most content words
-//      with the surrounding sentence wins within the POS group — "the spring broke" vs
-//      "a metal elastic device …" is weak, but "water from the spring" vs "a natural
-//      flow of ground water" is exactly the hit this was built for.
+//      with the surrounding sentence wins within the POS group — "water from the
+//      spring" vs "a natural flow of ground water" is exactly the hit this was built for.
 //
 // CONSERVATIVE, like the Japanese rule — it declines rather than guesses:
 //   · fewer than two senses                         → nothing to disambiguate
 //   · the tag matches every sense, or none          → POS doesn't separate them
 //   · no definition shares a word with the sentence → the dictionary knew better
-//   · a tie at the top                              → dictionary order stands
+//   · the top score is SHARED by two senses         → no evidence between them
+//   · ONE shared word, and other senses share one too → too thin to move the primary
+//     (a single hit promotes only when it is the only sense scoring at all)
 // It is a REORDER only: no sense is dropped, relative order is kept within each group,
-// and cycling still reaches everything.
+// and cycling still reaches everything. The primary is what "Add all" SAVES, so the
+// bar for moving it is deliberately high.
+//
+// WHAT COUNTS AS A WORD on either side: NFC, lowercased, letters only, lemmatized, and
+// neither a function word nor WordNet's own boilerplate (something, someone, used,
+// act, …), which would otherwise vote for whichever definition happens to use it. A
+// sense's definition also drops its HEADWORD — WordNet's examples quote the word being
+// defined ("a light meal"), so a word repeated in the sentence would promote whichever
+// sense has an example. The same repeat is left out of the context window too.
 //
 // Rows cached before 20260760/20260764 carry JMdict POS codes (adj-i, v5r) and no
 // definition; the POS map below reads those too, and a missing definition simply
@@ -65,13 +74,31 @@ export function senseLetters(partOfSpeech: readonly string[] | null | undefined)
   return out;
 }
 
-/** One sentence/definition word as the overlap compares it: lowercase, letters only,
- *  lemmatized, and NOT a function word or a stub. Null = contributes nothing. */
+/** WordNet's definitional boilerplate — words that describe HOW a sense is defined,
+ *  not WHAT it is, and so appear across unrelated senses. The function-word list
+ *  (functionWords.ts) under-reaches on purpose for the reader; this is the gate for
+ *  definition text and sentence context alike. */
+const DEFINITION_STOPWORDS: ReadonlySet<string> = new Set([
+  "something", "someone", "somebody", "anything", "anyone", "everything", "nothing",
+  "one", "ones", "other", "another", "same", "such", "various", "certain", "particular",
+  "used", "use", "using", "usually", "especially", "often", "sometimes", "generally",
+  "act", "action", "state", "quality", "condition", "process", "result", "cause", "make",
+  "made", "making", "give", "given", "giving", "take", "taken", "taking", "put", "get",
+  "become", "becoming", "having", "have", "has", "had", "being", "been",
+  "person", "people", "thing", "things", "kind", "type", "sort", "way", "part", "form",
+  "place", "time", "means", "manner", "degree", "amount", "number", "group", "set",
+  "large", "small", "very", "more", "most", "less", "much", "many", "also", "there",
+  "when", "where", "while", "than", "then", "into", "onto", "upon", "without", "within",
+]);
+
+/** One sentence/definition word as the overlap compares it: NFC, lowercase, letters
+ *  only, lemmatized, and NOT a function word, boilerplate or a stub. Null = nothing. */
 function contentWord(raw: string): string | null {
-  const w = raw.toLowerCase().replace(/[^a-z']/g, "");
+  const w = raw.normalize("NFC").toLowerCase().replace(/[^\p{L}']/gu, "");
   if (w.length < 3) return null;
-  if (functionWordPos(w, "EN")) return null;
-  return englishLemma(w) ?? w;
+  if (functionWordPos(w, "EN") || DEFINITION_STOPWORDS.has(w)) return null;
+  const lemma = englishLemma(w) ?? w;
+  return DEFINITION_STOPWORDS.has(lemma) ? null : lemma;
 }
 
 /** The content words of a definition, as a set. Examples inside quotes count too —
@@ -79,11 +106,26 @@ function contentWord(raw: string): string | null {
 export function definitionWords(definition: string | null | undefined): ReadonlySet<string> {
   const out = new Set<string>();
   if (!definition) return out;
-  for (const piece of definition.split(/[^A-Za-z']+/)) {
+  // NFC first: a decomposed accent is a combining mark, not a letter, and would split
+  // the word in two before contentWord ever saw it.
+  for (const piece of definition.normalize("NFC").split(/[^\p{L}']+/u)) {
     const w = contentWord(piece);
     if (w) out.add(w);
   }
   return out;
+}
+
+/** definitionWords for a sense row, minus its own headword, computed once per row (the
+ *  same Word object is scored for every occurrence on the page and every render). */
+const senseWordsCache = new WeakMap<object, ReadonlySet<string>>();
+function senseWords(sense: { definitionSource: string | null; input?: string }): ReadonlySet<string> {
+  const hit = senseWordsCache.get(sense);
+  if (hit) return hit;
+  const words = new Set(definitionWords(sense.definitionSource));
+  const head = sense.input ? contentWord(sense.input) : null;
+  if (head) words.delete(head);
+  senseWordsCache.set(sense, words);
+  return words;
 }
 
 /** How many tokens either side of a word count as its context. Wide enough to hold a
@@ -92,11 +134,12 @@ export function definitionWords(definition: string | null | undefined): Readonly
 export const CONTEXT_WINDOW = 12;
 
 /**
- * For every ENGLISH token, the content words around it (its own word excluded) —
- * keyed by token identity so the call sites need no index plumbing. Japanese tokens
- * get no entry (they are disambiguated by reading, not by this).
+ * For every ENGLISH token, the content words around it — its own word excluded, in
+ * every occurrence — keyed by token identity so the call sites need no index plumbing.
+ * Japanese tokens get no entry (they are disambiguated by reading, not by this).
  */
-export function contextWindows(tokens: readonly AnalyzedToken[], window = CONTEXT_WINDOW): Map<AnalyzedToken, ReadonlySet<string>> {
+export function contextWindows(tokens: readonly AnalyzedToken[], opts: { window?: number } = {}): Map<AnalyzedToken, ReadonlySet<string>> {
+  const window = opts.window ?? CONTEXT_WINDOW;
   const out = new Map<AnalyzedToken, ReadonlySet<string>>();
   // Normalize once per token, not once per neighbour.
   const words = tokens.map((t) => {
@@ -107,6 +150,7 @@ export function contextWindows(tokens: readonly AnalyzedToken[], window = CONTEX
   });
   tokens.forEach((t, i) => {
     if (!isUposTag(t.pos)) return;
+    const own = new Set([words[i]?.a, words[i]?.b].filter((w): w is string => !!w));
     const set = new Set<string>();
     const lo = Math.max(0, i - window);
     const hi = Math.min(tokens.length - 1, i + window);
@@ -114,8 +158,8 @@ export function contextWindows(tokens: readonly AnalyzedToken[], window = CONTEX
       if (j === i) continue;
       const w = words[j];
       if (!w) continue;
-      if (w.a) set.add(w.a);
-      if (w.b) set.add(w.b);
+      if (w.a && !own.has(w.a)) set.add(w.a);
+      if (w.b && !own.has(w.b)) set.add(w.b);
     }
     out.set(t, set);
   });
@@ -133,11 +177,10 @@ const overlap = (a: ReadonlySet<string>, b: ReadonlySet<string>): number => {
  * it the sense whose definition shares the most content words with `context`. Returns
  * the input array unchanged (same reference) whenever there is nothing useful to do.
  */
-export function orderSensesByContextEn<T extends { partOfSpeech: string[] | null; definitionSource: string | null }>(
-  senses: T[],
-  tag: string | null | undefined,
-  context: ReadonlySet<string> | undefined,
-): T[] {
+export function orderSensesByContextEn<
+  T extends { partOfSpeech: string[] | null; definitionSource: string | null; input?: string },
+>(opts: { senses: T[]; tag: string | null | undefined; context: ReadonlySet<string> | undefined }): T[] {
+  const { senses, tag, context } = opts;
   if (senses.length < 2) return senses;
 
   // 1. POS gate — only when it genuinely separates the senses.
@@ -152,17 +195,20 @@ export function orderSensesByContextEn<T extends { partOfSpeech: string[] | null
     }
   }
 
-  // 2. Definition overlap within the leading group — only when a sense beats the one
-  //    already in front, and strictly (a tie is not evidence).
+  // 2. Definition overlap within the leading group — only when ONE sense beats the one
+  //    already in front, and either by two or more shared words or as the only sense
+  //    that shares any (see the header).
   let ordered = lead;
   if (context && context.size > 0 && lead.length > 1) {
-    const scores = lead.map((s) => overlap(definitionWords(s.definitionSource), context));
+    const scores = lead.map((s) => overlap(senseWords(s), context));
     const max = Math.max(...scores);
-    if (max > 0 && scores[0] < max) {
-      ordered = lead
-        .map((s, i) => ({ s, i, score: scores[i] }))
-        .sort((x, y) => y.score - x.score || x.i - y.i)
-        .map((x) => x.s);
+    const atMax = scores.filter((n) => n === max).length;
+    const scoring = scores.filter((n) => n > 0).length;
+    const decisive = max >= 2 || scoring === 1;
+    if (max > 0 && scores[0] < max && atMax === 1 && decisive) {
+      // Only the WINNER moves; everything else keeps the dictionary order.
+      const winner = lead[scores.indexOf(max)];
+      ordered = [winner, ...lead.filter((s) => s !== winner)];
     }
   }
 
