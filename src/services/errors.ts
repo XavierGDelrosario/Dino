@@ -14,12 +14,15 @@
 //   // or, requiring a row:  return unwrap({ data, error }, "Failed to create X");
 // =========================================================
 
+import { notifyRowLimit, parseRowLimit, type RowLimitHit } from "./rowLimit";
+
 /** Coarse, UI-switchable failure categories. */
 export type ServiceErrorKind =
   | "conflict" // unique violation — the thing already exists
   | "not_found" // a required row was absent
   | "permission" // RLS / insufficient privilege — not yours / not allowed
   | "validation" // a constraint (check/FK/not-null) or app-side input check failed
+  | "limit" // a per-user row cap (user_rows_cap, 20260785) — `limit` says which
   | "unknown"; // anything unmapped (network, unexpected provider error)
 
 // Postgres SQLSTATE → domain kind. PGRST116 is PostgREST's "no rows for single()".
@@ -37,16 +40,19 @@ export class ServiceError extends Error {
   readonly kind: ServiceErrorKind;
   /** Underlying provider/SQLSTATE code, when there was one. */
   readonly code?: string;
+  /** For kind "limit": the capped table and its ceiling. */
+  readonly limit?: RowLimitHit;
 
   constructor(
     message: string,
     kind: ServiceErrorKind = "unknown",
-    options?: { code?: string; cause?: unknown },
+    options?: { code?: string; cause?: unknown; limit?: RowLimitHit },
   ) {
     super(message);
     this.name = "ServiceError";
     this.kind = kind;
     this.code = options?.code;
+    this.limit = options?.limit;
     // Set `cause` as a property (avoids depending on the ES2022 Error-cause ctor
     // signature across tsconfig targets).
     if (options?.cause !== undefined) (this as { cause?: unknown }).cause = options.cause;
@@ -70,6 +76,16 @@ export function toServiceError(error: unknown, fallbackMessage?: string): Servic
   const e = (error ?? {}) as ProviderErrorLike;
   const code = typeof e.code === "string" ? e.code : undefined;
   const message = e.message ?? fallbackMessage ?? "Unexpected service error";
+  // A per-user row cap is a check violation (23514) with a message user_rows_cap()
+  // writes. It gets its own kind — AND is announced (services/rowLimit) so the app
+  // shell can show the "create an account" prompt wherever the save was attempted.
+  // The one side effect in this module, on purpose: it is the single boundary every
+  // save passes through.
+  const limit = code === "23514" ? parseRowLimit(e.message) : null;
+  if (limit) {
+    notifyRowLimit(limit);
+    return new ServiceError(message, "limit", { code, cause: error, limit });
+  }
   const kind: ServiceErrorKind = code ? KIND_BY_CODE[code] ?? "unknown" : "unknown";
   return new ServiceError(message, kind, { code, cause: error });
 }

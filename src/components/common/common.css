@@ -453,6 +453,33 @@ body {
   filter: grayscale(1) opacity(0.55);
 }
 
+/* The row-cap notice (RowLimitNotice): a card under the header, above the page, on
+   whichever surface the refused save happened. */
+.limitnotice {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.limitnotice__text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.limitnotice__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.limitnotice__actions .btn {
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+}
+
 /* Still positioned, but only as the anchor its own dropdown panel hangs from. */
 .profilemenu {
   position: relative;

@@ -10,7 +10,14 @@ const COPY_BY_KIND: Record<ServiceErrorKind, string> = {
   not_found: "We couldn't find that.",
   permission: "You don't have permission to do that.",
   validation: "That request wasn't valid.",
+  limit: "You've reached the limit.", // refined per table below; the shell shows the prompt
   unknown: "Something went wrong. Please try again.",
+};
+
+const LIMIT_COPY: Record<string, string> = {
+  user_words: "You've reached the saved-word limit.",
+  lists: "You've reached the list limit.",
+  media_favorites: "You've reached the saved-article limit.",
 };
 
 /**
@@ -27,6 +34,7 @@ const COPY_BY_KIND: Record<ServiceErrorKind, string> = {
  */
 export function errorMessage(e: unknown): string {
   if (e instanceof ServiceError) {
+    if (e.kind === "limit" && e.limit) return LIMIT_COPY[e.limit.table] ?? COPY_BY_KIND.limit;
     return e.code ? COPY_BY_KIND[e.kind] : e.message;
   }
   if (e instanceof Error) return e.message;
