@@ -18,7 +18,7 @@ import { getDifficulty } from "../difficulty";
 import type { Word } from "../words/repository";
 import type { ReaderAnalysisInput } from "./summarize";
 import { orderSensesForToken } from "./senseOrder";
-import { contextWindows } from "./senseOrderEn";
+import { contextWindows, isUposTag } from "./senseOrderEn";
 
 export interface ArticleWord {
   /** Dictionary headword (primary sense input). */
@@ -56,15 +56,18 @@ export function articleWordList(input: ReaderAnalysisInput): ArticleWord[] {
     // Lead with the sense the context picked (analyze/senseOrder) — the analyzer's
     // reading for Japanese, the tagger's POS + definition overlap for English — so the
     // row's primary, and the quiz card built from it, matches what the reader showed.
-    // The dedupe below keys on the resulting primary's wordId; in practice IPADIC
-    // returns one fixed reading per surface, so the same word still collapses to one
-    // row rather than splitting per occurrence.
-    const senses = orderSensesForToken(meaningsByWord.get(wordKey(t)) ?? [], t, context.get(t));
+    // The dedupe key: for an ENGLISH token the WORD (wordKey — the lookup key the
+    // meanings are shared under), because two occurrences may lead with different
+    // senses in their own sentences and are still one word, one row, one card. For
+    // Japanese the primary's wordId, as before — IPADIC gives one reading per surface,
+    // and conjugations without a lemma still collapse through their shared sense.
+    const senses = orderSensesForToken({ senses: meaningsByWord.get(wordKey(t)) ?? [], token: t, context: context.get(t) });
     if (senses.length === 0) continue; // no dictionary entry — disregard
     const primary = senses[0];
 
-    // Already seen this dictionary word → just tally another occurrence.
-    const existing = byWordId.get(primary.wordId);
+    const rowKey = isUposTag(t.pos) ? wordKey(t) : primary.wordId;
+    // Already seen this word → just tally another occurrence.
+    const existing = byWordId.get(rowKey);
     if (existing) {
       existing.occurrences++;
       continue;
@@ -75,7 +78,7 @@ export function articleWordList(input: ReaderAnalysisInput): ArticleWord[] {
     const conf = isKnown ? Math.max(...savedSenses.map((s) => confidence.get(s.wordId) ?? 0)) : 0;
     const prof = getProficiency(primary);
 
-    byWordId.set(primary.wordId, {
+    byWordId.set(rowKey, {
       headword: primary.input,
       reading: primary.inputReading,
       primary,

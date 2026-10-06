@@ -21,7 +21,7 @@ import { tokenizeWords, type WordToken } from "./tokenize";
 import { getCounterResolver, parseJapaneseNumber } from "./counters";
 import { mergeJapaneseCompounds } from "./compounds";
 import { functionWordPos } from "./functionWords";
-import { readerLemma } from "./lemmaEn";
+import { loadEnglishBaseForms, readerLemma } from "./lemmaEn";
 import { tagEnglish } from "./posEn";
 
 /** A segmented word, enriched with reading/lemma when the language supports it. */
@@ -188,7 +188,7 @@ function segmentOnly(text: string, lang: LangCode): AnalyzedToken[] {
     // The reader looks up by `lemma ?? text`, so this collapses cat/cats onto one
     // entry and stops a homograph surface (sat → SAT the assault team) beating the
     // verb. Null where no rule is safe, restoring look-up-as-written.
-    lemma: readerLemma(t.text, lang),
+    lemma: readerLemma(t.text, { lang }),
     // Junk first: it is language-independent, so it applies even where no
     // closed-class list exists.
     pos: nonVocabularyPos(t.text) ?? functionWordPos(t.text, lang),
@@ -607,6 +607,9 @@ async function analyzeEnglish(text: string, lang: LangCode): Promise<AnalyzedTok
   const tokens = tokenizeWords(text, lang);
   if (tokens.length === 0) return [];
 
+  // The lemma verifier (WordNet base forms) rides the same lazy path as the model;
+  // without it the tag-gated lemma rules simply don't fire.
+  await loadEnglishBaseForms().catch(() => {});
   const tags = new Array<string | null>(tokens.length).fill(null);
   for (const group of sentenceGroups(text, tokens)) {
     const tagged = await tagEnglish(group.map((i) => tokens[i].text));
@@ -621,7 +624,7 @@ async function analyzeEnglish(text: string, lang: LangCode): Promise<AnalyzedTok
     reading: null,
     // The tag is what lets regular -ing/-ed/-es resolve (lemmaEn.ts): a VERB form is
     // lemmatized, a NOUN that happens to end in -ing (building) is left as the word it is.
-    lemma: readerLemma(t.text, lang, tags[i]),
+    lemma: readerLemma(t.text, { lang, tag: tags[i] }),
     pos: nonVocabularyPos(t.text) ?? tags[i],
   }));
 }

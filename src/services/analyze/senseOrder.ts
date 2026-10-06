@@ -63,20 +63,23 @@ export function orderSensesByContextReading<T extends { inputReading: string | n
 }
 
 /**
- * THE seam the reader, the quiz builder and the article word list all go through: the
- * senses of one token OCCURRENCE in the order the context suggests. A Japanese token
- * (kuromoji POS) is ordered by its reading; an English token (UD tag) by the tagger's
- * part of speech and definition overlap with the words around it (senseOrderEn.ts) —
- * `context` is that token's entry from `contextWindows`. Both halves are reorder-only
- * and decline rather than guess, so the dictionary order is what survives doubt.
+ * THE seam the reader, the quiz builder, the article word list, "show in context" and
+ * the summary all go through: the senses of one token OCCURRENCE in the order the
+ * context suggests. A Japanese token (kuromoji POS) is ordered by its reading; an
+ * English token (UD tag) by the tagger's part of speech and definition overlap with
+ * the words around it (senseOrderEn.ts) — `context` is that token's entry from
+ * `contextWindows`. Both halves are reorder-only and decline rather than guess, so
+ * the dictionary order is what survives doubt. Every consumer MUST take its primary
+ * from here, or the card, the saved word and the sentence shown for it disagree.
  */
 export function orderSensesForToken<
   T extends { inputReading: string | null; input?: string; partOfSpeech: string[] | null; definitionSource: string | null },
->(
-  senses: T[],
-  token: { pos: string | null; reading: string | null; lemmaReading?: string | null },
-  context?: ReadonlySet<string>,
-): T[] {
-  if (isUposTag(token.pos)) return orderSensesByContextEn(senses, token.pos, context);
+>(opts: {
+  senses: T[];
+  token: { pos: string | null; reading: string | null; lemmaReading?: string | null };
+  context?: ReadonlySet<string>;
+}): T[] {
+  const { senses, token, context } = opts;
+  if (isUposTag(token.pos)) return orderSensesByContextEn({ senses, tag: token.pos, context });
   return orderSensesByContextReading(senses, token.lemmaReading ?? token.reading);
 }

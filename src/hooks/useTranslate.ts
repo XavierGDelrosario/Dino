@@ -824,7 +824,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
         // Lead with the sense the SENTENCE used — kuromoji's reading for Japanese, the
         // tagger's POS + definition overlap for English (analyze/senseOrder). No-op
         // unless the context genuinely separates the senses.
-        const senses = orderSensesForToken(para.meanings.get(wordKey(tok)) ?? [], tok, context.get(tok));
+        const senses = orderSensesForToken({ senses: para.meanings.get(wordKey(tok)) ?? [], token: tok, context: context.get(tok) });
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);

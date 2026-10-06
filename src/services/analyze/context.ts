@@ -15,6 +15,8 @@
 // =========================================================
 
 import { isContentPos, type AnalyzedToken } from "../language";
+import { orderSensesForToken } from "./senseOrder";
+import { contextWindows } from "./senseOrderEn";
 import { wordKey } from "../lookup";
 import type { SentenceGloss } from "../lookup";
 import type { Word } from "../words/repository";
@@ -48,11 +50,15 @@ export function contextByWord(input: ContextInput): Map<string, WordContext[]> {
   const { tokens, meaningsByWord, sentences } = input;
   const out = new Map<string, WordContext[]>();
   if (sentences.length === 0) return out;
+  const context = contextWindows(tokens);
 
   for (const token of tokens) {
     if (!isContentPos(token.pos)) continue;
-    const senses = meaningsByWord.get(wordKey(token));
-    if (!senses || senses.length === 0) continue; // no entry → never a card
+    const all = meaningsByWord.get(wordKey(token));
+    if (!all || all.length === 0) continue; // no entry → never a card
+    // The CONTEXT primary — the same one the quiz card is keyed on (analyze/senseOrder);
+    // keyed on the dictionary primary instead, a reordered English card found nothing.
+    const senses = orderSensesForToken({ senses: all, token, context: context.get(token) });
     const key = senses[0].wordId;
 
     // The sentence containing this occurrence. Sentences are non-overlapping and
