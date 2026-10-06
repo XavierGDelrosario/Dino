@@ -33,8 +33,7 @@ import {
   type Point,
   type ProfileHistory,
 } from "../../services/history";
-import { clampView, fullView, isFullView, niceTicks, panBy, zoomAt, type Bounds, type View } from "./plotView";
-import { goalPerBucket } from "./plotView";
+import { clampView, fullView, goalPerBucket, isFullView, niceTicks, panBy, zoomAt, type Bounds, type View } from "./plotView";
 import type { Goals } from "../../services/goals";
 import "./history.css";
 
