@@ -306,7 +306,7 @@ It only bites when English is the **learning target**.
 | Sense disambiguation in context | — | ‼️ **Newly unblocked.** **75%** of banded EN lemmas are polysemous (mean 4.21 synsets, max 75). Lesk over `definition_en` + the reader's sentence needs no new data, and the tagger's tag now narrows the synset set by POS before Lesk runs. |
 | Derived-form band | per-POS bands | `growing` takes the list's B2 rather than inheriting `grow`'s A1 plus a penalty. Pool ORDERING is handled (`20260761`); placement is not. |
 | Compound handling | — | JA has `compounds.ts`; EN has nothing (*bus stop* → two words). Marginal. |
-| EN→JA sense quality | — | WordNet synsets lead, gloss fills; grouping never live-verified (spring 春/泉/ばね). ⚠️ `wordnet_senses_en.sense_rank` is **0 on all 206,941 rows** — wnjpn ships no ranks — so the intra-tier tiebreak `20260747` reserves for WordNet's own sense order is INERT. `headline_rank` carries the ordering alone (measured 28/30 top-1). Princeton `index.sense` tag counts would fill it; ids line up (`07125096-n` = offset+POS), so bundle it into any `wordnet_*` re-ingest rather than doing it alone. |
+| EN→JA sense quality | — | WordNet synsets lead, gloss fills; grouping never live-verified (spring 春/泉/ばね). Sense ranks are filled (`apply:wordnet-ranks`, re-run after any `wordnet_*` re-ingest) and used demote-only past the 5th sense (`20260794`); re-measure the 30-word list before moving that threshold. |
 
 **Not gaps — do not file these.** Furigana, the reading/writing override tables, context
 sense ordering (`senseOrder`) and potential-verb/する candidates all key on a **reading**,

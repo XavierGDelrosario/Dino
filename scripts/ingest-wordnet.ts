@@ -5,6 +5,9 @@
 // supabase/migrations/20260703_wordnet.sql). The translate edge function then
 // queries them via wordnet_en_ja_lookup() to drive a SEMANTIC EN->JA lookup
 // (English lemma -> synsets -> Japanese lemmas), resolved through JMdict for
+// ... AFTER THIS INGEST run `npm run apply:wordnet-ranks -- <WordNet-3.0/dict/index.sense>`:
+// wnjpn ships no sense ranks, the truncate below wipes the filled column, and the EN→JA
+// ordering (20260794) demotes senses past a lemma's 5th on it.
 // readings/frequency/POS.
 //
 // Two inputs, both from https://bond-lab.github.io/wnja/eng/downloads.html:
