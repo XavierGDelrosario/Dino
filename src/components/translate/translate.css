@@ -42,11 +42,11 @@
 /* The reader's text plus its foot. Never shorter than three lines of the text, so a
    one-sentence paste still reads as a reading surface rather than a caption, and the
    foot — Google's badge, bottom-right — has a corner to sit in that is clear of the
-   words. 3 × (1.4rem × 2.1). */
+   words. 3 × (1.862rem × 2.1). */
 .reader__body {
   display: flex;
   flex-direction: column;
-  min-height: 8.82rem;
+  min-height: 11.73rem;
 }
 
 /* Bottom-right of the reader, once, whenever a machine translation is showing in it —
@@ -60,7 +60,7 @@
 }
 
 .reader {
-  font-size: 1.4rem;
+  font-size: 1.862rem; /* 1.4rem × 1.33 (founder call 2026-10-07); line-height ratio kept */
   line-height: 2.1;
   margin: 0;
   word-break: break-word;
@@ -376,11 +376,12 @@
      = 12.6pt, and this is 14.6pt. It stays in rem rather than becoming `14.6pt` because
      pt is absolute — it would ignore a reader who has raised their browser's default
      font size, which is the one accessibility lever this app doesn't have to build. */
-  --io-font: 1.217rem; /* 14.6pt (12.6pt + 2) */
+  --io-font: 1.619rem; /* 19.4pt — 14.6pt (12.6pt + 2) × 1.33, founder call 2026-10-07 */
   /* The TEXT floor — how tall the pair is when the buttons don't need more. It is no
      longer the button arithmetic: .io__gutter lays those out (see there), so this is
-     just "enough room to read a few lines". */
-  --io-box-min: 8rem;
+     just "enough room to read a few lines" — scaled with --io-font so the floor still
+     holds the same number of lines (8rem × 1.33). */
+  --io-box-min: 10.6rem;
   display: flex;
   gap: 1rem;
   align-items: stretch;
@@ -1094,11 +1095,11 @@ textarea.translate__box::-webkit-scrollbar {
      box behind this overlay, so a centred pad hid the one thing the user needed to
      check — and the pad is taller than the boxes (~400px vs 15rem), so centring even
      pushed its top ABOVE them. Anchored to the top and nudged down by the textarea's
-     first line (0.8rem padding + one 1.6 line at --io-font ≈ 2.75rem, rounded to 3),
-     so the growing text stays visible while drawing. The pad spills further below the
-     boxes than it used to; that is the side with room. */
+     first line (0.8rem padding + one 1.6 line at --io-font ≈ 3.4rem), so the growing
+     text stays visible while drawing. The pad spills further below the boxes than it
+     used to; that is the side with room. */
   align-items: flex-start;
-  padding-top: 3rem;
+  padding-top: 3.4rem;
   justify-content: center;
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg, #16181d) 78%, transparent);
