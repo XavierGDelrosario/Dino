@@ -40,6 +40,18 @@ export interface PendingGrade {
 /** After this many failed replays an entry stops blocking the others (see drainable). */
 export const MAX_ATTEMPTS = 5;
 
+// Who wants to know the queue changed: the replay scheduler (sync.ts — a new entry is
+// the moment to start retrying) and the Review screen (its "N grades waiting" line
+// reads the LIVE count, so a successful drain clears it).
+const listeners = new Set<() => void>();
+export function onQueueChanged(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => void listeners.delete(fn);
+}
+function changed(): void {
+  for (const fn of [...listeners]) fn();
+}
+
 /** Every queued grade, oldest first. Replay order matters: two grades of the SAME card
  *  must reach the server in the order they were given, or the later stability wins. */
 export async function pending(store: OfflineStore): Promise<PendingGrade[]> {
@@ -50,6 +62,7 @@ export async function enqueue(store: OfflineStore, entry: Omit<PendingGrade, "at
   const q = await pending(store);
   q.push({ ...entry, attempts: 0 });
   await store.set(KEY, q);
+  changed();
 }
 
 /**
@@ -73,6 +86,7 @@ export async function acknowledge(store: OfflineStore, ids: string[]): Promise<v
   if (ids.length === 0) return;
   const done = new Set(ids);
   await store.set(KEY, (await pending(store)).filter((e) => !done.has(e.id)));
+  changed();
 }
 
 /** Record a failed attempt, keeping the entry. */
@@ -83,6 +97,7 @@ export async function markFailed(store: OfflineStore, ids: string[]): Promise<vo
     KEY,
     (await pending(store)).map((e) => (failed.has(e.id) ? { ...e, attempts: e.attempts + 1 } : e)),
   );
+  changed();
 }
 
 /** How many grades are waiting — the number the UI shows. */
@@ -93,6 +108,7 @@ export async function pendingCount(store: OfflineStore): Promise<number> {
 /** Clear everything. For sign-out: a queue belongs to the user who created it. */
 export async function clearQueue(store: OfflineStore): Promise<void> {
   await store.del(KEY);
+  changed();
 }
 
 /** Stable-ish id without pulling in a dependency; crypto.randomUUID where available. */

@@ -20,6 +20,7 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(PhotoAccessPlugin())
         bridge?.registerPluginInstance(OnDeviceTranslatePlugin())
         bridge?.registerPluginInstance(DailyWordWidgetPlugin())
+        bridge?.registerPluginInstance(AppSettingsPlugin())
     }
 
     // The scroll indicator down the right edge is drawn by WKWebView's own scroll

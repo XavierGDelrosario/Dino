@@ -33,7 +33,7 @@ describe("drainPendingReviews", () => {
     await enqueue(store, g("e1", "a"));
     await enqueue(store, g("e2", "b"));
 
-    expect(await drainPendingReviews()).toEqual({ sent: 2, failed: 0, remaining: 0 });
+    expect(await drainPendingReviews()).toEqual({ sent: 2, failed: 0, remaining: 0, unreachable: false });
     expect(mockSend).toHaveBeenCalledWith({ userWordId: "a", grade: 4, reviewedAt: g("e1", "a").reviewedAt });
     expect(await pending(store)).toEqual([]);
   });
@@ -47,7 +47,7 @@ describe("drainPendingReviews", () => {
   });
 
   it("is a no-op with nothing queued", async () => {
-    expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 0, remaining: 0 });
+    expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 0, remaining: 0, unreachable: false });
     expect(mockSend).not.toHaveBeenCalled();
   });
 
@@ -75,12 +75,12 @@ describe("drainPendingReviews", () => {
     mockSend.mockRejectedValue(new TypeError("Load failed"));
 
     for (let i = 0; i < 6; i++) {
-      expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 0, remaining: 2 });
+      expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 0, remaining: 2, unreachable: true });
     }
     expect((await pending(store)).map((e) => e.attempts)).toEqual([0, 0]);
 
     mockSend.mockResolvedValue({ userWordId: "x", stability: 1, confidenceRating: 1, lastReviewedDate: "" });
-    expect(await drainPendingReviews()).toEqual({ sent: 2, failed: 0, remaining: 0 });
+    expect(await drainPendingReviews()).toEqual({ sent: 2, failed: 0, remaining: 0, unreachable: false });
   });
 
   it("stops trying the remaining cards once the server is unreachable", async () => {
@@ -95,7 +95,7 @@ describe("drainPendingReviews", () => {
     await enqueue(store, g("e1", "a"));
     mockSend.mockRejectedValue(new Error("invalid grade"));
 
-    expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 1, remaining: 1 });
+    expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 1, remaining: 1, unreachable: false });
     expect((await pending(store))[0].attempts).toBe(1);
   });
 

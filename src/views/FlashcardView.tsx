@@ -121,7 +121,7 @@ export function FlashcardView({
             {t("review.newQuiz")}
           </button>
         </div>
-        {r.pendingCount > 0 && <p className="review__offline">{t("review.offlineNote")}</p>}
+        {r.pendingCount > 0 && <p className="review__offline">{t("review.offlineNote", { n: r.pendingCount })}</p>}
         <QuizWordList
           items={r.cards.map((c) => ({
             key: c.userWordId,

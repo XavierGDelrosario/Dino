@@ -10,6 +10,8 @@
 // is KEPT with its grade (`failed`) and re-sent by retryFailed — the user never has to
 // re-grade. Same shape as useTextQuiz (a change to one flashcard quiz is a change to both).
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onQueueChanged, pendingCount as queuedCount } from "../services/offline/queue";
+import { offlineStore } from "../services/offline/store";
 import {
   getReviewQueue,
   recordReview,
@@ -124,6 +126,20 @@ export function useReview(
     newQuiz();
   }, [newQuiz]);
 
+  // The "grades waiting" count is the LIVE queue, not a tally of this session's
+  // queued writes: a replay that lands (on a retry, a reconnect, a resume) clears it,
+  // and a blip that queued one grade stops looking like a day offline.
+  useEffect(() => {
+    let live = true;
+    const read = () => void queuedCount(offlineStore()).then((n) => live && setPendingCount(n)).catch(() => {});
+    read();
+    const off = onQueueChanged(read);
+    return () => {
+      live = false;
+      off();
+    };
+  }, []);
+
   const flip = useCallback(() => setFlipped(true), []);
 
   /** Record one grade in the background. Resolves either way; never throws. */
@@ -146,6 +162,7 @@ export function useReview(
       .then(
         (res) => {
           if (session.current !== token) return;
+          // Immediate feedback; the live queue read (above) corrects it once storage settles.
           if (res.queued) setPendingCount((n) => n + 1);
           setGradedConfidence((m) => new Map(m).set(card.userWordId, res.confidenceRating));
         },
