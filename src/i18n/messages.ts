@@ -562,6 +562,17 @@ export const en = {
   "reminder.notifTitle": "DINO",
   "reminder.notifBody": "Time to study — keep your streak alive 🔥",
 
+  // per-user row caps (migration 20260785/93) — the account prompt
+  "limit.guestWords": "You’ve saved {n} words — the most a guest can hold. Create a free account to keep going; everything you’ve saved comes with you.",
+  "limit.guestOther": "You’ve reached {n} {what} — the most a guest can hold. Create a free account to keep going; everything you’ve saved comes with you.",
+  "limit.accountWords": "You’ve reached {n} saved words, the most one account can hold. Delete words you no longer need to save more.",
+  "limit.accountOther": "You’ve reached {n} {what}, the most one account can hold. Remove some to add more.",
+  "limit.what.words": "words",
+  "limit.what.lists": "lists",
+  "limit.what.articles": "saved articles",
+  "limit.createAccount": "Create account",
+  "limit.dismiss": "Not now",
+
   // legal
   "legal.privacy": "Privacy",
   "legal.terms": "Terms",
@@ -1073,6 +1084,16 @@ export const ja: Record<MessageKey, string> = {
   "reminder.denied": "DINOの通知がブロックされています。ブラウザまたは端末の設定で許可してから、リマインダーをオンにしてください。",
   "reminder.notifTitle": "DINO",
   "reminder.notifBody": "学習の時間です — 連続記録を守りましょう 🔥",
+
+  "limit.guestWords": "{n}語を保存しました。ゲストで保存できるのはここまでです。無料アカウントを作れば続けられます。保存した単語はすべて引き継がれます。",
+  "limit.guestOther": "{what}が{n}件になりました。ゲストで保存できるのはここまでです。無料アカウントを作れば続けられます。保存したものはすべて引き継がれます。",
+  "limit.accountWords": "保存した単語が{n}語に達しました。1つのアカウントで保存できる上限です。不要な単語を削除すると追加できます。",
+  "limit.accountOther": "{what}が{n}件に達しました。1つのアカウントの上限です。いくつか削除すると追加できます。",
+  "limit.what.words": "単語",
+  "limit.what.lists": "リスト",
+  "limit.what.articles": "保存した記事",
+  "limit.createAccount": "アカウントを作成",
+  "limit.dismiss": "あとで",
 
   "legal.privacy": "プライバシー",
   "legal.terms": "利用規約",

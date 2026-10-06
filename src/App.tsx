@@ -19,6 +19,7 @@ import { ErrorText } from "./components/common/ErrorText";
 import { SplashScreen } from "./components/common/Loading";
 import { AttributionFooter } from "./components/common/AttributionFooter";
 import { StreakBadge } from "./components/common/StreakBadge";
+import { RowLimitNotice } from "./components/common/RowLimitNotice";
 import { useReminderSync } from "./hooks/useReminderSync";
 import { useStreak } from "./hooks/useStreak";
 import { HomeView } from "./views/HomeView";
@@ -172,6 +173,10 @@ export function App() {
           <ErrorText message={error.message} />
         </div>
       )}
+
+      {/* A refused save (per-user row cap): the account prompt for a guest. Shown here so
+          it lands on whichever surface the save came from. */}
+      {userId && !recovering && <RowLimitNotice userId={userId} isAnonymous={isAnonymous} />}
 
       {/* Password-recovery takeover: followed a reset link → set a new password first. */}
       {recovering && <ResetPasswordView onDone={clearRecovery} onCancel={clearRecovery} />}
