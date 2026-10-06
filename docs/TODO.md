@@ -139,7 +139,7 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🧱 Extendable Features</h2></summary>
 
-### Streak · goals · reminders (`/goals`, migration 20260790)
+### Streak · goals · reminders (`/goals`, migrations 20260790–91)
 - **Web reminders fire only while a tab is open** (Notification API + timer). Always-on web
   = a service worker + push; the iOS build already gets real scheduled notifications.
 - Verify `@capacitor/local-notifications` on a device: `npm run ios:build` (cap sync + pod
