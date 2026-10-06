@@ -2,23 +2,32 @@
 // there's no login wall — /signin and /signup are optional pages reached from the
 // person-icon menu. Header (menu + title) and footer wrap every route; the
 // password-recovery flow is a takeover regardless of route.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "./hooks/useSession";
-import { needsTermsAcceptance } from "./services/session";
+import { completeGoogleSignIn, needsTermsAcceptance } from "./services/session";
+import { hasGoogleReturn, recordGoogleFailure, takeGoogleReturn } from "./services/googleIdentity";
 import { warmJapaneseAnalyzer } from "./services/language";
+import { Capacitor } from "@capacitor/core";
 import { watchForReconnect } from "./services/offline/sync";
+import { watchOfflineDeck } from "./services/review";
+import { watchDailyWordWidget } from "./services/widget/dailyWord";
 import { ProfileMenu } from "./components/common/ProfileMenu";
 import { LanguageMenu } from "./components/common/LanguageMenu";
 import { ResetPasswordView } from "./components/common/ResetPasswordView";
 import { TermsGateView } from "./components/common/TermsGateView";
 import { ErrorText } from "./components/common/ErrorText";
 import { SplashScreen } from "./components/common/Loading";
+import { AttributionFooter } from "./components/common/AttributionFooter";
+import { StreakBadge } from "./components/common/StreakBadge";
+import { useReminderSync } from "./hooks/useReminderSync";
+import { useStreak } from "./hooks/useStreak";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
 import { HistoryPage } from "./views/HistoryPage";
 import { DeleteAccountPage } from "./views/DeleteAccountPage";
 import { AdminPage } from "./views/AdminPage";
+import { GoalsPage } from "./views/GoalsPage";
 import { LegalView } from "./views/LegalView";
 import { useI18n } from "./i18n";
 import { useRouter, Link } from "./router";
@@ -40,6 +49,33 @@ export function App() {
     }
   }, [recovering, isAnonymous, path, navigate]);
 
+  // Google has just returned with an ID token (services/googleIdentity). Finish the
+  // sign-in HERE, behind the splash, so the user goes from Google straight to the app
+  // instead of watching the sign-in form reload and then leave. It needs the booted
+  // session (a sign-up links the current guest), hence the wait for `userId`. A refusal
+  // is handed to the auth page — the URL was already put back on it — to explain.
+  const [finishingGoogle, setFinishingGoogle] = useState(hasGoogleReturn);
+  const googleStarted = useRef(false);
+  useEffect(() => {
+    if (!userId || googleStarted.current) return;
+    const back = takeGoogleReturn();
+    if (!back) return;
+    googleStarted.current = true;
+    void completeGoogleSignIn(back)
+      .then((failed) => {
+        if (failed) recordGoogleFailure(failed);
+        else navigate("/");
+      })
+      .finally(() => setFinishingGoogle(false));
+  }, [userId, navigate]);
+
+  // A recovery takeover only makes sense for an ACCOUNT. `recovering` is seeded from
+  // the URL, so a mangled or crafted link could raise it over a guest, whose password
+  // can never be set — a form with no way out. Drop it.
+  useEffect(() => {
+    if (recovering && userId && isAnonymous) clearRecovery();
+  }, [recovering, userId, isAnonymous, clearRecovery]);
+
   // Terms gate: a permanent account that hasn't accepted the current Terms version
   // (Google signup that skipped the checkbox, or anyone after a Terms update) must
   // accept before using the app. Guests are never gated. Fail open on a check error.
@@ -54,6 +90,20 @@ export function App() {
     return watchForReconnect();
   }, [userId]);
 
+  // Keep a deep review deck on the device so Review still deals cards with no network.
+  // The APP only: offline study is a native use case, and on the web this would be an
+  // extra ranked query on every page load for a deck nobody opens.
+  useEffect(() => {
+    if (!userId || !Capacitor.isNativePlatform()) return;
+    return watchOfflineDeck(userId);
+  }, [userId]);
+
+  // Hand the home-screen widgets their daily words (services/widget). Inert on the web.
+  useEffect(() => {
+    if (!userId) return;
+    return watchDailyWordWidget(userId);
+  }, [userId]);
+
   const [needsTerms, setNeedsTerms] = useState(false);
   useEffect(() => {
     if (!userId || isAnonymous || recovering) { setNeedsTerms(false); return; }
@@ -63,6 +113,11 @@ export function App() {
       .catch(() => { if (active) setNeedsTerms(false); });
     return () => { active = false; };
   }, [userId, isAnonymous, recovering]);
+
+  // Reminders (services/reminders): re-schedule the coming week whenever today's
+  // activity flips, so the first save or grade of the day cancels today's nag.
+  const { streaks } = useStreak(userId ?? "");
+  useReminderSync(userId ? (streaks?.studiedToday ?? null) : null);
 
   // Preload kuromoji's dictionary during idle time so the first Japanese analysis
   // (the Translate reader) isn't slowed by the ~12MB load. Best-effort only.
@@ -78,7 +133,7 @@ export function App() {
   // Startup: nothing but the mascot + dots until the session exists — the header's
   // menus have nothing to act on yet, and this picks up exactly where index.html's
   // pre-bundle splash left off.
-  if (loading) return <SplashScreen />;
+  if (loading || (finishingGoogle && !error)) return <SplashScreen />;
 
   return (
     // The app is a phone-width column everywhere EXCEPT /admin: that's an ops
@@ -87,6 +142,7 @@ export function App() {
     // panels. Widen the column for that one route; every other view is unchanged.
     <main className={`app${path === "/admin" ? " app--wide" : ""}`}>
       <header className="app__header">
+        {userId && <StreakBadge userId={userId} />}
         {/* The top-bar controls, as ONE row: language · account. They used
             to position themselves individually (right: 0, right: 2.6rem), which meant
             every new one had to know the width of the ones beside it — and the account
@@ -118,7 +174,7 @@ export function App() {
       )}
 
       {/* Password-recovery takeover: followed a reset link → set a new password first. */}
-      {recovering && <ResetPasswordView onDone={clearRecovery} />}
+      {recovering && <ResetPasswordView onDone={clearRecovery} onCancel={clearRecovery} />}
 
       {/* Legal docs are ALWAYS reachable — even while the Terms gate is up, the user
           must be able to read what they're accepting (the gate links here in a new tab). */}
@@ -140,8 +196,15 @@ export function App() {
         : path === "/history" ? (isAnonymous ? <AuthPage mode="signup" /> : <HistoryPage userId={userId} />)
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
         : path === "/admin" ? <AdminPage />
-        : <HomeView userId={userId} />
+        : path === "/goals" ? <GoalsPage userId={userId} />
+        : <HomeView key={userId} userId={userId} />
       )}
+
+      {/* Legal links + data-source credits for EVERYONE — they used to sit only on the
+          Profile page, which a guest (the default visitor) can't reach. Hidden by CSS on
+          the study surfaces (Translate, Review, quizzes — see NoFooter); a guest finds
+          them on Lists, Learn and the sign-in page. */}
+      <AttributionFooter />
     </main>
   );
 }

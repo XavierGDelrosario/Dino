@@ -201,6 +201,12 @@ export function QualityPanel() {
                       {senses.get(r.dictionaryWordId)?.translation ?? "(sense no longer cached)"}
                     </span>
                   )}
+                  {/* What the app answered, for a report from Translate's output flag. */}
+                  {r.output && (
+                    <span className="admin__sense admin__truncate ellipsis" title={r.output}>
+                      → {r.output}
+                    </span>
+                  )}
                 </td>
                 <td className="admin__wrap">
                   {r.description ?? <span className="admin__muted">—</span>}

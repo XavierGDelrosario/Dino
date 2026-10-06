@@ -1,5 +1,5 @@
-// The session-history dropdown: a clock button that opens the list of what you
-// translated this session (see services/translateHistory.ts — session only).
+// The history dropdown: a clock button that opens the list of what you translated on
+// this device (see services/translateHistory.ts — kept on the device only).
 //
 // It's a POPUP rather than an inline row because the history is a look-back, not
 // part of the translate flow: a chip row sat permanently between the input and the
@@ -11,7 +11,7 @@
 import { useEffect, useRef } from "react";
 import { HistoryIcon } from "../common/icons";
 import { useI18n } from "../../i18n";
-import type { TranslateHistoryEntry } from "../../services/translateHistory";
+import { entryDate, type TranslateHistoryEntry } from "../../services/translateHistory";
 
 export function HistoryMenu({
   entries,
@@ -31,7 +31,7 @@ export function HistoryMenu({
   /** A translation is in flight — replaying now would race it. */
   disabled?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const wrapRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -79,6 +79,9 @@ export function HistoryMenu({
               className="thistory__clear"
               aria-label={t("translate.historyClearAria")}
               onClick={() => {
+                // It erases up to 200 lookups kept across restarts, and there is no
+                // undo — the same confirm the Lists deletes ask for.
+                if (!confirm(t("translate.historyClearConfirm"))) return;
                 onClear();
                 onClose();
               }}
@@ -106,6 +109,7 @@ export function HistoryMenu({
                   <span className="thistory__text">{entry.text}</span>
                   <span className="thistory__dir" aria-hidden="true">
                     {entry.source} → {entry.target}
+                    {entryDate(entry, locale) && ` · ${entryDate(entry, locale)}`}
                   </span>
                 </button>
               </li>

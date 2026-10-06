@@ -267,7 +267,26 @@ export interface PlacementBandStat {
   known: number;
   /** known / count, 0 when count is 0. */
   knownFraction: number;
+  /** Estimated share of the band's whole POOL the user knows — what the bar is held
+   *  against. Equals knownFraction when there are no pool counts for the band. */
+  estimate: number;
+  /** The swipe rate that would exactly clear the bar given what the user already holds
+   *  (≤ 0 = already cleared, > 1 = out of reach by swiping alone), or null without pool
+   *  counts / with nothing left to swipe. */
+  requiredRate: number | null;
 }
+
+/**
+ * How much of one band's quiz pool the user already holds (migration 20260786):
+ * `pool` every word the quiz could deal there, `known` the pool words they have saved
+ * and hold long-term, `unsaved` the ones not in the vocabulary — what the quiz still deals.
+ */
+export interface PlacementPoolBand {
+  pool: number;
+  unsaved: number;
+  known: number;
+}
+export type PlacementPool = ReadonlyMap<number, PlacementPoolBand>;
 
 export interface PlacementLevel {
   /** Per-band tallies, easiest → hardest. */
@@ -305,8 +324,23 @@ export interface PlacementRating {
  * band this reduces exactly to "credit it iff known/count ≥ pass" — the old rule, tie
  * included — and across bands the evidence is weighed rather than truncated. Lowest cost
  * wins. Untrusted bands (too few answers) contribute nothing, as before.
+ *
+ * THE BAR IS A SHARE OF THE POOL, not of the swipes (`pool`, migration 20260786). The
+ * quiz only deals words that are NOT in the vocabulary, so the swipes measure the
+ * unsaved remainder alone; what the user has saved and holds is known outright. Each
+ * band's estimate is therefore (held + swipeRate · unsaved) / poolSize, and the cost
+ * above is charged on that estimate, with the band's swipe count as its weight. Holding
+ * 600 of a 1,000-word pool against an 80% bar leaves 200 to find among the 400 unsaved:
+ * the swipes need 50%, not 80%. Without it a learner who studies through the app never
+ * moves — every word they learn leaves the pool the quiz samples. A band with nothing
+ * left to swipe is decided by what is held, exactly. Without pool counts for a band the
+ * estimate IS the swipe rate, i.e. the rule as it was.
  */
-export function levelFromRatings(ratings: PlacementRating[], maxBand: number): PlacementLevel {
+export function levelFromRatings(
+  ratings: PlacementRating[],
+  maxBand: number,
+  pool?: PlacementPool,
+): PlacementLevel {
   const acc = new Map<number, { count: number; known: number }>();
   for (const r of ratings) {
     if (r.band == null) continue;
@@ -321,14 +355,41 @@ export function levelFromRatings(ratings: PlacementRating[], maxBand: number): P
     const a = acc.get(b);
     const count = a?.count ?? 0;
     const known = a?.known ?? 0;
-    perBand.push({ band: b, count, known, knownFraction: count ? known / count : 0 });
+    const knownFraction = count ? known / count : 0;
+    const p = pool?.get(b);
+    let estimate = knownFraction;
+    let requiredRate: number | null = null;
+    if (p && p.pool > 0) {
+      const unsaved = Math.min(p.pool, Math.max(0, p.unsaved));
+      const held = Math.min(p.pool - unsaved, Math.max(0, p.known)); // can't hold an unsaved word
+      estimate = (held + knownFraction * unsaved) / p.pool;
+      if (unsaved > 0) requiredRate = (passForBand(b, maxBand) * p.pool - held) / unsaved;
+    }
+    perBand.push({ band: b, count, known, knownFraction, estimate, requiredRate });
   }
 
-  const trusted = perBand.filter((s) => s.count >= minWordsForBand(s.band, maxBand));
+  // Evidence per trusted band, in "answers": how many count as known / unknown once the
+  // estimate is applied. Without pool counts that is the swipes themselves.
+  const exhausted = (b: number) => {
+    const p = pool?.get(b);
+    return !!p && p.pool > 0 && p.unsaved <= 0;
+  };
+  const trusted = perBand
+    // Nothing left to swipe → the held share is the whole answer, so no sample is needed.
+    .filter((s) => s.count >= minWordsForBand(s.band, maxBand) || exhausted(s.band))
+    .map((s) => {
+      const hasPool = (pool?.get(s.band)?.pool ?? 0) > 0;
+      const weight = Math.max(s.count, exhausted(s.band) ? minWordsForBand(s.band, maxBand) : 0);
+      return {
+        band: s.band,
+        knownEq: hasPool ? weight * s.estimate : s.known,
+        unknownEq: hasPool ? weight * (1 - s.estimate) : s.count - s.known,
+      };
+    });
   const cost = (placed: number) =>
     trusted.reduce((sum, s) => {
       const pass = passForBand(s.band, maxBand);
-      return sum + (s.band <= placed ? (s.count - s.known) * pass : s.known * (1 - pass));
+      return sum + (s.band <= placed ? s.unknownEq * pass : s.knownEq * (1 - pass));
     }, 0);
 
   let band = 0;
@@ -417,6 +478,36 @@ export async function getPlacementRatings(
     known: r.known,
   }));
   return { ratings, maxBand };
+}
+
+/**
+ * How much of each band's quiz pool the caller already holds, for `levelFromRatings`.
+ *
+ * NEVER throws and never blocks a placement: on an un-migrated database, a timeout or
+ * any other failure it returns an empty map, and the quiz places from the swipes alone
+ * exactly as it did before 20260786.
+ */
+export async function getPlacementPool(opts: {
+  learning: LangCode;
+  native: LangCode;
+  maxBand: number;
+}): Promise<PlacementPool> {
+  const out = new Map<number, PlacementPoolBand>();
+  try {
+    const { data, error } = await supabase.rpc("placement_pool", {
+      p_source_lang: opts.learning,
+      p_target_lang: opts.native,
+      p_max_band: opts.maxBand,
+    });
+    if (error) {
+      console.warn("calibration: placement_pool unavailable; placing from swipes alone", error.message);
+      return out;
+    }
+    for (const r of data ?? []) out.set(r.band, { pool: r.pool, unsaved: r.unsaved, known: r.known });
+  } catch (e) {
+    console.warn("calibration: placement_pool failed; placing from swipes alone", e);
+  }
+  return out;
 }
 
 /** Record one swipe. A later answer on the same word replaces the earlier one.

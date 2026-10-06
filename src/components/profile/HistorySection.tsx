@@ -4,6 +4,7 @@
 // error on the profile.
 import { useI18n } from "../../i18n";
 import { useProfileHistory } from "../../hooks/useProfileHistory";
+import { useGoals } from "../../hooks/useGoals";
 import { ErrorText } from "../common/ErrorText";
 import { HistoryCalendar } from "./HistoryCalendar";
 import { HistoryPlot } from "./HistoryPlot";
@@ -13,6 +14,8 @@ import "./history.css";
 export function HistorySection({ userId }: { userId: string }) {
   const { t } = useI18n();
   const { history, error } = useProfileHistory(userId);
+  // The daily goals (/goals) draw as a reference line on the activity plots.
+  const { goals } = useGoals(userId);
 
   if (error) return <ErrorText message={error} />;
   if (!history) return null;
@@ -30,7 +33,7 @@ export function HistorySection({ userId }: { userId: string }) {
 
       <div className="hist__card">
         <h4 className="hist__subtitle">{t("history.plot")}</h4>
-        <HistoryPlot history={history} />
+        <HistoryPlot history={history} goals={goals} />
       </div>
 
       <div className="hist__card">

@@ -39,6 +39,26 @@
   border-color: var(--accent);
 }
 
+/* The reader's text plus its foot. Never shorter than three lines of the text, so a
+   one-sentence paste still reads as a reading surface rather than a caption, and the
+   foot — Google's badge, bottom-right — has a corner to sit in that is clear of the
+   words. 3 × (1.4rem × 2.1). */
+.reader__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 8.82rem;
+}
+
+/* Bottom-right of the reader, once, whenever a machine translation is showing in it —
+   not after every sentence, where it repeated down the page. margin-top:auto is what
+   holds it to the bottom while the text is shorter than the minimum. */
+.reader__credit {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .reader {
   font-size: 1.4rem;
   line-height: 2.1;
@@ -143,6 +163,19 @@
   line-height: 1.25;
 }
 
+/* A button ALONE in the row ("Review N saved words" on a text that is all known) keeps
+   its own width. The equal split above is for a pair; applied to one it made a
+   full-width bar out of the reader's least important action. */
+.reader__actions > :only-child {
+  flex: 0 1 auto;
+}
+
+.reader__actions > .btn:only-child,
+.reader__actions > :only-child .btn {
+  width: auto;
+  padding-inline: 1.1rem;
+}
+
 .tok {
   border-radius: 5px;
   padding: 0 1px;
@@ -189,6 +222,18 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+/* "Name" beside a person's or company's name in the card — where a word has its "?". */
+.hovercard__name {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  vertical-align: middle;
 }
 
 .hovercard__flag {
@@ -509,7 +554,8 @@ textarea.translate__box::-webkit-scrollbar {
   appearance: none;
   background: none;
   border: none;
-  color: var(--muted);
+  /* The danger TEXT colour: it erases the history and cannot be undone. */
+  color: var(--danger-text);
   font-size: 0.8rem;
   cursor: pointer;
   padding: 0.1rem 0.2rem;
@@ -520,7 +566,7 @@ textarea.translate__box::-webkit-scrollbar {
   list-style: none;
   margin: 0;
   padding: 0.25rem;
-  /* A full session's worth of entries shouldn't run off the screen. */
+  /* Up to 200 entries are kept: the list scrolls rather than run off the screen. */
   max-height: 17rem;
   overflow-y: auto;
 }
@@ -562,19 +608,6 @@ textarea.translate__box::-webkit-scrollbar {
 .thistory__dir {
   font-size: 0.72rem;
   color: var(--muted);
-}
-
-/* "I'm learning: [lang]" — the study target selector below the Translate button. */
-.learnpick {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-  /* Compact + centered, not stretched to the wide boxes. */
-  max-width: 22rem;
-  margin-inline: auto;
 }
 
 /* The study area below the Translate button: add/quiz/review + the reader. */
@@ -876,13 +909,87 @@ textarea.translate__box::-webkit-scrollbar {
   padding: 0.4rem;
 }
 
-/* Input modality tools — the top cluster of the gutter (clear · draw · mic · camera ·
-   library · manage). Static: the gutter places it. */
+/* Input modality tools — the top cluster of the gutter (clear · draw · mic · picture).
+   Static: the gutter places it. */
 .io__tools {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
   gap: 0.35rem;
+}
+
+/* Copy the translation: TOP-right of the output box, the corner opposite read-aloud.
+   Anchored to the wrapper for the same reason .io__speak is. The box already reserves
+   the right gutter, so the translation never runs under it. */
+.io__copy {
+  position: absolute;
+  right: 0.4rem;
+  top: 0.4rem;
+  z-index: 2;
+  /* The report flag, then copy under it: one column, the same width as the input's
+     gutter, so the box's ordinary right padding already clears it. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* The flag here is a tool button like its neighbour — not the bare glyph .reportbtn
+   draws inside a word card, which would sit beside copy as a different kind of thing. */
+.io__copy .reportbtn,
+.io__copy .reportbtn:hover,
+.io__copy .reportbtn:focus-visible {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0;
+  color: var(--text);
+  opacity: 1;
+}
+
+.io__copy .reportbtn:hover,
+.io__copy .reportbtn:focus-visible {
+  border-color: var(--accent);
+}
+
+/* The picture button's menu (Take photo / Select photo). It opens to the LEFT of the
+   button, over the input box: the gutter is the box's right edge, so there is nowhere
+   to the right, and below would cover read-aloud. */
+.io__menuwrap {
+  position: relative;
+  display: flex;
+}
+
+.io__menu {
+  position: absolute;
+  right: calc(100% + 0.35rem);
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 9rem;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+}
+
+.io__menuitem {
+  appearance: none;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  padding: 0.55rem 0.7rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.io__menuitem:hover,
+.io__menuitem:focus-visible {
+  background: var(--surface-2);
 }
 
 /* Read-aloud, pinned BOTTOM-right of either box — deliberately the opposite corner
@@ -902,6 +1009,32 @@ textarea.translate__box::-webkit-scrollbar {
 .io__gutter .io__speak {
   position: static;
 }
+
+/* Google's badge on a machine translation: bottom-right of the output box, just left of
+   the read-aloud button and level with it. It is a strip in the box's own colour, not a
+   bare overlay, so a long translation scrolls BEHIND it instead of running through the
+   badge; the box keeps its last line clear of the strip with the padding below. Inset
+   1px to sit inside the box's border. The right padding is the button's corner:
+   0.4rem inset + 2rem button + a 0.5rem gap. */
+.translate__credit {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 2.8rem;
+  padding-right: 2.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--surface);
+  border-radius: 0 0 11px 11px;
+  z-index: 1; /* under .io__speak (2), which shares the row */
+}
+
+.translate__out--credited {
+  padding-bottom: 3rem;
+}
+
 
 /* Wraps the output box so .io__speak has something to pin to (mirrors
    .translate__inputwrap on the input side). */
@@ -1035,6 +1168,25 @@ textarea.translate__box::-webkit-scrollbar {
   font-size: 0.85rem;
 }
 
+/* What has been written so far, where the hint was. One line; a long word scrolls
+   sideways and the component keeps it at its END, so the newest character is always in
+   view. No scrollbar: it would sit under the text as a stray line in a 2rem-tall bar. */
+.hw__written {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: 0.5rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.hw__written::-webkit-scrollbar {
+  display: none;
+}
+
 /* Pad and ink are a PAIR, and both come from the theme (--hw-pad / --hw-ink in
    common.css). In dark that pair is a slate darker than --surface with white ink —
    deliberately not var(--surface), so the pad reads as a writing surface distinct
@@ -1053,10 +1205,16 @@ textarea.translate__box::-webkit-scrollbar {
   border-radius: 8px;
   touch-action: none;
   cursor: crosshair;
+  /* Belt and braces against the iOS loupe / callout (the touch is also cancelled in JS). */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hw__controls {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }

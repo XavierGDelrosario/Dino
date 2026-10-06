@@ -5,11 +5,11 @@
 // the meaning you want), plus "Add all" for every new word's primary.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStickyState } from "./useStickyState";
-import { pushEntry, type TranslateHistoryEntry } from "../services/translateHistory";
+import { loadHistory, pushEntry, saveHistory, type TranslateHistoryEntry } from "../services/translateHistory";
 import { nfc, nfcTrim } from "../lib/text";
-import { lookupWord, lookupWordsBatch, translateParagraph, wordKey, type ParagraphTranslation } from "../services/lookup";
+import { isNameSense, lookupWord, lookupWordsBatch, translateParagraph, wordKey, type ParagraphTranslation } from "../services/lookup";
 import { translate, glossSentences, getCachedGloss } from "../services/translation";
-import { saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
+import { createCustomWord, saveDictionaryWord, saveDictionaryWords, getUserWordStates } from "../services/words/userWords";
 import { listUserLists, createList, type List } from "../services/lists";
 import { getUserLimits, DEFAULT_LIMITS, type UserLimits } from "../services/entitlements";
 import { canSoften, softenConfidence } from "../services/review";
@@ -20,15 +20,15 @@ import { orderSensesByContextReading } from "../services/analyze/senseOrder";
 import {
   analyze,
   splitSentences,
+  withFinalStop,
   isSingleWord,
   isContentPos,
   dictionaryFormOf,
   resolveSourceLanguage,
-  detectLanguage,
+  isAlreadyIn,
   searchTermFor,
   SUPPORTED_LANGUAGES,
-  DEFAULT_LEARNING_LANGUAGE,
-  DEFAULT_NATIVE_LANGUAGE,
+  defaultLanguagePair,
   type LangCode,
   type SourceSelection,
 } from "../services/language";
@@ -61,17 +61,25 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // profile effect below pins both once prefs load; both stay changeable in the LangBar.
   // …unless this instance is PINNED, in which case these are never read — see the
   // derived `source`/`target`/`learning` below.
-  const [sourceState, setSource] = useState<SourceSelection>(DEFAULT_LEARNING_LANGUAGE);
-  const [targetState, setTarget] = useState<LangCode>(DEFAULT_NATIVE_LANGUAGE);
+  const [sourceState, setSource] = useState<SourceSelection>(() => defaultLanguagePair().learning);
+  const [targetState, setTarget] = useState<LangCode>(() => defaultLanguagePair().native);
   // Sticky: what you typed survives a tab switch. The RESULTS deliberately don't —
   // they'd be a stale mirror of saved/confidence state.
   const [input, setInput] = useStickyState(userId, "translate.input", "");
   // Recorded on SUCCESS only (see the effect below), so a failed submit (429, 413,
   // network) doesn't leave an entry that replays straight back into the same error.
-  const [history, setHistory] = useStickyState<TranslateHistoryEntry[]>(
-    userId,
-    "translate.history",
-    [],
+  // Kept on THIS DEVICE across restarts (services/translateHistory.ts), per user: read
+  // once on mount — the views are keyed on userId, so a user switch remounts and reads
+  // the right list — and written through on every change.
+  const [history, setHistoryState] = useState<TranslateHistoryEntry[]>(() => loadHistory(userId));
+  const setHistory = useCallback(
+    (next: (prev: TranslateHistoryEntry[]) => TranslateHistoryEntry[]) =>
+      setHistoryState((prev) => {
+        const list = next(prev);
+        saveHistory(userId, list);
+        return list;
+      }),
+    [userId],
   );
   // Set at submit, consumed at status "done". A ref, not state: it must not re-render,
   // and submit has several success exits — capturing once at the top covers them all
@@ -85,7 +93,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   // language's words — the input when the user types it, else the OUTPUT, so typing
   // English while learning JA studies the Japanese translation's words. Independent of
   // the translate direction: swapping languages doesn't change what you're learning.
-  const [learningState, setLearning] = useState<LangCode>(DEFAULT_LEARNING_LANGUAGE);
+  const [learningState, setLearning] = useState<LangCode>(() => defaultLanguagePair().learning);
   // The plain translation in the output box. Set by submit; distinct from study data.
   const [output, setOutput] = useState("");
 
@@ -189,8 +197,9 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   }, [prefs, pinnedLearning, pinnedNative]);
 
   /**
-   * Change the language being studied — and PERSIST it, because "I'm learning: X" is
-   * the profile's learning language, not a per-tab setting.
+   * Change the language being studied — and PERSIST it, because it IS the profile's
+   * learning language, not a per-tab setting. (Translate no longer has a picker for it;
+   * the profile page is where it is chosen.)
    *
    * It used to be local state seeded from the profile and never written back, so the
    * app held two answers to one question: this picker, and the profile row that Learn,
@@ -238,7 +247,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     /** Skip the whole-paragraph MT gloss (media summary page — reader only). */
     skipGloss?: boolean;
   }) => {
-    const text = (override?.text ?? input).trim();
+    let text = (override?.text ?? input).trim();
     if (!text || status === "loading" || readerLoading) return;
     const src = override?.source ?? source;
     const tgt = override?.target ?? target;
@@ -247,6 +256,25 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     setReaderLoading(false);
     setError(null);
     try {
+      // A SENTENCE LEFT OPEN GETS ITS FULL STOP (user, 2026-10-06). Pressing Translate
+      // on text that runs out on a word closes it, in the box too, so what is studied
+      // and what is shown are the same string. Only for the box's own text — an
+      // override (OCR, swap, history, an article) is someone else's text — and only
+      // for a sentence: a single word must stay a lookup (猫 → senses; 猫。 would be a
+      // one-word paragraph). Whole-string romaji is a word-ish query too, and a "."
+      // would stop it converting, so it is left alone.
+      if (override?.text === undefined) {
+        const closed = withFinalStop(text);
+        if (closed !== text && searchTermFor(text, src) === text) {
+          const lang = resolveSourceLanguage(text, src);
+          if (!isSingleWord(await analyze(text, lang), lang)) {
+            text = closed;
+            pendingEntry.current = { text, source: src, target: tgt };
+            setInput(closed);
+          }
+        }
+      }
+
       // ROMAJI → KANA, for the LOOKUP only. Typing "neko" while the source says Japanese
       // found nothing: jmdict_lookup misses on Latin, and the edge's off-script guard
       // then (correctly) refuses to buy an MT translation of Latin submitted as JA — so
@@ -268,8 +296,9 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
       // edge rejects source === target with a 400 anyway, so without this the user got
       // an error where the correct response was "here it is, unchanged".
       // Detection runs on searchText, so converted romaji reads as Japanese and does
-      // NOT trip this.
-      if (resolvedSource === tgt || detectLanguage(searchText) === tgt) {
+      // NOT trip this. isAlreadyIn (not bare detectLanguage): a single native-script
+      // name inside an English text must not make the whole text "already Japanese".
+      if (isAlreadyIn(searchText, tgt, resolvedSource)) {
         setOutput(text);
         setMeanings([]);
         setPara(null);
@@ -454,7 +483,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
       setStatus("error");
       setReaderLoading(false);
     }
-  }, [input, source, target, status, readerLoading, userId, limits, learning]);
+  }, [input, setInput, source, target, status, readerLoading, userId, limits, learning]);
 
   // EMPTYING the box drops the result it produced. Without this a submitted paragraph
   // outlived its text: status stayed "done", so the stale reader kept its place and
@@ -506,7 +535,7 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     [setInput, submit],
   );
 
-  const clearHistory = useCallback(() => setHistory([]), [setHistory]);
+  const clearHistory = useCallback(() => setHistory(() => []), [setHistory]);
 
   /**
    * Fetch the sentence-by-sentence translation for the ALREADY-analyzed paragraph and
@@ -686,15 +715,32 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
   const addWords = useCallback(
     async (words: Word[], listId?: string) => {
       setError(null);
+      // A NAME's stand-in sense (lookup.ts `nameSense`) is not a dictionary row, so it
+      // is saved as the user's OWN word — the name, with its romanization/translation
+      // as a meaning they can edit. Idempotent: re-adding returns the same word.
+      const nameWords = words.filter(isNameSense);
+      const dictWords = words.filter((w) => !isNameSense(w));
+      for (const word of nameWords) {
+        const uw = await createCustomWord({
+          userId,
+          input: word.input,
+          translation: word.translation,
+          sourceLang: word.sourceLang,
+          targetLang: word.targetLang,
+          listId,
+        });
+        markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
+      }
+      if (dictWords.length === 0) return;
       // One batched RPC instead of N saves (all-or-nothing in a single transaction).
       const saved = await saveDictionaryWords({
         userId,
-        words,
+        words: dictWords,
         listId,
         seedFor: (w) => seedStability(getDifficulty(w).level, level),
       });
       const byId = new Map(saved.map((uw) => [uw.dictionaryWordId, uw]));
-      for (const word of words) {
+      for (const word of dictWords) {
         const uw = byId.get(word.wordId);
         if (uw) markSaved(word.wordId, uw.userWordId, uw.confidenceRating);
       }
@@ -783,7 +829,9 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);
-        else { addable.push(primary); cards.push(senses); }
+        // A NAME is never added or quizzed automatically (lookup.ts `names`) — only
+        // by hand, from its card. Once it IS saved it reviews like any other word.
+        else if (!para.names?.has(wordKey(tok))) { addable.push(primary); cards.push(senses); }
       }
     }
     return { addablePrimaries: addable, reviewablePrimaries: reviewable, addableCards: cards };

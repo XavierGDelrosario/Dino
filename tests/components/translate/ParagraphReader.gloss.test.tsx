@@ -549,3 +549,53 @@ describe("ParagraphReader — English sentences end on a period", () => {
     expect((container.querySelector(".reader") as HTMLElement).textContent).toBe(EN);
   });
 });
+
+// The Translate tab: Translate is the button that translates, so the switch is offered
+// only once the whole text HAS been translated — never before, and never part-way.
+describe("ParagraphReader — glossToggle=\"complete\"", () => {
+  const reader = (sentences: SentenceGloss[], extra: { glossLoading?: boolean; onLoadGloss?: () => void } = {}) =>
+    render(
+      <LocaleProvider>
+        <ParagraphReader
+          text={TEXT}
+          tokens={TOKENS}
+          meaningsByWord={MEANINGS}
+          sentences={sentences}
+          glossToggle="complete"
+          saved={new Set()}
+          confidence={new Map()}
+          lists={[]}
+          onAdd={async () => {}}
+          onCreateList={async () => "list-1"}
+          {...extra}
+        />
+      </LocaleProvider>,
+    );
+  const switchBtn = () => screen.queryByRole("button", { name: /Show translation/ });
+  const untranslated = SENTENCES.map((s) => ({ ...s, gloss: null }));
+  const partial = [SENTENCES[0], { ...SENTENCES[1], gloss: null }];
+
+  it("is not offered before anything is translated, even with a way to fetch", () => {
+    reader(untranslated, { onLoadGloss: vi.fn() });
+    expect(switchBtn()).toBeNull();
+  });
+
+  it("is not offered part-way — one sentence translated, one not", () => {
+    reader(partial, { onLoadGloss: vi.fn() });
+    expect(switchBtn()).toBeNull();
+  });
+
+  it("is not offered while the translation is still loading", () => {
+    reader(SENTENCES, { glossLoading: true });
+    expect(switchBtn()).toBeNull();
+  });
+
+  it("is offered once every sentence is translated, and only shows and hides — it never fetches", () => {
+    const onLoadGloss = vi.fn();
+    reader(SENTENCES, { onLoadGloss });
+    expect(screen.queryByText("The cat ran.")).toBeNull();
+    fireEvent.click(switchBtn()!);
+    expect(screen.getByText("The cat ran.")).toBeTruthy();
+    expect(onLoadGloss).not.toHaveBeenCalled();
+  });
+});

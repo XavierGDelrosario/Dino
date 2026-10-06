@@ -11,6 +11,10 @@ PODS:
   - CapacitorCommunitySpeechRecognition (7.0.1):
     - Capacitor
   - CapacitorCordova (8.4.1)
+  - CapacitorLocalNotifications (8.3.1):
+    - Capacitor
+  - CapacitorNetwork (8.0.1):
+    - Capacitor
   - GoogleDataTransport (9.4.1):
     - GoogleUtilities/Environment (~> 7.7)
     - nanopb (< 2.30911.0, >= 2.30908.0)
@@ -20,6 +24,9 @@ PODS:
     - MLKitDigitalInkRecognition (~> 4.0.0)
   - GoogleMLKit/MLKitCore (5.0.0):
     - MLKitCommon (~> 10.0.0)
+  - GoogleMLKit/Translate (5.0.0):
+    - GoogleMLKit/MLKitCore
+    - MLKitTranslate (~> 4.0.0)
   - GoogleToolboxForMac/DebugUtils (2.3.2):
     - GoogleToolboxForMac/Defines (= 2.3.2)
   - GoogleToolboxForMac/Defines (2.3.2)
@@ -32,6 +39,8 @@ PODS:
     - GoogleToolboxForMac/Defines (= 2.3.2)
     - "GoogleToolboxForMac/NSString+URLArguments (= 2.3.2)"
   - "GoogleToolboxForMac/NSString+URLArguments (2.3.2)"
+  - GoogleToolboxForMac/StringEncoding (2.3.2):
+    - GoogleToolboxForMac/Defines (= 2.3.2)
   - GoogleUtilities/Environment (7.13.3):
     - GoogleUtilities/Privacy
     - PromisesObjC (< 3.0, >= 1.2)
@@ -60,6 +69,16 @@ PODS:
     - SSZipArchive (< 3.0, >= 2.2.3)
   - MLKitMDD (6.0.0):
     - MLKitCommon (~> 10.0)
+  - MLKitNaturalLanguage (6.0.0):
+    - GoogleToolboxForMac/Logger (~> 2.1)
+    - "GoogleToolboxForMac/NSData+zlib (~> 2.1)"
+    - "GoogleToolboxForMac/NSDictionary+URLArguments (~> 2.1)"
+    - GoogleToolboxForMac/StringEncoding (~> 2.1)
+    - GTMSessionFetcher/Core (< 4.0, >= 1.1)
+    - MLKitCommon (~> 10.0)
+  - MLKitTranslate (4.0.0):
+    - MLKitNaturalLanguage (~> 6.0)
+    - SSZipArchive (< 3.0, >= 2.2.3)
   - nanopb (2.30910.0):
     - nanopb/decode (= 2.30910.0)
     - nanopb/encode (= 2.30910.0)
@@ -75,7 +94,10 @@ DEPENDENCIES:
   - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCommunitySpeechRecognition (from `../../node_modules/@capacitor-community/speech-recognition`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
+  - "CapacitorNetwork (from `../../node_modules/@capacitor/network`)"
   - GoogleMLKit/DigitalInkRecognition
+  - GoogleMLKit/Translate
 
 SPEC REPOS:
   trunk:
@@ -89,6 +111,8 @@ SPEC REPOS:
     - MLKitCommon
     - MLKitDigitalInkRecognition
     - MLKitMDD
+    - MLKitNaturalLanguage
+    - MLKitTranslate
     - nanopb
     - PromisesObjC
     - SSZipArchive
@@ -106,6 +130,10 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/speech-recognition"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
+  CapacitorNetwork:
+    :path: "../../node_modules/@capacitor/network"
 
 SPEC CHECKSUMS:
   Capacitor: 35242afe195b1e53c58ca1b827d1b444c5e6602b
@@ -114,6 +142,8 @@ SPEC CHECKSUMS:
   CapacitorCamera: 8f6acf83664118321111e76acef86390211ccb08
   CapacitorCommunitySpeechRecognition: 3e03566c44c2bb3b52391a33d4518b1adbdeb38f
   CapacitorCordova: eebe6bcf807b1b06f3f48237650f96bbcd0eef09
+  CapacitorLocalNotifications: e0747a329ddde3074d52dc74a003688af90e42be
+  CapacitorNetwork: 8812ce60d11fb63d8f2e4ba51a49b2e59892ebe2
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleMLKit: 90ba06e028795a50261f29500d238d6061538711
   GoogleToolboxForMac: 8bef7c7c5cf7291c687cf5354f39f9db6399ad34
@@ -124,10 +154,12 @@ SPEC CHECKSUMS:
   MLKitCommon: afcd11b6c0735066a0dde8b4bf2331f6197cbca2
   MLKitDigitalInkRecognition: 51411badefc7f60c5fc2f8606a4a4d9819752ffc
   MLKitMDD: ad94b775d9497b32af2dba0e104dc5695b310921
+  MLKitNaturalLanguage: b9a77b1811edf35bfba52ec1ce2c25a463aa45e0
+  MLKitTranslate: 52e52e7c4800e853c274711c9034306b80abba88
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   SSZipArchive: fe6a26b2a54d5a0890f2567b5cc6de5caa600aef
 
-PODFILE CHECKSUM: d9973bc2ead90169fe8ae1feee0933bf371c4ba4
+PODFILE CHECKSUM: 8d83d06f3b5ca182313c49372ea8c46f269ae898
 
 COCOAPODS: 1.16.2

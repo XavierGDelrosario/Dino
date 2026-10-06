@@ -5,9 +5,10 @@
 // the report is the same act in both places; only the target differs, and that arrives
 // as props. A second copy would drift the moment one of them gained a field.
 //
-// The text box is OPTIONAL and says so. The valuable signal is "this word is wrong",
-// which the surface already knows — demanding a sentence before recording it would
-// lose most of the reports. Send is therefore enabled with the box empty.
+// The text box is REQUIRED: Send stays disabled until something is written (user,
+// 2026-10-06). It used to be optional, on the theory that the flagged word is the whole
+// signal — but a one-tap report is also a one-tap accident, and a queue of bare flags
+// with nothing to act on is spam whoever sent it.
 //
 // It confirms and closes itself rather than leaving the user to dismiss a success
 // state: filing a report is an aside from reading or quizzing, and the flow should
@@ -26,6 +27,7 @@ const CLOSE_AFTER_MS = 900;
 export function ReportIssueDialog({
   input,
   wordId,
+  output,
   onClose,
 }: {
   /** The word being reported — shown back to the user so they can see what they're
@@ -33,6 +35,9 @@ export function ReportIssueDialog({
   input: string;
   /** The exact sense, when the surface knows it. */
   wordId?: string | null;
+  /** The translation being reported, when the target is a translation and not a word
+   *  — shown under the input, and sent with it. */
+  output?: string | null;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -42,8 +47,8 @@ export function ReportIssueDialog({
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Focus the box on open (typing is optional, but a user who wants to type shouldn't
-  // have to aim first), and let Escape back out — this is a transient aside.
+  // Focus the box on open (a note is required, so the user shouldn't have to aim
+  // first), and let Escape back out — this is a transient aside.
   useEffect(() => {
     boxRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -54,11 +59,11 @@ export function ReportIssueDialog({
   }, [onClose]);
 
   const send = async () => {
-    if (busy || sent) return;
+    if (busy || sent || !text.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      await reportQualityIssue({ input, description: text, wordId });
+      await reportQualityIssue({ input, description: text, wordId, output });
       setSent(true);
       setTimeout(onClose, CLOSE_AFTER_MS);
     } catch (e) {
@@ -92,6 +97,9 @@ export function ReportIssueDialog({
         </button>
         <h3 className="reportdlg__title">{t("report.title")}</h3>
         <p className="reportdlg__target ellipsis" title={input}>{input}</p>
+        {output && (
+          <p className="reportdlg__output ellipsis" title={output}>{output}</p>
+        )}
 
         {sent ? (
           <p className="reportdlg__sent">{t("report.sent")}</p>
@@ -109,9 +117,9 @@ export function ReportIssueDialog({
             <ErrorText message={error} />
             {/* One action, centred — with Cancel gone there is nothing to balance it
                 against, and a lone right-aligned button reads as unfinished.
-                Enabled with an empty box on purpose (see the header). */}
+                Disabled until there is a note (see the header). */}
             <div className="reportdlg__actions">
-              <button type="button" className="btn" onClick={() => void send()} disabled={busy}>
+              <button type="button" className="btn" onClick={() => void send()} disabled={busy || !text.trim()}>
                 {busy ? <LoadingDots /> : t("report.send")}
               </button>
             </div>

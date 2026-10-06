@@ -71,6 +71,14 @@
   --lvl-4: #c98500;
   --lvl-5: #d55181;
   --lvl-6: #9085e9;
+  /* Part-of-speech chips (WordInfo): a hue per open class, one for the grammatical
+     categories, one for the rest. Tints + outlines only, never text. */
+  --pos-noun: #4f9be8;
+  --pos-verb: #e0733a;
+  --pos-adjective: #2fae7d;
+  --pos-adverb: #d2a01e;
+  --pos-grammar: #a79bf2;
+  --pos-other: #8b95a5;
 
   /* Semantic status colours. --danger-* are the destructive set (delete account,
      errors); --success is the affirmative one (a saved word, a "known" swipe). */
@@ -79,6 +87,9 @@
   --danger-bg: #2a1416;
   --danger-border: #6a2c2c;
   --success: #3ecb6c;
+  /* The streak flame (top-bar badge, /goals, the History goal line): one orange, the
+     only place the app uses it, so it reads as "streak" wherever it appears. */
+  --streak: #ff9f43;
 
   /* Hover fill for the default button/chip — a step away from --surface-2 in
      whichever direction the theme has room for (lighter on dark, darker on light). */
@@ -108,35 +119,44 @@
   /* Inverse of the dark split: on white the LIGHT lavender is the unreadable one
      (~1.9:1), so the saturated brand purple becomes the text/UI colour and white
      is what sits on top of it. */
-  --accent: #6d28d9;
-  --accent-strong: #5b21b6;
+  --accent: #7b3ae1;
+  --accent-strong: #6320cc;
   --on-accent: #ffffff;
-  --word-new: #1d63d1;
+  --word-new: #206de5;
   --border: #d7dae4;
 
-  --conf-0: #d3261d;
-  --conf-1: #b45309;
-  --conf-2: #8a6d00;
-  --conf-3: #59760d;
-  --conf-4: #1e7a33;
-  --conf-5: #0b7248;
+  /* Brightened a step on 2026-10-06 (lighter + a touch more saturated, same hues), each
+     held at ≥ 4.5:1 on white so the ramp still reads as TEXT. */
+  --conf-0: #e4281f;
+  --conf-1: #c15707;
+  --conf-2: #917300;
+  --conf-3: #61810c;
+  --conf-4: #1e8837;
+  --conf-5: #098050;
   /* 4.33:1 on white — the same weight #d15b5d carries on the dark surface. */
   --conf-lost: #d9443d;
 
-  --ord-common: #1f9d5c;
-  --ord-rare: #2148ac;
+  --ord-common: #1fa660;
+  --ord-rare: #214dbe;
   --lvl-1: #2a78d6;
   --lvl-2: #eb6834;
   --lvl-3: #1baf7a;
   --lvl-4: #eda100;
   --lvl-5: #e87ba4;
   --lvl-6: #4a3aa7;
+  --pos-noun: #2a78d6;
+  --pos-verb: #e0622a;
+  --pos-adjective: #1a9c6c;
+  --pos-adverb: #c98a00;
+  --pos-grammar: #5b4bc4;
+  --pos-other: #6b7482;
 
   --danger: #b3261e;
   --danger-text: #a3200f;
   --danger-bg: #fdecea;
   --danger-border: #f0b9b4;
-  --success: #0b7248;
+  --success: #098050;
+  --streak: #d9731a;
 
   --hover: #e2e5ee;
 
@@ -407,16 +427,42 @@ body {
   gap: 0.5rem;
 }
 
+/* The 🔥 streak badge: the top bar's LEFT control, mirroring .app__menus on the right.
+   A link, not a button — it goes to /goals. Orange text, no chrome. */
+.streak {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2.1rem; /* the height of the icon buttons opposite, so the row reads level */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  color: var(--streak);
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+.streak:hover {
+  background: var(--hover);
+}
+/* Not yet studied today: the flame is dimmed, so the badge itself says "still to do". */
+.streak:not(.streak--lit) .streak__fire {
+  filter: grayscale(1) opacity(0.55);
+}
+
 /* Still positioned, but only as the anchor its own dropdown panel hangs from. */
 .profilemenu {
   position: relative;
 }
 
-/* Profile footer: Back (left) · Delete account (right). */
+/* Profile footer: Delete account, centred (Back is the arrow at the top-left). */
 .profile__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   margin-top: 1.5rem;
   padding-top: 1rem;
@@ -431,7 +477,10 @@ body {
   font-size: 0.85rem;
   color: var(--muted);
 }
-.btn--danger {
+/* `.btn.btn--danger`, not `.btn--danger`: this rule sits ABOVE `.btn` in the file, and
+   at equal weight the later `.btn` painted every "danger" button the plain grey — the
+   Lists select bar's Delete looked exactly like the buttons beside it. */
+.btn.btn--danger {
   background: var(--danger);
   border-color: var(--danger);
   /* Literal white, not a token: this label sits on the solid danger red in BOTH
@@ -439,7 +488,9 @@ body {
   color: #fff;
 }
 
-.btn--danger:hover {
+.btn.btn--danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
   filter: brightness(1.12);
 }
 /* The shared top-bar icon button — the globe and the person both use it, so they read as one row of controls (see .app__menus). */
@@ -507,14 +558,28 @@ body {
   font-size: 1.2rem;
   margin: 0 0 0.25rem;
 }
-/* The exit, pinned to the top-left of the auth form. `align-self: start` so it is a
-   back LINK the width of its text, not a full-width row that reads as a button in a
-   column of them; the negative margin closes the flex gap so it sits above the title
-   as a header rather than floating as a first field. */
-.authpage__back {
+/* The exit, at the top-left of every page (components/common/BackLink): just the arrow.
+   `align-self: start` so it is the width of its glyph, not a full-width row that reads
+   as a button in a column of them; the negative margin closes the flex gap so it sits
+   above the title as a header rather than floating as a first field. */
+.page__back {
+  /* Its own row in a block page (legal) as well as a flex column (auth, profile). */
+  display: block;
+  width: fit-content;
   align-self: flex-start;
   margin-bottom: -0.35rem;
-  font-size: 0.85rem;
+  /* A bare glyph is a small target: pad it out to a comfortable tap area, and pull it
+     left by the same amount so the arrow itself still lines up with the page edge. */
+  padding: 0.3rem 0.6rem;
+  margin-left: -0.6rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--accent);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.page__back:hover {
+  background: var(--hover);
 }
 .authpage__alt {
   margin: 0;
@@ -565,13 +630,6 @@ body {
   font-size: 1rem;
   margin: 1.25rem 0 0.35rem;
 }
-.legal__draft {
-  font-size: 0.8rem;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.7rem;
-}
 .legal__updated {
   font-size: 0.78rem;
   color: var(--muted);
@@ -586,6 +644,11 @@ body {
   font-size: 0.72rem;
   line-height: 1.5;
   text-align: center;
+}
+
+/* Hidden while a study surface is on screen (components/common/NoFooter). */
+main:has([data-no-footer]) .app__footer {
+  display: none;
 }
 
 .app__footer a {
@@ -731,4 +794,39 @@ body {
   line-height: 1;
   color: var(--accent);
   letter-spacing: 0.1em;
+}
+
+/* Google's "translated by Google" badge (GoogleBadge.tsx). The artwork is Google's and
+   is never recoloured: the theme only picks WHICH official variant shows — white on the
+   dark theme, the colour or greyscale one on the light. 16px tall is its native size. */
+.gbadge {
+  display: inline-block;
+  line-height: 0;
+  vertical-align: middle;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.gbadge__img {
+  display: block;
+  height: 16px;
+  width: auto;
+}
+
+/* As small as it stays readable: at 10px the "translated by" lettering is about 7px
+   tall, and Google's rule is that the badge remains "full and clearly visible". */
+.gbadge--small .gbadge__img {
+  height: 10px;
+}
+
+.gbadge__img--light {
+  display: none;
+}
+
+:root[data-theme="light"] .gbadge__img--light {
+  display: block;
+}
+
+:root[data-theme="light"] .gbadge__img--dark {
+  display: none;
 }

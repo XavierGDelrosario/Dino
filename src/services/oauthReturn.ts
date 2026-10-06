@@ -33,6 +33,9 @@ export interface OAuthReturnError {
   intent: OAuthIntent | null;
 }
 
+/** GoTrue's code for a reset/confirmation link that expired or was already used. */
+export const EMAIL_LINK_EXPIRED = "otp_expired";
+
 const INTENT_KEY = "dino.oauthIntent";
 // Long enough for a slow provider consent screen, short enough that a stale intent
 // from an abandoned attempt can't label a later, unrelated error.
@@ -113,6 +116,13 @@ export function captureOAuthReturnFromUrl(): void {
   const found = parseOAuthError(window.location.href);
   if (!found) return;
   const err = recordOAuthError(found.code, found.description);
-  const path = err.intent ? PATH_BY_MODE[err.intent.mode] : window.location.pathname;
+  // An expired or already-used EMAIL link (reset, confirmation) comes back the same
+  // way with no OAuth attempt behind it. Send it to sign-in, where the message is shown
+  // and a new link can be requested — it used to land silently on Home.
+  const path = err.intent
+    ? PATH_BY_MODE[err.intent.mode]
+    : err.code === EMAIL_LINK_EXPIRED
+      ? PATH_BY_MODE.signin
+      : window.location.pathname;
   window.history.replaceState(window.history.state, "", path);
 }

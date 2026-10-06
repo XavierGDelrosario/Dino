@@ -10,11 +10,37 @@ vi.mock("@/config/supabaseClient", () => ({
   supabase: new Proxy({}, { get: (_t, p) => holder.client[p as keyof typeof holder.client] }),
 }));
 
-import { recordReview, sendReview, __resetDirectionProbe } from "@/services/review";
+vi.mock("@/services/network", () => ({
+  isOnWifi: vi.fn(async () => true),
+  onWifiConnected: vi.fn(() => () => {}),
+}));
+vi.mock("@/services/words/vocabularyLoader", () => ({ ensureVocabulary: vi.fn(async () => {}) }));
+vi.mock("@/services/words/vocabularyCache", async (orig) => ({
+  ...(await orig<typeof import("@/services/words/vocabularyCache")>()),
+  isReadable: vi.fn(() => true),
+  isFresh: vi.fn(() => false),
+  wordsFor: vi.fn(() => []),
+  membershipSnapshot: vi.fn(() => ({})),
+}));
+
+import {
+  getReviewQueue,
+  recordReview,
+  refreshOfflineDeck,
+  sendReview,
+  watchOfflineDeck,
+  __resetDirectionProbe,
+  type ReviewQueueItem,
+} from "@/services/review";
 import { __setOfflineStore, __resetOfflineStore, type OfflineStore } from "@/services/offline/store";
 import { pending } from "@/services/offline/queue";
-import { setAnchor } from "@/services/offline/clock";
+import { setAnchor, type ClockAnchor } from "@/services/offline/clock";
+import { saveDeck } from "@/services/offline/deck";
 import { memStore } from "@test/offlineStore";
+import { ensureVocabulary } from "@/services/words/vocabularyLoader";
+import { isFresh, isReadable, membershipSnapshot, wordsFor } from "@/services/words/vocabularyCache";
+import { isOnWifi, onWifiConnected } from "@/services/network";
+import type { UserWord } from "@/services/words/userWords";
 
 
 let stub: SupabaseStub;
@@ -78,6 +104,204 @@ describe("recordReview — unreachable", () => {
     stub.rpc.mockRejectedValue(new TypeError("Failed to fetch"));
     await recordReview(CARD);
     expect((await pending(store))[0].approx).toBe(true);
+  });
+});
+
+// What supabase-js ACTUALLY hands back when fetch fails: it does not throw, it resolves
+// an error with an empty `code`, the engine's own wording, and `status: 0`.
+const noResponse = (wording: string) => ({
+  data: null,
+  error: { message: `TypeError: ${wording}`, details: "", hint: "", code: "" },
+  status: 0,
+});
+
+describe("recordReview — unreachable, as the client reports it", () => {
+  it.each([
+    ["Chrome", "Failed to fetch"],
+    ["WebKit (Safari / the iOS app)", "Load failed"],
+    ["an engine whose wording we have never seen", "Something else entirely"],
+  ])("QUEUES the grade on %s", async (_engine, wording) => {
+    stub.rpc.mockResolvedValue(noResponse(wording));
+
+    const res = await recordReview(CARD);
+    expect(res.queued).toBe(true);
+    expect(await pending(store)).toHaveLength(1);
+  });
+
+  it("a refusal with an empty code but a real HTTP status is still a verdict", async () => {
+    // PostgREST answers a non-JSON error body with `code: ""` too — only the status
+    // tells it apart from a request that never landed.
+    stub.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "Bad Gateway", details: "", hint: "", code: "" },
+      status: 502,
+    });
+    await expect(recordReview(CARD)).rejects.toThrow();
+    expect(await pending(store)).toEqual([]);
+  });
+});
+
+describe("getReviewQueue — unreachable, as the client reports it", () => {
+  it("deals the cached deck on WebKit's wording", async () => {
+    const anchor: ClockAnchor = { serverNow: Date.now(), mono: 0 };
+    await saveDeck(store, { userId: "u", listId: null, anchor, items: [{ userWordId: "uw1" } as ReviewQueueItem] });
+
+    stub.rpc.mockResolvedValue(noResponse("Load failed"));
+    const deck = await getReviewQueue({ userId: "u", limit: 5 });
+    expect(deck.map((c) => c.userWordId)).toEqual(["uw1"]);
+  });
+});
+
+describe("the full offline deck", () => {
+  const DAY = 86_400_000;
+  /** A saved word last reviewed `daysAgo` days back at stability 10 (null = never reviewed). */
+  const word = (id: string, daysAgo: number | null): UserWord =>
+    ({
+      userWordId: id, userId: "u", input: id, translation: id, confidenceRating: 2,
+      stability: daysAgo == null ? null : 10,
+      lastReviewedDate: daysAgo == null ? null : new Date(Date.now() - daysAgo * DAY).toISOString(),
+      originallyTranslatedDate: "2026-08-01T00:00:00Z",
+    }) as UserWord;
+  // Recall, weakest first: d (never reviewed) · c (20d) · b (5d) · e (2d) · a (1d).
+  const VOCAB = [word("a", 1), word("b", 5), word("c", 20), word("d", null), word("e", 2)];
+
+  /** The server, online. review_queue deals a short, server-ranked session. */
+  const online = () =>
+    stub.rpc.mockImplementation(async (fn: string) =>
+      fn === "server_now"
+        ? { data: new Date().toISOString(), error: null, status: 200 }
+        : fn === "record_review"
+          ? { data: { user_word_id: "a", stability: 1, confidence_rating: 1, last_reviewed_date: "x" }, error: null, status: 200 }
+          : { data: [], error: null, status: 200 });
+  const offline = () => stub.rpc.mockResolvedValue(noResponse("Load failed"));
+  const ids = (deck: ReviewQueueItem[]) => deck.map((c) => c.userWordId);
+
+  beforeEach(() => {
+    vi.mocked(ensureVocabulary).mockClear();
+    vi.mocked(isReadable).mockReturnValue(true);
+    vi.mocked(isFresh).mockReturnValue(false);
+    vi.mocked(isOnWifi).mockResolvedValue(true);
+    vi.mocked(wordsFor).mockReturnValue(VOCAB);
+    vi.mocked(membershipSnapshot).mockReturnValue({ L1: ["a", "c"] });
+  });
+
+  it("deals the WHOLE vocabulary offline, weakest recall first", async () => {
+    online();
+    expect(await refreshOfflineDeck("u")).toBe(true);
+    offline();
+    expect(ids(await getReviewQueue({ userId: "u", limit: 10 }))).toEqual(["d", "c", "b", "e", "a"]);
+    expect(ids(await getReviewQueue({ userId: "u", limit: 2 }))).toEqual(["d", "c"]);
+  });
+
+  it("a second offline session deals the NEXT cards, not the ones just graded", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+
+    const first = await getReviewQueue({ userId: "u", limit: 2 });
+    for (const card of first) await recordReview({ userWordId: card.userWordId, grade: 4 });
+
+    expect(ids(await getReviewQueue({ userId: "u", limit: 2 }))).toEqual(["b", "e"]);
+  });
+
+  it("is EMPTY, not an error, once every word has been graded", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+    for (const w of VOCAB) await recordReview({ userWordId: w.userWordId, grade: 4 });
+
+    expect(await getReviewQueue({ userId: "u", limit: 2 })).toEqual([]);
+  });
+
+  it("deals a LIST from the same deck, by its membership", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+    expect(ids(await getReviewQueue({ userId: "u", listId: "L1", limit: 5 }))).toEqual(["c", "a"]);
+    expect(await getReviewQueue({ userId: "u", listId: "no-such-list", limit: 5 })).toEqual([]);
+  });
+
+  it("'Retry quiz' offline gets exactly its words back, graded or not", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+    await recordReview({ userWordId: "a", grade: 4 });
+    const deck = await getReviewQueue({ userId: "u", limit: 5, userWordIds: ["a", "e"] });
+    expect(ids(deck).sort()).toEqual(["a", "e"]);
+  });
+
+  it("never deals another user's deck", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+    await expect(getReviewQueue({ userId: "someone-else", limit: 5 })).rejects.toThrow();
+  });
+
+  it("offline, a refresh saves nothing — the old copy must not be stamped as fresh", async () => {
+    online();
+    await refreshOfflineDeck("u");
+    offline();
+    vi.mocked(wordsFor).mockReturnValue([word("z", 1)]);
+    expect(await refreshOfflineDeck("u")).toBe(false);
+    expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
+  });
+
+  it("off Wi-Fi it downloads NOTHING — no vocabulary, not even the clock", async () => {
+    online();
+    vi.mocked(isOnWifi).mockResolvedValue(false);
+    expect(await refreshOfflineDeck("u")).toBe(false);
+    expect(ensureVocabulary).not.toHaveBeenCalled();
+    expect(stub.rpc).not.toHaveBeenCalled();
+  });
+
+  it("off Wi-Fi it still saves a vocabulary that is already in memory", async () => {
+    online();
+    vi.mocked(isOnWifi).mockResolvedValue(false);
+    vi.mocked(isFresh).mockReturnValue(true); // e.g. the Lists tab loaded it
+    expect(await refreshOfflineDeck("u")).toBe(true);
+    offline();
+    expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
+  });
+
+  it("catches up when the device joins Wi-Fi", async () => {
+    online();
+    vi.mocked(isOnWifi).mockResolvedValue(false);
+    const stop = watchOfflineDeck("u");
+    await vi.waitFor(() => expect(isOnWifi).toHaveBeenCalled());
+    expect(ensureVocabulary).not.toHaveBeenCalled();
+
+    vi.mocked(isOnWifi).mockResolvedValue(true);
+    const calls = vi.mocked(onWifiConnected).mock.calls;
+    const joined = calls[calls.length - 1][0];
+    joined();
+    await vi.waitFor(() => expect(ensureVocabulary).toHaveBeenCalledTimes(1));
+    stop();
+  });
+
+  it("a vocabulary that has not finished loading is not saved as the whole deck", async () => {
+    online();
+    vi.mocked(isReadable).mockReturnValue(false);
+    expect(await refreshOfflineDeck("u")).toBe(false);
+  });
+
+  it("is saved again shortly after grades reach the server, once per burst", async () => {
+    vi.useFakeTimers();
+    try {
+      online();
+      const stop = watchOfflineDeck("u");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(ensureVocabulary).toHaveBeenCalledTimes(1); // at start
+
+      await sendReview({ userWordId: "a", grade: 4 });
+      await sendReview({ userWordId: "b", grade: 4 });
+      expect(ensureVocabulary).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(ensureVocabulary).toHaveBeenCalledTimes(2);
+      stop();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

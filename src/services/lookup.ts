@@ -3,6 +3,9 @@
 // returns a whole-paragraph gloss (never persisted) plus a word → meanings lookup.
 // Saving is a separate, explicit step (userWords.saveDictionaryWord).
 
+import { getCuratedNames, mergeCuratedNames } from "./names";
+import { canTranslateOnDevice, translateOnDevice } from "./translation/onDevice";
+import { nameRomaji } from "./language/romaji";
 import {
   resolveSourceLanguage,
   analyze,
@@ -22,6 +25,7 @@ import {
   findWordTranslationsBatch,
   type Word,
 } from "./words/repository";
+import { SYNTHETIC_WORD_ID_PREFIX, isSyntheticWordId } from "./words/syntheticId";
 import {
   setCachedSenses,
   isKnownDictionaryMiss,
@@ -114,6 +118,13 @@ export async function lookupWordsBatch(params: {
       /* edge failure is non-fatal — the cached candidates still resolve */
     }
   }
+  // The same hand-verified primary fixes lookupWord applies, so a word's default
+  // meaning is the same looked up alone or met in a sentence (すぎ led with a fish in
+  // the reader long after ところ was fixed for single lookups).
+  for (const [key, senses] of byWord) {
+    const fixed = applyWritingOverride(key, applyReadingOverride(key, senses));
+    if (fixed !== senses) byWord.set(key, fixed);
+  }
   return byWord;
 }
 
@@ -142,6 +153,80 @@ export interface ParagraphTranslation {
   tokens: AnalyzedToken[];
   /** Lookup from a word's text to all its known meanings (verified first). */
   meanings: Map<string, Word[]>;
+  /**
+   * The keys of `meanings` that are NAMES — a person, place or company the dictionary
+   * doesn't know, whose only "meaning" is machine translation (大東 → "Daito").
+   *
+   * They stay in `meanings`, so the reader still highlights them and its card still
+   * offers ＋: someone who wants a name in their vocabulary can put it there. But a
+   * name is not study material anyone asked for, so everything AUTOMATIC leaves it
+   * out — "Add all", the quizzes, and every summary or word table (`studyMeanings`).
+   */
+  names?: ReadonlySet<string>;
+}
+
+/** Is this sense a name's stand-in rather than a dictionary row? It has no `words`
+ *  row behind it, so it is saved as the user's OWN word, never by id. */
+export function isNameSense(word: Pick<Word, "wordId">): boolean {
+  return isSyntheticWordId(word.wordId);
+}
+
+/**
+ * The one "sense" shown for a person's or a company's name: the name, how it is read,
+ * and `meaning` (its romanization, or a translation). Not a dictionary row — the id is
+ * synthetic, it is never cached or sent anywhere, and adding it creates a custom word.
+ */
+function nameSense(token: AnalyzedToken, meaning: string, sourceLang: LangCode, targetLang: LangCode): Word {
+  return {
+    wordId: `${SYNTHETIC_WORD_ID_PREFIX}${sourceLang}:${nfc(token.text)}`,
+    input: token.text,
+    translation: meaning,
+    sourceLang,
+    targetLang,
+    inputReading: token.reading && token.reading !== token.text ? token.reading : null,
+    translationReading: null,
+    partOfSpeech: null,
+    frequency: null,
+    difficultyOverride: null,
+    proficiencyBand: null,
+    estimatedBand: null,
+    jmdictEntryId: null,
+    jmdictSensePos: null,
+    isCommon: null,
+    isVerified: false,
+    example: null,
+    exampleGloss: null,
+    definitionSource: null,
+    exampleReading: null,
+  } as unknown as Word;
+}
+
+/**
+ * A paragraph as STUDY MATERIAL: its tokens and meanings with the names taken out, for
+ * the summaries, the word table and anything else that counts words. Tokens go too, not
+ * just meanings — a name left in the tokens would be counted as a word with no entry.
+ */
+export function studyView(p: {
+  tokens: AnalyzedToken[];
+  meaningsByWord: Map<string, Word[]>;
+  names: ReadonlySet<string> | undefined;
+}): { tokens: AnalyzedToken[]; meaningsByWord: Map<string, Word[]> } {
+  if (!p.names || p.names.size === 0) return { tokens: p.tokens, meaningsByWord: p.meaningsByWord };
+  return {
+    tokens: p.tokens.filter((t) => !p.names!.has(wordKey(t))),
+    meaningsByWord: studyMeanings(p.meaningsByWord, p.names),
+  };
+}
+
+/** `meanings` without the names: what "Add all", the quizzes and the summaries count. */
+export function studyMeanings(
+  meanings: Map<string, Word[]>,
+  names: ReadonlySet<string> | undefined,
+): Map<string, Word[]> {
+  if (!names || names.size === 0) return meanings;
+  const out = new Map<string, Word[]>();
+  for (const [key, senses] of meanings) if (!names.has(key)) out.set(key, senses);
+  return out;
 }
 
 /**
@@ -193,17 +278,20 @@ function isJunkKatakana(surface: string, senses: Word[]): boolean {
  * True for a PROPER NOUN the dictionary does not know — every sense is machine
  * translation (no POS; see isJunkKatakana for why "no POS" identifies MT here).
  * Quality reports #25–#28: 大東, 東島, 琉球新報 were offered as vocabulary with an MT
- * "meaning" that is just the romanized name ("Daito"). A place the dictionary DOES know
+ * "meaning" that is just the romanized name ("Daito"). Such a word is now KEPT but
+ * flagged (`ParagraphTranslation.names`): the reader shows it and it can be added by
+ * hand, while nothing automatic counts or adds it. A place the dictionary DOES know
  * (東京, アメリカ) has POS'd senses and stays; so does a real word IPADIC mis-tags as a
  * name, as long as JMdict has it. Gated on the analyzer's proper-noun tag, so a real
  * word left MT-only by the dev `-common-` subset (唐揚げ) is untouched.
  */
 function isUnknownName(token: AnalyzedToken, senses: Word[]): boolean {
-  return (
-    (token.properNoun === true || isNameFragment(token)) &&
-    senses.length > 0 &&
-    senses.every((s) => !s.partOfSpeech?.length)
-  );
+  return token.properNoun === true && isMtOnly(senses);
+}
+
+/** Every sense is machine translation (see isJunkKatakana for why "no POS" says so). */
+function isMtOnly(senses: Word[]): boolean {
+  return senses.length > 0 && senses.every((s) => !s.partOfSpeech?.length);
 }
 
 const HAS_KANJI = /\p{Script=Han}/u;
@@ -442,6 +530,12 @@ export async function translateParagraph(params: {
   //    pointed at the original paragraph; for JA this also yields reading + lemma.
   let tokens = params.tokens ?? (await analyze(input, resolvedSource));
 
+  // 2a. CURATED NAMES first, before anything is looked up: a name the tokenizer splits
+  //     (大谷翔平 → 大谷 + 翔 + 平) becomes one name token, so its pieces are never
+  //     looked up as words (平 "flat") and the name shows as itself. See services/names.
+  const curated = await getCuratedNames(resolvedSource, targetLang);
+  tokens = mergeCuratedNames(tokens, curated);
+
   // 2b. Re-merge compounds kuromoji over-segmented, validated against the DICTIONARY
   //     (柔軟 ＋ 剤 → 柔軟剤). Without it the reader looks up the fragments and the
   //     word's meaning is lost — the top source of quality reports. Generalizes the
@@ -544,13 +638,68 @@ export async function translateParagraph(params: {
   // 4. Key by the shared wordKey (lemma, lowercased) so every surface of one word —
   //    "Cats", "cats", "cat" — resolves to a single entry. Callers use the same helper.
   const meanings = new Map<string, Word[]>();
+  const names = new Set<string>();
   for (const token of tokens) {
     const key = wordKey(token);
     if (!meanings.has(key)) {
       let senses = (meaningsByKey.get(keyOf(token)) ?? []).filter((s) => !isNamedEntitySense(s));
       if (token.composite) senses = [...senses.filter((s) => !isPrefixOnly(s)), ...senses.filter(isPrefixOnly)];
-      const drop = isJunkKatakana(token.text, senses) || isGrammarOnly(senses) || isUnknownName(token, senses);
+      // A lone unknown kanji (倖 of 倖田來未) is a FRAGMENT of a name, not a name: it is
+      // still dropped. A whole name stays, flagged.
+      const drop =
+        isJunkKatakana(token.text, senses) ||
+        isGrammarOnly(senses) ||
+        (isNameFragment(token) && isMtOnly(senses));
       meanings.set(key, drop ? [] : senses);
+      if (!drop && isUnknownName(token, senses)) names.add(key);
+    }
+  }
+
+  // 5. PEOPLE and COMPANIES. The analyser took these off content POS (nobody studies
+  //    佐野 or ソニー), so no lookup ran for them and none is bought here. They still
+  //    get ONE stand-in sense so the reader can show the name and let it be added by
+  //    hand:
+  //      · a person  → the reading, romanized (たなか → Tanaka). A translator given a
+  //                    bare surname translates the WORD (林 → "forest").
+  //      · a company → the on-device translation where the iOS app has one (ソニー →
+  //                    Sony; a romanization would say "Soni"), else the romanization.
+  //    Free on every path: the on-device translator costs nothing, and the web simply
+  //    doesn't have it. Flagged in `names`, so nothing automatic counts or adds them.
+  const nameTokens: AnalyzedToken[] = [];
+  for (const token of tokens) {
+    if (!token.nameKind) continue;
+    const key = wordKey(token);
+    if (meanings.has(key) && (meanings.get(key)?.length ?? 0) > 0) continue;
+    if (nameTokens.some((t) => wordKey(t) === key)) continue;
+    nameTokens.push(token);
+  }
+  if (nameTokens.length > 0) {
+    // (A curated company already has its answer — nothing to ask the translator.)
+    const companies = nameTokens.filter((t) => t.nameKind === "organization" && !curated.has(nfc(t.text)));
+    const translated = new Map<string, string>();
+    if (companies.length > 0 && canTranslateOnDevice(resolvedSource, targetLang)) {
+      try {
+        const out = await translateOnDevice({
+          segments: companies.map((t) => t.text),
+          sourceLang: resolvedSource,
+          targetLang,
+        });
+        companies.forEach((t, i) => {
+          const text = out[i]?.trim();
+          if (text && text !== t.text) translated.set(wordKey(t), text);
+        });
+      } catch {
+        /* models not on the phone yet — the romanization stands in */
+      }
+    }
+    for (const token of nameTokens) {
+      const key = wordKey(token);
+      // A curated name says what to show; otherwise the translation, else the reading.
+      const meaning =
+        curated.get(nfc(token.text))?.meaning ?? translated.get(key) ?? nameRomaji(token.reading ?? token.text);
+      if (!meaning) continue; // nothing honest to show (a name with no kana reading)
+      meanings.set(key, [nameSense(token, meaning, resolvedSource, targetLang)]);
+      names.add(key);
     }
   }
 
@@ -565,5 +714,6 @@ export async function translateParagraph(params: {
     targetLang,
     tokens,
     meanings,
+    names,
   };
 }

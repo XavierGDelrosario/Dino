@@ -12,6 +12,8 @@ import {
   saveDictionaryWords,
   createCustomWord,
   editUserWord,
+  revertUserWord,
+  isMeaningEdited,
   deleteUserWord,
   deleteUserWords,
   addUserWordToList,
@@ -257,6 +259,30 @@ describe("editUserWord", () => {
   });
 });
 
+describe("revertUserWord / isMeaningEdited", () => {
+  it("clears the user's own meaning, only on a word that has a dictionary one behind it", async () => {
+    stub.queueFrom("user_words", { data: uwRow({ custom_translation: null }), error: null });
+
+    await revertUserWord({ userWordId: "uw1" });
+
+    expect(stub.callsFor("user_words", "update")[0]?.args[0]).toEqual({ custom_translation: null });
+    // The guard: a created word (no dictionary sense) must never be left with no meaning.
+    expect(stub.callsFor("user_words", "not")[0]?.args).toEqual(["dictionary_word_id", "is", null]);
+    expect(stub.callsFor("user_words", "delete")).toHaveLength(0);
+  });
+
+  it("surfaces a failure instead of pretending the word was reverted", async () => {
+    stub.queueFrom("user_words", { data: null, error: { code: "PGRST116", message: "no rows" } });
+    await expect(revertUserWord({ userWordId: "uw1" })).rejects.toThrow();
+  });
+
+  it("edited = a dictionary word whose meaning the user replaced", () => {
+    expect(isMeaningEdited({ customTranslation: "mine", dictionaryWordId: "w1" })).toBe(true);
+    expect(isMeaningEdited({ customTranslation: null, dictionaryWordId: "w1" })).toBe(false);
+    expect(isMeaningEdited({ customTranslation: "mine", dictionaryWordId: null })).toBe(false); // created
+  });
+});
+
 describe("deleteUserWord", () => {
   it("deletes the entry and touches nothing else (tags cascade in the DB)", async () => {
     stub.queueFrom("user_words", { data: null, error: null });
@@ -397,6 +423,20 @@ describe("getAllUserWords (the virtual ALL list)", () => {
 });
 
 describe("getUserWordStates", () => {
+  it("never sends a NAME's stand-in id to the database — it would fail the whole read", async () => {
+    stub.queueFrom("user_words", { data: [], error: null });
+    const states = await getUserWordStates({ userId: "u", dictionaryWordIds: ["name:JA:田中", "w1"] });
+    expect(stub.callsFor("user_words", "in")[0]?.args[1]).toEqual(["w1"]);
+    // …but the caller still gets an answer for it: not saved.
+    expect(states.get("name:JA:田中")).toMatchObject({ tracked: false, confidenceRating: 0 });
+  });
+
+  it("makes no request at all when every id is a stand-in", async () => {
+    const states = await getUserWordStates({ userId: "u", dictionaryWordIds: ["name:JA:田中"] });
+    expect(stub.callsFor("user_words", "select")).toHaveLength(0);
+    expect(states.get("name:JA:田中")?.tracked).toBe(false);
+  });
+
   it("marks saved dictionary senses tracked, others new (confidence 0)", async () => {
     // Confidence is computed LIVE from the strength columns (services/confidence.ts),
     // not read off `confidence_rating` — that column is only a write-time snapshot, so

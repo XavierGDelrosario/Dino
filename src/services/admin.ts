@@ -201,6 +201,9 @@ export interface QualityReport {
   /** The exact sense reported, when the surface knew it. Null for an admin note typed
    *  as free text, and for a reader report on a word with several senses. */
   dictionaryWordId: string | null;
+  /** What the Translate output box held, for a report filed from its flag; null for a
+   *  word report or an admin note. */
+  output: string | null;
   status: QualityStatus;
   /** When it was completed; null while open. */
   resolvedAt: string | null;
@@ -245,6 +248,8 @@ export async function listQualityReports(filter: QualityReportFilter = {}): Prom
     description: r.description,
     source: r.source === "user" ? "user" : "admin",
     dictionaryWordId: r.dictionary_word_id,
+    // `?? null`: a database still on the pre-20260789 shape returns no such field.
+    output: r.output ?? null,
     status: r.status === "resolved" ? "resolved" : "open",
     resolvedAt: r.resolved_at,
     resolvedBy: r.resolved_by,

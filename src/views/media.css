@@ -2,23 +2,19 @@
    No language picker of its own and no back button: Learn owns both (see
    MediaView's header). */
 
-.media__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.media__head .review__scope {
-  margin: 0;
-}
-
-/* Browse ⇄ ★ Saved toggle. */
+/* Browse ⇄ ★ Saved toggle, with Refresh beside them on Browse. */
 .media__tabs {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.9rem;
+}
+
+/* Sized to sit level with the two pills beside it. */
+.media__refresh {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
 }
 
 .media__tab {
@@ -36,6 +32,25 @@
   border-color: var(--accent, currentColor);
   background: var(--accent-soft, rgba(127, 127, 127, 0.15));
   font-weight: 600;
+}
+
+/* Topic picker — ONE line that scrolls sideways, never wraps (nine chips would
+   otherwise push the headlines down by three rows on a phone). */
+.media__topics {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.media__topics::-webkit-scrollbar {
+  display: none;
+}
+
+.media__topics .media__tab {
+  flex: none;
+  white-space: nowrap;
 }
 
 .media__list {

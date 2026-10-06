@@ -4,6 +4,7 @@
 // FOUR tabs, not five: Articles (Wikinews) used to be a "Media" tab and now lives
 // behind Learn, which is where a learner already goes to find new words. LearnView
 // owns that sub-surface and its chunk.
+import { NoFooter } from "../components/common/NoFooter";
 import { Suspense, lazy, useState } from "react";
 import { useI18n } from "../i18n";
 import { useStickyState } from "../hooks/useStickyState";
@@ -55,6 +56,7 @@ export function HomeView({ userId }: { userId: string }) {
 
       {/* key on userId so a sign-in/out/upgrade-to-different-uid fully resets each
           view's hooks instead of showing the previous user's data. */}
+      {(tab === "translate" || tab === "review") && <NoFooter />}
       <Suspense fallback={<p className="review__msg"><Loading text={t("common.loading")} /></p>}>
         {tab === "translate" && <TranslateView key={userId} userId={userId} />}
         {tab === "lists" && (

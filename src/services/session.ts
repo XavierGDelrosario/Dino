@@ -8,11 +8,13 @@ import { Browser } from "@capacitor/browser";
 import { supabase } from "../config/supabaseClient";
 import { getCaptchaToken } from "./captcha";
 import { toServiceError } from "./errors";
-import { CURRENT_TERMS_VERSION } from "../lib/terms";
+import { CURRENT_TERMS_VERSION, termsOutdated } from "../lib/terms";
 import { isNative, NATIVE_OAUTH_REDIRECT } from "./nativeAuth";
 import type { Database } from "../types/database.types";
 import { resetVocabulary } from "./words/vocabularyCache";
+import { forgetHistory } from "./translateHistory";
 import { rememberOAuthIntent, type OAuthProvider } from "./oauthReturn";
+import { emailFromIdToken, type GoogleCredential, type GoogleFailure, type GoogleReturn } from "./googleIdentity";
 
 export interface UserProfile {
   userId: string;
@@ -20,7 +22,7 @@ export interface UserProfile {
   dateCreated: string;
   /** Native language → default translation OUTPUT (target). null = app default. */
   nativeLanguage: string | null;
-  /** Language being studied → default "I'm learning" + input. null = app default. */
+  /** Language being studied → what Translate studies + its default input. null = app default. */
   learningLanguage: string | null;
   /** When the user last accepted the Terms/Privacy (null = never, e.g. a guest). */
   termsAgreedAt: string | null;
@@ -162,6 +164,40 @@ export const linkGoogle = () => linkProvider("google");
 export const signInWithGoogle = () => signInWithProvider("google");
 
 /**
+ * The same two Google operations, from an ID TOKEN Google handed the page directly
+ * (services/googleIdentity) instead of a redirect through Supabase's domain. WEB only.
+ * Nothing leaves the page, so the outcome is a return value or a thrown ServiceError
+ * carrying GoTrue's `code` — e.g. `identity_already_exists` when the Google account is
+ * already a DINO user, which the auth page answers by signing in with the same token.
+ */
+export async function linkGoogleIdToken(credential: GoogleCredential): Promise<AuthStatus> {
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider: "google",
+    token: credential.token,
+    nonce: credential.nonce,
+  });
+  if (error) throw toServiceError(error, "Could not link Google");
+  if (!data.user) throw toServiceError(null, "Could not link Google");
+  await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
+  return toStatus(data.user as SupaUser);
+}
+
+export async function signInWithGoogleIdToken(credential: GoogleCredential): Promise<AuthStatus> {
+  const captchaToken = await getCaptchaToken();
+  await prepareGuestMerge(); // while we are still the guest — see claimGuestMerge
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: credential.token,
+    nonce: credential.nonce,
+    options: { captchaToken },
+  });
+  if (error) throw toServiceError(error, "Google sign-in failed");
+  if (!data.user) throw toServiceError(null, "Google sign-in failed");
+  await ensureUserProfile(data.user.id, data.user.email || `${data.user.id}@guest.dino`);
+  return toStatus(data.user as SupaUser);
+}
+
+/**
  * Sign in with Apple — same flow as Google, and REQUIRED rather than optional: App
  * Store guidelines make it mandatory for an app offering another third-party login, so
  * shipping to iOS without it is a rejection.
@@ -173,6 +209,42 @@ export const signInWithGoogle = () => signInWithProvider("google");
  */
 export const linkApple = () => linkProvider("apple");
 export const signInWithApple = () => signInWithProvider("apple");
+
+/**
+ * Finish a Google return: sign-up LINKS the guest (same uid); a Google account that is
+ * already a DINO user can't be linked, so the SAME token signs in to it instead and
+ * the guest's words follow via the merge ticket.
+ *
+ * OUTPUT: null on success, else why it was refused. The one-method rule surfaces from
+ * GoTrue only as a generic failure — but we hold the token, so we read the email from
+ * it and report the methods that account DOES use (empty when it is a Google account
+ * or unknown). Never throws.
+ */
+export async function completeGoogleSignIn(back: GoogleReturn): Promise<GoogleFailure | null> {
+  const codeOf = (e: unknown) => (e as { code?: unknown } | null)?.code;
+  try {
+    if (back.mode === "signup") {
+      try {
+        await linkGoogleIdToken(back.credential);
+      } catch (e) {
+        if (codeOf(e) !== "identity_already_exists") throw e;
+        await signInWithGoogleIdToken(back.credential);
+      }
+    } else {
+      await signInWithGoogleIdToken(back.credential);
+    }
+    return null;
+  } catch (e) {
+    const code = codeOf(e);
+    console.warn("Google sign-in failed:", code, e);
+    const email = emailFromIdToken(back.credential.token);
+    const methods = email ? await getSignInMethods(email) : [];
+    return {
+      code: typeof code === "string" ? code : "unknown",
+      methods: methods.includes("google") ? [] : methods,
+    };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Collisions. ONE email = one account = one method (password · Google · Apple),
@@ -302,27 +374,35 @@ export async function recordTermsAgreement(): Promise<void> {
   const { data } = await supabase.auth.getUser();
   const uid = data.user?.id;
   if (!uid) return;
+  // Never move an acceptance BACKWARDS: only stamp a row that has none or an older
+  // one (see lib/terms.ts — an older build must not overwrite a newer acceptance).
   const { error } = await supabase
     .from("users")
     .update({ terms_agreed_at: new Date().toISOString(), terms_version: CURRENT_TERMS_VERSION })
-    .eq("user_id", uid);
+    .eq("user_id", uid)
+    .or(`terms_version.is.null,terms_version.lt.${CURRENT_TERMS_VERSION}`);
   if (error) throw toServiceError(error);
 }
 
 /**
  * Does this account still owe Terms acceptance? True when its stored `terms_version` is
- * missing or behind CURRENT_TERMS_VERSION — an OAuth signup that bypassed the checkbox,
+ * missing or OLDER than CURRENT_TERMS_VERSION (a newer one, stamped by a newer build,
+ * counts as accepted) — an OAuth signup that bypassed the checkbox,
  * or anyone after a Terms update. Only checked for permanent accounts; guests aren't gated.
  */
 export async function needsTermsAcceptance(userId: string): Promise<boolean> {
   const profile = await getUserProfile(userId);
-  return !profile || profile.termsVersion !== CURRENT_TERMS_VERSION;
+  return !profile || termsOutdated(profile.termsVersion);
 }
 
 /** Sign out into a FRESH anonymous guest (no login wall). Returns the new userId. */
 export async function signOut(): Promise<string> {
-  await supabase.auth.signOut().catch(() => {});
+  // `local`: the library default is GLOBAL, which revoked the account's sessions on
+  // every other device — a phone dropped to an empty guest because a browser signed out.
+  const leaving = await getCurrentUserId().catch(() => null);
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
   resetVocabulary(); // don't hold the last account's vocabulary in memory
+  forgetHistory(leaving); // nor leave what they looked up on a device they've left
   return ensureSession();
 }
 
@@ -334,6 +414,10 @@ export async function signOut(): Promise<string> {
 export async function requestPasswordReset(email: string): Promise<void> {
   const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
   const captchaToken = await getCaptchaToken();
+  // Following the link signs the user IN, replacing this guest — the same uid switch as
+  // a sign-in, so mint the merge ticket now (its 1-hour life matches the link's) or the
+  // guest's words are stranded on an anonymous user nobody can reach again.
+  await prepareGuestMerge();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo,
     captchaToken,
@@ -348,10 +432,13 @@ export async function requestPasswordReset(email: string): Promise<void> {
  * guest. Irreversible.
  */
 export async function deleteAccount(): Promise<void> {
+  // Read BEFORE the account is gone: afterwards there may be no session to ask.
+  const deleted = await getCurrentUserId().catch(() => null);
   const { error } = await supabase.functions.invoke("delete-account", { body: {} });
   if (error) throw toServiceError(error, "Could not delete your account");
   await supabase.auth.signOut().catch(() => {});
   resetVocabulary();
+  forgetHistory(deleted); // erasure covers what the device kept, too
 }
 
 /** Set a new password for the user currently in a recovery session (after they

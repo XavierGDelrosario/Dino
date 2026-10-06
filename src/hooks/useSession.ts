@@ -1,7 +1,7 @@
 // Bootstraps the anonymous guest session once on app start, then tracks the live
 // auth identity (guest vs permanent account) so the UI updates when the user
 // upgrades / signs in / signs out (see services/session).
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   claimGuestMerge,
   ensureSession,
@@ -49,10 +49,9 @@ function describeError(e: unknown): Error {
  *  React render, before supabase strips it via replaceState. */
 function isRecoveryUrl(): boolean {
   if (typeof window === "undefined") return false;
-  return (
-    window.location.hash.includes("type=recovery") ||
-    window.location.search.includes("type=recovery")
-  );
+  // The FRAGMENT only: that is where the implicit flow puts it. Matching the query too
+  // let any link ending in `?type=recovery` raise the takeover.
+  return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("type") === "recovery";
 }
 
 export function useSession(): SessionState {
@@ -83,7 +82,15 @@ export function useSession(): SessionState {
         if (s && !s.isAnonymous && hasPendingGuestMerge()) await claimGuestMerge();
         return s;
       })
-      .then((s) => active && s && setStatus(s))
+      .then((s) => {
+        if (!active || !s) return;
+        // A sign-in can complete WHILE this bootstrap is in flight: the listener below
+        // reports the stored guest first, the auth page mounts, and it finishes a
+        // Google ID-token return (services/googleIdentity) before `getAuthStatus` — read
+        // for the user we BOOTED as — resolves. The listener's status is then the newer
+        // one; applying `s` over it showed a signed-in user as a guest until reload.
+        setStatus((prev) => (prev && prev.userId !== s.userId ? prev : s));
+      })
       .catch((e) => {
         console.error("ensureSession failed:", e); // full object in DevTools
         if (active) setError(describeError(e));
@@ -125,12 +132,14 @@ export function useSession(): SessionState {
     };
   }, []);
 
+  const clearRecovery = useCallback(() => setRecovering(false), []);
+
   return {
     userId: status?.userId ?? null,
     email: status?.email ?? null,
     isAnonymous: status?.isAnonymous ?? true,
     recovering,
-    clearRecovery: () => setRecovering(false),
+    clearRecovery,
     loading: status === null && error === null,
     error,
   };

@@ -5,7 +5,10 @@
 //
 // Submit is a BUTTON, never Enter (IME safety). A quiz/review session is a FULL
 // takeover, so nothing can interfere mid-session.
-import { useEffect, useState } from "react";
+import { isMachineOutput } from "../services/translation/attribution";
+import { GoogleBadge } from "../components/common/GoogleBadge";
+import { CopyButton } from "../components/common/CopyButton";
+import { useEffect, useRef, useState } from "react";
 import { useTranslate } from "../hooks/useTranslate";
 import { LangBar } from "../components/translate/LangBar";
 import { ParagraphReader } from "../components/translate/ParagraphReader";
@@ -15,14 +18,15 @@ import { WordResults } from "../components/translate/WordResults";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { HandwritingCanvas } from "../components/translate/HandwritingCanvas";
 import { HistoryMenu } from "../components/translate/HistoryMenu";
-import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon, ImageIcon } from "../components/common/icons";
+import { PencilIcon, MicIcon, StopIcon, XIcon, CameraIcon } from "../components/common/icons";
+import { ReportFlagButton } from "../components/common/ReportFlagButton";
 import { photoAccess as readPhotoAccess, type PhotoAccess } from "../services/photos/access";
 import { PhotoLibrarySheet } from "../components/translate/PhotoLibrarySheet";
 import { SpeakButton } from "../components/common/SpeakButton";
 import { isOcrAvailable, capturePhoto, recognizeText, type OcrSource } from "../services/ocr";
 import { ImageCropper } from "../components/translate/ImageCropper";
 import { TextQuizView, type QuizMode } from "./TextQuizView";
-import { targetOptions, AUTO_DETECT, resolveSourceLanguage } from "../services/language";
+import { AUTO_DETECT, resolveSourceLanguage } from "../services/language";
 import { isHandwritingAvailable } from "../services/handwriting";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
@@ -166,9 +170,34 @@ export function TranslateView({
     };
   }, [ocrAvailable]);
 
+  // ONE picture button, which asks "Take photo or Select photo?" (user, 2026-10-06).
+  // The library used to have a button of its own; two near-identical icons in a column
+  // that is already five tall cost more than the extra tap does. Our own menu rather
+  // than Capacitor's `CameraSource.Prompt`: the limited-access library below is an
+  // in-app sheet the system prompt knows nothing about.
+  const [cameraMenu, setCameraMenu] = useState(false);
+  const cameraWrap = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!cameraMenu) return;
+    // Same dismissal as PopoverMenu: a press anywhere else, or Escape.
+    const onOutside = (e: PointerEvent) => {
+      if (!cameraWrap.current?.contains(e.target as Node)) setCameraMenu(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCameraMenu(false);
+    };
+    document.addEventListener("pointerdown", onOutside, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onOutside, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [cameraMenu]);
+
   /** Camera or photo library — identical from here on: crop, then recognize. The
-   *  source only decides which sheet opens, so the two buttons share this path. */
+   *  source only decides which sheet opens, so the two menu items share this path. */
   const onCamera = async (source: OcrSource = "camera") => {
+    setCameraMenu(false);
     // LIMITED ACCESS TAKES THE IN-APP GRID INSTEAD. The system picker shows the whole
     // library and quietly returns whatever is tapped, so it never reveals that the
     // app's own access is narrower — and there is nowhere in it to widen that. The
@@ -234,10 +263,6 @@ export function TranslateView({
     void syncSenseState(ids);
   }, [live.para, syncSenseState]);
 
-  // Whether the reader comes up with its English already showing — set only when the
-  // user asked via "Show translation" (see askForTranslation), so the plain Translate
-  // button leaves the reader source-first.
-  const [openGloss, setOpenGloss] = useState(false);
   // Snapshot a paragraph's NEW words ONCE when its result arrives: the live
   // addablePrimaries empties as words save, which would unmount the "Add all" button
   // mid-interaction, so it is deliberately excluded from the deps.
@@ -247,6 +272,15 @@ export function TranslateView({
     else if (t.status !== "done") setAddAllWords([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.status, t.mode, t.para]);
+
+  // What was translated, kept beside its answer for the output box's report flag. The
+  // box above stays editable after a result lands, so reading t.input at press time
+  // could pair the translation with text it was never the answer to.
+  const [translatedInput, setTranslatedInput] = useState("");
+  useEffect(() => {
+    if (t.status === "done") setTranslatedInput(t.input);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t.status, t.output]);
 
   // Quiz/review = full takeover. The normal .review column, NOT the wide .translate
   // breakout, so the card matches Review / Learn / Calibration.
@@ -270,16 +304,16 @@ export function TranslateView({
   const wordStudy = t.status === "done" && t.mode === "word" && t.meanings.length > 0;
   const paraStudy = t.status === "done" && t.mode === "paragraph" && t.para;
 
-  /** "Show translation" on the live reader: run the same submit the button runs.
-   *  The live reader is replaced by the submitted one, so remember that the English
-   *  was ASKED for — otherwise the reader that arrives hides the gloss it just
-   *  bought, and the press reads as having done nothing. */
-  const askForTranslation = async () => {
-    setOpenGloss(true);
-    await t.submit();
-  };
   const hasActions =
     addAllWords.length > 0 || t.addableCount > 0 || t.reviewableCount > 0 || !!paraStudy;
+
+  // Google's attribution rules ask for its mark beside a machine translation.
+  const outputIsMachine = isMachineOutput({
+    mode: t.mode,
+    input: t.input,
+    output: t.output,
+    meanings: t.meanings,
+  });
 
   return (
     <section className="translate">
@@ -333,21 +367,26 @@ export function TranslateView({
               ✕ appears. See .io__gutter. */}
           <div className="io__gutter">
             <div className="io__tools">
-              {/* Order: clear · draw · mic · picture. Clear first because it acts on
-                  what's already there; then the three ways to PUT something in, in
-                  ascending order of how much screen they take over. */}
+              {/* Order: clear · copy · draw · mic · picture, ONE column. The first two
+                  act on what's already there (and only exist when something is); then
+                  the three ways to PUT something in, in ascending order of how much
+                  screen they take over. Copy is SECOND in both boxes — under the ✕
+                  here, under the flag on the output. */}
               {t.input.trim() !== "" && (
-                <button
-                  className="io__tool"
-                  onClick={() => {
-                    t.setInput("");
-                    setCredit(null);
-                  }}
-                  aria-label={tr("translate.clearInput")}
-                  title={tr("translate.clearInput")}
-                >
-                  <XIcon />
-                </button>
+                <>
+                  <button
+                    className="io__tool"
+                    onClick={() => {
+                      t.setInput("");
+                      setCredit(null);
+                    }}
+                    aria-label={tr("translate.clearInput")}
+                    title={tr("translate.clearInput")}
+                  >
+                    <XIcon />
+                  </button>
+                  <CopyButton className="io__tool" text={t.input} />
+                </>
               )}
               {hwAvailable && (
                 <button
@@ -379,30 +418,29 @@ export function TranslateView({
                 </button>
               )}
               {ocrAvailable && (
-                <>
+                <div className="io__menuwrap" ref={cameraWrap}>
                   <button
                     className="io__tool"
-                    onClick={() => void onCamera("camera")}
+                    onClick={() => setCameraMenu((v) => !v)}
                     disabled={ocrBusy}
+                    aria-haspopup="menu"
+                    aria-expanded={cameraMenu}
                     aria-label={tr("ocr.capture")}
                     title={tr("ocr.capture")}
                   >
                     {ocrBusy ? <LoadingDots /> : <CameraIcon />}
                   </button>
-                  {/* Photo LIBRARY gets its own button rather than an action sheet on
-                      the camera: most text worth scanning is already on the phone and
-                      can't be re-photographed, so hiding it behind a second step would
-                      bury the more common source behind the rarer one. */}
-                  <button
-                    className="io__tool"
-                    onClick={() => void onCamera("library")}
-                    disabled={ocrBusy}
-                    aria-label={tr("ocr.library")}
-                    title={tr("ocr.library")}
-                  >
-                    {ocrBusy ? <LoadingDots /> : <ImageIcon />}
-                  </button>
-                </>
+                  {cameraMenu && (
+                    <div className="io__menu" role="menu">
+                      <button type="button" role="menuitem" className="io__menuitem" onClick={() => void onCamera("camera")}>
+                        {tr("ocr.takePhoto")}
+                      </button>
+                      <button type="button" role="menuitem" className="io__menuitem" onClick={() => void onCamera("library")}>
+                        {tr("ocr.selectPhoto")}
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             {/* Read-aloud, the gutter's BOTTOM cluster — the opposite end from the input
@@ -414,7 +452,10 @@ export function TranslateView({
           </div>
         </div>
         <div className="translate__outwrap">
-          <div className="translate__box translate__out text-selectable" aria-label={tr("translate.outputAria")}>
+          <div
+            className={`translate__box translate__out text-selectable${outputIsMachine ? " translate__out--credited" : ""}`}
+            aria-label={tr("translate.outputAria")}
+          >
             {t.status === "loading" ? (
               <span className="translate__placeholder"><Loading text={tr("translate.translating")} /></span>
             ) : t.output ? (
@@ -423,6 +464,28 @@ export function TranslateView({
               <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
             )}
           </div>
+          {/* Top-right, the corner opposite read-aloud, as a column: the flag that
+              reports the translation (the input together with what came back for it),
+              then copy under it — second, as on the input side. */}
+          {t.status !== "loading" && (
+            <div className="io__copy">
+              {t.output && (
+                <ReportFlagButton
+                  className="io__tool"
+                  input={translatedInput || t.input}
+                  output={t.output}
+                  label={tr("report.flagTranslation")}
+                />
+              )}
+              <CopyButton className="io__tool" text={t.output ?? ""} />
+            </div>
+          )}
+          {/* Google's badge, bottom-right, just left of the read-aloud button. */}
+          {outputIsMachine && t.status !== "loading" && (
+            <div className="translate__credit">
+              <GoogleBadge size="small" />
+            </div>
+          )}
           {/* The translation, in the TARGET language — the side it's written in. */}
           <div className="io__speak">
             <SpeakButton className="io__tool" text={t.output ?? ""} lang={t.target} />
@@ -481,33 +544,12 @@ export function TranslateView({
       <div className="translate__submit">
         <button
           className="btn"
-          onClick={() => {
-            setOpenGloss(false); // Japanese-first; the reader's own toggle reveals it
-            void t.submit();
-          }}
+          onClick={() => void t.submit()}
           disabled={t.status === "loading" || !t.input.trim()}
         >
           {t.status === "loading" ? <LoadingDots /> : tr("translate.submit")}
         </button>
       </div>
-
-      {/* The language you're learning: the study section below always targets it
-          (its words get added/quizzed), whether you typed it or it's the output. */}
-      <label className="learnpick">
-        {tr("translate.learning")}
-        <select
-          className="select select--sm"
-          value={t.learning}
-          onChange={(e) => t.setLearning(e.target.value)}
-          aria-label={tr("translate.learningAria")}
-        >
-          {targetOptions().map((o) => (
-            <option key={o.code} value={o.code}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <ErrorText message={t.error} />
       <ErrorText message={ocrError} />
@@ -522,14 +564,15 @@ export function TranslateView({
 
       {/* EXPERIMENT — the live reader. Sits between the input and the study section:
           it is what you get for free while typing, and it disappears the moment a
-          submitted result takes over. No gloss is fetched here, so the "Show
-          translation" toggle inside it is the first thing that ever costs money. */}
+          submitted result takes over. No gloss is fetched here; tapping a sentence's
+          punctuation is the only thing in it that costs anything. */}
       {!paraStudy && live.para && live.analyzed && (
         <div className="study study--live">
           <ParagraphReader
             text={live.analyzed}
             tokens={live.para.tokens}
             meaningsByWord={live.para.meanings}
+            names={live.para.names}
             sentences={live.para.sentences}
             // The live reader buys its OWN English, exactly like the conversation
             // listener: tap one sentence, or take the lot. These used to point at
@@ -538,16 +581,11 @@ export function TranslateView({
             // bought here. Both paths share the sentence cache, so tapping a few
             // and then pressing the toggle pays only for what's left.
             onTranslateSentence={live.translateSentence}
-            // "Show translation" IS Translate. It used to buy only the gloss, which
-            // left it visibly weaker than the button beside it: no output box, and
-            // words still uncoloured because the saved/confidence state is loaded by
-            // submit. Same work now, so the only difference is that this one opens
-            // the English (and can put it away again).
-            //
-            // No double spend: submit's paragraph gloss and this toggle both go
-            // through glossSentences, which is content-addressed by sentence, so
-            // whichever runs second pays for nothing.
-            onLoadGloss={askForTranslation}
+            // No "Show translation" switch here: Translate is the button that
+            // translates, and the switch only appears on the result once every
+            // sentence has its translation (glossToggle="complete"). A single
+            // sentence can still be translated by tapping its punctuation.
+            glossToggle="complete"
             glossLoading={t.status === "loading"}
             saved={t.saved}
             confidence={t.confidence}
@@ -630,11 +668,13 @@ export function TranslateView({
                 text={t.analyzedInput}
                 tokens={t.para.tokens}
                 meaningsByWord={t.para.meanings}
+                names={t.para.names}
                 sentences={t.para.sentences}
                 onLoadGloss={t.loadGloss}
                 onTranslateSentence={t.loadSentenceGloss}
-                glossLoading={t.glossLoading}
-                openGloss={openGloss}
+                glossLoading={t.glossLoading || t.readerLoading}
+                // Offered only once the whole text is translated — never part-way.
+                glossToggle="complete"
                 saved={t.saved}
                 confidence={t.confidence}
                 lists={t.lists}

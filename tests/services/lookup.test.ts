@@ -5,6 +5,13 @@ import type { AnalyzedToken } from "@/services/language";
 
 // lookup.ts is READ-only: it surfaces meanings and a display translation but
 // never writes to a user's lists. Mock the data + provider boundaries.
+// The curated-names table is read through the Supabase client, which this spec doesn't
+// stand up: keep the real merge, stub the read (empty unless a case fills it).
+vi.mock("@/config/supabaseClient", () => ({ supabase: {} }));
+vi.mock("@/services/names", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/names")>()),
+  getCuratedNames: vi.fn(async () => new Map()),
+}));
 vi.mock("@/services/words/repository", () => ({
   findWordTranslations: vi.fn(),
   findWordTranslationsBatch: vi.fn(),
@@ -29,7 +36,8 @@ import { findWordTranslations, findWordTranslationsBatch } from "@/services/word
 import { translate, translateBatch, glossSentences } from "@/services/translation";
 import { resolveSenseProvider } from "@/services/senses";
 import { analyze } from "@/services/language";
-import { lookupWord, lookupWordsBatch, translateParagraph , wordKey} from "@/services/lookup";
+import { isNameSense, lookupWord, lookupWordsBatch, translateParagraph, studyView, wordKey } from "@/services/lookup";
+import { getCuratedNames } from "@/services/names";
 import { __clearWordsCache } from "@/services/words/cache";
 import type { Word } from "@/services/words/repository";
 
@@ -413,6 +421,33 @@ describe("translateParagraph", () => {
   });
 });
 
+describe("lookupWordsBatch — the curated primary fixes reach the reader too", () => {
+  it("applies the same writing/reading overrides lookupWord does", async () => {
+    // Quality report #42: in a sentence, すぎ led with the fish — the override only ran
+    // for a single-word lookup.
+    mockFindBatch.mockResolvedValue(
+      new Map([
+        ["すぎ", [
+          makeWord({ wordId: "cobia", input: "すぎ", inputReading: "須義", translation: "cobia" }),
+          makeWord({ wordId: "past", input: "過ぎ", inputReading: "すぎ", translation: "past; after" }),
+          makeWord({ wordId: "cedar", input: "杉", inputReading: "すぎ", translation: "Japanese cedar" }),
+        ]],
+        ["下手", [
+          makeWord({ wordId: "shitate", input: "下手", inputReading: "したて", translation: "humble position" }),
+          makeWord({ wordId: "heta", input: "下手", inputReading: "へた", translation: "unskillful" }),
+        ]],
+        ["猫", [makeWord({ wordId: "neko", input: "猫", translation: "cat" })]],
+      ]),
+    );
+
+    const map = await lookupWordsBatch({ inputs: ["すぎ", "下手", "猫"], sourceLang: "JA", targetLang: "EN" });
+
+    expect(map.get("すぎ")?.map((w) => w.wordId)).toEqual(["past", "cobia", "cedar"]);
+    expect(map.get("下手")?.map((w) => w.wordId)).toEqual(["heta", "shitate"]);
+    expect(map.get("猫")?.map((w) => w.wordId)).toEqual(["neko"]);
+  });
+});
+
 describe("lookupWordsBatch (EN→JA fan-out stage 2)", () => {
   it("merges cached words with edge-seeded misses in ONE batch each", async () => {
     // バット cached; 蝙蝠 missing → seeded via the batched edge call.
@@ -637,12 +672,95 @@ describe("translateParagraph — tokens the dictionary says are not vocabulary",
 
   // Quality reports #25–#28: 大東 / 東島 / 琉球新報 offered with an MT "meaning" that is
   // just the romanized name.
-  it("drops a proper noun whose only meaning is machine translation", async () => {
+  // …and since 2026-10-06 they are KEPT but flagged: the reader shows the name and it can
+  // be added by hand, while nothing automatic (Add all, quizzes, summaries) counts it.
+  it("keeps a proper noun whose only meaning is machine translation, flagged as a NAME", async () => {
     const res = await read(
       [{ text: "大東", start: 0, end: 2, reading: "だいとう", lemma: "大東", pos: "名詞", properNoun: true }],
       [["大東", [makeWord({ input: "大東", translation: "Daito", partOfSpeech: null })]]],
     );
-    expect(res.meanings.get("大東")).toEqual([]);
+    expect(res.meanings.get("大東")?.[0].translation).toBe("Daito");
+    expect([...(res.names ?? [])]).toEqual(["大東"]);
+  });
+
+  it("a name FRAGMENT (a lone unknown kanji) is still dropped, and is not a name", async () => {
+    const res = await read(
+      [{ text: "倖", start: 0, end: 1, reading: null, lemma: null, pos: "名詞", unknownWord: true }],
+      [["倖", [makeWord({ input: "倖", translation: "Happiness", partOfSpeech: null })]]],
+    );
+    expect(res.meanings.get("倖")).toEqual([]);
+    expect(res.names?.size ?? 0).toBe(0);
+  });
+
+  // People and companies: off content POS (not vocabulary), never looked up or bought,
+  // but shown with a stand-in sense so they can be read and added by hand.
+  it("a PERSON's name gets its reading romanized, with no lookup at all", async () => {
+    const res = await read(
+      [{ text: "田中", start: 0, end: 2, reading: "たなか", lemma: "田中", pos: "人名", nameKind: "person" }],
+      [],
+    );
+    const [sense] = res.meanings.get("田中") ?? [];
+    expect(sense.translation).toBe("Tanaka");
+    expect(sense.inputReading).toBe("たなか");
+    expect(isNameSense(sense)).toBe(true);
+    expect(res.names?.has("田中")).toBe(true);
+  });
+
+  it("a COMPANY falls back to its romanization where there is no on-device translator", async () => {
+    const res = await read(
+      [{ text: "トヨタ", start: 0, end: 3, reading: "とよた", lemma: "トヨタ", pos: "組織", nameKind: "organization" }],
+      [],
+    );
+    expect(res.meanings.get("トヨタ")?.[0].translation).toBe("Toyota");
+    expect(res.names?.has("トヨタ")).toBe(true);
+  });
+
+  it("a name with no kana reading to romanize is left as plain text", async () => {
+    const res = await read(
+      [{ text: "ＡＢＣ", start: 0, end: 3, reading: null, lemma: null, pos: "組織", nameKind: "organization" }],
+      [],
+    );
+    expect(res.meanings.get("ＡＢＣ") ?? []).toEqual([]);
+    expect(res.names?.size ?? 0).toBe(0);
+  });
+
+  // 大谷翔平: kuromoji gives 大谷 (read オオヤ) + 翔 + 平, and 平 alone is the word "flat".
+  it("a CURATED name is shown whole, with the curated reading and meaning", async () => {
+    vi.mocked(getCuratedNames).mockResolvedValueOnce(
+      new Map([["大谷翔平", { reading: "おおたにしょうへい", meaning: "Shohei Ohtani", kind: "person" as const }]]),
+    );
+    const res = await read(
+      [
+        { text: "大谷", start: 0, end: 2, reading: "おおや", lemma: "大谷", pos: "人名", nameKind: "person" },
+        { text: "翔", start: 2, end: 3, reading: "しょう", lemma: "翔", pos: "人名", nameKind: "person" },
+        { text: "平", start: 3, end: 4, reading: "ひら", lemma: "平", pos: "名詞" },
+      ],
+      [["平", [makeWord({ input: "平", translation: "flat", partOfSpeech: ["n"] })]]],
+    );
+    expect(res.tokens.map((t) => t.text)).toEqual(["大谷翔平"]);
+    const [sense] = res.meanings.get("大谷翔平") ?? [];
+    expect(sense.translation).toBe("Shohei Ohtani");
+    expect(sense.inputReading).toBe("おおたにしょうへい");
+    expect(res.names?.has("大谷翔平")).toBe(true);
+    expect(res.meanings.has("平")).toBe(false); // its pieces are never offered as words
+  });
+
+  it("studyView takes the names out of BOTH the tokens and the meanings", async () => {
+    const res = await read(
+      [
+        { text: "大東", start: 0, end: 2, reading: "だいとう", lemma: "大東", pos: "名詞", properNoun: true },
+        { text: "猫", start: 2, end: 3, reading: "ねこ", lemma: "猫", pos: "名詞" },
+      ],
+      [
+        ["大東", [makeWord({ input: "大東", translation: "Daito", partOfSpeech: null })]],
+        ["猫", [makeWord({ input: "猫", translation: "cat", partOfSpeech: ["n"] })]],
+      ],
+    );
+    const study = studyView({ tokens: res.tokens, meaningsByWord: res.meanings, names: res.names });
+    expect(study.tokens.map((t) => t.text)).toEqual(["猫"]);
+    expect([...study.meaningsByWord.keys()]).toEqual(["猫"]);
+    // The reader's own view is untouched: the name is still there to tap and add.
+    expect(res.meanings.has("大東")).toBe(true);
   });
 
   it("keeps a proper noun the dictionary knows (東京 is vocabulary)", async () => {
@@ -651,6 +769,7 @@ describe("translateParagraph — tokens the dictionary says are not vocabulary",
       [["東京", [makeWord({ input: "東京", translation: "Tokyo", partOfSpeech: ["n"] })]]],
     );
     expect(res.meanings.get("東京")?.[0].translation).toBe("Tokyo");
+    expect(res.names?.has("東京") ?? false).toBe(false); // ordinary vocabulary, not flagged
   });
 
   it("keeps an MT-only word that is NOT a proper noun (唐揚げ on the -common- subset)", async () => {

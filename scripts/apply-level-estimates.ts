@@ -27,6 +27,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { Client } from "pg";
 import { fitLevelEstimate, isPlaceName, type LevelledWord, type TokenTags } from "./lib/levelEstimate";
+import { commonKanaOf } from "./lib/proficiency";
 
 type Tokenizer = { tokenize: (text: string) => TokenTags[] };
 
@@ -46,6 +47,7 @@ const TEACHING_VOCAB = new URL("../data/teaching_vocab/ja.tsv", import.meta.url)
 interface WritingRow {
   id: string;
   text: string;
+  common: boolean;
   frequency: number | null;
   proficiency_band: number | null;
   estimated_band: number | null;
@@ -98,16 +100,26 @@ async function main(): Promise<void> {
     // 2. Every writing, with whether its entry is levelable vocabulary at all.
     const writings = (table: string) =>
       client.query<WritingRow>(
-        `SELECT t.id::text, t.text, t.frequency, t.proficiency_band, t.estimated_band,
+        `SELECT t.id::text, t.text, t.common, t.frequency, t.proficiency_band, t.estimated_band,
                 NOT not_leveled_vocab(h.part_of_speech, t.entry_id) AS levelable
            FROM ${table} t JOIN jmdict_entry_headword_mv h USING (entry_id)`,
       );
     // A writing with no letter at all (○, ※) is a symbol, not vocabulary; a place name
     // (台湾, インド — isPlaceName) is not vocabulary either. The name test runs last, so
     // kuromoji only sees writings that would otherwise get an estimate.
+    //
+    // An UNCOMMON entry's kana, when a common entry is spelled the same way, gets no
+    // estimate either: frequency is counted per SPELLING, so the number on that row is
+    // the common word's. It is the curated rule's homophone exception
+    // (scripts/lib/proficiency.ts) on the estimate side — without it 須義 (the cobia,
+    // spelled すぎ) loses 過ぎ's N5 only to be handed an "estimated N3" off 過ぎ's frequency.
+    const commonKana = commonKanaOf(
+      (await client.query<{ text: string; common: boolean }>("SELECT text, common FROM jmdict_kana WHERE common")).rows,
+    );
     let namesSkipped = 0;
-    const estimate = (r: WritingRow) => {
+    const estimate = (r: WritingRow, isKana: boolean) => {
       if (r.proficiency_band != null || !r.levelable || !/\p{L}/u.test(r.text)) return null;
+      if (isKana && !r.common && commonKana.has(r.text.normalize("NFC"))) return null;
       const band = rule(r.text, r.frequency, teaching.has(r.text));
       if (band == null) return null;
       if (isName(r.text)) {
@@ -121,7 +133,12 @@ async function main(): Promise<void> {
     const changes: Record<string, Change[]> = {};
     for (const table of ["jmdict_kanji", "jmdict_kana"]) {
       const rows = (await writings(table)).rows;
-      const next = rows.map((r) => ({ id: r.id, text: r.text, was: r.estimated_band, band: estimate(r) }));
+      const next = rows.map((r) => ({
+        id: r.id,
+        text: r.text,
+        was: r.estimated_band,
+        band: estimate(r, table === "jmdict_kana"),
+      }));
       changes[table] = next.filter((r) => r.band !== r.was);
       const dist = [3, 4, 5].map((b) => `N${6 - b} ${next.filter((r) => r.band === b).length}`).join(", ");
       console.log(`${table}: ${rows.length} writings → estimated ${dist}; ${changes[table].length} change`);

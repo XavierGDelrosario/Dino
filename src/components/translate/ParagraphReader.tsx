@@ -4,6 +4,8 @@
 // meaning; saved senses show confidence (✓ n/5), and a word the app claims you know
 // carries a top-right "Forgot" that drops it one bucket. State lives in the parent
 // (useTranslate).
+import { isNameSense, studyView } from "../../services/lookup";
+import { GoogleBadge } from "../common/GoogleBadge";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { displayHeadword, isContentPos, type AnalyzedToken } from "../../services/language";
 import { ReportFlagButton } from "../common/ReportFlagButton";
@@ -65,6 +67,8 @@ function ParagraphReaderImpl({
   onTranslateSentence,
   glossLoading = false,
   openGloss = false,
+  glossToggle = "request",
+  names,
   saved,
   confidence,
   lists,
@@ -90,6 +94,19 @@ function ParagraphReaderImpl({
    *  translation" press on the reader it replaced, which would otherwise come up
    *  hiding the gloss it just paid for. */
   openGloss?: boolean;
+  /**
+   * When the "Show translation" switch is offered.
+   *   "request"  (default) — whenever there is a translation to show OR a way to fetch
+   *              one; the first press buys what is missing. An article's reading mode.
+   *   "complete" — only once EVERY sentence has its translation and nothing is still
+   *              loading; it shows and hides, and never fetches. The Translate tab: the
+   *              Translate button is what translates, and a switch offered before that
+   *              has finished opens onto a half-translated text.
+   */
+  glossToggle?: "request" | "complete";
+  /** Words that are NAMES (lookup.ts `ParagraphTranslation.names`). Highlighted and
+   *  addable from their card like any word, but left out of the summary's counts. */
+  names?: ReadonlySet<string>;
   saved: Set<string>;
   confidence: Map<string, number>;
   lists: List[];
@@ -145,8 +162,8 @@ function ParagraphReaderImpl({
   // so the charts stay live.
   const [showSummary, setShowSummary] = useState(false);
   const summary = useMemo(
-    () => summarizeReader({ tokens, meaningsByWord, saved, confidence }),
-    [tokens, meaningsByWord, saved, confidence],
+    () => summarizeReader({ ...studyView({ tokens, meaningsByWord, names }), saved, confidence }),
+    [tokens, meaningsByWord, names, saved, confidence],
   );
   const canSummarize = summary.total >= SUMMARY_MIN_WORDS;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -266,7 +283,10 @@ function ParagraphReaderImpl({
   const spans = useCallback(
     (from: number, to: number, key: string): JSX.Element[] => {
       const classFor = (token: AnalyzedToken): { cls: string; interactive: boolean } => {
-        const senses = isContentPos(token.pos) ? meaningsByWord.get(wordKey(token)) ?? [] : [];
+        // A person's or company's name is off content POS (it is not vocabulary) but
+        // still has its stand-in sense to show — `names` is what lets it through.
+        const key = wordKey(token);
+        const senses = isContentPos(token.pos) || names?.has(key) ? meaningsByWord.get(key) ?? [] : [];
         if (senses.length === 0) return { cls: "tok tok--plain", interactive: false };
         const savedSenses = senses.filter((s) => saved.has(s.wordId));
         if (savedSenses.length === 0) return { cls: "tok tok--new", interactive: true };
@@ -367,7 +387,7 @@ function ParagraphReaderImpl({
       if (cursor < to) out.push(gap(text.slice(cursor, to), cursor, `${key}-gap-end`));
       return out;
     },
-    [text, tokens, meaningsByWord, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, tr],
+    [text, tokens, meaningsByWord, names, saved, confidence, show, scheduleHide, armToggle, clickToken, sentences, onTranslateSentence, visibleGloss, tr],
   );
 
   // The paragraph flows as one block, EXCEPT that a sentence showing its English is
@@ -414,15 +434,21 @@ function ParagraphReaderImpl({
     return out;
   }, [spans, sentences, text, visibleGloss]);
   const hasGloss = sentences.some((s) => s.gloss);
+  /** Is a machine translation actually drawn right now (inline or as the whole block)? */
+  const glossShowing = inlineGloss
+    ? sentences.some((_, i) => visibleGloss(i) !== null)
+    : showGloss && wholeGloss !== "";
   // Anything still unanswered? The gate used to be "no gloss at all", which meant a
   // text with ONE sentence tapped never asked for the rest — and, now that the press
   // runs the full submit, never ran it either.
   const needsGloss = sentences.length === 0 || sentences.some((s) => !s.gloss);
-  // Offer the toggle when there's a translation to show OR a way to fetch one.
-  const canShowGloss = hasGloss || !!onLoadGloss;
+  // Offer the toggle when there's a translation to show OR a way to fetch one — or, in
+  // "complete" mode, only when the whole text is translated (see `glossToggle`).
+  const canShowGloss =
+    glossToggle === "complete" ? !needsGloss && !glossLoading : hasGloss || !!onLoadGloss;
   // First press buys the translation; later presses just show/hide what we hold.
   const toggleGloss = () => {
-    if (needsGloss && onLoadGloss && !glossLoading) void onLoadGloss();
+    if (glossToggle === "request" && needsGloss && onLoadGloss && !glossLoading) void onLoadGloss();
     setShowGloss((v) => {
       // Turning it OFF clears individually-tapped lines too — they're the same answer
       // by another route, and leaving them on screen makes the toggle look broken.
@@ -536,10 +562,19 @@ function ParagraphReaderImpl({
       )}
       {/* ONE flowing paragraph, always: translations are injected under the sentence
           they belong to (see `gap`), so only glossed lines break. */}
-      <p className="reader">{flat}</p>
-      {/* Unpunctuated text has nowhere to put a per-sentence English, so it all goes
-          here in one block. */}
-      {!inlineGloss && showGloss && wholeGloss && <p className="reader__whole">{wholeGloss}</p>}
+      <div className="reader__body">
+        <p className="reader">{flat}</p>
+        {/* Unpunctuated text has nowhere to put a per-sentence English, so it all goes
+            here in one block. */}
+        {!inlineGloss && showGloss && wholeGloss && <p className="reader__whole">{wholeGloss}</p>}
+        {/* Google's badge, ONCE, bottom-right — whenever any of its translations is on
+            screen here, whichever layout drew it. */}
+        {glossShowing && (
+          <div className="reader__credit">
+            <GoogleBadge tone="quiet" size="small" />
+          </div>
+        )}
+      </div>
       {hover && placement && hoveredSenses.length > 0 && (
         <div
           className="hovercard"
@@ -576,7 +611,8 @@ function ParagraphReaderImpl({
             <span className="hovercard__flag">
               <ReportFlagButton
                 input={hover.word}
-                wordId={hoveredSenses.length === 1 ? hoveredSenses[0].wordId : null}
+                // A name's stand-in sense is not a dictionary row: report the text only.
+                wordId={hoveredSenses.length === 1 && !isNameSense(hoveredSenses[0]) ? hoveredSenses[0].wordId : null}
                 size={14}
               />
             </span>
@@ -594,7 +630,14 @@ function ParagraphReaderImpl({
             {/* Level · Commonness · Part of speech for the hovered word — the "?" every
                 other word surface carries. Sense 0 speaks for the headword (the level is
                 the headword's), matching the Translate result head. */}
-            {hoveredSenses[0] && <WordInfoButton word={hoveredSenses[0]} align="left" />}
+            {hoveredSenses[0] &&
+              (isNameSense(hoveredSenses[0]) ? (
+                // No level, commonness or part of speech to show for a name — say what
+                // it is instead, so a romanization isn't mistaken for a meaning.
+                <span className="hovercard__name">{tr("reader.nameTag")}</span>
+              ) : (
+                <WordInfoButton word={hoveredSenses[0]} align="left" />
+              ))}
           </div>
           <ul className="hovercard__senses">
             {hoveredSenses.map((s) => (

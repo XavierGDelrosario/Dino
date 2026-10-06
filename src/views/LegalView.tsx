@@ -1,34 +1,26 @@
 // Privacy Policy + Terms of Service + Support pages (/privacy, /terms, /support).
-// The first two are DRAFTS reflecting the app's ACTUAL data flows — not legal advice;
-// have counsel review before publishing. Kept in English (canonical) for v1; the
-// chrome around them is localized.
+// The first two describe the app's ACTUAL data flows and are published as-is; counsel
+// review waits for a trigger (docs/TODO.md §Legal). Kept in English (canonical) for v1;
+// the chrome around them is localized. Any change here bumps CURRENT_TERMS_VERSION.
 //
 // /support exists because the App Store REQUIRES a reachable support URL on the
 // listing, and review checks it loads and is about this app. It is a page, not a
 // mailto: — Apple rejects a bare mail link.
-import { useI18n } from "../i18n";
 import { Link } from "../router";
+import { BackLink } from "../components/common/BackLink";
 import "../components/common/common.css";
 
-const UPDATED = "2026-10-03";
+const UPDATED = "2026-10-05";
 
-/** Where support mail goes. The Brevo-validated sender for now; moves to
- *  support@<domain> when the custom domain lands (docs/TODO.md). */
-export const SUPPORT_EMAIL = "dinolanguagestudy@gmail.com";
+/** Where support mail goes — a Cloudflare Email Routing forward, not a mailbox. */
+export const SUPPORT_EMAIL = "support@dinostudy.com";
 
 export function LegalView({ doc }: { doc: "privacy" | "terms" | "support" }) {
-  const { t } = useI18n();
   return (
     <section className="legal">
-      {doc !== "support" && (
-        <p className="legal__draft">
-          Draft — provided as-is for a POC and not legal advice; review with counsel
-          before publishing.
-        </p>
-      )}
+      <BackLink />
       {doc === "privacy" ? <Privacy /> : doc === "terms" ? <Terms /> : <Support />}
       <p className="legal__updated">Last updated: {UPDATED}</p>
-      <Link to="/" className="account__link">{t("profile.back")}</Link>
     </section>
   );
 }
@@ -41,9 +33,11 @@ function Privacy() {
         shared with.</p>
 
       <h3>Who we are</h3>
-      <p>DINO is operated by an individual developer based in Japan. For anything in this
-        policy — questions, or a request about your data — email{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+      <p>DINO is operated by Xavier Del Rosario, an individual developer based in British
+        Columbia, Canada, who is responsible for the personal information described here. For
+        anything in this policy — questions, or a request about your data — email{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. A postal address is available
+        on request.</p>
 
       <h3>What we store</h3>
       <ul>
@@ -77,9 +71,24 @@ function Privacy() {
         purpose without telling you first.</p>
 
       <h3>Photos, microphone and handwriting</h3>
-      <p>In the iOS app, photos, camera images, microphone audio and handwriting are turned into
-        text <b>on your device</b> and are never uploaded. Only the resulting text is looked up,
-        and only if you ask for it.</p>
+      <p>In the iOS app, photos, camera images and handwriting are turned into text <b>on your
+        device</b> and are never uploaded. Speech is recognised by iOS's built-in speech
+        recognition, which may send the audio to Apple to recognise it. We never receive or store audio, images or handwriting. Only the
+        resulting text is looked up, and only if you ask for it.</p>
+      <p>Handwriting recognition uses Google's ML Kit, which runs on your device. The first time
+        you use it, it downloads its language model from Google, and it sends Google usage and
+        diagnostic data about the kit itself (not what you write).</p>
+      <p>The iOS app can also translate sentences on your device, using Google's ML Kit: for
+        guests, and for anyone who has used up the month's online translations. The text
+        isn't sent anywhere. The first time it is needed, the kit downloads its language
+        models from Google (over Wi-Fi only), and it sends Google usage and diagnostic data
+        about the kit itself, not what you translate.</p>
+      <p>Your recent translations (up to 200) are kept on your device so you can run them
+        again. They are never sent to us, don't sync between devices, and are erased when
+        you tap Clear, sign out or delete your account.</p>
+      <p>So that you can review without a connection, the iOS app keeps a copy of your saved
+        words on your device. It is downloaded over Wi-Fi only and is deleted when you delete
+        the app.</p>
       <p>In a web browser, the live transcript uses your browser's built-in speech recognition.
         Some browsers (including Chrome) send the audio to their own servers — Google's, for
         Chrome — to do this. We never receive or store the audio.</p>
@@ -93,7 +102,9 @@ function Privacy() {
           information you don't want processed by a third party.</li>
         <li><b>Brevo</b> — sends account email (sign-up confirmation, password reset); receives
           your email address.</li>
-        <li><b>Google and Apple</b> — only if you choose to sign in with them.</li>
+        <li><b>Google and Apple</b> — if you choose to sign in with them; and, in the iOS app,
+          Apple for speech recognition and Google for the handwriting kit, as described
+          above.</li>
         <li><b>Wikimedia</b> — the Articles section loads articles from Wikinews directly from
           your device, so Wikimedia sees your IP address and which article you opened.</li>
       </ul>
@@ -201,14 +212,30 @@ function Terms() {
         <b> Japanese WordNet</b> (NICT, Francis Bond et al.) and <b>Princeton WordNet</b>, both
         under BSD-style licences. Word-frequency data is derived from <b>wordfreq</b>
         (CC BY-SA 4.0); level data from the <b>CEFR-J</b> wordlist (© Tono Lab, TUFS) and the
-        <b>Octanove</b> vocabulary profile (CC BY-SA 4.0). Media articles come from
-        <b> Wikinews</b> (CC BY 2.5) and remain the property of their authors. Full licence
-        details are in the app footer and in ATTRIBUTION.md.</p>
+        <b>Octanove</b> vocabulary profile (CC BY-SA 4.0), the JLPT vocabulary list compiled by
+        Jonathan Waller, and <b>NINJAL</b> teaching-vocabulary lists (CC BY 4.0). Japanese
+        text is analysed with <b>kuromoji</b> and the <b>IPADIC</b> dictionary (© Nara
+        Institute of Science and Technology); English part-of-speech tagging uses a model
+        trained on <b>UD English-EWT</b> (CC BY-SA 4.0). Media articles come from
+        <b> Wikinews</b> (CC BY 2.5) and remain the property of their authors. The full list,
+        with each source's licence, is at{" "}
+        <a href="https://dinostudy.com/ATTRIBUTION.md" target="_blank" rel="noopener noreferrer">
+          dinostudy.com/ATTRIBUTION.md
+        </a>, linked from the footer of
+        every page.</p>
 
       <h3>Third-party services and content</h3>
       <p>DINO relies on third parties (hosting, sign-in, machine translation, the App Store,
         Wikimedia). Their own terms apply to their part, and we aren't responsible for their
         outages or changes. Articles are loaded from Wikinews and may change or disappear.</p>
+      <p>Sentence translations, and the meanings of words our dictionary doesn't have, are
+        automatic translations from{" "}
+        <a href="https://translate.google.com" target="_blank" rel="noopener noreferrer">
+          Google Translate
+        </a>. THIS SERVICE MAY CONTAIN TRANSLATIONS POWERED BY GOOGLE. GOOGLE DISCLAIMS ALL
+        WARRANTIES RELATED TO THE TRANSLATIONS, EXPRESS OR IMPLIED, INCLUDING ANY WARRANTIES OF
+        ACCURACY, RELIABILITY, AND ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+        PARTICULAR PURPOSE AND NONINFRINGEMENT.</p>
       <p>If you believe something in DINO infringes your rights, email{" "}
         <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with enough detail for us to
         find it, and we will review it.</p>
@@ -237,7 +264,7 @@ function Terms() {
         service, <b>except</b> where they are caused by our intentional misconduct or gross
         negligence. Where we are liable because of ordinary negligence, our liability is
         limited to direct and ordinary damages you actually suffered, up to the greater of the
-        amount you paid us in the 12 months before the claim or ¥10,000. Nothing in these terms
+        amount you paid us in the 12 months before the claim or C$100. Nothing in these terms
         limits rights you have under consumer-protection law that cannot be waived.</p>
 
       <h3>iOS app</h3>
@@ -246,8 +273,9 @@ function Terms() {
         your use of the iOS app.</p>
 
       <h3>Governing law</h3>
-      <p>These terms are governed by the laws of Japan. Disputes go to the courts of Japan,
-        unless the consumer-protection law of the country you live in gives you the right to
+      <p>These terms are governed by the laws of the Province of British Columbia and the
+        federal laws of Canada applicable therein. Disputes go to the courts of British
+        Columbia, unless the consumer-protection law of the country you live in gives you the right to
         bring them elsewhere. Please contact us first — most problems can be settled by
         email.</p>
 

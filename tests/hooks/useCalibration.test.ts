@@ -12,6 +12,7 @@ vi.mock("@/services/words/userWords", () => ({ saveDictionaryWord: vi.fn() }));
 vi.mock("@/services/calibration", async (orig) => ({
   ...(await orig<typeof import("@/services/calibration")>()),
   getPlacementRatings: vi.fn(),
+  getPlacementPool: vi.fn(async () => new Map()),
   recordPlacementAnswer: vi.fn(),
   setUserLevel: vi.fn(),
   setUserProficiencyBand: vi.fn(),

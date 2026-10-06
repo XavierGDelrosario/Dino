@@ -10,6 +10,7 @@
 // a tag just un-tags. Mastery/review state lives on the row, so reads return it inline.
 
 import { supabase } from "../../config/supabaseClient";
+import { notifyStudyActivity } from "../studyActivity";
 import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
 import { chunkForUrlFilter } from "../../lib/urlFilter";
@@ -19,6 +20,7 @@ import * as vocabulary from "./vocabularyCache";
 import type { Database } from "../../types/database.types";
 import type { LangCode } from "../language";
 import type { Word } from "./repository";
+import { isSyntheticWordId } from "./syntheticId";
 
 /** A word in a user's personal vocabulary (camelCase domain shape). */
 export interface UserWord {
@@ -252,6 +254,7 @@ export async function saveDictionaryWord(params: {
     estimatedBand: word.estimatedBand,
   };
   vocabulary.writeWords(userId, [saved], listId);
+  notifyStudyActivity();
   return saved;
 }
 
@@ -301,6 +304,7 @@ export async function saveDictionaryWords(params: {
       : uw;
   });
   vocabulary.writeWords(userId, saved, listId);
+  notifyStudyActivity();
   return saved;
 }
 
@@ -337,6 +341,7 @@ export async function createCustomWord(params: {
   const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
   const created = toUserWord(row);
   vocabulary.writeWords(userId, [created], listId);
+  notifyStudyActivity();
   return created;
 }
 
@@ -365,6 +370,36 @@ export async function editUserWord(params: {
   const edited = toUserWord(data);
   vocabulary.writeWordById(edited.userWordId, edited);
   return edited;
+}
+
+/**
+ * Drop the user's own meaning and go back to the DICTIONARY's — the undo of
+ * `editUserWord`. Only for a word that came from the dictionary: a word the user
+ * created has no original to go back to (and the `user_words_has_meaning` check
+ * refuses a row with neither meaning).
+ */
+export async function revertUserWord(params: { userWordId: string }): Promise<UserWord> {
+  const data = await readWithDictionary<UserWordRow>((columns) =>
+    supabase
+      .from("user_words")
+      .update({ custom_translation: null })
+      .eq("user_word_id", params.userWordId)
+      .not("dictionary_word_id", "is", null)
+      .select<string, UserWordRow>(`*, words(${columns})`)
+      .single(),
+  ).catch((e) => {
+    throw toServiceError(e, "Failed to revert word");
+  });
+  if (!data) throw new ServiceError("Failed to revert word");
+  const reverted = toUserWord(data);
+  vocabulary.writeWordById(reverted.userWordId, reverted);
+  return reverted;
+}
+
+/** Has the user replaced this dictionary word's meaning with their own? (A word they
+ *  CREATED also has a custom meaning, but it is the only one — nothing was replaced.) */
+export function isMeaningEdited(w: Pick<UserWord, "customTranslation" | "dictionaryWordId">): boolean {
+  return w.customTranslation != null && w.dictionaryWordId != null;
 }
 
 /**
@@ -531,14 +566,19 @@ export async function getUserWordStates(params: {
   dictionaryWordIds: string[];
 }): Promise<Map<string, UserWordState>> {
   const { userId } = params;
-  const uniqueIds = [...new Set(params.dictionaryWordIds)];
+  const allIds = [...new Set(params.dictionaryWordIds)];
 
   const states = new Map<string, UserWordState>(
-    uniqueIds.map((id) => [
+    allIds.map((id) => [
       id,
       { tracked: false, userWordId: null, confidenceRating: 0, lastReviewedDate: null },
     ])
   );
+  // Only real dictionary ids go to the database. A reader can also hold a NAME's
+  // stand-in sense (lookup.ts `nameSense`, id "name:…"), which has no row to find — and
+  // one non-uuid in the filter makes Postgres reject the whole read (22P02), which
+  // would leave every word on the page looking unsaved.
+  const uniqueIds = allIds.filter((id) => !isSyntheticWordId(id));
   if (uniqueIds.length === 0) return states;
 
   // CHUNK the `.in()` filter: the id set is unbounded (one EN→JA word can carry

@@ -25,8 +25,7 @@ Character limits are noted where Apple enforces them; the values below are insid
 | Marketing URL | *(leave blank)* |
 | Copyright | `2026 <your legal name>` (Individual enrollment — no company yet) |
 
-`<domain>` is `dino-86y.pages.dev` today; swap once the custom domain lands
-(`docs/TODO.md`). Both pages exist and are footer-linked.
+`<domain>` is `dinostudy.com`. Both pages exist and are footer-linked.
 
 **Keywords** (≤100 chars, commas, no spaces — this is 95):
 
@@ -81,14 +80,24 @@ is a rejection. Change one, change the other.
 
 **Does this app collect data? → Yes**
 
-Add exactly two data types:
+Add these data types (they mirror `PrivacyInfo.xcprivacy` — keep the two identical):
 
 | Data type | Linked to the user | Used for tracking | Purpose |
 |---|---|---|---|
 | Contact Info → Email Address | **Yes** | **No** | App Functionality |
 | User Content → Other User Content | **Yes** | **No** | App Functionality |
+| Diagnostics → Other Diagnostic Data | **Yes** | **No** | App Functionality, Analytics |
+| Diagnostics → Performance Data | No | **No** | Analytics |
+| Usage Data → Product Interaction | No | **No** | Analytics |
+| Identifiers → Device ID | No | **No** | Analytics |
 
-Everything else: **not collected**.
+The first diagnostics row is our own error log (a failed lookup is stored with a short
+text excerpt and the user id). The last three come from Google ML Kit, bundled for
+handwriting — **re-check Google's ML Kit data-disclosure page before submitting**; that
+list is Google's and can change.
+
+Everything else: **not collected**. Microphone audio is recognised by iOS's speech
+recognizer, which may send it to Apple — never sent to us.
 
 ## 3. Age rating questionnaire
 
@@ -147,9 +156,9 @@ declares mild profanity.
       storefronts off for v1.
 - [ ] Enable **Sign in with Apple** in Supabase (Services ID + .p8-signed secret,
       `config.toml [auth.external.apple]`). Mandatory because Google sign-in is
-      offered — `linkApple`/`signInWithApple` are already implemented.
-- [ ] Custom domain, so the support/privacy URLs and auth email are not on
-      `pages.dev`.
+      offered — `linkApple`/`signInWithApple` are already implemented. Then set
+      `VITE_APPLE_SIGNIN=1` in `.env.deploy` and rebuild web + iOS: the button is
+      hidden until that flag is set.
 - [ ] Screenshots — **6.9" iPhone `1320 × 2868`** (also accepted: 1290 × 2796, 1260 × 2736).
       Apple scales that one set down for every smaller iPhone, so it is the only iPhone
       slot to fill. The old "6.7" **and** 5.5"" pair is retired — 5.5" (iPhone 8 Plus)
@@ -183,9 +192,11 @@ declares mild profanity.
   one. **Other User Content** is the saved vocabulary and review history — the product.
 - **Tracking is No everywhere**: no ad SDK, no data broker, no identifier joined with
   third-party data.
-- **Not collected, deliberately**: microphone audio, photos and handwriting are
-  processed on device and never uploaded; text sent for translation is not stored
-  (`persist: false`).
+- **Not collected by us**: photos and handwriting strokes are processed on device and
+  never uploaded; microphone audio is recognised by iOS's speech recognizer, which may
+  send it to Apple (on-device is not required — it punctuates far less) — never to us. A paragraph sent for
+  translation is not stored (`persist: false`); a failed lookup IS logged with a short
+  excerpt, which is the Diagnostics row above.
 - **Profanity → Infrequent/Mild** because JMdict is a complete dictionary and will
   define vulgar words on request. Understating this is the sort of thing that
   surfaces awkwardly later.

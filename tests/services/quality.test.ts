@@ -26,24 +26,34 @@ describe("reportQualityIssue", () => {
     });
   });
 
-  // The whole point of the flag: the signal is "this word is wrong", which the surface
-  // already knows. Requiring prose would lose most reports, so an empty box still files.
-  it("files with NO description — the box is optional", async () => {
-    await reportQualityIssue({ input: "猫" });
+  // The flag on Translate's output box reports a TRANSLATION: what was typed, and what
+  // came back for it.
+  it("sends the output with the input when the report is about a translation", async () => {
+    await reportQualityIssue({ input: " 猫が走った。 ", description: "wrong", output: " The cat ran. " });
 
-    const args = stub.rpc.mock.calls[0][1] as { p_description?: string };
-    expect(args.p_description).toBeUndefined();
+    expect(stub.rpc).toHaveBeenCalledWith("report_quality_issue", {
+      p_input: "猫が走った。",
+      p_description: "wrong",
+      p_word_id: undefined,
+      p_output: "The cat ran.",
+    });
   });
 
-  it("treats a whitespace-only note as no note", async () => {
-    await reportQualityIssue({ input: "猫", description: "   \n " });
+  it("a word report sends no p_output at all", async () => {
+    await reportQualityIssue({ input: "猫", description: "wrong", output: "  " });
+    expect(stub.rpc.mock.calls[0][1]).not.toHaveProperty("p_output");
+  });
 
-    const args = stub.rpc.mock.calls[0][1] as { p_description?: string };
-    expect(args.p_description).toBeUndefined();
+  // A bare flag is a one-tap accident and gives triage nothing to act on, so the note
+  // is required — refused here before any request is made.
+  it("refuses a report with NO note, or a whitespace-only one", async () => {
+    await expect(reportQualityIssue({ input: "猫", description: "" })).rejects.toThrow(/what's wrong/);
+    await expect(reportQualityIssue({ input: "猫", description: "   \n " })).rejects.toThrow(/what's wrong/);
+    expect(stub.rpc).not.toHaveBeenCalled();
   });
 
   it("NFC-normalizes and trims the reported word (cache-key correctness)", async () => {
-    await reportQualityIssue({ input: "  猫  " });
+    await reportQualityIssue({ input: "  猫  ", description: "wrong" });
 
     expect((stub.rpc.mock.calls[0][1] as { p_input: string }).p_input).toBe("猫");
   });
@@ -57,7 +67,7 @@ describe("reportQualityIssue", () => {
 
   // A caller bug, not a user one — the surface fills `input` from what is on screen.
   it("refuses an empty target without calling the RPC", async () => {
-    await expect(reportQualityIssue({ input: "   " })).rejects.toThrow(/Nothing to report/);
+    await expect(reportQualityIssue({ input: "   ", description: "wrong" })).rejects.toThrow(/Nothing to report/);
     expect(stub.rpc).not.toHaveBeenCalled();
   });
 
@@ -69,7 +79,7 @@ describe("reportQualityIssue", () => {
       data: null,
       error: { message: "report limit reached", code: "54000" },
     });
-    await expect(reportQualityIssue({ input: "猫" })).rejects.toThrow(/lot of reports today/);
+    await expect(reportQualityIssue({ input: "猫", description: "wrong" })).rejects.toThrow(/lot of reports today/);
   });
 
   it("keeps any OTHER failure as a coded ServiceError (rendered as generic copy)", async () => {
@@ -77,6 +87,6 @@ describe("reportQualityIssue", () => {
       data: null,
       error: { message: "permission denied for function", code: "42501" },
     });
-    await expect(reportQualityIssue({ input: "猫" })).rejects.toMatchObject({ code: "42501" });
+    await expect(reportQualityIssue({ input: "猫", description: "wrong" })).rejects.toMatchObject({ code: "42501" });
   });
 });

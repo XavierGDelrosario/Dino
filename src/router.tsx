@@ -53,17 +53,24 @@ export function Link({
   className,
   children,
   onClick,
+  ariaLabel,
+  title,
 }: {
   to: string;
   className?: string;
   children: ReactNode;
   onClick?: () => void;
+  /** For a link whose visible content is a glyph (the back arrow). */
+  ariaLabel?: string;
+  title?: string;
 }) {
   const { navigate } = useRouter();
   return (
     <a
       href={to}
       className={className}
+      aria-label={ariaLabel}
+      title={title}
       onClick={(e) => {
         e.preventDefault();
         onClick?.();

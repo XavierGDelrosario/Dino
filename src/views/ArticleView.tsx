@@ -6,6 +6,8 @@
 //     least-confident saved words) + a "Read article" hand-off to the reader
 //   · a sortable / filterable list of the unique registered words in the article
 // Non-registered words (no dictionary entry) are disregarded throughout.
+import { studyView } from "../services/lookup";
+import { NoFooter } from "../components/common/NoFooter";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslate, type TranslateLangs } from "../hooks/useTranslate";
 import { AnalyzeInfographic } from "../components/common/AnalyzeInfographic";
@@ -88,7 +90,13 @@ export function ArticleView({
 
   const analysis = useMemo(() => {
     if (!t.para) return null;
-    return { tokens: t.para.tokens, meaningsByWord: t.para.meanings, saved: t.saved, confidence: t.confidence };
+    // The STUDY view of the article: names are left out of the graphs, the word table
+    // and the quiz it feeds. The reader below gets the full map and shows them.
+    return {
+      ...studyView({ tokens: t.para.tokens, meaningsByWord: t.para.meanings, names: t.para.names }),
+      saved: t.saved,
+      confidence: t.confidence,
+    };
   }, [t.para, t.saved, t.confidence]);
 
   const rows = useMemo(() => (analysis ? articleWordList(analysis) : []), [analysis]);
@@ -103,6 +111,7 @@ export function ArticleView({
   if (quiz) {
     return (
       <section className="review">
+        <NoFooter />
         <TextQuizView
           userId={userId}
           cards={quiz}
@@ -142,8 +151,9 @@ export function ArticleView({
         <ErrorText message={t.error} />
         <ParagraphReader
           text={t.analyzedInput}
-          tokens={analysis.tokens}
-          meaningsByWord={analysis.meaningsByWord}
+          tokens={t.para?.tokens ?? analysis.tokens}
+          meaningsByWord={t.para?.meanings ?? analysis.meaningsByWord}
+          names={t.para?.names}
           sentences={t.para?.sentences}
           onLoadGloss={t.loadGloss}
           onTranslateSentence={t.loadSentenceGloss}
@@ -196,10 +206,12 @@ export function ArticleView({
                 className="btn btn--primary"
                 onClick={() => setQuiz(quizRows.map((r) => r.senses))}
               >
-                {tr(hasNew ? "media.recommendedQuiz" : "media.reviewQuiz", { n: quizRows.length })}
+                {tr(hasNew ? "media.recommendedQuiz" : "media.reviewQuiz")}
               </button>
             )}
-            <button className="btn btn--ghost" onClick={() => setReading(true)}>
+            {/* A plain bordered button, not a ghost: beside the solid quiz button a
+                ghost read as a caption, and reading is half of what this page is for. */}
+            <button className="btn" onClick={() => setReading(true)}>
               {tr("media.readArticle")}
             </button>
           </div>

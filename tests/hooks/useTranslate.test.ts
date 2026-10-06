@@ -18,6 +18,7 @@ vi.mock("@/services/translation", () => ({ translate: vi.fn(), MAX_TRANSLATION_C
 vi.mock("@/services/words/userWords", () => ({
   saveDictionaryWord: vi.fn(),
   saveDictionaryWords: vi.fn(),
+  createCustomWord: vi.fn(),
   getUserWordStates: vi.fn(),
 }));
 vi.mock("@/services/lists", () => ({ listUserLists: vi.fn(), createList: vi.fn() }));
@@ -37,13 +38,13 @@ vi.mock("@/services/language", async (importOriginal) => ({
 }));
 
 import { useTranslate } from "@/hooks/useTranslate";
-import { getUserWordStates } from "@/services/words/userWords";
+import { createCustomWord, getUserWordStates, saveDictionaryWords } from "@/services/words/userWords";
 import { listUserLists } from "@/services/lists";
 import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
 import { getUserProfile, updateUserLanguages } from "@/services/session";
 import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE, analyze } from "@/services/language";
-import { translateParagraph } from "@/services/lookup";
+import { lookupWord, translateParagraph } from "@/services/lookup";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -174,6 +175,163 @@ describe("useTranslate — emptying the box drops its result", () => {
     });
     await waitFor(() => expect(result.current.para).not.toBeNull());
     expect(result.current.status).toBe("done");
+  });
+});
+
+// Pressing Translate closes a sentence left open — dictation in particular ends bare,
+// because iOS only places the last 。 once more words arrive.
+describe("useTranslate — Translate closes an open sentence with a full stop", () => {
+  const SENTENCE = [
+    { text: "猫", start: 0, end: 1, reading: null, lemma: "猫", pos: "名詞" },
+    { text: "走っ", start: 2, end: 4, reading: null, lemma: "走る", pos: "動詞" },
+  ];
+  const paragraph = () =>
+    vi.mocked(translateParagraph).mockResolvedValue({ input: "", tokens: SENTENCE, meanings: new Map(), sentences: [] } as never);
+
+  beforeEach(() => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    vi.mocked(analyze).mockResolvedValue(SENTENCE as never);
+    paragraph();
+  });
+
+  it("adds 。 to the box and studies the closed text", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput("猫が走った"));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.input).toBe("猫が走った。");
+    expect(result.current.analyzedInput).toBe("猫が走った。");
+  });
+
+  it("leaves a sentence that already ends alone", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput("猫が走った？"));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.input).toBe("猫が走った？");
+  });
+
+  it("never punctuates a single word — that would turn a lookup into a paragraph", async () => {
+    vi.mocked(analyze).mockResolvedValue([SENTENCE[0]] as never);
+    vi.mocked(lookupWord).mockResolvedValue({ input: "猫", meanings: [] } as never);
+    const { result } = renderHook(() => useTranslate("user-1"));
+    act(() => result.current.setInput("猫"));
+    await act(async () => {
+      await result.current.submit();
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.input).toBe("猫");
+    expect(result.current.mode).toBe("word");
+  });
+
+  it("leaves text handed in by override (an article, OCR, history) as it came", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.submit({ text: "猫が走った", skipGloss: true });
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.analyzedInput).toBe("猫が走った");
+  });
+});
+
+// Names (a person, place or company the dictionary doesn't know) stay in the reader and
+// can be added by hand, but nothing AUTOMATIC touches them.
+describe("useTranslate — names are never added or quizzed automatically", () => {
+  const TEXT = "大東で猫を見た。";
+  const TOKENS = [
+    { text: "大東", start: 0, end: 2, reading: null, lemma: "大東", pos: "名詞", properNoun: true },
+    { text: "猫", start: 3, end: 4, reading: null, lemma: "猫", pos: "名詞" },
+  ];
+  const word = (wordId: string, input: string, translation: string) =>
+    ({ wordId, input, translation, inputReading: null, sourceLang: "JA", targetLang: "EN" }) as never;
+  const paragraph = () => ({
+    input: TEXT,
+    tokens: TOKENS,
+    meanings: new Map([
+      ["大東", [word("w-daito", "大東", "Daito")]],
+      ["猫", [word("w-neko", "猫", "cat")]],
+    ]),
+    names: new Set(["大東"]),
+    sentences: [],
+  });
+
+  beforeEach(() => {
+    vi.mocked(analyze).mockResolvedValue(TOKENS as never);
+    vi.mocked(translateParagraph).mockResolvedValue(paragraph() as never);
+  });
+
+  const open = async () => {
+    const hook = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await hook.result.current.submit({ text: TEXT, skipGloss: true });
+    });
+    await waitFor(() => expect(hook.result.current.para).not.toBeNull());
+    return hook.result;
+  };
+
+  it("'Add all' and 'Quiz new words' leave the name out", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    const result = await open();
+    expect(result.current.addablePrimaries.map((w) => w.wordId)).toEqual(["w-neko"]);
+    expect(result.current.addableCards.map((c) => c[0].wordId)).toEqual(["w-neko"]);
+    expect(result.current.addableCount).toBe(1);
+  });
+
+  it("the reader still has it — highlightable, with its meaning to add by hand", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    const result = await open();
+    expect(result.current.para?.meanings.get("大東")?.[0].translation).toBe("Daito");
+  });
+
+  it("once the user HAS saved a name, it reviews like any other word", async () => {
+    vi.mocked(getUserWordStates).mockResolvedValue(
+      new Map([["w-daito", { tracked: true, userWordId: "uw1", confidenceRating: 2, lastReviewedDate: null }]]) as never,
+    );
+    const result = await open();
+    await waitFor(() => expect(result.current.reviewablePrimaries.map((w) => w.wordId)).toEqual(["w-daito"]));
+  });
+});
+
+// A person's or company's name has no dictionary row: adding it creates the user's OWN
+// word (the name + its romanization), never a save-by-id.
+describe("useTranslate — adding a name by hand", () => {
+  const name = {
+    wordId: "name:JA:田中", input: "田中", translation: "Tanaka", inputReading: "たなか",
+    sourceLang: "JA", targetLang: "EN",
+  } as never;
+  const neko = { wordId: "w-neko", input: "猫", translation: "cat", sourceLang: "JA", targetLang: "EN" } as never;
+
+  beforeEach(() => {
+    vi.mocked(getUserWordStates).mockResolvedValue(new Map());
+    vi.mocked(createCustomWord).mockResolvedValue({ userWordId: "uw-name", confidenceRating: 0 } as never);
+    vi.mocked(saveDictionaryWords).mockResolvedValue([
+      { userWordId: "uw-neko", dictionaryWordId: "w-neko", confidenceRating: 0 },
+    ] as never);
+  });
+
+  it("saves it as a custom word and marks it saved", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.addWords([name], "list-1");
+    });
+    expect(createCustomWord).toHaveBeenCalledWith({
+      userId: "user-1", input: "田中", translation: "Tanaka", sourceLang: "JA", targetLang: "EN", listId: "list-1",
+    });
+    expect(saveDictionaryWords).not.toHaveBeenCalled();
+    expect(result.current.saved.has("name:JA:田中")).toBe(true);
+  });
+
+  it("a mixed add sends each kind down its own path", async () => {
+    const { result } = renderHook(() => useTranslate("user-1"));
+    await act(async () => {
+      await result.current.addWords([name, neko]);
+    });
+    expect(createCustomWord).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveDictionaryWords).mock.calls[0][0].words).toEqual([neko]);
   });
 });
 

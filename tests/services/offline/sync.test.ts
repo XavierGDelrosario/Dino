@@ -6,7 +6,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { memStore } from "@test/offlineStore";
 import { __setOfflineStore, type OfflineStore } from "@/services/offline/store";
 
-vi.mock("@/services/review", () => ({ sendReview: vi.fn() }));
+vi.mock("@/services/review", () => ({
+  sendReview: vi.fn(),
+  isUnreachableError: (e: unknown) => e instanceof TypeError,
+}));
 
 import { drainPendingReviews, watchForReconnect } from "@/services/offline/sync";
 import { enqueue, pending } from "@/services/offline/queue";
@@ -63,6 +66,37 @@ describe("drainPendingReviews", () => {
     expect(mockSend.mock.calls.map(([p]) => `${p.userWordId}${p.grade}`).sort()).toEqual(["a1", "b3"]);
     expect(res).toMatchObject({ sent: 1, failed: 1 });
     expect((await pending(store)).map((e) => e.id)).toEqual(["e1", "e2"]); // nothing lost
+  });
+
+  it("an UNREACHABLE server is not a failed attempt — nothing is counted toward shelving", async () => {
+    // "online" fires on a captive portal too. Five of those must not strand a good grade.
+    await enqueue(store, g("e1", "a"));
+    await enqueue(store, g("e2", "b"));
+    mockSend.mockRejectedValue(new TypeError("Load failed"));
+
+    for (let i = 0; i < 6; i++) {
+      expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 0, remaining: 2 });
+    }
+    expect((await pending(store)).map((e) => e.attempts)).toEqual([0, 0]);
+
+    mockSend.mockResolvedValue({ userWordId: "x", stability: 1, confidenceRating: 1, lastReviewedDate: "" });
+    expect(await drainPendingReviews()).toEqual({ sent: 2, failed: 0, remaining: 0 });
+  });
+
+  it("stops trying the remaining cards once the server is unreachable", async () => {
+    for (const id of ["a", "b", "c", "d", "e", "f", "g", "h"]) await enqueue(store, g(`e-${id}`, id));
+    mockSend.mockRejectedValue(new TypeError("Load failed"));
+
+    await drainPendingReviews();
+    expect(mockSend.mock.calls.length).toBeLessThanOrEqual(4); // the first concurrent wave only
+  });
+
+  it("a REFUSAL still counts, so a poison entry is eventually shelved", async () => {
+    await enqueue(store, g("e1", "a"));
+    mockSend.mockRejectedValue(new Error("invalid grade"));
+
+    expect(await drainPendingReviews()).toEqual({ sent: 0, failed: 1, remaining: 1 });
+    expect((await pending(store))[0].attempts).toBe(1);
   });
 
   it("shares one drain between concurrent callers", async () => {

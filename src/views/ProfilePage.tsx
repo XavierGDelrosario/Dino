@@ -1,16 +1,16 @@
 // Profile page: identity (email / date created) + the three language settings —
-// NATIVE (default translation output), LEARNING (default "I'm learning" + input),
+// NATIVE (default translation output), LEARNING (the language studied + default input),
 // and APP language (UI localization). Native/learning persist on `users` (follow the
 // account); app language is the client-side i18n locale. History has its own page
 // (/history, views/HistoryPage.tsx), linked from the account menu under Profile.
 import { useEffect, useState } from "react";
+import { BackLink } from "../components/common/BackLink";
 import { getUserProfile, updateUserLanguages } from "../services/session";
-import { targetOptions, DEFAULT_NATIVE_LANGUAGE, DEFAULT_LEARNING_LANGUAGE } from "../services/language";
+import { targetOptions, defaultLanguagePair, resolveLanguagePair } from "../services/language";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, LOCALES, type Locale } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { Link } from "../router";
-import { AttributionFooter } from "../components/common/AttributionFooter";
 import "../components/common/common.css";
 
 export function ProfilePage({
@@ -24,8 +24,10 @@ export function ProfilePage({
 }) {
   const { t, locale, setLocale } = useI18n();
   const [created, setCreated] = useState<string | null>(null);
-  const [native, setNative] = useState<string>(DEFAULT_NATIVE_LANGUAGE);
-  const [learning, setLearning] = useState<string>(DEFAULT_LEARNING_LANGUAGE);
+  // Until the profile answers (and for a pref it never set): the device's language as
+  // native, the other one to learn — the same pair every other surface opens on.
+  const [native, setNative] = useState<string>(() => defaultLanguagePair().native);
+  const [learning, setLearning] = useState<string>(() => defaultLanguagePair().learning);
   const [err, setErr] = useState<string | null>(null);
   const langs = targetOptions();
 
@@ -35,8 +37,9 @@ export function ProfilePage({
       .then((p) => {
         if (!active || !p) return;
         setCreated(p.dateCreated);
-        if (p.nativeLanguage) setNative(p.nativeLanguage);
-        if (p.learningLanguage) setLearning(p.learningLanguage);
+        const pair = resolveLanguagePair(p);
+        setNative(pair.native);
+        setLearning(pair.learning);
       })
       .catch((e) => active && setErr(errorMessage(e)));
     return () => { active = false; };
@@ -59,6 +62,7 @@ export function ProfilePage({
 
   return (
     <section className="profile">
+      <BackLink />
       <h2 className="profile__title">{t("profile.title")}</h2>
 
       <div className="profile__row">
@@ -92,17 +96,15 @@ export function ProfilePage({
 
       <ErrorText message={err} />
 
-      {/* Footer: Back (left) · Delete account (right). Sign-out lives in the
-          top-right account menu; delete is its own confirmation page. */}
-      <div className="profile__footer">
-        <Link to="/" className="account__link">{t("profile.back")}</Link>
-        {!isAnonymous && (
+      {/* Footer: Delete account, centred. Back is the arrow at the top-left; sign-out
+          lives in the top-right account menu; delete is its own confirmation page. */}
+      {!isAnonymous && (
+        <div className="profile__footer">
           <Link to="/delete-account" className="account__link profile__deletelink">
             {t("profile.deleteAccount")}
           </Link>
-        )}
-      </div>
-      <AttributionFooter />
+        </div>
+      )}
     </section>
   );
 }

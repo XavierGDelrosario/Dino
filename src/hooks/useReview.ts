@@ -86,6 +86,7 @@ export function useReview(
       setStatus("loading");
       setError(null);
       setFailed([]);
+      setPendingCount(0); // per session: the done screen's offline note is about THIS one
       // A filtered subset = quiz all of it, capped at MAX_SUBSET_LIMIT (the weakest
       // that many, since the queue is ranked least-confident first); the general
       // queue (no subset) = the weakest DEFAULT_LIMIT. An explicit `limit` overrides.

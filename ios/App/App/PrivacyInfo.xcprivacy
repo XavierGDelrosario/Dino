@@ -12,13 +12,23 @@
       provides one) — app functionality, linked to the user, not for tracking;
     · saved vocabulary and review history — the product itself; app functionality,
       linked to the user, not for tracking.
-  Microphone audio, photos and handwriting are processed ON DEVICE and are not
-  collected; the text a user chooses to translate is sent for translation but is
-  not stored (paragraph translation is display-only, never persisted).
+    · error diagnostics — when a lookup fails, the server logs the error with a short
+      excerpt of the text and the user id (error_log), to fix bugs; linked to the user,
+      not for tracking;
+    · Google ML Kit (handwriting recognition) — the SDK reports performance metrics,
+      usage events and a per-installation identifier to Google; not linked to the user,
+      not for tracking. Listed per Google's ML Kit data-disclosure page — RE-CHECK that
+      page at submission, it is Google's list, not ours.
+  Photos and handwriting strokes are processed ON DEVICE and are not collected.
+  Microphone audio is recognised by iOS's speech recognizer, which may send it to
+  Apple (on-device recognition is NOT required: it punctuates far less, and the reader
+  needs sentence breaks) — never to us. Text a user chooses to translate is sent for translation; a paragraph
+  translation is display-only, but individual words are cached without the user id.
 
   Accessed API: user defaults, which the WebView and Capacitor use to persist
   preferences and the session — reason CA92.1 (access to information stored by the
-  app itself).
+  app itself). Also reason 1C8F.1 (App Group): the app writes the daily-word
+  schedule its home-screen widgets read (Shared/DailyWordStore.swift).
 
   KEEP THIS IN SYNC with the App Store Connect privacy labels — Apple compares the
   two, and a mismatch is a rejection. Re-check when a feature starts sending
@@ -56,6 +66,55 @@
         <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
       </array>
     </dict>
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <true/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypePerformanceData</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSPrivacyCollectedDataType</key>
+      <string>NSPrivacyCollectedDataTypeDeviceID</string>
+      <key>NSPrivacyCollectedDataTypeLinked</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypeTracking</key>
+      <false/>
+      <key>NSPrivacyCollectedDataTypePurposes</key>
+      <array>
+        <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+      </array>
+    </dict>
   </array>
   <key>NSPrivacyAccessedAPITypes</key>
   <array>
@@ -65,6 +124,7 @@
       <key>NSPrivacyAccessedAPITypeReasons</key>
       <array>
         <string>CA92.1</string>
+        <string>1C8F.1</string>
       </array>
     </dict>
   </array>

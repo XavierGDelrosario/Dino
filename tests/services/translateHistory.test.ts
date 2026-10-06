@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_HISTORY,
+  entryDate,
   entryKey,
   pushEntry,
   type TranslateHistoryEntry,
@@ -82,5 +83,26 @@ describe("translate history — pushEntry", () => {
     list = pushEntry(list, entry("犬"));
     list = pushEntry(list, entry("  猫 "));
     expect(list.map((e) => e.text)).toEqual(["猫", "犬"]);
+  });
+});
+
+describe("translate history — dates", () => {
+  it("stamps a new entry with when it was translated", () => {
+    const [e] = pushEntry([], entry("猫"), MAX_HISTORY, 1_700_000_000_000);
+    expect(e.at).toBe(1_700_000_000_000);
+  });
+
+  it("re-translating moves the entry to the front with the NEW date", () => {
+    const first = pushEntry([], entry("猫"), MAX_HISTORY, 1000);
+    const again = pushEntry(first, entry("猫"), MAX_HISTORY, 2000);
+    expect(again).toHaveLength(1);
+    expect(again[0].at).toBe(2000);
+  });
+
+  it("entryDate prints the day, adds the year once it isn't this one, and is empty without a date", () => {
+    const now = new Date(2026, 9, 6);
+    expect(entryDate({ ...entry("猫"), at: new Date(2026, 9, 5, 12).getTime() }, "en-US", now)).toBe("Oct 5");
+    expect(entryDate({ ...entry("猫"), at: new Date(2025, 11, 31, 12).getTime() }, "en-US", now)).toBe("Dec 31, 2025");
+    expect(entryDate(entry("猫"), "en-US", now)).toBe("");
   });
 });

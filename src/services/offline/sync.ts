@@ -11,7 +11,8 @@
 // is capped AND grouped — different cards run concurrently, one card runs in sequence.
 
 import { mapLimit } from "../../lib/concurrency";
-import { sendReview } from "../review";
+import { isUnreachableError, sendReview } from "../review";
+import { supabase } from "../../config/supabaseClient";
 import { offlineStore } from "./store";
 import { acknowledge, drainable, markFailed, pending, type PendingGrade } from "./queue";
 
@@ -22,7 +23,8 @@ const REPLAY_CONCURRENCY = 4;
 export interface DrainResult {
   sent: number;
   failed: number;
-  /** Still queued afterwards (failures, plus anything shelved past MAX_ATTEMPTS). */
+  /** Still queued afterwards (failures, anything unsent because the server could not be
+   *  reached, plus anything shelved past MAX_ATTEMPTS). */
   remaining: number;
 }
 
@@ -41,7 +43,9 @@ export function drainPendingReviews(): Promise<DrainResult> {
 
 async function runDrain(): Promise<DrainResult> {
   const store = offlineStore();
-  const queued = drainable(await pending(store));
+  // getSession reads local storage — no network — so this works on the reconnect edge.
+  const userId = (await supabase.auth.getSession()).data.session?.user.id ?? null;
+  const queued = drainable(await pending(store), userId);
   if (queued.length === 0) return { sent: 0, failed: 0, remaining: (await pending(store)).length };
 
   // Group by card so one card's grades stay ordered; different cards go in parallel.
@@ -55,8 +59,15 @@ async function runDrain(): Promise<DrainResult> {
   const ok: string[] = [];
   const bad: string[] = [];
 
+  // Set the moment a send gets NO answer. That is not a failed attempt, it is "still
+  // offline" — a captive portal or a dead uplink fires `online` all the same — and
+  // counting it would walk a perfectly good grade to MAX_ATTEMPTS and shelve it for
+  // good. So nothing is marked, and the cards not yet started don't try at all.
+  let unreachable = false;
+
   await mapLimit([...byCard.values()], REPLAY_CONCURRENCY, async (entries) => {
     for (const e of entries) {
+      if (unreachable) return;
       try {
         await sendReview({
           userWordId: e.userWordId,
@@ -65,10 +76,11 @@ async function runDrain(): Promise<DrainResult> {
           reversed: e.reversed,
         });
         ok.push(e.id);
-      } catch {
+      } catch (err) {
         // Stop this CARD at its first failure so a later grade can't overtake an
-        // earlier one. Other cards keep draining.
-        bad.push(e.id);
+        // earlier one. Other cards keep draining — unless the server is simply gone.
+        if (isUnreachableError(err)) unreachable = true;
+        else bad.push(e.id);
         break;
       }
     }

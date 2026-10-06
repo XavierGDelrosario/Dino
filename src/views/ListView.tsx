@@ -354,7 +354,7 @@ export function ListView({
         {L.words.length > 0 && (
           <>
             <button
-              className="btn btn--sm lists__reviewbtn"
+              className="btn btn--sm btn--primary lists__reviewbtn"
               onClick={() =>
                 selectedList
                   ? // A sub-list: quiz its (filtered) words as an explicit set, capped —
@@ -633,6 +633,7 @@ export function ListView({
               selected={picked.has(w.userWordId)}
               onToggleSelect={() => toggleOne(w.userWordId)}
               onEdit={(translation) => L.editWord(w.userWordId, translation)}
+              onRevert={() => L.revertWord(w.userWordId)}
               onDelete={() => {
                 // Only reachable from ALL — a sub-list shows "remove from list"
                 // (onRemoveFromList) instead of delete-from-vocabulary.

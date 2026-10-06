@@ -20,17 +20,22 @@ import {
   recordTermsAgreement,
   collisionKind,
   getSignInMethods,
+  type SignInMethod,
 } from "../services/session";
 import { onOAuthBrowserDismissed } from "../services/nativeAuth";
 import { onOAuthError, takeOAuthError, type OAuthReturnError } from "../services/oauthReturn";
+import { googleIdTokenEnabled, startGoogleSignIn, takeGoogleFailure } from "../services/googleIdentity";
 import { errorMessage } from "../lib/errorMessage";
 import { formatMethods, oauthErrorCopy, PROVIDER } from "../lib/authCopy";
 import { checkPassword } from "../lib/password";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { InputField } from "../components/common/InputField";
+import { BackLink } from "../components/common/BackLink";
 import { useRouter, Link } from "../router";
 import "../components/common/common.css";
+
+const APPLE_SIGNIN_ENABLED = import.meta.env.VITE_APPLE_SIGNIN === "1";
 
 export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   const { t } = useI18n();
@@ -149,7 +154,47 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       setBusy(false);
     }
   };
-  const google = oauth(linkGoogle, signInWithGoogle);
+  // WEB with a Google client id: go to Google ourselves and come back to this origin
+  // with an ID token (services/googleIdentity), so Google never shows Supabase's
+  // domain. Otherwise (native, or no client id) the Supabase redirect flow.
+  const google = googleIdTokenEnabled()
+    ? async () => {
+        if (needsAgreement) return;
+        setBusy(true);
+        setErr(null);
+        try {
+          // Stamp the agreement before leaving: the page unloads, and a sign-up that
+          // returns already linked must not be re-prompted by the terms gate.
+          if (mode === "signup") await recordTermsAgreement();
+          await startGoogleSignIn(mode); // navigates away; `busy` holds until it does
+        } catch (e) {
+          setErr(errorMessage(e));
+          setBusy(false);
+        }
+      }
+    : oauth(linkGoogle, signInWithGoogle);
+
+  // A Google return is finished by the app shell behind its splash (App.tsx); only a
+  // REFUSED one lands here, with its reason.
+  useEffect(() => {
+    const failed = takeGoogleFailure();
+    if (failed) {
+      setErr(
+        failed.methods.length
+          ? t("auth.existsWith", { methods: formatMethods(t, failed.methods as SignInMethod[]) })
+          : oauthErrorCopy(t, {
+              code: failed.code,
+              description: null,
+              intent: { mode, provider: "google", at: Date.now() },
+            }),
+      );
+    }
+    // Leaving for Google sets `busy`; "Back" can restore this page from the browser's
+    // back/forward cache with it still set, and every button disabled.
+    const restored = (e: PageTransitionEvent) => { if (e.persisted) setBusy(false); };
+    window.addEventListener("pageshow", restored);
+    return () => window.removeEventListener("pageshow", restored);
+  }, [t, mode]);
   const apple = oauth(linkApple, signInWithApple);
 
   const sendReset = async () => {
@@ -199,9 +244,9 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
   if (confirmSent) {
     return (
       <section className="authpage">
+        <BackLink />
         <h2 className="authpage__title">{t("auth.signUpTitle")}</h2>
         <p className="review__msg">{t("auth.confirmEmail")}</p>
-        <Link to="/" className="account__link">{t("profile.back")}</Link>
       </section>
     );
   }
@@ -215,7 +260,7 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
           upgrade note) — a fourth would read as a fourth choice rather than the exit.
           Signing in is optional in DINO (a guest is a real account), so leaving must be
           as reachable as continuing. */}
-      <Link to="/" className="account__link authpage__back">{t("profile.back")}</Link>
+      <BackLink />
       <h2 className="authpage__title">{mode === "signup" ? t("auth.signUpTitle") : t("auth.signInTitle")}</h2>
       <InputField type="email" value={email} onChange={setEmail}
         placeholder={t("auth.emailPlaceholder")} ariaLabel={t("auth.emailPlaceholder")} autoComplete="email" />
@@ -253,10 +298,14 @@ export function AuthPage({ mode }: { mode: "signin" | "signup" }) {
       </button>
 
       {/* Sign in with Apple is not optional on iOS: the App Store requires it
-          wherever another third-party login is offered. */}
-      <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
-        {t("auth.apple")}
-      </button>
+          wherever another third-party login is offered. It is shown only once the
+          project's Apple provider is configured (VITE_APPLE_SIGNIN=1) — before that the
+          button led off the site to a raw provider-not-enabled error. */}
+      {APPLE_SIGNIN_ENABLED && (
+        <button className="btn btn--ghost" disabled={busy || needsAgreement} onClick={apple}>
+          {t("auth.apple")}
+        </button>
+      )}
 
       {mode === "signin" && (
         <button className="account__link" onClick={() => { setForgot(true); setErr(null); }}>

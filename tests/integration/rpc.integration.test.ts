@@ -1652,6 +1652,66 @@ describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: jmdict_lookup_many", () => {
 // Sources UNSEEN headwords at a proficiency band from JMdict. Self-skips unless
 // BOTH JMdict is ingested AND the proficiency wordlist has been joined in (bands
 // are NULL otherwise → no candidates).
+// ── placement_pool (migrations 20260786 + 20260787; needs the JLPT bands ingested, else self-skips) ──
+describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: placement_pool", () => {
+  it("counts the band's pool, what the caller holds, and what is left to swipe", async () => {
+    const svc = serviceClient();
+    if (!svc) return;
+    const u = await makeUser();
+    const other = await makeUser();
+    type Row = { band: number; pool: number; unsaved: number; known: number };
+    const counts = async (client: typeof u.client): Promise<Row[]> => {
+      const r = await client.rpc("placement_pool", { p_source_lang: "JA", p_target_lang: "EN", p_max_band: 5 });
+      expect(r.error).toBeNull();
+      return (r.data ?? []) as Row[];
+    };
+
+    // The pool's word list is stored (20260787) and CI ingests after migrating, so
+    // measure it now — the step a real environment runs after its ingests.
+    expect((await svc.rpc("refresh_placement_pool")).error).toBeNull();
+    // Server-only: a client can neither rebuild it nor read the list.
+    expect((await u.client.rpc("refresh_placement_pool")).error).not.toBeNull();
+    expect((await u.client.from("placement_pool_words").select("surface").limit(1)).data ?? []).toEqual([]);
+
+    const before = await counts(u.client);
+    expect(before.map((r) => r.band)).toEqual([1, 2, 3, 4, 5]);
+    const target = before.find((r) => r.pool >= 2);
+    if (!target) return; // proficiency not ingested → no pool to count
+    // A fresh user has saved nothing: the whole pool is still to swipe.
+    expect(target.unsaved).toBe(target.pool);
+    expect(target.known).toBe(0);
+
+    // Save two pool words through the real path: one HELD (the quiz's "know" seed), one cold.
+    const draw = (((await svc.rpc("learn_words_at_band", {
+      p_source: "JA", p_target: "EN", p_band: target.band, p_user_id: u.userId, p_limit: 2,
+    })).data ?? []) as { headword: string }[]).map((r) => r.headword);
+    expect(draw).toHaveLength(2);
+    for (const [i, headword] of draw.entries()) {
+      const seeded = await svc.from("words").insert({
+        input: headword, translation: `pool-seed-${Date.now()}-${i}`, source_lang: "JA", target_lang: "EN",
+        is_verified: true,
+      }).select("word_id").single();
+      expect(seeded.error).toBeNull();
+      const saved = await u.client.rpc("save_dictionary_word", {
+        p_user_id: u.userId,
+        p_dictionary_word_id: (seeded.data as { word_id: string }).word_id,
+        ...(i === 0 ? { p_initial_stability: 40 } : {}),
+      });
+      expect(saved.error).toBeNull();
+    }
+
+    const after = (await counts(u.client)).find((r) => r.band === target.band)!;
+    expect(after.pool).toBe(target.pool); // the pool is the band, not the user
+    expect(after.unsaved).toBe(target.pool - 2);
+    expect(after.known).toBe(1); // the cold save is saved but not held
+
+    // Scoped to the caller: someone else's vocabulary changes nothing.
+    const theirs = (await counts(other.client)).find((r) => r.band === target.band)!;
+    expect(theirs.unsaved).toBe(target.pool);
+    expect(theirs.known).toBe(0);
+  });
+});
+
 describe.skipIf(!ENABLED || !SERVICE_KEY)("rpc: learn_words_at_band", () => {
   it("is NOT callable by a client (no EXECUTE grant)", async () => {
     const u = await makeUser();
@@ -2331,6 +2391,33 @@ describe.skipIf(!ENABLED)("rpc: report_quality_issue", () => {
     const row = data as { input: string; description: string | null };
     expect(row.input).toBe("辛い");
     expect(row.description).toBe("wrong reading");
+  });
+
+  // Migration 20260789 — the flag on Translate's output box.
+  it("stores the output with the input, trimmed, and clamps an oversized one", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("report_quality_issue", {
+      p_input: "猫が走った。",
+      p_output: "  The cat ran.  ",
+    });
+    expect(error).toBeNull();
+    expect((data as { output: string | null }).output).toBe("The cat ran.");
+
+    const big = await u.client.rpc("report_quality_issue", {
+      p_input: "あ".repeat(6000),
+      p_output: "a".repeat(6000),
+    });
+    expect(big.error).toBeNull();
+    const row = big.data as { input: string; output: string };
+    expect(row.input.length).toBe(5000);
+    expect(row.output.length).toBe(5000);
+  });
+
+  it("a word report (no output) still files, with output NULL", async () => {
+    const u = await makeUser();
+    const { data, error } = await u.client.rpc("report_quality_issue", { p_input: "猫", p_description: "x" });
+    expect(error).toBeNull();
+    expect((data as { output: string | null }).output).toBeNull();
   });
 
   it("rejects an empty target", async () => {

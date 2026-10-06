@@ -11,6 +11,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -65,6 +66,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       /* ignore persistence failure */
     }
   }, []);
+
+  // Keep <html lang> in step: screen readers pick the voice, and browsers the CJK font
+  // fallback and the "translate this page?" offer, from it.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const t = useCallback<TFn>(
     (key, params) => {

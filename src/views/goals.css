@@ -1,0 +1,151 @@
+/* /goals — streaks, daily goals, reminders. Theme tokens only. */
+
+.goals {
+  max-width: 24rem;
+  margin: 1.5rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* The two big numbers. */
+.goals__streaks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.goals__streak {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: center;
+}
+.goals__streaknum {
+  font-size: 3rem; /* ≈36pt */
+  line-height: 1;
+  font-weight: 700;
+  color: var(--streak);
+  font-variant-numeric: tabular-nums;
+}
+.goals__streaklabel {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.goals__h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.goals__h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.goals__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.goals__cardhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.goals__today {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.goals__today--met {
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* The goal buttons, side by side, equal width. */
+.goals__options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.goals__opt {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding: 0.6rem 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.goals__opt:hover {
+  background: var(--hover);
+}
+.goals__opt.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* "In 1 week · 35 new words" rows. */
+.goals__proj {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+.goals__proj li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--muted);
+}
+.goals__proj strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reminders. */
+.goals__remrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.goals__window {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.goals .dualrange {
+  width: 100%;
+}
+/* The slider's hour marks. */
+.goals__hours {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.goals__note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.goals__note--warn {
+  color: var(--danger-text);
+}

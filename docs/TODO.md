@@ -139,6 +139,15 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🧱 Extendable Features</h2></summary>
 
+### Streak · goals · reminders (`/goals`, migrations 20260790–92)
+- **Web reminders fire only while a tab is open** (Notification API + timer). Always-on web
+  = a service worker + push; the iOS build already gets real scheduled notifications.
+- A cram-frozen same-UTC-day re-grade leaves no trace in `study_days` (no log row, no
+  `last_reviewed_date` move) — a JST morning of only well-known cards can read unstudied.
+- Guest→account merge does not carry the goal columns (account's choice stands) — revisit if
+  users notice.
+- Streak freeze / repair, weekly goals, goal-met celebration — none built.
+
 ### Articles (inside Learn) — deep analysis for longer works
 - Extension content
 
@@ -259,7 +268,6 @@ Where OUTPUT quality is **capped** — ceilings, not bugs. Each: what's lacking 
   - A blanket curated list is **ruled out** (~4,169 ambiguous frequent words). Extend by hand only.
   - Long-term UX for single-kanji lookups is **multi-reading display** (top 2–3), not one
     guess. In-sentence is already fine — kuromoji has context.
-  - Note the override applies in `lookupWord`, not `lookupWordsBatch`.
 - **Per-sense granularity** — frequency is per-surface, proficiency per-entry and
   reading-matched (`20260740`, `apply:proficiency`), never per-sense. A homograph gets one blended band/frequency. Unlock is
   engineering, not money. **The biggest lever on this list.**
@@ -322,6 +330,12 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - **Per-sense axis** (JA+EN) — the biggest lever that costs engineering, not money.
 - **KO/ZH support** — a new language = its own dictionary source + `<source>_lookup()`.
   Checklist: `docs/Adding_A_Language.md`.
+- **Language pair assumes exactly TWO languages** — must change before a third ships.
+  The learning language defaults to "the other one" than native (`otherLanguage`,
+  `defaultLanguagePair`, `resolveLanguagePair` in `services/language/registry.ts`), and
+  Translate has no picker for it. With three there is no "other one": new users need a
+  real choice of what to learn (an onboarding step or a picker), and every
+  `otherLanguage` caller needs revisiting.
 
 </details>
 
@@ -330,13 +344,10 @@ candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 <details open>
 <summary><h2>➕ Open follow-ups</h2></summary>
 
-### Custom domain + email deliverability `[launch polish · partly URGENT]`
-- **Status:** prod email works but **lands in spam**. Sender is a `@gmail.com` address, and
-  `gmail.com` authorizes only Google's servers — SPF/DKIM can **never** align through Brevo.
-- **Fix (one task, three payoffs):** register a domain (~$10/yr) → authenticate in Brevo
-  (SPF/DKIM/DMARC — zero authenticated domains today) → send from `noreply@<domain>`.
-- **Also fixes:** the app URL (`dino-86y.pages.dev`) → then update Supabase Site URL +
-  redirects, edge `ALLOWED_ORIGINS`, and Google origins.
+### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
+- **Google brand verification** — shows the app name and logo on Google's screen (Search
+  Console TXT for `dinostudy.com` → Branding → submit). iOS still uses the redirect flow,
+  so it reads "continue to …supabase.co" there until then.
 - ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
   (Inbucket, `:54324`).
 
@@ -355,12 +366,6 @@ the SRS ease already does), then drop the column + its grants (`20260704`).
 ### Proficiency label axis — remaining `[#8]`
 - **Drop the read-time level-estimate pieces** (`language_level_estimate`, `estimated_band()`, `measure_level_estimate()`, `level_estimate_bins()` + its `build:leveling` call) once no installed client calls `level_estimate_bins()` at startup (anything built before PR for 20260779).
 - **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
-
-### Account-linking collisions — rollout `[#13]`
-**Gates the captcha rollout.** `20260782` is live on staging + prod; left:
-- Live-verify with real Google (local can't), web + iOS: password account → "Continue with
-  Google" is denied with the funnel copy; sign-up link on an already-registered Google
-  account falls back to sign-in and merges the guest.
 
 ### Placement + review-log — after `20260783` / `20260784`
 - Finish "Find my level" once on each real account — the stored band predates the fix.
@@ -394,11 +399,8 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 ### Legal — Privacy/ToS `[§10]`
 `/privacy` + `/terms` are drafted and footer-linked; the processor list matches the stack.
 **Counsel review is NOT a launch gate** while DINO is free, pre-revenue and founder-run
-(decided 2026-09-29) — self-fix the gaps below, pay for counsel at a trigger.
-- **Before launch (self, free):** name the operator in the Privacy Policy — legal name +
-  contact (**APPI applies regardless of size or revenue**; the address may be "on
-  request") · add a governing-law line (Japan) to the Terms · bump `CURRENT_TERMS_VERSION`
-  (`src/lib/terms.ts`) with the copy change.
+(decided 2026-09-29) — pay for counsel at a trigger. Governing law is **British Columbia**;
+keep the Apple enrollment country and the operator address consistent with it.
 - **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
   特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
   the EU · ~1k active users.
@@ -432,8 +434,7 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 
 ---
 
-**To publish (non-code):** Privacy/ToS self-fixes (operator name + governing law) +
-Production Rules console hardening. Counsel review waits for a trigger (see Legal).
+**To publish (non-code):** Production Rules console hardening. Counsel review waits for a trigger (see Legal).
 Admin tooling · Quality ceilings · Features are post-launch.
 
 **🧪 Pre-publish QA gate:** re-run the multi-agent pre-publish review before any published

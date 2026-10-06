@@ -276,6 +276,33 @@ export type Database = {
           },
         ]
       }
+      curated_names: {
+        Row: {
+          kind: string
+          meaning: string
+          reading: string | null
+          source_lang: string
+          surface: string
+          target_lang: string
+        }
+        Insert: {
+          kind?: string
+          meaning: string
+          reading?: string | null
+          source_lang?: string
+          surface: string
+          target_lang?: string
+        }
+        Update: {
+          kind?: string
+          meaning?: string
+          reading?: string | null
+          source_lang?: string
+          surface?: string
+          target_lang?: string
+        }
+        Relationships: []
+      }
       media_favorites: {
         Row: {
           created_at: string
@@ -548,6 +575,8 @@ export type Database = {
       }
       users: {
         Row: {
+          daily_new_words_goal: number | null
+          daily_reviews_goal: number | null
           date_created: string
           email: string
           is_admin: boolean
@@ -560,6 +589,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          daily_new_words_goal?: number | null
+          daily_reviews_goal?: number | null
           date_created?: string
           email: string
           is_admin?: boolean
@@ -572,6 +603,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          daily_new_words_goal?: number | null
+          daily_reviews_goal?: number | null
           date_created?: string
           email?: string
           is_admin?: boolean
@@ -769,7 +802,7 @@ export type Database = {
         Returns: { term: string; words: Json }[]
       }
       report_quality_issue: {
-        Args: { p_input: string; p_description?: string; p_word_id?: string }
+        Args: { p_input: string; p_description?: string; p_word_id?: string; p_output?: string }
         Returns: {
           id: number
           reported_at: string
@@ -781,6 +814,7 @@ export type Database = {
           resolved_by: string | null
           source: string
           dictionary_word_id: string | null
+          output: string | null
         }
       }
       admin_report_quality_issue: {
@@ -810,6 +844,8 @@ export type Database = {
           resolved_by: string | null
           source: string
           dictionary_word_id: string | null
+          // Migration 20260789 — what the Translate output box held; null for word reports.
+          output: string | null
         }[]
       }
       admin_set_quality_report_status: {
@@ -931,6 +967,14 @@ export type Database = {
         Args: { p_source_lang: string }
         Returns: { band: number | null; frequency: number | null; known: boolean }[]
       }
+      placement_pool: {
+        Args: { p_source_lang: string; p_target_lang: string; p_max_band: number }
+        Returns: { band: number; pool: number; unsaved: number; known: number }[]
+      }
+      refresh_placement_pool: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       profile_history: {
         Args: { p_tz?: string }
         Returns: Json
@@ -961,6 +1005,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      study_days: {
+        Args: { p_tz?: string }
+        Returns: {
+          day: string
+          added: number
+          reviewed: number
+          reviews: number
+        }[]
       }
       refund_global_quota: { Args: { p_chars: number }; Returns: undefined }
       refund_translation_quota: {

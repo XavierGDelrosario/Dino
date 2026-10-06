@@ -29,7 +29,7 @@
 //     npm run apply:proficiency                # a hosted project (SSL auto-enabled)
 // =========================================================
 import { Client } from "pg";
-import { bandForWriting, loadProficiency } from "./lib/proficiency";
+import { bandForWriting, commonKanaOf, loadProficiency } from "./lib/proficiency";
 
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
@@ -37,6 +37,7 @@ interface WritingRow {
   id: string;
   entry_id: string;
   text: string;
+  common: boolean;
   proficiency_band: number | null;
 }
 
@@ -54,8 +55,8 @@ async function main(): Promise<void> {
   const client = new Client({ connectionString: dbUrl, ssl: isLocal ? undefined : { rejectUnauthorized: false } });
   await client.connect();
   try {
-    const kanji = (await client.query<WritingRow>("SELECT id::text, entry_id, text, proficiency_band FROM jmdict_kanji")).rows;
-    const kana = (await client.query<WritingRow>("SELECT id::text, entry_id, text, proficiency_band FROM jmdict_kana")).rows;
+    const kanji = (await client.query<WritingRow>("SELECT id::text, entry_id, text, common, proficiency_band FROM jmdict_kanji")).rows;
+    const kana = (await client.query<WritingRow>("SELECT id::text, entry_id, text, common, proficiency_band FROM jmdict_kana")).rows;
     if (kanji.length === 0) {
       console.error("jmdict_kanji is empty — run npm run ingest:jmdict first");
       process.exit(1);
@@ -68,12 +69,23 @@ async function main(): Promise<void> {
       readingsOf.set(k.entry_id, list);
     }
 
-    const diff = (rows: WritingRow[]) =>
+    // An uncommon entry's kana gives way to a common entry spelled the same (the rule's
+    // homophone exception) — so each kana row needs to know whether its spelling has one.
+    const commonKana = commonKanaOf(kana);
+    const diff = (rows: WritingRow[], isKana: boolean) =>
       rows
-        .map((r) => ({ ...r, band: bandForWriting(table, r.text, readingsOf.get(r.entry_id) ?? []) }))
+        .map((r) => ({
+          ...r,
+          band: bandForWriting(
+            table,
+            r.text,
+            readingsOf.get(r.entry_id) ?? [],
+            isKana ? { common: r.common, commonSpelling: commonKana.has(r.text.normalize("NFC")) } : undefined,
+          ),
+        }))
         .filter((r) => r.band !== r.proficiency_band);
-    const kanjiChanges = diff(kanji);
-    const kanaChanges = diff(kana);
+    const kanjiChanges = diff(kanji, false);
+    const kanaChanges = diff(kana, true);
     const entries = [...new Set([...kanjiChanges, ...kanaChanges].map((r) => r.entry_id))];
 
     const tally = (rows: ReturnType<typeof diff>) => ({
