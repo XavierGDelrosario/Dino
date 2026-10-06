@@ -87,6 +87,9 @@
   --danger-bg: #2a1416;
   --danger-border: #6a2c2c;
   --success: #3ecb6c;
+  /* The streak flame (top-bar badge, /goals, the History goal line): one orange, the
+     only place the app uses it, so it reads as "streak" wherever it appears. */
+  --streak: #ff9f43;
 
   /* Hover fill for the default button/chip — a step away from --surface-2 in
      whichever direction the theme has room for (lighter on dark, darker on light). */
@@ -153,6 +156,7 @@
   --danger-bg: #fdecea;
   --danger-border: #f0b9b4;
   --success: #098050;
+  --streak: #d9731a;
 
   --hover: #e2e5ee;
 
@@ -421,6 +425,32 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* The 🔥 streak badge: the top bar's LEFT control, mirroring .app__menus on the right.
+   A link, not a button — it goes to /goals. Orange text, no chrome. */
+.streak {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2.1rem; /* the height of the icon buttons opposite, so the row reads level */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  color: var(--streak);
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+.streak:hover {
+  background: var(--hover);
+}
+/* Not yet studied today: the flame is dimmed, so the badge itself says "still to do". */
+.streak:not(.streak--lit) .streak__fire {
+  filter: grayscale(1) opacity(0.55);
 }
 
 /* Still positioned, but only as the anchor its own dropdown panel hangs from. */

@@ -91,3 +91,36 @@ describe("HistoryPlot — confidence", () => {
     expect(screen.queryByRole("button", { name: /zoom in/i })).toBeNull();
   });
 });
+
+describe("HistoryPlot — goal line", () => {
+  const todayKey = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`;
+  };
+  const activity: ProfileHistory = {
+    mainLang: "JA",
+    days: [{ day: todayKey(), added: 2, reviewed: 1, reviews: 3 }],
+    bands: [],
+    confidence: [],
+  };
+
+  it("draws the daily goal on the activity plot, labelled", () => {
+    const { container } = render(
+      <LocaleProvider>
+        <HistoryPlot history={activity} goals={{ newWords: 5, reviews: 20 }} />
+      </LocaleProvider>,
+    );
+    const line = container.querySelector('[data-testid="goal-line"]');
+    expect(line).not.toBeNull();
+    expect(line!.textContent).toContain("Goal 5");
+  });
+
+  it("has no goal line without goals, or on a metric that has none", () => {
+    const { container } = render(
+      <LocaleProvider>
+        <HistoryPlot history={activity} />
+      </LocaleProvider>,
+    );
+    expect(container.querySelector('[data-testid="goal-line"]')).toBeNull();
+  });
+});

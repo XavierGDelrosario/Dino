@@ -11,6 +11,12 @@ vi.mock("@/services/history", async (importOriginal) => ({
   getProfileHistory: () => getProfileHistory(),
 }));
 
+// The goal line reads the user's goals; the defaults are all this section needs.
+vi.mock("@/services/goals", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/services/goals")>();
+  return { ...mod, getGoals: async () => mod.DEFAULT_GOALS };
+});
+
 import { HistorySection } from "@/components/profile/HistorySection";
 
 const today = dayKey(new Date());

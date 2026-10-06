@@ -575,6 +575,8 @@ export type Database = {
       }
       users: {
         Row: {
+          daily_new_words_goal: number | null
+          daily_reviews_goal: number | null
           date_created: string
           email: string
           is_admin: boolean
@@ -587,6 +589,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          daily_new_words_goal?: number | null
+          daily_reviews_goal?: number | null
           date_created?: string
           email: string
           is_admin?: boolean
@@ -599,6 +603,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          daily_new_words_goal?: number | null
+          daily_reviews_goal?: number | null
           date_created?: string
           email?: string
           is_admin?: boolean
@@ -999,6 +1005,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      study_days: {
+        Args: { p_tz?: string }
+        Returns: {
+          day: string
+          added: number
+          reviewed: number
+          reviews: number
+        }[]
       }
       refund_global_quota: { Args: { p_chars: number }; Returns: undefined }
       refund_translation_quota: {

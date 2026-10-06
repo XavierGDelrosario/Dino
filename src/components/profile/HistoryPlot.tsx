@@ -34,6 +34,8 @@ import {
   type ProfileHistory,
 } from "../../services/history";
 import { clampView, fullView, isFullView, niceTicks, panBy, zoomAt, type Bounds, type View } from "./plotView";
+import { goalPerBucket } from "./plotView";
+import type { Goals } from "../../services/goals";
 import "./history.css";
 
 type PlotMetric = "added" | "total" | "reviewed" | "confidence";
@@ -93,7 +95,7 @@ function countTicks(y0: number, y1: number): number[] {
   return out;
 }
 
-export function HistoryPlot({ history }: { history: ProfileHistory }) {
+export function HistoryPlot({ history, goals }: { history: ProfileHistory; goals?: Goals | null }) {
   const { t, locale } = useI18n();
   const [metric, setMetric] = useState<PlotMetric>("added");
   const [range, setRange] = useState<HistoryRange>("1m");
@@ -139,7 +141,12 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
   const H = isConf ? H_CONFIDENCE : H_ACTIVITY;
   const PH = H - M.top - M.bottom;
   const hasData = series.some((s) => s.points.some((p) => p.value != null && (isConf || p.value > 0)));
-  const yMax = isConf ? 5 : niceMax(Math.max(0, ...series.flatMap((s) => s.points.map((p) => p.value ?? 0))));
+  // The goal line (dashed, in the streak colour) sits at the goal for this bucket size;
+  // the axis grows to include it so a goal above every bar is still on screen.
+  const goal = goalPerBucket(goals, metric, RANGES[range].granularity);
+  const yMax = isConf
+    ? 5
+    : niceMax(Math.max(0, goal ?? 0, ...series.flatMap((s) => s.points.map((p) => p.value ?? 0))));
   const shown = isConf ? series.filter((s) => !hidden.has(s.id)) : series;
 
   // Every metric zooms and pans. The smallest Y window is half a point of confidence,
@@ -408,6 +415,16 @@ export function HistoryPlot({ history }: { history: ProfileHistory }) {
                 {keys[i] <= todayKey ? fmtKey(keys[i]) : ""}
               </text>
             ))}
+
+            {/* The daily goal, as a dashed reference line with its label at the right end. */}
+            {goal != null && hasData && goal >= v.y0 && goal <= v.y1 && (
+              <g className="hist-plot__goal" data-testid="goal-line">
+                <line x1={M.left} x2={W - M.right} y1={y(goal)} y2={y(goal)} className="hist-plot__goalline" />
+                <text x={W - M.right} y={y(goal) - 4} className="hist-plot__goallabel" textAnchor="end">
+                  {t("goals.plotGoal")} {goal}
+                </text>
+              </g>
+            )}
 
             {/* Crosshair. */}
             {hover != null && (
