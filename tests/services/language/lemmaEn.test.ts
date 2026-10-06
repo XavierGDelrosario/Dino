@@ -1,9 +1,5 @@
-import { describe, expect, it } from "vitest";
-import {
-  EN_IRREGULAR_EXCLUDED,
-  englishLemma,
-  readerLemma,
-} from "@/services/language/lemmaEn";
+import { describe, expect, it, beforeAll } from "vitest";
+import { EN_IRREGULAR_EXCLUDED, englishLemma, readerLemma, loadEnglishBaseForms } from "@/services/language/lemmaEn";
 
 describe("englishLemma — plural", () => {
   it("strips a regular plural", () => {
@@ -120,20 +116,22 @@ describe("englishLemma — declines rather than guess", () => {
   });
 
   describe("regular inflections under the tagger's tag (verified against WordNet)", () => {
+    beforeAll(() => loadEnglishBaseForms());
+
     it("resolves -ing verb forms, choosing the real base", () => {
       const cases: Array<[string, string]> = [
         ["running", "run"], ["walking", "walk"], ["making", "make"], ["hoping", "hope"],
         ["hopping", "hop"], ["singing", "sing"], ["coming", "come"], ["falling", "fall"],
         ["adding", "add"], ["putting", "put"], ["seeing", "see"], ["taping", "tape"],
       ];
-      for (const [w, base] of cases) expect(englishLemma(w, "VERB"), w).toBe(base);
+      for (const [w, base] of cases) expect(englishLemma(w, { tag: "VERB" }), w).toBe(base);
     });
 
     it("handles -ying: die/lie, else fly/try", () => {
-      expect(englishLemma("dying", "VERB")).toBe("die");
-      expect(englishLemma("lying", "VERB")).toBe("lie");
-      expect(englishLemma("flying", "VERB")).toBe("fly");
-      expect(englishLemma("trying", "VERB")).toBe("try");
+      expect(englishLemma("dying", { tag: "VERB" })).toBe("die");
+      expect(englishLemma("lying", { tag: "VERB" })).toBe("lie");
+      expect(englishLemma("flying", { tag: "VERB" })).toBe("fly");
+      expect(englishLemma("trying", { tag: "VERB" })).toBe("try");
     });
 
     it("resolves -ed verb forms", () => {
@@ -141,35 +139,58 @@ describe("englishLemma — declines rather than guess", () => {
         ["walked", "walk"], ["liked", "like"], ["stopped", "stop"], ["hoped", "hope"],
         ["added", "add"], ["used", "use"], ["planned", "plan"], ["decided", "decide"],
       ];
-      for (const [w, base] of cases) expect(englishLemma(w, "VERB"), w).toBe(base);
+      for (const [w, base] of cases) expect(englishLemma(w, { tag: "VERB" }), w).toBe(base);
     });
 
     it("resolves -es verb forms", () => {
-      expect(englishLemma("watches", "VERB")).toBe("watch");
-      expect(englishLemma("goes", "VERB")).toBe("go");
-      expect(englishLemma("uses", "VERB")).toBe("use");
-      expect(englishLemma("raises", "VERB")).toBe("raise");
+      expect(englishLemma("watches", { tag: "VERB" })).toBe("watch");
+      expect(englishLemma("goes", { tag: "VERB" })).toBe("go");
+      expect(englishLemma("uses", { tag: "VERB" })).toBe("use");
+      expect(englishLemma("raises", { tag: "VERB" })).toBe("raise");
     });
 
     it("resolves -es plurals under a NOUN tag", () => {
-      expect(englishLemma("buses", "NOUN")).toBe("bus");
-      expect(englishLemma("cases", "NOUN")).toBe("case");
-      expect(englishLemma("boxes", "NOUN")).toBe("box");
-      expect(englishLemma("classes", "NOUN")).toBe("class");
-      expect(englishLemma("houses", "NOUN")).toBe("house");
+      expect(englishLemma("buses", { tag: "NOUN" })).toBe("bus");
+      expect(englishLemma("cases", { tag: "NOUN" })).toBe("case");
+      expect(englishLemma("boxes", { tag: "NOUN" })).toBe("box");
+      expect(englishLemma("classes", { tag: "NOUN" })).toBe("class");
+      expect(englishLemma("houses", { tag: "NOUN" })).toBe("house");
     });
 
     it("leaves an -ing NOUN as the word it is", () => {
-      for (const w of ["building", "meeting", "feeling"]) expect(englishLemma(w, "NOUN")).toBeNull();
+      for (const w of ["building", "meeting", "feeling"]) expect(englishLemma(w, { tag: "NOUN" })).toBeNull();
     });
 
     it("leaves -ed/-ing adjectives alone", () => {
-      for (const w of ["tired", "exciting", "interested"]) expect(englishLemma(w, "ADJ")).toBeNull();
+      for (const w of ["tired", "exciting", "interested"]) expect(englishLemma(w, { tag: "ADJ" })).toBeNull();
+    });
+
+    it("REGRESSIONS the first cut had (QA review of #177): the right base, or none", () => {
+      const cases: Array<[string, string, string | null]> = [
+        // -es: a bare stem takes -es only after s/x/z/ch/sh/o — otherwise it is Xe+s
+        ["hopes", "VERB", "hope"], ["rates", "VERB", "rate"], ["stares", "VERB", "stare"],
+        ["wages", "VERB", "wage"], ["copes", "VERB", "cope"], ["passes", "VERB", "pass"],
+        // a surface that IS a base form is left alone, never stripped to a shorter verb
+        ["feed", "VERB", null], ["need", "VERB", null], ["bring", "VERB", null], ["seed", "VERB", null],
+        // f/v plurals under NOUN
+        ["leaves", "NOUN", "leaf"], ["lives", "NOUN", "life"], ["knives", "NOUN", "knife"],
+        ["wolves", "NOUN", "wolf"], ["waves", "NOUN", "wave"],
+        // spelling can't separate rout/route or bath/bathe: the commoner verb is meant
+        ["routing", "VERB", "route"],
+        // a noun that is already a base form
+        ["species", "NOUN", null],
+      ];
+      for (const [w, tag, base] of cases) expect(englishLemma(w, { tag }), w).toBe(base);
+    });
+
+    it("does not lemmatize a possessive's stem under the tag — james's is a name, not jam+es", () => {
+      expect(englishLemma("james's", { tag: "NOUN" })).toBe("james");
+      expect(englishLemma("children's", { tag: "NOUN" })).toBe("child");
     });
 
     it("never invents a word: a stem the verifier does not know stays as written", () => {
-      expect(englishLemma("xqzzing", "VERB")).toBeNull();
-      expect(englishLemma("blorches", "NOUN")).toBeNull();
+      expect(englishLemma("xqzzing", { tag: "VERB" })).toBeNull();
+      expect(englishLemma("blorches", { tag: "NOUN" })).toBeNull();
     });
   });
 
@@ -263,9 +284,9 @@ describe("englishLemma — keys that are Object.prototype members", () => {
 
 describe("readerLemma — language gating", () => {
   it("applies only to English", () => {
-    expect(readerLemma("cats", "EN")).toBe("cat");
+    expect(readerLemma("cats", { lang: "EN" })).toBe("cat");
     // JA has kuromoji; other languages have no rules and must stay as written.
-    expect(readerLemma("cats", "JA")).toBeNull();
-    expect(readerLemma("gatos", "ES")).toBeNull();
+    expect(readerLemma("cats", { lang: "JA" })).toBeNull();
+    expect(readerLemma("gatos", { lang: "ES" })).toBeNull();
   });
 });

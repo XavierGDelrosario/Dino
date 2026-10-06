@@ -30,7 +30,7 @@
 
 import type { LangCode } from "./registry";
 import { EN_IRREGULARS_WORDNET } from "./irregularsEn.generated";
-import { EN_NOUNS, EN_VERB_FREQ } from "./baseFormsEn.generated";
+
 import { own } from "../../lib/own";
 
 /** Irregular past/participle → base, plural → singular. INCLUSION RULE: the surface
@@ -90,7 +90,8 @@ const TRAILING_APOSTROPHE = /['’]$/;
 
 /** A confident dictionary form for `surface`, or null to look it up as written. The
  *  lemma comes back lowercase, which is what the dictionary is keyed on. */
-export function englishLemma(surface: string, tag?: string | null): string | null {
+export function englishLemma(surface: string, opts: { tag?: string | null } = {}): string | null {
+  const tag = opts.tag ?? null;
   const w = surface.normalize("NFC").toLowerCase();
   if (w.length < 3) return null; // too short for any rule to be safe
 
@@ -103,13 +104,13 @@ export function englishLemma(surface: string, tag?: string | null): string | nul
   // The stripped form is re-lemmatized (children's → children → child), and stands on
   // its own when no further rule fires (boss's → boss) — returning null there would
   // put the apostrophe back by looking the token up as written.
-  if (POSSESSIVE_S.test(w)) return lemmaOfStem(w.slice(0, -2), tag);
+  if (POSSESSIVE_S.test(w)) return lemmaOfStem(w.slice(0, -2));
   // A plural possessive keeps its `s`, so the ordinary plural rule still applies
   // (workers' → workers → worker). A singular name ending in -s can over-strip
   // (harris' → harri; the -es/-ss/-us guards already spare james'/jesus'/wales'), which
   // is accepted: a name misses the dictionary either way, so the two forms fail
   // identically while the plural case genuinely resolves.
-  if (TRAILING_APOSTROPHE.test(w)) return lemmaOfStem(w.slice(0, -1), tag);
+  if (TRAILING_APOSTROPHE.test(w)) return lemmaOfStem(w.slice(0, -1));
 
   const irregular = own(EN_IRREGULARS, w);
   if (irregular) return irregular;
@@ -149,9 +150,37 @@ export function englishLemma(surface: string, tag?: string | null): string | nul
   return verifiedRegular(w, tag);
 }
 
-const NOUNS = new Set<string>(EN_NOUNS);
-const isVerb = (c: string): boolean => Object.prototype.hasOwnProperty.call(EN_VERB_FREQ, c);
-const isNoun = (c: string): boolean => NOUNS.has(c);
+// ── The verifier: WordNet base forms, loaded LAZILY ──────────────────────────
+// 323 KB of verbs + nouns (baseFormsEn.generated.ts) is only ever consulted under a
+// tag, and the tag comes from the POS model, which itself loads lazily — so the tables
+// ride the same deferred path (analyze.ts awaits loadEnglishBaseForms before tagging
+// a paragraph) instead of sitting in the entry bundle for every learner, Japanese-only
+// ones included. Until they have loaded the tag-gated rules simply return null, which
+// is the no-tag behaviour.
+interface BaseForms {
+  verbs: Readonly<Record<string, number>>;
+  nouns: ReadonlySet<string>;
+}
+let tables: BaseForms | null = null;
+let loading: Promise<void> | null = null;
+
+/** Load the verifier tables once; safe to call repeatedly. */
+export function loadEnglishBaseForms(): Promise<void> {
+  if (tables) return Promise.resolve();
+  return (loading ??= import("./baseFormsEn.generated").then((m) => {
+    tables = { verbs: m.EN_VERB_FREQ, nouns: new Set(m.EN_NOUNS) };
+  }));
+}
+
+/** Tests only. */
+export function __resetEnglishBaseForms(): void {
+  tables = null;
+  loading = null;
+}
+
+const isVerb = (c: string): boolean => !!tables && Object.prototype.hasOwnProperty.call(tables.verbs, c);
+const isNoun = (c: string): boolean => !!tables && tables.nouns.has(c);
+const verbFreq = (c: string): number => tables?.verbs[c] ?? 0;
 
 /** consonant-vowel-consonant ending (hop, make→mak, tap): such a stem DOUBLES its last
  *  letter before -ing/-ed, so an undoubled form must come from the silent-e base
@@ -159,38 +188,46 @@ const isNoun = (c: string): boolean => NOUNS.has(c);
 const CVC = /[^aeiou][aeiou][b-df-hj-np-tvz]$/;
 /** A doubled final consonant (runn, stopp) — the stem may be the undoubled word. */
 const DOUBLED = /([b-df-hj-np-tvz])\1$/;
+/** A bare stem takes -es only after these (watch→watches, go→goes, bus→buses);
+ *  anywhere else "Xes" can only be Xe+s (hope→hopes, use→uses, raise→raises). */
+const TAKES_ES = /(s|x|z|ch|sh|o)$/;
 
 /**
- * Candidate stems for an -ing or -ed form, best first. Orthography decides the order
- * where it can (the CVC rule above); frequency breaks the one tie it cannot — a doubled
- * stem that is also a word (putting → putt | put).
+ * Candidate stems for an -ing or -ed form, best first, and whether orthography made
+ * that order DECISIVE. The CVC rule is decisive (hoping can only be hope). Otherwise
+ * the bare stem and the +e stem are both possible and nothing in the spelling
+ * separates them (routing: rout | route) — the caller settles that by frequency.
  */
-function stemCandidates(stem: string, suffixE: boolean): string[] {
-  const out: string[] = [];
-  const withE = suffixE ? [stem + "e", stem] : [stem];
-  if (CVC.test(stem)) out.push(...withE);
-  else out.push(...withE.slice().reverse());
-  if (DOUBLED.test(stem)) out.push(stem.slice(0, -1));
-  return out;
+function stemCandidates(stem: string): { cands: string[]; decisive: boolean } {
+  const decisive = CVC.test(stem);
+  const cands = decisive ? [stem + "e", stem] : [stem, stem + "e"];
+  if (DOUBLED.test(stem)) cands.push(stem.slice(0, -1));
+  return { cands, decisive };
 }
 
-function pickVerb(cands: string[]): string | null {
+function pickVerb(cands: string[], decisive: boolean): string | null {
   const hits = cands.filter(isVerb);
   if (hits.length === 0) return null;
   if (hits.length === 1) return hits[0];
-  // Two real verbs: a doubled stem and its undoubled twin are settled by frequency
-  // (put ≫ putt); anything else keeps the orthographic order above.
   const [a, b] = hits;
-  if (b === a.slice(0, -1) && DOUBLED.test(a)) return (EN_VERB_FREQ[b] ?? 0) >= (EN_VERB_FREQ[a] ?? 0) ? b : a;
+  // A doubled stem and its undoubled twin are settled by frequency (put ≫ putt).
+  if (b === a.slice(0, -1) && DOUBLED.test(a)) return verbFreq(b) >= verbFreq(a) ? b : a;
+  // Two real verbs the spelling cannot separate (rout | route, bath | bathe): the
+  // commoner one is the one meant far more often than not.
+  if (!decisive) return verbFreq(b) > verbFreq(a) ? b : a;
   return a;
 }
 
 /**
  * The tag-gated regular inflections. Only ever returns a word the verifier knows, under
- * the part of speech the tagger saw — see the header.
+ * the part of speech the tagger saw — see the header. A surface that is ITSELF a base
+ * form under that tag (feed, need, bring; species) is returned as null: it is already
+ * the dictionary word, and stripping it would invent another (feed → fee).
  */
-function verifiedRegular(w: string, tag: string | null | undefined): string | null {
+function verifiedRegular(w: string, tag: string | null): string | null {
+  if (!tables) return null;
   if (tag === "VERB") {
+    if (isVerb(w)) return null;
     if (w.endsWith("ying") && w.length > 4) {
       // dying → die, lying → lie; else flying → fly. Never dy+e: "dying" is not "dye".
       const ie = w.slice(0, -4) + "ie";
@@ -198,20 +235,35 @@ function verifiedRegular(w: string, tag: string | null | undefined): string | nu
       const y = w.slice(0, -3);
       return isVerb(y) ? y : null;
     }
-    if (w.endsWith("ing") && w.length > 4) return pickVerb(stemCandidates(w.slice(0, -3), true));
-    if (w.endsWith("ed") && w.length > 3) return pickVerb(stemCandidates(w.slice(0, -2), true));
-    if (w.endsWith("es") && w.length > 3) return pickVerb([w.slice(0, -2), w.slice(0, -1)]);
+    if (w.endsWith("ing") && w.length > 4) {
+      const { cands, decisive } = stemCandidates(w.slice(0, -3));
+      return pickVerb(cands, decisive);
+    }
+    if (w.endsWith("ed") && w.length > 3) {
+      const { cands, decisive } = stemCandidates(w.slice(0, -2));
+      return pickVerb(cands, decisive);
+    }
+    if (w.endsWith("es") && w.length > 3) {
+      const bare = w.slice(0, -2);
+      const full = w.slice(0, -1);
+      return pickVerb(TAKES_ES.test(bare) ? [bare, full] : [full], true);
+    }
     return null;
   }
   if (tag === "NOUN") {
-    // buses → bus, cases → case, boxes → box: whichever stem is a noun. Both nouns
-    // (bases → bas? no; but e.g. "pulses" → pulse, not "puls") is rare; the -s strip is
-    // tried first because the -es/-e pair (case) outnumbers the bare -es pair (bus).
+    if (isNoun(w)) return null;
+    // f/v plurals first: leaves → leaf, knives → knife, lives → life. These are held
+    // out of the irregulars map (lives is also live+s), and the -es rule below would
+    // read leaves as leave+s.
+    if (w.endsWith("ves") && w.length > 4) {
+      const stem = w.slice(0, -3);
+      if (isNoun(stem + "fe")) return stem + "fe";
+      if (isNoun(stem + "f")) return stem + "f";
+    }
     if (w.endsWith("es") && w.length > 3) {
-      const full = w.slice(0, -1); // case-s
       const bare = w.slice(0, -2); // bus-es
-      if (isNoun(full)) return full;
-      if (isNoun(bare)) return bare;
+      const full = w.slice(0, -1); // case-s
+      for (const c of TAKES_ES.test(bare) ? [bare, full] : [full]) if (isNoun(c)) return c;
     }
     return null;
   }
@@ -220,12 +272,14 @@ function verifiedRegular(w: string, tag: string | null | undefined): string | nu
 
 /** The lemma of a possessive's stem: whatever the ordinary rules make of it, else the
  *  stem itself — the apostrophe is gone either way, which is the point. */
-function lemmaOfStem(stem: string, tag?: string | null): string {
-  return englishLemma(stem, tag) ?? stem;
+function lemmaOfStem(stem: string): string {
+  // No tag here on purpose: a possessive's stem is very often a NAME (james's), and
+  // the tag-gated -es rule would happily read james as jam+es.
+  return englishLemma(stem) ?? stem;
 }
 
 /** Per-language reader lemma. Languages with their own analyser (JA → kuromoji) and
  *  languages with no rules both return null here. */
-export function readerLemma(surface: string, lang: LangCode, tag?: string | null): string | null {
-  return lang.toUpperCase() === "EN" ? englishLemma(surface, tag) : null;
+export function readerLemma(surface: string, opts: { lang: LangCode; tag?: string | null }): string | null {
+  return opts.lang.toUpperCase() === "EN" ? englishLemma(surface, { tag: opts.tag }) : null;
 }
