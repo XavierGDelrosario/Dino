@@ -395,8 +395,6 @@ left there: signing + TestFlight, screenshots, the app record, Apple credentials
 - Screenshots: **6.9″ iPhone `1320 × 2868`** (Apple scales it to every smaller iPhone). A
   phone screenshot only passes if the phone IS a Pro Max; otherwise capture from the
   Simulator (`xcrun simctl io booted screenshot`). sRGB PNG/JPEG, no alpha.
-- Unresolved: whether the live transcript should keep listening while another app is
-  foreground (needs the `audio` background mode and a review justification).
 
 ### Legal — Privacy/ToS `[§10]`
 `/privacy` + `/terms` are drafted and footer-linked; the processor list matches the stack.
