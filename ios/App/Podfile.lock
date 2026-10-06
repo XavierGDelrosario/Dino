@@ -11,6 +11,8 @@ PODS:
   - CapacitorCommunitySpeechRecognition (7.0.1):
     - Capacitor
   - CapacitorCordova (8.4.1)
+  - CapacitorLocalNotifications (8.3.1):
+    - Capacitor
   - CapacitorNetwork (8.0.1):
     - Capacitor
   - GoogleDataTransport (9.4.1):
@@ -92,6 +94,7 @@ DEPENDENCIES:
   - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCommunitySpeechRecognition (from `../../node_modules/@capacitor-community/speech-recognition`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
   - "CapacitorNetwork (from `../../node_modules/@capacitor/network`)"
   - GoogleMLKit/DigitalInkRecognition
   - GoogleMLKit/Translate
@@ -127,6 +130,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/speech-recognition"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorLocalNotifications:
+    :path: "../../node_modules/@capacitor/local-notifications"
   CapacitorNetwork:
     :path: "../../node_modules/@capacitor/network"
 
@@ -137,6 +142,7 @@ SPEC CHECKSUMS:
   CapacitorCamera: 8f6acf83664118321111e76acef86390211ccb08
   CapacitorCommunitySpeechRecognition: 3e03566c44c2bb3b52391a33d4518b1adbdeb38f
   CapacitorCordova: eebe6bcf807b1b06f3f48237650f96bbcd0eef09
+  CapacitorLocalNotifications: e0747a329ddde3074d52dc74a003688af90e42be
   CapacitorNetwork: 8812ce60d11fb63d8f2e4ba51a49b2e59892ebe2
   GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleMLKit: 90ba06e028795a50261f29500d238d6061538711
@@ -154,6 +160,6 @@ SPEC CHECKSUMS:
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   SSZipArchive: fe6a26b2a54d5a0890f2567b5cc6de5caa600aef
 
-PODFILE CHECKSUM: a1741fd3c9d498f5f9f1d0dd64d5e6e64c80006d
+PODFILE CHECKSUM: 8d83d06f3b5ca182313c49372ea8c46f269ae898
 
 COCOAPODS: 1.16.2
