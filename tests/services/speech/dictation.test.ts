@@ -16,10 +16,35 @@ describe("commitUtterance", () => {
     expect(box).not.toContain("\n");
   });
 
-  it("does not put a 。 (or any mark) into the text", () => {
+  it("does not put a 。 (or any mark) into Japanese text", () => {
     // A pause is evidence of a boundary, not of WHICH mark belongs there — and a
     // wrong one gets baked into text the user goes on to save.
     expect(commitUtterance("", "行きました")).not.toMatch(/[。．.！!？?]/);
+  });
+
+  it("closes an ENGLISH utterance that ends on a word with a full stop", () => {
+    // iOS gives English punctuation only in the final result, which continuous
+    // dictation never sees; a pause ending a sentence is the best evidence there is.
+    expect(commitUtterance("", "I went to the store")).toBe("I went to the store.");
+    expect(commitUtterance("I went to the store.", "then I came home")).toBe(
+      "I went to the store. then I came home.",
+    );
+  });
+
+  it("leaves an English utterance alone when the recognizer already punctuated it", () => {
+    expect(commitUtterance("", "Did it rain?")).toBe("Did it rain?");
+    expect(commitUtterance("", "It rained,")).toBe("It rained,");
+  });
+
+  it("adds no full stop after a pause on a function word — the sentence is unfinished", () => {
+    expect(commitUtterance("", "I went to the")).toBe("I went to the");
+    expect(commitUtterance("I went to the", "store")).toBe("I went to the store.");
+    expect(commitUtterance("", "and")).toBe("and");
+  });
+
+  it("does not double a late full stop onto one it already added", () => {
+    const box = commitUtterance("", "It rained");
+    expect(commitUtterance(box, ". Then it stopped")).toBe("It rained. Then it stopped.");
   });
 
   it("continues from text that was already in the box", () => {
@@ -39,7 +64,7 @@ describe("commitUtterance", () => {
   it("separates Latin-script utterances with a space", () => {
     const box = commitUtterance("", "It rained.");
     expect(commitUtterance(box, "Then it stopped.")).toBe("It rained. Then it stopped.");
-    expect(commitUtterance("well", "maybe")).toBe("well maybe");
+    expect(commitUtterance("well", "maybe")).toBe("well maybe.");
   });
 
   it("splits into sentences on the recognizer's own punctuation", () => {
