@@ -73,12 +73,16 @@ describe("HistoryPlot — confidence", () => {
     expect(reset.disabled).toBe(true);
   });
 
-  it("zooming in puts finer gridlines on the y axis", () => {
+  it("fits the y axis to the plotted lines, and zooming in puts finer gridlines on it", () => {
     const { container } = renderConfidence();
-    const ticks = () => [...container.querySelectorAll(".hist-plot__tick")].map((t) => t.textContent);
-    expect(ticks()).toContain("5");
+    const ticks = () => [...container.querySelectorAll(".hist-plot__tick")].map((t) => t.textContent ?? "");
+    // The fixture's lines sit between 1.5 and 3.3: the axis fits them instead of 0–5.
+    expect(ticks()).not.toContain("0");
+    expect(ticks()).not.toContain("5");
+    expect(ticks()).toContain("2");
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole("button", { name: /zoom in/i }));
-    expect(ticks().some((t) => t?.includes("."))).toBe(true);
+    // Zoomed to under a point of span, the grid steps by tenths.
+    expect(ticks().some((t) => /\.[1-46-9]$/.test(t))).toBe(true);
   });
 
   it("the activity plots have no toggles or zoom", () => {
