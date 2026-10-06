@@ -24,6 +24,7 @@
 // pointer is stored (title/url/snippet + the re-fetch coordinates), so opening a
 // favourite re-reads the live article; see services/media/favorites.ts.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { httpUrl } from "../lib/safeUrl";
 import { browseKey, readBrowse, writeBrowse } from "../services/media/browseCache";
 import {
   randomHeadlines,
@@ -238,7 +239,7 @@ export function MediaView({
           >
             {loadingUrl === a.url ? <Loading text={t("media.loadingArticle")} /> : t("media.study")}
           </button>
-          <a className="btn btn--ghost" href={a.url} target="_blank" rel="noopener noreferrer">
+          <a className="btn btn--ghost" href={httpUrl(a.url)} target="_blank" rel="noopener noreferrer">
             {t("media.readOnWikinews")} ↗
           </a>
         </div>

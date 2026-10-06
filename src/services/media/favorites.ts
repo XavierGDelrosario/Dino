@@ -12,6 +12,7 @@
 // =========================================================
 
 import { supabase } from "../../config/supabaseClient";
+import { httpUrl } from "../../lib/safeUrl";
 import { nfcTrim } from "../../lib/text";
 import { ServiceError, toServiceError } from "../errors";
 import type { Database } from "../../types/database.types";
@@ -90,7 +91,8 @@ export async function addFavorite(params: {
   // NFC for the same reason every other boundary does it: a composed vs decomposed
   // Japanese title must not fork a second row for the same story.
   const title = nfcTrim(headline.title);
-  const url = headline.url.trim();
+  // http(s) only — the row becomes an <a href>, and the DB CHECK (20260795) says the same.
+  const url = httpUrl(headline.url);
   if (!title || !url) throw new ServiceError("Article title and URL are required", "validation");
 
   const { data, error } = await supabase

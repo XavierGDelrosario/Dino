@@ -7,6 +7,7 @@
 //   · a sortable / filterable list of the unique registered words in the article
 // Non-registered words (no dictionary entry) are disregarded throughout.
 import { studyView } from "../services/lookup";
+import { httpUrl } from "../lib/safeUrl";
 import { NoFooter } from "../components/common/NoFooter";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslate, type TranslateLangs } from "../hooks/useTranslate";
@@ -142,7 +143,7 @@ export function ArticleView({
           </div>
           <p className="reader__source">
             {tr("media.creditPrefix")}{" "}
-            <a href={article.url} target="_blank" rel="noopener noreferrer">
+            <a href={httpUrl(article.url)} target="_blank" rel="noopener noreferrer">
               {article.title} ↗
             </a>{" "}
             · {article.attribution}
@@ -181,7 +182,7 @@ export function ArticleView({
         </div>
         <p className="reader__source">
           {tr("media.creditPrefix")}{" "}
-          <a href={article.url} target="_blank" rel="noopener noreferrer">
+          <a href={httpUrl(article.url)} target="_blank" rel="noopener noreferrer">
             {article.title} ↗
           </a>{" "}
           · {article.attribution}
