@@ -149,3 +149,14 @@
 .goals__note--warn {
   color: var(--danger-text);
 }
+/* A text-styled button inside a note (the Settings link in the denied warning). */
+.goals__linkbtn {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
