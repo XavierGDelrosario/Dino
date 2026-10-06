@@ -17,7 +17,8 @@ import { getProficiency } from "../proficiency";
 import { getDifficulty } from "../difficulty";
 import type { Word } from "../words/repository";
 import type { ReaderAnalysisInput } from "./summarize";
-import { orderSensesByContextReading } from "./senseOrder";
+import { orderSensesForToken } from "./senseOrder";
+import { contextWindows } from "./senseOrderEn";
 
 export interface ArticleWord {
   /** Dictionary headword (primary sense input). */
@@ -48,15 +49,17 @@ const clampConf = (n: number) => Math.min(5, Math.max(0, Math.round(n)));
 export function articleWordList(input: ReaderAnalysisInput): ArticleWord[] {
   const { tokens, meaningsByWord, saved, confidence } = input;
   const byWordId = new Map<string, ArticleWord>();
+  const context = contextWindows(tokens); // English only; empty for Japanese
 
   for (const t of tokens) {
     if (!isContentPos(t.pos)) continue;
-    // Lead with the reading the analyzer gave this token (see analyze/senseOrder),
-    // so the row's primary — and the quiz card built from it — matches the furigana
-    // the reader displayed. The dedupe below keys on the resulting primary's wordId;
-    // in practice IPADIC returns one fixed reading per surface, so the same word
-    // still collapses to one row rather than splitting per occurrence.
-    const senses = orderSensesByContextReading(meaningsByWord.get(wordKey(t)) ?? [], t.lemmaReading ?? t.reading);
+    // Lead with the sense the context picked (analyze/senseOrder) — the analyzer's
+    // reading for Japanese, the tagger's POS + definition overlap for English — so the
+    // row's primary, and the quiz card built from it, matches what the reader showed.
+    // The dedupe below keys on the resulting primary's wordId; in practice IPADIC
+    // returns one fixed reading per surface, so the same word still collapses to one
+    // row rather than splitting per occurrence.
+    const senses = orderSensesForToken(meaningsByWord.get(wordKey(t)) ?? [], t, context.get(t));
     if (senses.length === 0) continue; // no dictionary entry — disregard
     const primary = senses[0];
 

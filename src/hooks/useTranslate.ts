@@ -16,7 +16,8 @@ import { canSoften, softenConfidence } from "../services/review";
 import { getUserLevel, seedStability } from "../services/calibration";
 import { getDifficulty, type LevelValue } from "../services/difficulty";
 import { contextByWord as contextForWords, type WordContext } from "../services/analyze/context";
-import { orderSensesByContextReading } from "../services/analyze/senseOrder";
+import { orderSensesForToken } from "../services/analyze/senseOrder";
+import { contextWindows } from "../services/analyze/senseOrderEn";
 import {
   analyze,
   splitSentences,
@@ -816,16 +817,14 @@ export function useTranslate(userId: string, pinned?: TranslateLangs) {
     const cards: Word[][] = [];
     if (para) {
       const seen = new Set<string>();
+      const context = contextWindows(para.tokens); // English only; empty for Japanese
       for (const tok of para.tokens) {
         if (!isContentPos(tok.pos) || seen.has(wordKey(tok))) continue;
         seen.add(wordKey(tok)); // the SAME key as the check — a conjugated word twice is one word
-        // Lead with the sense the SENTENCE used — kuromoji read this surface in
-        // context, so a homograph shows the meaning actually on the page. No-op
-        // unless the reading genuinely separates the senses.
-        const senses = orderSensesByContextReading(
-          para.meanings.get(wordKey(tok)) ?? [],
-          tok.lemmaReading ?? tok.reading, // a counter's own reading, not the whole 九条
-        );
+        // Lead with the sense the SENTENCE used — kuromoji's reading for Japanese, the
+        // tagger's POS + definition overlap for English (analyze/senseOrder). No-op
+        // unless the context genuinely separates the senses.
+        const senses = orderSensesForToken(para.meanings.get(wordKey(tok)) ?? [], tok, context.get(tok));
         const primary = senses[0];
         if (!primary) continue;
         if (saved.has(primary.wordId)) reviewable.push(primary);

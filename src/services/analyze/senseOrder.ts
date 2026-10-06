@@ -28,6 +28,7 @@
 // =========================================================
 
 import { foldKana, nfc } from "../../lib/text";
+import { isUposTag, orderSensesByContextEn } from "./senseOrderEn";
 
 /** Compare readings across script + normalization: コーヒー and こーひー are one reading. */
 const sameReading = (a: string, b: string): boolean =>
@@ -59,4 +60,23 @@ export function orderSensesByContextReading<T extends { inputReading: string | n
   // No discrimination either way → leave the dictionary's ranking alone.
   if (match.length === 0 || rest.length === 0) return senses;
   return [...match, ...rest];
+}
+
+/**
+ * THE seam the reader, the quiz builder and the article word list all go through: the
+ * senses of one token OCCURRENCE in the order the context suggests. A Japanese token
+ * (kuromoji POS) is ordered by its reading; an English token (UD tag) by the tagger's
+ * part of speech and definition overlap with the words around it (senseOrderEn.ts) —
+ * `context` is that token's entry from `contextWindows`. Both halves are reorder-only
+ * and decline rather than guess, so the dictionary order is what survives doubt.
+ */
+export function orderSensesForToken<
+  T extends { inputReading: string | null; input?: string; partOfSpeech: string[] | null; definitionSource: string | null },
+>(
+  senses: T[],
+  token: { pos: string | null; reading: string | null; lemmaReading?: string | null },
+  context?: ReadonlySet<string>,
+): T[] {
+  if (isUposTag(token.pos)) return orderSensesByContextEn(senses, token.pos, context);
+  return orderSensesByContextReading(senses, token.lemmaReading ?? token.reading);
 }
