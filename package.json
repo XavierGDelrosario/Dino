@@ -24,6 +24,7 @@
     "build:pos-tagger": "python3 scripts/build-pos-tagger.py",
     "build:irregulars": "tsx scripts/build-irregulars.ts",
     "build:en-bases": "tsx scripts/build-en-bases.ts",
+    "apply:wordnet-ranks": "tsx scripts/apply-wordnet-sense-ranks.ts",
     "ingest:english-proficiency": "tsx scripts/ingest-english-proficiency.ts",
     "apply:proficiency": "tsx scripts/apply-proficiency-bands.ts",
     "apply:level-estimates": "tsx scripts/apply-level-estimates.ts",

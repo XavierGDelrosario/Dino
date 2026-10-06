@@ -16,7 +16,9 @@
 // this). Bump BOTH; tests/services/projection-version.test.ts fails if they drift.
 
 /** Rows stamped below this are stale: re-project them instead of serving them. */
-export const CURRENT_PROJECTION_VERSION = 15;
+// 16 (2026-10-06): WordNet sense ranks filled + the demote-only ordering (20260794) —
+// the EN→JA sense order moved for ~1 word in 6, so cached EN→JA rows re-project.
+export const CURRENT_PROJECTION_VERSION = 16;
 
 /** PostgREST filter for "safe to serve from cache" — MT rows included (see header). */
 export const FRESH = `projection_version.gte.${CURRENT_PROJECTION_VERSION}`;
