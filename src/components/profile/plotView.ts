@@ -1,4 +1,4 @@
-// Zoom + pan for the History plot, as a VIEW WINDOW over data coordinates: x in bucket
+// Zoom + pan for the History plot (plus the goal-line arithmetic at the end), as a VIEW WINDOW over data coordinates: x in bucket
 // indices [0, xMax], y in value units [yMin, yMax]. The plot maps whatever window is
 // current onto its fixed pixel box, so zooming is just a smaller window and panning is
 // sliding it. PURE — the component owns the pointer events, this owns the arithmetic.
@@ -78,4 +78,21 @@ export function niceTicks(y0: number, y1: number): number[] {
   const out: number[] = [];
   for (let v = Math.ceil(y0 / step - 1e-9) * step; v <= y1 + 1e-9; v += step) out.push(Math.round(v * 100) / 100 || 0); // `|| 0`: no "-0" label
   return out;
+}
+
+/**
+ * The daily goal (services/goals) as it applies to ONE bucket of the plot: per day as
+ * set, ×7 on the weekly view, and none on the monthly view (months differ in length, so
+ * a flat line there would be wrong for most of them) or for a metric with no goal
+ * (total words, confidence). `metric` is the plot's metric id.
+ */
+export function goalPerBucket(
+  goals: { newWords: number; reviews: number } | null | undefined,
+  metric: string,
+  granularity: "day" | "week" | "month",
+): number | null {
+  if (!goals) return null;
+  const perDay = metric === "added" ? goals.newWords : metric === "reviewed" ? goals.reviews : null;
+  if (perDay == null) return null;
+  return granularity === "day" ? perDay : granularity === "week" ? perDay * 7 : null;
 }

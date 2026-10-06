@@ -1,7 +1,7 @@
 // The History plot's zoom/pan window (plotView.ts): the data under the cursor stays put
 // while zooming, the window never leaves the data, and never collapses to nothing.
 import { describe, it, expect } from "vitest";
-import { clampView, fullView, isFullView, niceTicks, panBy, zoomAt, type Bounds } from "@/components/profile/plotView";
+import { clampView, fullView, goalPerBucket, isFullView, niceTicks, panBy, zoomAt, type Bounds } from "@/components/profile/plotView";
 
 const b: Bounds = { xMax: 29, yMin: 0, yMax: 5, minX: 2, minY: 0.5 };
 
@@ -49,5 +49,20 @@ describe("plotView", () => {
     expect(niceTicks(0, 5)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(niceTicks(2.1, 3.9)).toEqual([2.5, 3, 3.5]);
     expect(niceTicks(3, 3.5)).toEqual([3, 3.1, 3.2, 3.3, 3.4, 3.5]);
+  });
+});
+
+describe("goalPerBucket", () => {
+  const goals = { newWords: 5, reviews: 20 };
+  it("is the daily goal per day, ×7 per week, and absent per month", () => {
+    expect(goalPerBucket(goals, "added", "day")).toBe(5);
+    expect(goalPerBucket(goals, "reviewed", "day")).toBe(20);
+    expect(goalPerBucket(goals, "reviewed", "week")).toBe(140);
+    expect(goalPerBucket(goals, "added", "month")).toBeNull();
+  });
+  it("has no line for metrics without a goal, or without goals", () => {
+    expect(goalPerBucket(goals, "total", "day")).toBeNull();
+    expect(goalPerBucket(goals, "confidence", "day")).toBeNull();
+    expect(goalPerBucket(null, "added", "day")).toBeNull();
   });
 });

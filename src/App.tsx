@@ -18,12 +18,16 @@ import { TermsGateView } from "./components/common/TermsGateView";
 import { ErrorText } from "./components/common/ErrorText";
 import { SplashScreen } from "./components/common/Loading";
 import { AttributionFooter } from "./components/common/AttributionFooter";
+import { StreakBadge } from "./components/common/StreakBadge";
+import { useReminderSync } from "./hooks/useReminderSync";
+import { useStreak } from "./hooks/useStreak";
 import { HomeView } from "./views/HomeView";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
 import { HistoryPage } from "./views/HistoryPage";
 import { DeleteAccountPage } from "./views/DeleteAccountPage";
 import { AdminPage } from "./views/AdminPage";
+import { GoalsPage } from "./views/GoalsPage";
 import { LegalView } from "./views/LegalView";
 import { useI18n } from "./i18n";
 import { useRouter, Link } from "./router";
@@ -110,6 +114,11 @@ export function App() {
     return () => { active = false; };
   }, [userId, isAnonymous, recovering]);
 
+  // Reminders (services/reminders): re-schedule the coming week whenever today's
+  // activity flips, so the first save or grade of the day cancels today's nag.
+  const { streaks } = useStreak(userId ?? "");
+  useReminderSync(userId ? (streaks?.studiedToday ?? null) : null);
+
   // Preload kuromoji's dictionary during idle time so the first Japanese analysis
   // (the Translate reader) isn't slowed by the ~12MB load. Best-effort only.
   useEffect(() => {
@@ -133,6 +142,7 @@ export function App() {
     // panels. Widen the column for that one route; every other view is unchanged.
     <main className={`app${path === "/admin" ? " app--wide" : ""}`}>
       <header className="app__header">
+        {userId && <StreakBadge userId={userId} />}
         {/* The top-bar controls, as ONE row: language · account. They used
             to position themselves individually (right: 0, right: 2.6rem), which meant
             every new one had to know the width of the ones beside it — and the account
@@ -186,6 +196,7 @@ export function App() {
         : path === "/history" ? (isAnonymous ? <AuthPage mode="signup" /> : <HistoryPage userId={userId} />)
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
         : path === "/admin" ? <AdminPage />
+        : path === "/goals" ? <GoalsPage userId={userId} />
         : <HomeView key={userId} userId={userId} />
       )}
 

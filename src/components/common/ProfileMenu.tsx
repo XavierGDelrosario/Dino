@@ -44,6 +44,7 @@ export function ProfileMenu({
           <Link to="/history" className="profilemenu__item" onClick={close}>{t("history.title")}</Link>
         </>
       )}
+      <Link to="/goals" className="profilemenu__item" onClick={close}>{t("goals.menuLink")}</Link>
       <ThemeToggle />
       {!isAnonymous && (
         <button
