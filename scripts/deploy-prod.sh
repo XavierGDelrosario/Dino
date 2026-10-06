@@ -15,6 +15,8 @@
 #   FIRST_DEPLOY=1 ./scripts/deploy-prod.sh supabase   # ...plus the dictionary seed + secrets (new project only)
 #   ./scripts/deploy-prod.sh frontend           # build against cloud + deploy to Pages
 #   ./scripts/deploy-prod.sh lockdown <origins>  # REPLACE ALLOWED_ORIGINS (comma-separated list)
+#   ./scripts/deploy-prod.sh captcha-on <secret> # Turnstile on the auth endpoints (sitekey'd bundle FIRST)
+#   ./scripts/deploy-prod.sh captcha-off
 #
 # 'all' runs supabase then frontend (then lock down CORS manually once you have
 # the final Pages URL — see step 4 / the 'lockdown' subcommand).
@@ -150,7 +152,13 @@ deploy_frontend() {
   VITE_SUPABASE_URL="https://$SUPABASE_PROJECT_REF.supabase.co" \
   VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
   VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID:-${GOOGLE_OAUTH_CLIENT_ID:-}}" \
+  VITE_TURNSTILE_SITE_KEY="${VITE_TURNSTILE_SITE_KEY:-}" \
     npm run build
+  # ^ The Turnstile sitekey (CAPTCHA on the auth endpoints, services/captcha.ts) rides in
+  #   from .env.deploy when set; unset = the client mints no token, today's behaviour.
+  #   ORDER MATTERS: ship a bundle WITH the sitekey first, then `captcha-on` — enabling
+  #   the project setting against a bundle without a key locks every visitor out.
+  #   build-ios.sh deliberately passes none: Turnstile can't run under capacitor://.
 
   echo "==> Ensuring Cloudflare Pages project '$CF_PROJECT' exists"
   # Idempotent: only create when it's not already in the project list (re-creating
@@ -166,6 +174,33 @@ deploy_frontend() {
   npx -y wrangler@4.104.0 pages deploy dist --project-name "$CF_PROJECT" --branch main
 
   echo "==> Frontend deployed (live at https://dinostudy.com)."
+}
+
+# CAPTCHA (Cloudflare Turnstile) on the project's auth endpoints — anonymous sign-in,
+# password sign-in, password reset. The hosted toggle lives in the auth config; this
+# flips it over the Management API so the rollback is the same command with `off`.
+#   ./scripts/deploy-prod.sh captcha-on <turnstile-secret>   # AFTER a sitekey'd bundle is live
+#   ./scripts/deploy-prod.sh captcha-off
+# ⚠️ A native build pointed at this project loses guest sign-in while this is on
+#    (Turnstile does not run under capacitor://) — point dev devices at staging first.
+captcha() {
+  local mode="${1:-}" secret="${2:-}"
+  require SUPABASE_ACCESS_TOKEN "needed to change the auth config"
+  require SUPABASE_PROJECT_REF "which project"
+  local body
+  case "$mode" in
+    on)
+      [ -n "$secret" ] || { echo "usage: ./scripts/deploy-prod.sh captcha-on <turnstile-secret>" >&2; exit 1; }
+      body="{\"security_captcha_enabled\":true,\"security_captcha_provider\":\"turnstile\",\"security_captcha_secret\":\"$secret\"}" ;;
+    off)
+      body='{"security_captcha_enabled":false}' ;;
+    *) echo "usage: captcha-on <secret> | captcha-off" >&2; exit 1 ;;
+  esac
+  echo "==> CAPTCHA $mode on $SUPABASE_PROJECT_REF"
+  curl -sS -X PATCH "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+    -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+    -d "$body" \
+    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s);console.log("    captcha:",c.security_captcha_enabled,"provider:",c.security_captcha_provider)})'
 }
 
 lockdown() {
@@ -186,6 +221,8 @@ lockdown() {
 case "${1:-}" in
   supabase)  deploy_supabase ;;
   frontend)  deploy_frontend ;;
+  captcha-on)  captcha on "${2:-}" ;;
+  captcha-off) captcha off ;;
   lockdown)  lockdown "${2:-}" ;;
   all)       deploy_supabase; deploy_frontend ;;
   *) echo "usage: $0 {supabase|frontend|lockdown <url>|all}" >&2; exit 1 ;;
