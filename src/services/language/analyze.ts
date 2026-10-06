@@ -619,7 +619,9 @@ async function analyzeEnglish(text: string, lang: LangCode): Promise<AnalyzedTok
   return tokens.map((t, i) => ({
     ...t,
     reading: null,
-    lemma: readerLemma(t.text, lang),
+    // The tag is what lets regular -ing/-ed/-es resolve (lemmaEn.ts): a VERB form is
+    // lemmatized, a NOUN that happens to end in -ing (building) is left as the word it is.
+    lemma: readerLemma(t.text, lang, tags[i]),
     pos: nonVocabularyPos(t.text) ?? tags[i],
   }));
 }

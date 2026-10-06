@@ -12,13 +12,17 @@
 // the word to something else. Hence: emit a lemma only where the transformation is
 // unambiguous AND the surface is unlikely to be its own word.
 //
-// DELIBERATELY NOT HANDLED (the edge still covers these for LOOKUP):
-//   · regular -ing/-ed — needs a verifier to choose strip-3 vs strip-3+e, and -ing
-//     forms are frequently nouns in their own right (building, meeting, feeling).
-//     EXCEPT where Princeton WordNet names the base outright (abetted→abet,
-//     abhorring→abhor): those come from `irregularsEn.generated.ts`, where there is
-//     nothing to guess at, so the objection above does not apply to them.
-//   · -es plurals — "buses"→bus and "cases"→case can't be told apart by suffix.
+// REGULAR -ing / -ed / -es ARE HANDLED ONLY WITH A TAG (2026-10-06). The two objections
+// that kept them out — no verifier to choose strip-3 vs strip-3+e, and -ing forms that
+// are nouns in their own right (building, meeting) — are both answered now: the POS
+// tagger (posEn.ts) says whether the token is a VERB form or a NOUN, and
+// `baseFormsEn.generated.ts` (WordNet verbs + frequent nouns) says which candidate stem
+// is a real word. A candidate is accepted only when BOTH agree; with no tag (the
+// segment-only path, callers without the tagger) these rules do not run at all, and the
+// edge still lemmatizes for LOOKUP as before.
+//
+// DELIBERATELY NOT HANDLED:
+//   · -ed / -ing under an ADJ tag (tired, exciting) — the dictionary has the adjective.
 //   · irregulars whose surface is a common word (see EN_IRREGULAR_EXCLUDED), where
 //     mapping "left"→leave would cost the direction sense.
 //   · n't contractions — "don't"→do is safe but "won't"→wo and "shan't"→sha are not,
@@ -26,6 +30,7 @@
 
 import type { LangCode } from "./registry";
 import { EN_IRREGULARS_WORDNET } from "./irregularsEn.generated";
+import { EN_NOUNS, EN_VERB_FREQ } from "./baseFormsEn.generated";
 import { own } from "../../lib/own";
 
 /** Irregular past/participle → base, plural → singular. INCLUSION RULE: the surface
@@ -85,7 +90,7 @@ const TRAILING_APOSTROPHE = /['’]$/;
 
 /** A confident dictionary form for `surface`, or null to look it up as written. The
  *  lemma comes back lowercase, which is what the dictionary is keyed on. */
-export function englishLemma(surface: string): string | null {
+export function englishLemma(surface: string, tag?: string | null): string | null {
   const w = surface.normalize("NFC").toLowerCase();
   if (w.length < 3) return null; // too short for any rule to be safe
 
@@ -98,13 +103,13 @@ export function englishLemma(surface: string): string | null {
   // The stripped form is re-lemmatized (children's → children → child), and stands on
   // its own when no further rule fires (boss's → boss) — returning null there would
   // put the apostrophe back by looking the token up as written.
-  if (POSSESSIVE_S.test(w)) return lemmaOfStem(w.slice(0, -2));
+  if (POSSESSIVE_S.test(w)) return lemmaOfStem(w.slice(0, -2), tag);
   // A plural possessive keeps its `s`, so the ordinary plural rule still applies
   // (workers' → workers → worker). A singular name ending in -s can over-strip
   // (harris' → harri; the -es/-ss/-us guards already spare james'/jesus'/wales'), which
   // is accepted: a name misses the dictionary either way, so the two forms fail
   // identically while the plural case genuinely resolves.
-  if (TRAILING_APOSTROPHE.test(w)) return lemmaOfStem(w.slice(0, -1));
+  if (TRAILING_APOSTROPHE.test(w)) return lemmaOfStem(w.slice(0, -1), tag);
 
   const irregular = own(EN_IRREGULARS, w);
   if (irregular) return irregular;
@@ -141,17 +146,86 @@ export function englishLemma(surface: string): string | null {
     return w.slice(0, -1);
   }
 
+  return verifiedRegular(w, tag);
+}
+
+const NOUNS = new Set<string>(EN_NOUNS);
+const isVerb = (c: string): boolean => Object.prototype.hasOwnProperty.call(EN_VERB_FREQ, c);
+const isNoun = (c: string): boolean => NOUNS.has(c);
+
+/** consonant-vowel-consonant ending (hop, make→mak, tap): such a stem DOUBLES its last
+ *  letter before -ing/-ed, so an undoubled form must come from the silent-e base
+ *  (hoping → hope, not hop). w/x/y never double. */
+const CVC = /[^aeiou][aeiou][b-df-hj-np-tvz]$/;
+/** A doubled final consonant (runn, stopp) — the stem may be the undoubled word. */
+const DOUBLED = /([b-df-hj-np-tvz])\1$/;
+
+/**
+ * Candidate stems for an -ing or -ed form, best first. Orthography decides the order
+ * where it can (the CVC rule above); frequency breaks the one tie it cannot — a doubled
+ * stem that is also a word (putting → putt | put).
+ */
+function stemCandidates(stem: string, suffixE: boolean): string[] {
+  const out: string[] = [];
+  const withE = suffixE ? [stem + "e", stem] : [stem];
+  if (CVC.test(stem)) out.push(...withE);
+  else out.push(...withE.slice().reverse());
+  if (DOUBLED.test(stem)) out.push(stem.slice(0, -1));
+  return out;
+}
+
+function pickVerb(cands: string[]): string | null {
+  const hits = cands.filter(isVerb);
+  if (hits.length === 0) return null;
+  if (hits.length === 1) return hits[0];
+  // Two real verbs: a doubled stem and its undoubled twin are settled by frequency
+  // (put ≫ putt); anything else keeps the orthographic order above.
+  const [a, b] = hits;
+  if (b === a.slice(0, -1) && DOUBLED.test(a)) return (EN_VERB_FREQ[b] ?? 0) >= (EN_VERB_FREQ[a] ?? 0) ? b : a;
+  return a;
+}
+
+/**
+ * The tag-gated regular inflections. Only ever returns a word the verifier knows, under
+ * the part of speech the tagger saw — see the header.
+ */
+function verifiedRegular(w: string, tag: string | null | undefined): string | null {
+  if (tag === "VERB") {
+    if (w.endsWith("ying") && w.length > 4) {
+      // dying → die, lying → lie; else flying → fly. Never dy+e: "dying" is not "dye".
+      const ie = w.slice(0, -4) + "ie";
+      if (isVerb(ie)) return ie;
+      const y = w.slice(0, -3);
+      return isVerb(y) ? y : null;
+    }
+    if (w.endsWith("ing") && w.length > 4) return pickVerb(stemCandidates(w.slice(0, -3), true));
+    if (w.endsWith("ed") && w.length > 3) return pickVerb(stemCandidates(w.slice(0, -2), true));
+    if (w.endsWith("es") && w.length > 3) return pickVerb([w.slice(0, -2), w.slice(0, -1)]);
+    return null;
+  }
+  if (tag === "NOUN") {
+    // buses → bus, cases → case, boxes → box: whichever stem is a noun. Both nouns
+    // (bases → bas? no; but e.g. "pulses" → pulse, not "puls") is rare; the -s strip is
+    // tried first because the -es/-e pair (case) outnumbers the bare -es pair (bus).
+    if (w.endsWith("es") && w.length > 3) {
+      const full = w.slice(0, -1); // case-s
+      const bare = w.slice(0, -2); // bus-es
+      if (isNoun(full)) return full;
+      if (isNoun(bare)) return bare;
+    }
+    return null;
+  }
   return null;
 }
 
 /** The lemma of a possessive's stem: whatever the ordinary rules make of it, else the
  *  stem itself — the apostrophe is gone either way, which is the point. */
-function lemmaOfStem(stem: string): string {
-  return englishLemma(stem) ?? stem;
+function lemmaOfStem(stem: string, tag?: string | null): string {
+  return englishLemma(stem, tag) ?? stem;
 }
 
 /** Per-language reader lemma. Languages with their own analyser (JA → kuromoji) and
  *  languages with no rules both return null here. */
-export function readerLemma(surface: string, lang: LangCode): string | null {
-  return lang.toUpperCase() === "EN" ? englishLemma(surface) : null;
+export function readerLemma(surface: string, lang: LangCode, tag?: string | null): string | null {
+  return lang.toUpperCase() === "EN" ? englishLemma(surface, tag) : null;
 }

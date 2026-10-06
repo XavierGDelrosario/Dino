@@ -111,19 +111,66 @@ describe("englishLemma — declines rather than guess", () => {
     }
   });
 
-  it("does NOT touch regular -ing / -ed", () => {
-    // No verifier to choose strip-3 vs strip-3+e, and -ing forms are often nouns in
-    // their own right. The edge still lemmatizes these for LOOKUP.
-    for (const w of ["running", "walking", "building", "meeting", "walked", "liked"]) {
+  it("does NOT touch regular -ing / -ed / -es WITHOUT a tag", () => {
+    // With no part of speech there is no verifier for strip-3 vs strip-3+e, and -ing
+    // forms are often nouns in their own right. The edge still lemmatizes for LOOKUP.
+    for (const w of ["running", "walking", "building", "meeting", "walked", "liked", "buses", "cases", "boxes"]) {
       expect(englishLemma(w)).toBeNull();
     }
   });
 
-  it("does NOT touch -es plurals", () => {
-    // "buses"→bus and "cases"→case share the -ses ending; suffix alone can't split them.
-    for (const w of ["buses", "cases", "boxes"]) {
-      expect(englishLemma(w)).toBeNull();
-    }
+  describe("regular inflections under the tagger's tag (verified against WordNet)", () => {
+    it("resolves -ing verb forms, choosing the real base", () => {
+      const cases: Array<[string, string]> = [
+        ["running", "run"], ["walking", "walk"], ["making", "make"], ["hoping", "hope"],
+        ["hopping", "hop"], ["singing", "sing"], ["coming", "come"], ["falling", "fall"],
+        ["adding", "add"], ["putting", "put"], ["seeing", "see"], ["taping", "tape"],
+      ];
+      for (const [w, base] of cases) expect(englishLemma(w, "VERB"), w).toBe(base);
+    });
+
+    it("handles -ying: die/lie, else fly/try", () => {
+      expect(englishLemma("dying", "VERB")).toBe("die");
+      expect(englishLemma("lying", "VERB")).toBe("lie");
+      expect(englishLemma("flying", "VERB")).toBe("fly");
+      expect(englishLemma("trying", "VERB")).toBe("try");
+    });
+
+    it("resolves -ed verb forms", () => {
+      const cases: Array<[string, string]> = [
+        ["walked", "walk"], ["liked", "like"], ["stopped", "stop"], ["hoped", "hope"],
+        ["added", "add"], ["used", "use"], ["planned", "plan"], ["decided", "decide"],
+      ];
+      for (const [w, base] of cases) expect(englishLemma(w, "VERB"), w).toBe(base);
+    });
+
+    it("resolves -es verb forms", () => {
+      expect(englishLemma("watches", "VERB")).toBe("watch");
+      expect(englishLemma("goes", "VERB")).toBe("go");
+      expect(englishLemma("uses", "VERB")).toBe("use");
+      expect(englishLemma("raises", "VERB")).toBe("raise");
+    });
+
+    it("resolves -es plurals under a NOUN tag", () => {
+      expect(englishLemma("buses", "NOUN")).toBe("bus");
+      expect(englishLemma("cases", "NOUN")).toBe("case");
+      expect(englishLemma("boxes", "NOUN")).toBe("box");
+      expect(englishLemma("classes", "NOUN")).toBe("class");
+      expect(englishLemma("houses", "NOUN")).toBe("house");
+    });
+
+    it("leaves an -ing NOUN as the word it is", () => {
+      for (const w of ["building", "meeting", "feeling"]) expect(englishLemma(w, "NOUN")).toBeNull();
+    });
+
+    it("leaves -ed/-ing adjectives alone", () => {
+      for (const w of ["tired", "exciting", "interested"]) expect(englishLemma(w, "ADJ")).toBeNull();
+    });
+
+    it("never invents a word: a stem the verifier does not know stays as written", () => {
+      expect(englishLemma("xqzzing", "VERB")).toBeNull();
+      expect(englishLemma("blorches", "NOUN")).toBeNull();
+    });
   });
 
   it("leaves every excluded irregular as written", () => {

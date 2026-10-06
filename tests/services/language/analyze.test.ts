@@ -583,10 +583,9 @@ describe("dictionaryForm", () => {
     expect(await dictionaryForm("cats", "EN")).toBe("cat");
   });
 
-  it("leaves a REGULAR -ing form alone — lemmaEn declines it on purpose", async () => {
-    // Not an oversight: `lemmaEn.ts` refuses regular -ing/-ed because it has no verifier,
-    // and a wrong lemma silently resolves the word to a different entry. Still the gap
-    // docs/TODO.md records under "Reader-side lemma".
-    expect(await dictionaryForm("running", "EN")).toBe("running");
+  it("resolves a REGULAR -ing form through the tagger's VERB tag", async () => {
+    // Once refused for want of a verifier; the tag + the WordNet base-form list
+    // (baseFormsEn.generated.ts) are that verifier now. A lone token tags as a verb form.
+    expect(await dictionaryForm("running", "EN")).toBe("run");
   });
 });
