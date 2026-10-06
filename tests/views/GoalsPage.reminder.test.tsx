@@ -57,33 +57,55 @@ const renderIt = () =>
       </LocaleProvider>
     </RouterProvider>,
   );
-const button = () => screen.getByRole("button", { name: /turn on|^on$|open settings/i });
+const sw = () => screen.getByRole("switch");
+const on = () => sw().getAttribute("aria-checked") === "true";
 
 describe("GoalsPage — daily reminder", () => {
   it("turns on after permission, and OFF again on the next press", async () => {
     renderIt();
-    await waitFor(() => expect(button().textContent).toBe("Turn on"));
-    fireEvent.click(button());
-    await waitFor(() => expect(button().textContent).toBe("On"));
+    await waitFor(() => expect(on()).toBe(false));
+    fireEvent.click(sw());
+    await waitFor(() => expect(on()).toBe(true));
     expect(JSON.parse(store.get("dino.reminder")!).enabled).toBe(true);
-    fireEvent.click(button());
-    await waitFor(() => expect(button().textContent).toBe("Turn on"));
+    fireEvent.click(sw());
+    await waitFor(() => expect(on()).toBe(false));
     expect(JSON.parse(store.get("dino.reminder")!).enabled).toBe(false);
     expect(syncReminders).toHaveBeenCalledTimes(2);
   });
 
-  it("when iOS has denied: Open Settings, then on by itself once permission is granted on return", async () => {
+  it("when iOS has denied: the switch is off, Open Settings shows, and it turns on by itself once permission is granted on return", async () => {
     perm.check = "denied";
     renderIt();
-    await waitFor(() => expect(button().textContent).toBe("Open Settings"));
-    fireEvent.click(button());
+    await waitFor(() => expect(screen.getByText("Notifications are off for DINO in iOS Settings")).toBeTruthy());
+    expect(on()).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /open settings/i }));
     await waitFor(() => expect(openAppSettings).toHaveBeenCalled());
     perm.check = "granted";
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    await waitFor(() => expect(button().textContent).toBe("On"));
-    fireEvent.click(button());
-    await waitFor(() => expect(button().textContent).toBe("Turn on"));
+    await waitFor(() => expect(on()).toBe(true));
+    expect(screen.queryByText("Notifications are off for DINO in iOS Settings")).toBeNull();
+    fireEvent.click(sw());
+    await waitFor(() => expect(on()).toBe(false));
+  });
+
+  it("goes OFF (and offers Settings) when notifications are turned off in iOS while the reminder is on", async () => {
+    perm.check = "granted";
+    store.set("dino.reminder", JSON.stringify({ enabled: true, from: 1140, to: 1260 }));
+    renderIt();
+    await waitFor(() => expect(on()).toBe(true));
+    perm.check = "denied";
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(on()).toBe(false));
+    expect(screen.getByRole("button", { name: /open settings/i })).toBeTruthy();
+    // ...and back on by itself when they are allowed again.
+    perm.check = "granted";
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(on()).toBe(true));
   });
 });

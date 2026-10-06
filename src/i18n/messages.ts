@@ -549,8 +549,6 @@ export const en = {
   "goals.menuLink": "Notifications",
   "goals.plotGoal": "Goal",
   "reminder.title": "Daily reminder",
-  "reminder.enable": "Turn on",
-  "reminder.on": "On",
   "reminder.between": "Remind me between {from} and {to}",
   "reminder.at": "Remind me at {time}",
   "reminder.fromAria": "Earliest reminder time",
@@ -561,7 +559,7 @@ export const en = {
   "reminder.notifTitle": "DINO",
   "reminder.notifBody": "Time to study — keep your streak alive 🔥",
   "reminder.openSettings": "Open Settings",
-  "reminder.deniedNative": "Notifications are off for DINO in iOS Settings. Open Settings, allow them, and come back — the reminder turns on by itself.",
+  "reminder.deniedNative": "Notifications are off for DINO in iOS Settings",
 
   // per-user row caps (migration 20260785/93) — the account prompt
   "limit.guestWords": "You’ve saved {n} words — the most a guest can hold. Create a free account to keep going; everything you’ve saved comes with you.",
@@ -1073,8 +1071,6 @@ export const ja: Record<MessageKey, string> = {
   "goals.menuLink": "通知",
   "goals.plotGoal": "目標",
   "reminder.title": "毎日のリマインダー",
-  "reminder.enable": "オンにする",
-  "reminder.on": "オン",
   "reminder.between": "{from}〜{to}の間に通知",
   "reminder.at": "{time}に通知",
   "reminder.fromAria": "最も早い通知時刻",
@@ -1085,7 +1081,7 @@ export const ja: Record<MessageKey, string> = {
   "reminder.notifTitle": "DINO",
   "reminder.notifBody": "学習の時間です — 連続記録を守りましょう 🔥",
   "reminder.openSettings": "設定を開く",
-  "reminder.deniedNative": "iOSの設定でDINOの通知がオフになっています。設定を開いて許可し、戻ってくるとリマインダーは自動でオンになります。",
+  "reminder.deniedNative": "iOSの設定でDINOの通知がオフになっています",
 
   "limit.guestWords": "{n}語を保存しました。ゲストで保存できるのはここまでです。無料アカウントを作れば続けられます。保存した単語はすべて引き継がれます。",
   "limit.guestOther": "{what}が{n}件になりました。ゲストで保存できるのはここまでです。無料アカウントを作れば続けられます。保存したものはすべて引き継がれます。",

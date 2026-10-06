@@ -101,10 +101,14 @@ export function GoalsPage({ userId }: { userId: string }) {
   useEffect(() => onAppResume(() => void recheckRef.current()), []);
 
   // iOS asks once; after "Don't Allow" every request answers denied with no prompt, so
-  // the button's job becomes getting the user to Settings (the local AppSettings plugin).
+  // the way on is Settings (the local AppSettings plugin).
   const deniedNative = permission === "denied" && canOpenAppSettings();
+  // What the switch SHOWS: the reminder is on only if the OS will deliver it. The stored
+  // `enabled` is the user's wish and survives a denied spell, so allowing notifications
+  // again in Settings brings the switch back on by itself.
+  const isOn = reminder.enabled && permission !== "denied";
   const toggle = async () => {
-    if (reminder.enabled) {
+    if (isOn) {
       wantsOn.current = false;
       apply({ ...reminder, enabled: false });
       return;
@@ -114,7 +118,10 @@ export function GoalsPage({ userId }: { userId: string }) {
       // the OS again before sending them there. Granted now → just turn it on.
       wantsOn.current = true;
       const now = await recheck();
-      if (now === "granted") return; // recheck turned it on
+      if (now === "granted") {
+        if (!reminder.enabled) apply({ ...reminder, enabled: true });
+        return;
+      }
       await openAppSettings();
       return;
     }
@@ -122,6 +129,10 @@ export function GoalsPage({ userId }: { userId: string }) {
     setPermission(p);
     if (p === "granted") apply({ ...reminder, enabled: true });
     else if (p === "denied" && canOpenAppSettings()) wantsOn.current = true;
+  };
+  const toSettings = () => {
+    wantsOn.current = true;
+    void openAppSettings();
   };
   const win = reminderWindow(reminder);
 
@@ -209,32 +220,32 @@ export function GoalsPage({ userId }: { userId: string }) {
       <section className="goals__card" aria-labelledby="goals-rem">
         <div className="goals__remrow">
           <h3 id="goals-rem" className="goals__h3">{t("reminder.title")}</h3>
+          {/* A binary switch. Off while iOS has notifications off, whatever is stored. */}
           <button
             type="button"
-            className={`btn${reminder.enabled ? " btn--primary" : ""}`}
+            role="switch"
+            aria-checked={isOn}
+            aria-labelledby="goals-rem"
+            className={`switch${isOn ? " switch--on" : ""}`}
             onClick={toggle}
             disabled={support === "none"}
-            aria-pressed={reminder.enabled}
           >
-            {reminder.enabled ? t("reminder.on") : deniedNative ? t("reminder.openSettings") : t("reminder.enable")}
+            <span className="switch__knob" />
           </button>
         </div>
 
         {support === "none" && <p className="goals__note goals__note--warn">{t("reminder.unsupported")}</p>}
-        {/* Shown whenever iOS has notifications off, even with the reminder on: the
-            schedule exists but nothing can be delivered. Settings is one tap away. */}
         {support !== "none" && permission === "denied" && (
-          <p className="goals__note goals__note--warn">
-            {t(deniedNative ? "reminder.deniedNative" : "reminder.denied")}
-            {deniedNative && reminder.enabled && (
-              <>
-                {" "}
-                <button type="button" className="goals__linkbtn" onClick={() => { wantsOn.current = true; void openAppSettings(); }}>
-                  {t("reminder.openSettings")}
-                </button>
-              </>
+          <div className="goals__deniedrow">
+            <p className="goals__note goals__note--warn">
+              {t(deniedNative ? "reminder.deniedNative" : "reminder.denied")}
+            </p>
+            {deniedNative && (
+              <button type="button" className="btn" onClick={toSettings}>
+                {t("reminder.openSettings")}
+              </button>
             )}
-          </p>
+          </div>
         )}
 
         <p className="goals__window">
