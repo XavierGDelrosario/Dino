@@ -10,6 +10,7 @@ import { BackLink } from "../components/common/BackLink";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n, plural } from "../i18n";
 import { useGoals } from "../hooks/useGoals";
+import { canOpenAppSettings, openAppSettings } from "../services/appSettings";
 import { useStreak } from "../hooks/useStreak";
 import {
   NEW_WORDS_GOAL_OPTIONS,
@@ -55,6 +56,9 @@ export function GoalsPage({ userId }: { userId: string }) {
     typeof localStorage === "undefined" ? DEFAULT_REMINDER : loadReminderSettings(),
   );
   const [permission, setPermission] = useState<ReminderPermission>("prompt");
+  /** The user pressed "Turn on" while the OS said no and was sent to Settings: when
+   *  they come back with permission granted, finish what they asked for. */
+  const wantsOn = useRef(false);
   useEffect(() => {
     void checkReminderPermission().then(setPermission);
   }, []);
@@ -73,14 +77,47 @@ export function GoalsPage({ userId }: { userId: string }) {
     if (settle) syncTimer.current = setTimeout(sync, 600);
     else sync();
   };
+  // Re-check permission whenever the page comes back into view — that is the return
+  // from Settings on iOS — and turn the reminder on if that is what the user wanted.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void checkReminderPermission().then((p) => {
+        setPermission(p);
+        if (p === "granted" && wantsOn.current) {
+          wantsOn.current = false;
+          setReminder((cur) => {
+            const next = { ...cur, enabled: true };
+            saveReminderSettings(next);
+            void syncReminders(next, copy, streaks?.studiedToday ?? null);
+            return next;
+          });
+        }
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- copy/streaks are read at event time
+  }, []);
+
+  // iOS asks once; after "Don't Allow" every request answers denied with no prompt, so
+  // the button's job becomes getting the user to Settings (the local AppSettings plugin).
+  const deniedNative = permission === "denied" && canOpenAppSettings();
   const toggle = async () => {
     if (reminder.enabled) {
+      wantsOn.current = false;
       apply({ ...reminder, enabled: false });
+      return;
+    }
+    if (deniedNative) {
+      wantsOn.current = true;
+      await openAppSettings();
       return;
     }
     const p = permission === "granted" ? "granted" : await requestReminderPermission();
     setPermission(p);
     if (p === "granted") apply({ ...reminder, enabled: true });
+    else if (p === "denied" && canOpenAppSettings()) wantsOn.current = true;
   };
   const win = reminderWindow(reminder);
 
@@ -175,13 +212,15 @@ export function GoalsPage({ userId }: { userId: string }) {
             disabled={support === "none"}
             aria-pressed={reminder.enabled}
           >
-            {reminder.enabled ? t("reminder.on") : t("reminder.enable")}
+            {reminder.enabled ? t("reminder.on") : deniedNative ? t("reminder.openSettings") : t("reminder.enable")}
           </button>
         </div>
 
         {support === "none" && <p className="goals__note goals__note--warn">{t("reminder.unsupported")}</p>}
-        {support !== "none" && permission === "denied" && (
-          <p className="goals__note goals__note--warn">{t("reminder.denied")}</p>
+        {support !== "none" && permission === "denied" && !reminder.enabled && (
+          <p className="goals__note goals__note--warn">
+            {t(deniedNative ? "reminder.deniedNative" : "reminder.denied")}
+          </p>
         )}
 
         <p className="goals__window">
@@ -226,7 +265,6 @@ export function GoalsPage({ userId }: { userId: string }) {
           <span>{formatMinutes(12 * 60, locale)}</span>
           <span>{formatMinutes(MAX_MINUTES, locale)}</span>
         </div>
-        <p className="goals__note">{t("reminder.how")}</p>
         {support === "web" && <p className="goals__note">{t("reminder.webOnlyOpen")}</p>}
       </section>
     </section>

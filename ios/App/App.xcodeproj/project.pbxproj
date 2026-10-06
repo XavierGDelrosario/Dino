@@ -26,6 +26,7 @@
 		8EBEE5DAFCF1829A1123895F /* DailyWordStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A254222E49DAAE550E25B4D /* DailyWordStore.swift */; };
 		A084ECDBA7D38E1E42DFC39D /* Pods_App.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */; };
 		AC9D30D2682F312FA6697D42 /* DailyWordWidgetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D36CAC493D0D1A73C723EB /* DailyWordWidgetPlugin.swift */; };
+		9CCD532CA056C210A6D0F3D8 /* AppSettingsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9378A2DD09496629E09D4C1B /* AppSettingsPlugin.swift */; };
 		BE7D020AE385AB575C7E78B4 /* DailyWordWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0ADBA192B5C340B74B6B35C6 /* DailyWordWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F516DD7E77B427C182CF5193 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4D8FE23BE2749F3C12FD52D4 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -56,6 +57,7 @@
 
 /* Begin PBXFileReference section */
 		00D36CAC493D0D1A73C723EB /* DailyWordWidgetPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyWordWidgetPlugin.swift; sourceTree = "<group>"; };
+		9378A2DD09496629E09D4C1B /* AppSettingsPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppSettingsPlugin.swift; sourceTree = "<group>"; };
 		0109DEE0EC33C9D6D000735B /* DailyWordWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyWordWidget.swift; sourceTree = "<group>"; };
 		0ADBA192B5C340B74B6B35C6 /* DailyWordWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyWordWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -173,6 +175,7 @@
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				00D36CAC493D0D1A73C723EB /* DailyWordWidgetPlugin.swift */,
+				9378A2DD09496629E09D4C1B /* AppSettingsPlugin.swift */,
 				BBEAAE86D24F43DFCCE11A6E /* App.entitlements */,
 			);
 			path = App;
@@ -361,6 +364,7 @@
 				8DA1C0042FF2B00100AA0004 /* OnDeviceTranslatePlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				AC9D30D2682F312FA6697D42 /* DailyWordWidgetPlugin.swift in Sources */,
+				9CCD532CA056C210A6D0F3D8 /* AppSettingsPlugin.swift in Sources */,
 				8EBEE5DAFCF1829A1123895F /* DailyWordStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -14,7 +14,8 @@ import { mapLimit } from "../../lib/concurrency";
 import { isUnreachableError, sendReview } from "../review";
 import { supabase } from "../../config/supabaseClient";
 import { offlineStore } from "./store";
-import { acknowledge, drainable, markFailed, pending, type PendingGrade } from "./queue";
+import { acknowledge, drainable, markFailed, onQueueChanged, pending, type PendingGrade } from "./queue";
+import { Capacitor } from "@capacitor/core";
 
 /** Concurrency for the replay fan-out. Matches MAX_TRANSLATION_CONCURRENCY's reasoning:
  *  enough to drain a session quickly, not enough to look like a burst. */
@@ -26,6 +27,8 @@ export interface DrainResult {
   /** Still queued afterwards (failures, anything unsent because the server could not be
    *  reached, plus anything shelved past MAX_ATTEMPTS). */
   remaining: number;
+  /** The drain stopped because a send got NO answer — worth retrying soon. */
+  unreachable: boolean;
 }
 
 let inflight: Promise<DrainResult> | null = null;
@@ -46,7 +49,7 @@ async function runDrain(): Promise<DrainResult> {
   // getSession reads local storage — no network — so this works on the reconnect edge.
   const userId = (await supabase.auth.getSession()).data.session?.user.id ?? null;
   const queued = drainable(await pending(store), userId);
-  if (queued.length === 0) return { sent: 0, failed: 0, remaining: (await pending(store)).length };
+  if (queued.length === 0) return { sent: 0, failed: 0, remaining: (await pending(store)).length, unreachable: false };
 
   // Group by card so one card's grades stay ordered; different cards go in parallel.
   const byCard = new Map<string, PendingGrade[]>();
@@ -88,20 +91,90 @@ async function runDrain(): Promise<DrainResult> {
 
   await acknowledge(store, ok);
   await markFailed(store, bad);
-  return { sent: ok.length, failed: bad.length, remaining: (await pending(store)).length };
+  return { sent: ok.length, failed: bad.length, remaining: (await pending(store)).length, unreachable };
 }
 
+/** Retry gaps after a drain that could not reach the server, while the app is open. A
+ *  grade is queued on ONE failed fetch (isUnreachable), and on a phone that is usually a
+ *  blip — a tunnel, a tower hand-off, the app backgrounded mid-request — not a day
+ *  offline, so the first retries are quick and only then back off. */
+const RETRY_MS = [5_000, 15_000, 45_000, 120_000, 300_000];
+
 /**
- * Drain whenever the browser reports a reconnect, and once on startup.
+ * Drain whenever the device reconnects or the app comes back, once on startup, as soon
+ * as a grade is queued, and on a backoff while anything is still waiting.
  *
- * `navigator.onLine` is only trusted in the NEGATIVE — "online" routinely lies about a
- * captive portal or a dead uplink, which is why the drain simply attempts and treats a
- * throw as still-offline rather than pre-checking. Returns a teardown.
+ * `navigator.onLine` / the `online` event are only trusted in the NEGATIVE — "online"
+ * routinely lies about a captive portal or a dead uplink, which is why every trigger
+ * simply attempts and treats a throw as still-offline rather than pre-checking. In the
+ * iOS app the `online` event is not a reliable signal at all (a WKWebView on cellular
+ * never sees a transition), so the Capacitor Network and App plugins add theirs.
+ * Returns a teardown.
  */
 export function watchForReconnect(): () => void {
-  const attempt = () => void drainPendingReviews().catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let step = 0;
+  let stopped = false;
+  const clear = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+  const attempt = () => {
+    if (stopped) return;
+    clear();
+    void drainPendingReviews()
+      .then((r) => {
+        if (stopped) return;
+        if (r.remaining > 0 && r.unreachable) {
+          timer = setTimeout(attempt, RETRY_MS[Math.min(step, RETRY_MS.length - 1)]);
+          step++;
+        } else {
+          step = 0;
+        }
+      })
+      .catch(() => {});
+  };
+  // A fresh entry means the user just graded something with no answer from the server:
+  // start (or restart) the quick retries. Drains also change the queue, so only react
+  // when nothing is already scheduled.
+  const offQueue = onQueueChanged(() => {
+    if (!timer && !inflight) {
+      step = 0;
+      timer = setTimeout(attempt, RETRY_MS[0]);
+    }
+  });
   attempt(); // a queue can survive a cold start; don't wait for an online event
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("online", attempt);
-  return () => window.removeEventListener("online", attempt);
+
+  const teardowns: Array<() => void> = [offQueue, clear];
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", attempt);
+    teardowns.push(() => window.removeEventListener("online", attempt));
+    const onVisible = () => {
+      if (document.visibilityState === "visible") attempt();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    teardowns.push(() => document.removeEventListener("visibilitychange", onVisible));
+  }
+  if (Capacitor.isNativePlatform()) {
+    // Loaded lazily so the web bundle and the unit tests never touch the native plugins.
+    void import("@capacitor/network").then(({ Network }) => {
+      if (stopped) return;
+      const h = Network.addListener("networkStatusChange", (st) => {
+        if (st.connected) attempt();
+      });
+      teardowns.push(() => void h.then((x) => x.remove()).catch(() => {}));
+    }).catch(() => {});
+    void import("@capacitor/app").then(({ App }) => {
+      if (stopped) return;
+      const h = App.addListener("appStateChange", (st) => {
+        if (st.isActive) attempt();
+      });
+      teardowns.push(() => void h.then((x) => x.remove()).catch(() => {}));
+    }).catch(() => {});
+  }
+  return () => {
+    stopped = true;
+    for (const fn of teardowns) fn();
+  };
 }
+
