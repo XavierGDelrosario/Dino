@@ -83,6 +83,17 @@
   font-size: 1rem;
   line-height: 2;
 }
+/* The reader's body carries a THREE-LINE minimum (translate.css .reader__body) so a
+   one-sentence paste on the Translate tab still reads as a reading surface. Under a
+   word row that minimum is just empty space — a one-line example sat in an 8.8rem box,
+   and the definition under it in another — so the panel is sized by its text. */
+.senseex__reader .reader__body {
+  min-height: 0;
+}
+.senseex__reader .reader {
+  font-size: inherit;
+  line-height: inherit;
+}
 
 /* The definition's reader keeps the definition's own SIZE, not the sentence's. Both
    render through the same component now, and without this the more subordinate of the

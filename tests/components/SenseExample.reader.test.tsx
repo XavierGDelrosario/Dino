@@ -94,6 +94,32 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe("SenseExample — a load cancelled by closing the panel", () => {
+  it("re-analyzes on reopen instead of showing plain text forever (訴訟 regression)", async () => {
+    // First analysis is held open; the panel closes before it lands.
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    vi.mocked(translateParagraph).mockImplementation(async ({ input }) => {
+      await gate;
+      return PARAS[input] as never;
+    });
+    renderPanel();
+    openPanel(); // starts loading
+    openPanel(); // closes before the analysis has landed
+    release();
+    await Promise.resolve();
+    expect(readers()).toHaveLength(0);
+
+    // Reopen: the cancelled result was thrown away, so it must analyze again.
+    vi.mocked(translateParagraph).mockImplementation(async ({ input }) => PARAS[input] as never);
+    openPanel();
+    await waitFor(() => expect(readers()).toHaveLength(2));
+    expect(vi.mocked(translateParagraph).mock.calls.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
 describe("SenseExample — the definition renders through the reader", () => {
   it("renders BOTH the sentence and the definition as readers", async () => {
     renderPanel();

@@ -97,6 +97,7 @@ export function useSenseExampleReader(params: {
     const pieces = textsRef.current;
     if (!active || pieces.every((t) => !t) || loadedFor.current === key) return;
     let cancelled = false;
+    let settled = false; // parts written — the cache marker may stay
     loadedFor.current = key;
     setLoading(true);
 
@@ -127,6 +128,7 @@ export function useSenseExampleReader(params: {
               : EMPTY_PART,
           ),
         );
+        settled = true;
 
         // The user's own knowledge of the senses in the prose — this is what makes it
         // legible at a glance: which of these words do I already have? Resolved ACROSS
@@ -161,6 +163,11 @@ export function useSenseExampleReader(params: {
 
     return () => {
       cancelled = true;
+      // Closed (or re-keyed) before the analysis landed: the result above is thrown
+      // away, so the "already loaded" marker must go with it — otherwise the next open
+      // sees its own key, returns early, and the panel shows plain text FOREVER. Seen
+      // on 訴訟: open 例 while kuromoji is still loading, close, reopen → no reader.
+      if (loadedFor.current === key && !settled) loadedFor.current = null;
     };
   }, [active, key, sourceLang, targetLang, userId]);
 
