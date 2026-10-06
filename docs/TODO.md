@@ -139,11 +139,13 @@ Fix VOLUME first, then price.
 <details open>
 <summary><h2>🧱 Extendable Features</h2></summary>
 
-### Streak · goals · reminders (`/goals`, migrations 20260790–91)
+### Streak · goals · reminders (`/goals`, migrations 20260790–92)
 - **Web reminders fire only while a tab is open** (Notification API + timer). Always-on web
   = a service worker + push; the iOS build already gets real scheduled notifications.
-- Verify `@capacitor/local-notifications` on a device: `npm run ios:build` (cap sync + pod
-  install) — added to the Podfile, not yet built.
+- A cram-frozen same-UTC-day re-grade leaves no trace in `study_days` (no log row, no
+  `last_reviewed_date` move) — a JST morning of only well-known cards can read unstudied.
+- Guest→account merge does not carry the goal columns (account's choice stands) — revisit if
+  users notice.
 - Streak freeze / repair, weekly goals, goal-met celebration — none built.
 
 ### Articles (inside Learn) — deep analysis for longer works

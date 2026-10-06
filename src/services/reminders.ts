@@ -136,16 +136,37 @@ export interface ReminderCopy {
 
 const ourIds = () => Array.from({ length: HORIZON_DAYS * 2 }, (_, i) => ({ id: ID_BASE + i }));
 
+/** Syncs run one at a time, in call order — see syncReminders. */
+let chain: Promise<void> = Promise.resolve();
+
 /**
  * Replace whatever is pending with the moments the current settings call for — or
  * nothing, when reminders are off or not permitted. Safe to call often; it is the
  * ONLY writer of our notification ids, so it always starts by cancelling them.
+ *
+ * SERIALIZED: calls are chained so two syncs can never interleave (a slower, older
+ * cancel landing after a newer schedule would wipe it; on the web the plugin's pending
+ * list doesn't de-duplicate ids). The last call always wins.
+ *
+ * `studiedToday` may be NULL when the streak hasn't answered (or this database can't):
+ * unknown is treated as NOT studied, so the reminder still fires — a missed reminder
+ * defeats the feature, a spare one on a studied day is a tap to dismiss.
  */
-export async function syncReminders(
+export function syncReminders(
+  settings: ReminderSettings,
+  copy: ReminderCopy,
+  studiedToday: boolean | null,
+  now = new Date(),
+): Promise<void> {
+  chain = chain.then(() => doSync(settings, copy, studiedToday === true, now));
+  return chain;
+}
+
+async function doSync(
   settings: ReminderSettings,
   copy: ReminderCopy,
   studiedToday: boolean,
-  now = new Date(),
+  now: Date,
 ): Promise<void> {
   if (reminderSupport() === "none") return;
   try {

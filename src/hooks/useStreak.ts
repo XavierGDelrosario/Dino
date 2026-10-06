@@ -9,7 +9,7 @@
 // yet (pre-20260790) — the badge hides rather than erroring.
 import { useEffect, useSyncExternalStore } from "react";
 import { computeStreaks, getStudyDays, todayProgress, type StudyDay } from "../services/streak";
-import { subscribeVocabulary, writesSoFar } from "../services/words/vocabularyCache";
+import { onStudyActivity } from "../services/studyActivity";
 import { dayKey } from "../services/words/filters";
 
 interface Store {
@@ -40,23 +40,24 @@ const DEBOUNCE_MS = 800;
 export function refreshStreak(userId: string): Promise<void> {
   if (inflight && store.userId === userId) return inflight;
   if (store.userId !== userId) store = { userId, days: undefined, loadedAt: 0 };
-  inflight = getStudyDays()
+  const p: Promise<void> = getStudyDays()
     .then((days) => {
       if (store.userId !== userId) return;
       store = { userId, days, loadedAt: Date.now() };
       notify();
     })
     .catch(() => {
-      // A failed read keeps whatever was shown; a first read failing shows nothing.
-      if (store.userId === userId && store.days === undefined) {
-        store = { userId, days: null, loadedAt: Date.now() };
-        notify();
-      }
+      // A failed read (network, 5xx) keeps whatever was shown. It must NOT become
+      // null — null means "no study_days() on this database" and would hide the badge
+      // for the whole session. Stamp loadedAt so the next focus can retry.
+      if (store.userId === userId) store = { ...store, loadedAt: Date.now() };
     })
     .finally(() => {
-      inflight = null;
+      // Only clear OUR slot: a user switch may already have a newer request in flight.
+      if (inflight === p) inflight = null;
     });
-  return inflight;
+  inflight = p;
+  return p;
 }
 
 /** Tests only. */
@@ -73,12 +74,8 @@ export function useStreak(userId: string) {
     if (store.userId !== userId || store.days === undefined) void refreshStreak(userId);
 
     // A save or a grade changes today's numbers: refetch once the burst settles.
-    let seenWrites = writesSoFar(userId);
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const unsub = subscribeVocabulary(() => {
-      const w = writesSoFar(userId);
-      if (w === seenWrites) return;
-      seenWrites = w;
+    const unsub = onStudyActivity(() => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void refreshStreak(userId), DEBOUNCE_MS);
     });

@@ -10,6 +10,7 @@
 // a tag just un-tags. Mastery/review state lives on the row, so reads return it inline.
 
 import { supabase } from "../../config/supabaseClient";
+import { notifyStudyActivity } from "../studyActivity";
 import { nfcTrim } from "../../lib/text";
 import { mapLimit } from "../../lib/concurrency";
 import { chunkForUrlFilter } from "../../lib/urlFilter";
@@ -253,6 +254,7 @@ export async function saveDictionaryWord(params: {
     estimatedBand: word.estimatedBand,
   };
   vocabulary.writeWords(userId, [saved], listId);
+  notifyStudyActivity();
   return saved;
 }
 
@@ -302,6 +304,7 @@ export async function saveDictionaryWords(params: {
       : uw;
   });
   vocabulary.writeWords(userId, saved, listId);
+  notifyStudyActivity();
   return saved;
 }
 
@@ -338,6 +341,7 @@ export async function createCustomWord(params: {
   const row = (Array.isArray(data) ? data[0] : data) as UserWordRow;
   const created = toUserWord(row);
   vocabulary.writeWords(userId, [created], listId);
+  notifyStudyActivity();
   return created;
 }
 

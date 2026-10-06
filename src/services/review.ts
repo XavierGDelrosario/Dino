@@ -23,6 +23,7 @@ import { ServiceError, toServiceError } from "./errors";
 import { confidenceInputsOf, type UserWord } from "./words/userWords";
 import { findWordsByIds } from "./words/repository";
 import { isFresh, isReadable, membershipSnapshot, wordsFor, writeWordById } from "./words/vocabularyCache";
+import { notifyStudyActivity } from "./studyActivity";
 import { ensureVocabulary } from "./words/vocabularyLoader";
 import { displayConfidence } from "./confidence";
 import { isOnWifi, onWifiConnected } from "./network";
@@ -491,6 +492,7 @@ export async function sendReview(params: {
   const row = (Array.isArray(data) ? data[0] : data) as ReturnedRow;
   cacheReviewed(row);
   scheduleDeckRefresh();
+  notifyStudyActivity();
   return {
     userWordId: row.user_word_id,
     stability: row.stability,

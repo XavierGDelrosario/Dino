@@ -1,6 +1,8 @@
-// The user's daily goals (services/goals), loaded once per user and shared by every
-// surface that shows them — the /goals page picks them, the History plot draws them.
-// Defaults until the read answers, so a progress line always has a denominator.
+// The user's daily goals (services/goals) for one surface — the /goals page picks
+// them, the History plot draws them. Each mount does its own small `users` select (two
+// columns; the two pages are never on screen together), so there is no shared store
+// here, unlike useStreak. Defaults until the read answers, so a progress line always
+// has a denominator.
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_GOALS, getGoals, setGoals as persistGoals, type Goals } from "../services/goals";
 import { errorMessage } from "../lib/errorMessage";
@@ -13,6 +15,7 @@ export function useGoals(userId: string) {
   useEffect(() => {
     let live = true;
     setLoaded(false);
+    setError(null);
     getGoals(userId)
       .then((g) => {
         if (!live) return;

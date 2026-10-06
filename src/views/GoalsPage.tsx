@@ -69,7 +69,7 @@ export function GoalsPage({ userId }: { userId: string }) {
     setReminder(next);
     saveReminderSettings(next);
     if (syncTimer.current) clearTimeout(syncTimer.current);
-    const sync = () => void syncReminders(next, copy, streaks?.studiedToday ?? false);
+    const sync = () => void syncReminders(next, copy, streaks?.studiedToday ?? null);
     if (settle) syncTimer.current = setTimeout(sync, 600);
     else sync();
   };
