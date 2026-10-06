@@ -239,13 +239,17 @@ Fix VOLUME first, then price.
 
 ### Security (2026-06-28 audit)
 - **[MED] Enable captcha in prod** — interim mitigation: guests get a 30k/month paid-MT
-  default (vs 450k), so draining the global cap takes ~70 scripted guests, not ~5. What's
-  left is the sign-up flood itself (auth rows / MAU). Code is on `main` (`services/captcha.ts`), inert
-  without `VITE_TURNSTILE_SITE_KEY`. **Order matters:** deploy the client with a real
-  sitekey *first*, then enable Attack Protection. ⚠️ **Blocked on native** — Turnstile can't
-  run under `capacitor://`, and `build-ios.sh --prod` points at prod, so flipping it kills
-  anonymous sign-in on iOS. Founder call (2026-07-13): account merging lands first. Then:
-  point dev devices at staging, or use an `https://` WebView scheme, or swap to hCaptcha.
+  default (vs 450k), so draining the global cap takes ~70 scripted guests, not ~5. Code +
+  deploy wiring are on `main` (`services/captcha.ts`; `deploy-prod.sh` passes
+  `VITE_TURNSTILE_SITE_KEY` from `.env.deploy` and has `captcha-on <secret>` / `captcha-off`).
+  Left, in ORDER: (1) create the Turnstile widget in the Cloudflare dashboard — **Invisible**,
+  hostnames `dinostudy.com` + `dino-86y.pages.dev` (the Pages API token can't; 403 on
+  Turnstile); (2) sitekey → `.env.deploy`, `deploy-prod.sh frontend`, confirm the bundle
+  carries it; (3) `deploy-prod.sh captcha-on <secret>`; (4) `npm run smoke:prod`.
+  ⚠️ **The prod iPhone build loses guest sign-in while it is on** — Turnstile can't run under
+  `capacitor://`. Before (3): dev phone on staging (`npm run ios:build`), or switch
+  `iosScheme` to `https` (new WebView origin = sessions reset; sitekey must allow `localhost`;
+  edge `ALLOWED_ORIGINS` gains `https://localhost`), or swap to hCaptcha.
 - **[ops] Rotate the Google Translation key** — hygiene, not urgent (API-restricted +
   globally capped).
 - **[MED · scale-only] Global-quota advisory lock** — contention only bites at huge MT
