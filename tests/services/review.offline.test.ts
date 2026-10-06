@@ -13,6 +13,7 @@ vi.mock("@/config/supabaseClient", () => ({
 vi.mock("@/services/network", () => ({
   isOnWifi: vi.fn(async () => true),
   onWifiConnected: vi.fn(() => () => {}),
+  onConnected: vi.fn(() => () => {}),
 }));
 vi.mock("@/services/words/vocabularyLoader", () => ({ ensureVocabulary: vi.fn(async () => {}) }));
 vi.mock("@/services/words/vocabularyCache", async (orig) => ({
@@ -39,7 +40,7 @@ import { saveDeck } from "@/services/offline/deck";
 import { memStore } from "@test/offlineStore";
 import { ensureVocabulary } from "@/services/words/vocabularyLoader";
 import { isFresh, isReadable, membershipSnapshot, wordsFor } from "@/services/words/vocabularyCache";
-import { isOnWifi, onWifiConnected } from "@/services/network";
+import { isOnWifi, onConnected } from "@/services/network";
 import type { UserWord } from "@/services/words/userWords";
 
 
@@ -246,35 +247,26 @@ describe("the full offline deck", () => {
     expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
   });
 
-  it("off Wi-Fi it downloads NOTHING — no vocabulary, not even the clock", async () => {
+  it("on mobile data it downloads the vocabulary all the same (no Wi-Fi gate)", async () => {
     online();
     vi.mocked(isOnWifi).mockResolvedValue(false);
-    expect(await refreshOfflineDeck("u")).toBe(false);
-    expect(ensureVocabulary).not.toHaveBeenCalled();
-    expect(stub.rpc).not.toHaveBeenCalled();
-  });
-
-  it("off Wi-Fi it still saves a vocabulary that is already in memory", async () => {
-    online();
-    vi.mocked(isOnWifi).mockResolvedValue(false);
-    vi.mocked(isFresh).mockReturnValue(true); // e.g. the Lists tab loaded it
     expect(await refreshOfflineDeck("u")).toBe(true);
+    expect(ensureVocabulary).toHaveBeenCalledTimes(1);
     offline();
     expect(ids(await getReviewQueue({ userId: "u", limit: 1 }))).toEqual(["d"]);
   });
 
-  it("catches up when the device joins Wi-Fi", async () => {
-    online();
-    vi.mocked(isOnWifi).mockResolvedValue(false);
+  it("catches up when the connection comes back", async () => {
+    offline();
     const stop = watchOfflineDeck("u");
-    await vi.waitFor(() => expect(isOnWifi).toHaveBeenCalled());
-    expect(ensureVocabulary).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(onConnected).toHaveBeenCalled());
+    const before = vi.mocked(ensureVocabulary).mock.calls.length;
 
-    vi.mocked(isOnWifi).mockResolvedValue(true);
-    const calls = vi.mocked(onWifiConnected).mock.calls;
-    const joined = calls[calls.length - 1][0];
-    joined();
-    await vi.waitFor(() => expect(ensureVocabulary).toHaveBeenCalledTimes(1));
+    online();
+    const calls = vi.mocked(onConnected).mock.calls;
+    const back = calls[calls.length - 1][0];
+    back();
+    await vi.waitFor(() => expect(vi.mocked(ensureVocabulary).mock.calls.length).toBeGreaterThan(before));
     stop();
   });
 

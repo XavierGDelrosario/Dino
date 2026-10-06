@@ -22,11 +22,11 @@ import { supabase } from "../config/supabaseClient";
 import { ServiceError, toServiceError } from "./errors";
 import { confidenceInputsOf, type UserWord } from "./words/userWords";
 import { findWordsByIds } from "./words/repository";
-import { isFresh, isReadable, membershipSnapshot, wordsFor, writeWordById } from "./words/vocabularyCache";
+import { isReadable, membershipSnapshot, wordsFor, writeWordById } from "./words/vocabularyCache";
 import { notifyStudyActivity } from "./studyActivity";
 import { ensureVocabulary } from "./words/vocabularyLoader";
 import { displayConfidence } from "./confidence";
-import { isOnWifi, onWifiConnected } from "./network";
+import { onConnected } from "./network";
 import type { LangCode } from "./language";
 import { offlineStore } from "./offline/store";
 import { anchorAt, getAnchor, setAnchor, stampFor } from "./offline/clock";
@@ -315,10 +315,10 @@ async function cacheDeck(
  * cache the Lists tab already fills (and every write keeps current), so it usually
  * costs no request of its own; a few MB for a large vocabulary.
  *
- * WI-FI ONLY for anything it has to download. Off Wi-Fi the vocabulary is never fetched
- * for this: the deck is saved only when the vocabulary is ALREADY in memory and fresh
- * (the user opened Lists, say), which costs one clock request and no download. Mobile
- * data is the learner's to spend, and an offline copy is a convenience.
+ * ON ANY CONNECTION, cellular included (founder call 2026-10-06; it was Wi-Fi-only
+ * before). The schedule is what makes Review usable with no signal, and the download
+ * is the vocabulary once per session at most — a few MB for a large one — so spending
+ * mobile data on it is the right trade.
  *
  * Best-effort and silent. The server's clock is asked FIRST and a failure stops here:
  * offline the in-memory cache would still "load", and saving it again would stamp an
@@ -326,7 +326,6 @@ async function cacheDeck(
  */
 export async function refreshOfflineDeck(userId: string): Promise<boolean> {
   try {
-    if (!(await isOnWifi()) && !isFresh(userId)) return false;
     const { data, error } = await supabase.rpc("server_now");
     const serverNow = error || !data ? NaN : Date.parse(data as string);
     if (!Number.isFinite(serverNow)) return false;
@@ -368,11 +367,11 @@ export function watchOfflineDeck(userId: string): () => void {
   const refresh = () => void refreshOfflineDeck(userId);
   refresh();
   if (typeof window !== "undefined") window.addEventListener("online", refresh);
-  const stopWifi = onWifiConnected(refresh); // a launch on mobile data catches up here
+  const stopNet = onConnected(refresh); // a launch with no signal catches up here
   return () => {
     if (deckOwner === userId) deckOwner = null;
     clearTimeout(deckTimer);
-    stopWifi();
+    stopNet();
     if (typeof window !== "undefined") window.removeEventListener("online", refresh);
   };
 }

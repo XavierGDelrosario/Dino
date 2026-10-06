@@ -29,3 +29,12 @@ export function onWifiConnected(fn: () => void): () => void {
   });
   return () => void handle.then((h) => h.remove()).catch(() => {});
 }
+
+/** Call `fn` each time the device gets ANY connection back (Wi-Fi or cellular). */
+export function onConnected(fn: () => void): () => void {
+  if (!available()) return () => {};
+  const handle = Network.addListener("networkStatusChange", (status) => {
+    if (status.connected) fn();
+  });
+  return () => void handle.then((h) => h.remove()).catch(() => {});
+}
