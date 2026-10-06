@@ -11,6 +11,7 @@ import { ErrorText } from "../components/common/ErrorText";
 import { useI18n, plural } from "../i18n";
 import { useGoals } from "../hooks/useGoals";
 import { canOpenAppSettings, openAppSettings } from "../services/appSettings";
+import { onAppResume } from "../services/appResume";
 import { useStreak } from "../hooks/useStreak";
 import {
   NEW_WORDS_GOAL_OPTIONS,
@@ -77,28 +78,27 @@ export function GoalsPage({ userId }: { userId: string }) {
     if (settle) syncTimer.current = setTimeout(sync, 600);
     else sync();
   };
-  // Re-check permission whenever the page comes back into view — that is the return
-  // from Settings on iOS — and turn the reminder on if that is what the user wanted.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      void checkReminderPermission().then((p) => {
-        setPermission(p);
-        if (p === "granted" && wantsOn.current) {
-          wantsOn.current = false;
-          setReminder((cur) => {
-            const next = { ...cur, enabled: true };
-            saveReminderSettings(next);
-            void syncReminders(next, copy, streaks?.studiedToday ?? null);
-            return next;
-          });
-        }
-      });
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- copy/streaks are read at event time
-  }, []);
+  // Re-check permission whenever the app comes back to the front — the return from
+  // Settings on iOS — and turn the reminder on if that is what the user wanted. Every
+  // resume signal is covered (services/appResume): the WebView's visibilitychange alone
+  // did not fire on the return from Settings.
+  const recheck = () =>
+    checkReminderPermission().then((p) => {
+      setPermission(p);
+      if (p === "granted" && wantsOn.current) {
+        wantsOn.current = false;
+        setReminder((cur) => {
+          const next = { ...cur, enabled: true };
+          saveReminderSettings(next);
+          void syncReminders(next, copy, streaks?.studiedToday ?? null);
+          return next;
+        });
+      }
+      return p;
+    });
+  const recheckRef = useRef(recheck);
+  recheckRef.current = recheck;
+  useEffect(() => onAppResume(() => void recheckRef.current()), []);
 
   // iOS asks once; after "Don't Allow" every request answers denied with no prompt, so
   // the button's job becomes getting the user to Settings (the local AppSettings plugin).
@@ -110,7 +110,11 @@ export function GoalsPage({ userId }: { userId: string }) {
       return;
     }
     if (deniedNative) {
+      // The user may already have allowed it in Settings and come back unnoticed: ask
+      // the OS again before sending them there. Granted now → just turn it on.
       wantsOn.current = true;
+      const now = await recheck();
+      if (now === "granted") return; // recheck turned it on
       await openAppSettings();
       return;
     }
@@ -217,9 +221,19 @@ export function GoalsPage({ userId }: { userId: string }) {
         </div>
 
         {support === "none" && <p className="goals__note goals__note--warn">{t("reminder.unsupported")}</p>}
-        {support !== "none" && permission === "denied" && !reminder.enabled && (
+        {/* Shown whenever iOS has notifications off, even with the reminder on: the
+            schedule exists but nothing can be delivered. Settings is one tap away. */}
+        {support !== "none" && permission === "denied" && (
           <p className="goals__note goals__note--warn">
             {t(deniedNative ? "reminder.deniedNative" : "reminder.denied")}
+            {deniedNative && reminder.enabled && (
+              <>
+                {" "}
+                <button type="button" className="goals__linkbtn" onClick={() => { wantsOn.current = true; void openAppSettings(); }}>
+                  {t("reminder.openSettings")}
+                </button>
+              </>
+            )}
           </p>
         )}
 
