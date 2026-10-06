@@ -5,7 +5,7 @@
 // Goals persist on `users` (hooks/useGoals → services/goals); the reminder is a device
 // setting (services/reminders). Today's numbers come from the same study_days rows as
 // the badge (hooks/useStreak), so the two never disagree.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackLink } from "../components/common/BackLink";
 import { ErrorText } from "../components/common/ErrorText";
 import { useI18n, plural } from "../i18n";
@@ -60,10 +60,18 @@ export function GoalsPage({ userId }: { userId: string }) {
   }, []);
 
   const copy = { title: t("reminder.notifTitle"), body: t("reminder.notifBody") };
-  const apply = (next: ReminderSettings) => {
+  // The slider fires onChange for every step of a drag; the setting is saved at once
+  // (cheap) but the OS schedule — a cancel + up to 14 notifications — is rewritten only
+  // once the thumb has rested. The on/off button syncs immediately.
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (syncTimer.current) clearTimeout(syncTimer.current); }, []);
+  const apply = (next: ReminderSettings, { settle = false } = {}) => {
     setReminder(next);
     saveReminderSettings(next);
-    void syncReminders(next, copy, streaks?.studiedToday ?? false);
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    const sync = () => void syncReminders(next, copy, streaks?.studiedToday ?? false);
+    if (settle) syncTimer.current = setTimeout(sync, 600);
+    else sync();
   };
   const toggle = async () => {
     if (reminder.enabled) {
@@ -199,7 +207,7 @@ export function GoalsPage({ userId }: { userId: string }) {
             max={MAX_MINUTES}
             step={STEP_MINUTES}
             value={reminder.from}
-            onChange={(e) => apply({ ...reminder, from: Number(e.target.value) })}
+            onChange={(e) => apply({ ...reminder, from: Number(e.target.value) }, { settle: true })}
             aria-label={t("reminder.fromAria")}
           />
           <input
@@ -209,7 +217,7 @@ export function GoalsPage({ userId }: { userId: string }) {
             max={MAX_MINUTES}
             step={STEP_MINUTES}
             value={reminder.to}
-            onChange={(e) => apply({ ...reminder, to: Number(e.target.value) })}
+            onChange={(e) => apply({ ...reminder, to: Number(e.target.value) }, { settle: true })}
             aria-label={t("reminder.toAria")}
           />
         </div>
