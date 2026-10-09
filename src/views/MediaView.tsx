@@ -43,7 +43,7 @@ import { ErrorText } from "../components/common/ErrorText";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, type MessageKey } from "../i18n";
 import "./media.css";
-import { Loading, LoadingDots } from "../components/common/Loading";
+import { Loading, LoadingDots, PageLoading } from "../components/common/Loading";
 
 const SITE: WikiSite = "wikinews";
 
@@ -303,7 +303,7 @@ export function MediaView({
       <ErrorText message={error ?? favorites.error} />
 
       {!list && listLoading ? (
-        <p className="review__msg"><Loading text={t("media.loading")} /></p>
+        <PageLoading inline text={t("media.loading")} />
       ) : list && list.length === 0 ? (
         <p className="review__msg">
           {t(tab === "favorites" ? "media.noFavorites" : "media.noArticles")}

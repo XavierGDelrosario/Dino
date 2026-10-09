@@ -18,7 +18,7 @@ import { addUserWordToList } from "../services/words/userWords";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import "../components/flashcards/flashcards.css";
-import { Loading } from "../components/common/Loading";
+import { PageLoading } from "../components/common/Loading";
 import { SaveFailures } from "../components/flashcards/SaveFailures";
 
 export function FlashcardView({
@@ -80,12 +80,12 @@ export function FlashcardView({
   const scope = <p className="review__scope">{t("review.scope", { name: scopeName })}</p>;
 
   if (r.status === "loading") {
-    return <p className="review__msg"><Loading text={t("review.loading")} /></p>;
+    return <PageLoading text={t("review.loading")} />;
   }
 
   // The last card was graded; its write (and any still in flight) is landing.
   if (r.status === "saving") {
-    return <p className="review__msg"><Loading text={t("quiz.saving")} /></p>;
+    return <PageLoading text={t("quiz.saving")} />;
   }
 
   if (r.status === "error") {
@@ -121,7 +121,6 @@ export function FlashcardView({
             {t("review.newQuiz")}
           </button>
         </div>
-        {r.pendingCount > 0 && <p className="review__offline">{t("review.offlineNote", { n: r.pendingCount })}</p>}
         <QuizWordList
           items={r.cards.map((c) => ({
             key: c.userWordId,

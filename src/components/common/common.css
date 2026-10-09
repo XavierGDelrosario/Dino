@@ -823,6 +823,40 @@ main:has([data-no-footer]) .app__footer {
   letter-spacing: 0.1em;
 }
 
+/* PageLoading — the splash in miniature, for a page or section that is still loading. */
+.pageloading {
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: var(--muted);
+  text-align: center;
+}
+.pageloading__icon {
+  width: 5rem;
+  height: 5rem;
+}
+.pageloading__text {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+}
+.pageloading .loading-dots {
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+.pageloading--inline {
+  min-height: 0;
+  padding: 2rem 0;
+}
+.pageloading--inline .pageloading__icon {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
 /* Google's "translated by Google" badge (GoogleBadge.tsx). The artwork is Google's and
    is never recoloured: the theme only picks WHICH official variant shows — white on the
    dark theme, the colour or greyscale one on the light. 16px tall is its native size. */

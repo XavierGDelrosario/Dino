@@ -20,7 +20,7 @@ import { softenConfidence, type ReviewGrade } from "../services/review";
 import { addUserWordToList } from "../services/words/userWords";
 import { AddToListButton } from "../components/translate/AddToListButton";
 import { ErrorText } from "../components/common/ErrorText";
-import { Loading } from "../components/common/Loading";
+import { PageLoading } from "../components/common/Loading";
 import { SaveFailures } from "../components/flashcards/SaveFailures";
 import { useI18n } from "../i18n";
 import type { Word } from "../services/words/repository";
@@ -123,7 +123,7 @@ export function TextQuizView({
 
   // The last card was graded; its write (and any still in flight) is landing.
   if (q.status === "saving") {
-    return <p className="review__msg"><Loading text={t("quiz.saving")} /></p>;
+    return <PageLoading text={t("quiz.saving")} />;
   }
 
   if (q.status === "done") {
