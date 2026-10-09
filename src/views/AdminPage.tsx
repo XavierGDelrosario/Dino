@@ -18,7 +18,7 @@ import { QualityPanel } from "../components/admin/QualityPanel";
 import { TableSizesPanel } from "../components/admin/TableSizesPanel";
 import { ErrorText } from "../components/common/ErrorText";
 import "./admin.css";
-import { Loading } from "../components/common/Loading";
+import { PageLoading } from "../components/common/Loading";
 
 type Gate = "checking" | "allowed" | "denied";
 
@@ -50,7 +50,7 @@ export function AdminPage() {
     return () => { active = false; };
   }, []);
 
-  if (gate === "checking") return <section className="admin"><p className="admin__muted"><Loading text="Checking access…" /></p></section>;
+  if (gate === "checking") return <PageLoading />;
   if (gate === "denied") {
     return (
       <section className="admin">

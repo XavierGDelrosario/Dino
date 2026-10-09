@@ -18,7 +18,7 @@ import type { LangCode } from "../services/language";
 import "../components/flashcards/flashcards.css";
 import "./learn.css";
 import "./calibration.css";
-import { Loading } from "../components/common/Loading";
+import { PageLoading } from "../components/common/Loading";
 
 export function CalibrationView({
   userId,
@@ -107,7 +107,7 @@ export function CalibrationView({
   if (status === "loading") {
     return (
       <section className="review">
-        <p className="review__msg"><Loading text={t("calib.loading")} /></p>
+        <PageLoading text={t("calib.loading")} />
       </section>
     );
   }
@@ -119,7 +119,7 @@ export function CalibrationView({
   if (!current) {
     return (
       <section className="review">
-        <p className="review__msg"><Loading text={t("calib.loading")} /></p>
+        <PageLoading text={t("calib.loading")} />
         <div className="review__foot">
           {c.live?.sufficient && (
             <button className="btn btn--primary calib__finish" onClick={c.finish}>

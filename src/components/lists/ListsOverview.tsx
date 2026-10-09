@@ -18,7 +18,7 @@
 // quiz recap are the same chart rather than two that merely resemble each other.
 import { useMemo, useState } from "react";
 import { SortControls, type SortDir } from "../common/SortControls";
-import { Loading } from "../common/Loading";
+import { PageLoading } from "../common/Loading";
 import { AnalyzeInfographic } from "../common/AnalyzeInfographic";
 import { PencilIcon, XIcon } from "../common/icons";
 import { InfoButton } from "../common/WordInfo";
@@ -269,11 +269,7 @@ export function ListsOverview({
         />
       </div>
 
-      {loading && rows.length === 0 && (
-        <p className="review__msg">
-          <Loading text={t("common.loading")} />
-        </p>
-      )}
+      {loading && rows.length === 0 && <PageLoading inline />}
 
       <ul className="listsoverview__rows">
         {sorted.map((r) => (
