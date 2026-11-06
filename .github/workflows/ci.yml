@@ -68,7 +68,12 @@ jobs:
       - name: Start Supabase (DB + auth + migrations)
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned: `latest` became CLI v3.0.0 (2026-11-02), which rejects config.toml's
+          # `[inbucket]` (renamed `[local_smtp]`). 2.120.0 = what `latest` was on the
+          # last green main run (2026-10-09). NOT the repo's 2.107.0 devDependency: its
+          # DB image doesn't grant service_role on user_words/review_log and fails 2
+          # integration specs. Moving to v3 = rename the config section here AND locally.
+          version: 2.120.0
       - run: supabase start
 
       - name: Export Supabase env for the test harness

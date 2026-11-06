@@ -1,12 +1,12 @@
-// Profile page: identity (email / date created) + the three language settings —
-// NATIVE (default translation output), LEARNING (the language studied + default input),
-// and APP language (UI localization). Native/learning persist on `users` (follow the
-// account); app language is the client-side i18n locale. History has its own page
+// Profile page: identity (email / date created) + the APP language (UI localization,
+// the client-side i18n locale). The native/learning pickers were removed 2026-11-07:
+// Japanese is the only learnable language, so each had one option. The pair still
+// lives on `users` and is resolved by `resolveLanguagePair`; bring the pickers back
+// (services/language `learningOptions` / `nativeOptions`) when a second one is learnable. History has its own page
 // (/history, views/HistoryPage.tsx), linked from the account menu under Profile.
 import { useEffect, useState } from "react";
 import { BackLink } from "../components/common/BackLink";
-import { getUserProfile, updateUserLanguages } from "../services/session";
-import { targetOptions, defaultLanguagePair, resolveLanguagePair } from "../services/language";
+import { getUserProfile } from "../services/session";
 import { errorMessage } from "../lib/errorMessage";
 import { useI18n, LOCALES, type Locale } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
@@ -24,12 +24,7 @@ export function ProfilePage({
 }) {
   const { t, locale, setLocale } = useI18n();
   const [created, setCreated] = useState<string | null>(null);
-  // Until the profile answers (and for a pref it never set): the device's language as
-  // native, the other one to learn — the same pair every other surface opens on.
-  const [native, setNative] = useState<string>(() => defaultLanguagePair().native);
-  const [learning, setLearning] = useState<string>(() => defaultLanguagePair().learning);
   const [err, setErr] = useState<string | null>(null);
-  const langs = targetOptions();
 
   useEffect(() => {
     let active = true;
@@ -37,24 +32,10 @@ export function ProfilePage({
       .then((p) => {
         if (!active || !p) return;
         setCreated(p.dateCreated);
-        const pair = resolveLanguagePair(p);
-        setNative(pair.native);
-        setLearning(pair.learning);
       })
       .catch((e) => active && setErr(errorMessage(e)));
     return () => { active = false; };
   }, [userId]);
-
-  const saveNative = async (code: string) => {
-    setNative(code);
-    try { await updateUserLanguages({ userId, nativeLanguage: code }); }
-    catch (e) { setErr(errorMessage(e)); }
-  };
-  const saveLearning = async (code: string) => {
-    setLearning(code);
-    try { await updateUserLanguages({ userId, learningLanguage: code }); }
-    catch (e) { setErr(errorMessage(e)); }
-  };
 
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(locale, {
     year: "numeric", month: "long", day: "numeric",
@@ -75,18 +56,6 @@ export function ProfilePage({
           <span>{fmtDate(created)}</span>
         </div>
       )}
-      <div className="profile__row">
-        <label className="profile__label" htmlFor="pf-native">{t("profile.nativeLanguage")}</label>
-        <select id="pf-native" className="select select--sm" value={native} onChange={(e) => saveNative(e.target.value)}>
-          {langs.map((o) => <option key={o.code} value={o.code}>{o.name}</option>)}
-        </select>
-      </div>
-      <div className="profile__row">
-        <label className="profile__label" htmlFor="pf-learning">{t("profile.learningLanguage")}</label>
-        <select id="pf-learning" className="select select--sm" value={learning} onChange={(e) => saveLearning(e.target.value)}>
-          {langs.map((o) => <option key={o.code} value={o.code}>{o.name}</option>)}
-        </select>
-      </div>
       <div className="profile__row">
         <label className="profile__label" htmlFor="pf-app">{t("profile.appLanguage")}</label>
         <select id="pf-app" className="select select--sm" value={locale} onChange={(e) => setLocale(e.target.value as Locale)}>

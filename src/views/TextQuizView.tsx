@@ -172,7 +172,7 @@ export function TextQuizView({
             ? t("quiz.scopeReview")
             : t(source === "level" ? "quiz.scopeLearnLevel" : "quiz.scopeLearn")}
         </p>
-        <FlipButton flip={flip} />
+        <FlipButton flip={flip} wordLang={card.sourceLang} meaningLang={card.targetLang} />
       </div>
       <ProgressBar position={q.position} total={q.total} />
 

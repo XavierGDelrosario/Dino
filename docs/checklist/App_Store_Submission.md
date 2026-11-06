@@ -148,8 +148,8 @@ declares mild profanity.
 - [ ] Join the Apple Developer Program **as an Individual** ($99/yr). The current
       signing identity is a free-team "Apple Development" cert, which cannot distribute.
       Then point `DEVELOPMENT_TEAM` at the paid team.
-- [ ] Build with **Xcode 26 / iOS 26 SDK** — required for every upload since
-      2026-04-28; Xcode 16.2 builds are refused at upload (see `docs/TODO.md`).
+- [ ] Build with **Xcode 26 / iOS 26 SDK** in **Xcode Cloud** — required for every
+      upload since 2026-04-28; Xcode 16.2 builds are refused at upload (see `docs/TODO.md`).
 - [ ] Privacy Policy names the operator (legal name + contact) and the Terms carry a
       governing-law line — self-fixes, not counsel (`docs/TODO.md` Legal).
 - [ ] Answer **EU trader status**: non-trader while free and pre-revenue, or leave EU

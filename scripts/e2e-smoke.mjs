@@ -99,14 +99,21 @@ try {
   await page.waitForSelector("textarea", { timeout: 30000 });
   await page.waitForTimeout(4000);
 
-  // 1. Drive the paragraph reader through REAL kuromoji. A fresh guest's OUTPUT
-  // defaults to the learning language (JA), so typing Japanese is input==output and
-  // intentionally ECHOES with no reader. To exercise the kuromoji reader we study
-  // Japanese with the explanation in English: set the target/output (the 2nd langbar
-  // select) to English, then type Japanese → input JA ≠ output EN, so the reader
-  // studies the typed Japanese. This guards the kuromoji loader hang (the regression
-  // that shipped: a bad bundle makes analyze() hang and the reader never renders).
-  await page.locator(".langbar select").nth(1).selectOption("EN");
+  // 1. Drive the paragraph reader through REAL kuromoji. A fresh guest opens on
+  // Japanese → English (learning → native), so typing Japanese is input JA ≠ output EN
+  // and the reader studies the typed Japanese. While only two languages exist the bar is
+  // fixed labels + ⇄ (FIXED_LANGUAGE_PAIR), not dropdowns — so assert the pair, and swap
+  // if it ever opens the other way. A third language brings back `.langbar select`.
+  // This guards the kuromoji loader hang (the regression that shipped: a bad bundle
+  // makes analyze() hang and the reader never renders).
+  const sides = page.locator(".langbar .langbar__lang");
+  if ((await sides.count()) === 2) {
+    if ((await sides.nth(1).innerText()).trim() !== "English") {
+      await page.locator(".langbar .langbar__swap").click();
+    }
+  } else {
+    await page.locator(".langbar select").nth(1).selectOption("EN");
+  }
   const ta = page.locator("textarea").first();
   await ta.click();
   await ta.pressSequentially("これは本です", { delay: 15 });

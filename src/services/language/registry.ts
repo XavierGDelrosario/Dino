@@ -23,6 +23,14 @@ export interface LanguageDefinition {
    * horizontal is never asked.
    */
   vertical?: boolean;
+  /**
+   * The language can be STUDIED (offered as a learning language). Every supported
+   * language can still be translated to/from and act as a native language; this only
+   * gates what a user can pick to learn. Product decision 2026-11-07: Japanese only
+   * for now — the English-learning path (EN→JA meanings, CEFR leveling) isn't good
+   * enough to offer yet. Re-enabling English is flipping this flag, nothing else.
+   */
+  learnable?: boolean;
 }
 
 /** Builds a script matcher from inclusive Unicode code-point ranges. */
@@ -47,6 +55,7 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
     code: "JA",
     name: "Japanese",
     vertical: true,
+    learnable: true,
     matches: scriptMatcher([
       [0x3040, 0x30ff], // Hiragana + Katakana
       [0x3400, 0x4dbf], // CJK Extension A
@@ -58,15 +67,36 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
     code: "EN",
     name: "English",
     // No matcher: Latin-script English is the detection fallback.
+    // Not learnable (yet): see `learnable` above.
   },
 ];
+
+/** The languages a user may pick to LEARN (a subset of SUPPORTED_LANGUAGES, never empty). */
+export const LEARNABLE_LANGUAGES: LanguageDefinition[] = SUPPORTED_LANGUAGES.filter((l) => l.learnable);
+
+/** A language's display name, or the code itself when it isn't in the registry. */
+export function languageName(code: LangCode): string {
+  return SUPPORTED_LANGUAGES.find((l) => l.code === code)?.name ?? code;
+}
+
+/**
+ * True while the direction pickers (Translate, the Lists add-word form) should be a
+ * fixed pair + ⇄ rather than dropdowns: with only two languages a dropdown has nothing
+ * to offer that the swap doesn't. A third language turns the dropdowns back on.
+ */
+export const FIXED_LANGUAGE_PAIR = SUPPORTED_LANGUAGES.length <= 2;
+
+/** True if `code` can be studied. */
+export function isLearnable(code: string): boolean {
+  return LEARNABLE_LANGUAGES.some((l) => l.code === code);
+}
 
 /** Language returned by auto-detect when no script-specific matcher claims the text. */
 export const DEFAULT_LANGUAGE: LangCode = "EN";
 
 /**
  * The LAST-RESORT pair, for when the device's language can't be read or isn't one we
- * support. A user who hasn't set a pair on the Profile page gets `defaultLanguagePair()`
+ * support. DEFAULT_LEARNING_LANGUAGE must be learnable. A user who hasn't set a pair on the Profile page gets `defaultLanguagePair()`
  * below — the device's language as native — not these directly.
  * NATIVE = the language you type in (translate SOURCE); LEARNING = the language you
  * study (TARGET). These are the SINGLE source of truth shared by the Profile page's
@@ -97,32 +127,48 @@ export function otherLanguage(lang: LangCode): LangCode {
 }
 
 /**
- * The pair for a user who has saved neither language: NATIVE is the device's language
- * (English when the device is in something we don't support), and LEARNING is the
- * other one. So a phone in Japanese opens on English study, explained in Japanese,
- * with no setup.
+ * The learning language for someone whose native language is `native`: the first
+ * learnable language that isn't it, else the first learnable language at all (a
+ * native speaker of the only learnable language still gets a valid pair — the
+ * native side is then moved off it by `nativeFor`).
  */
-export function defaultLanguagePair(): { native: LangCode; learning: LangCode } {
-  const native = systemLanguage() ?? DEFAULT_NATIVE_LANGUAGE;
-  return { native, learning: otherLanguage(native) };
+function learningFor(native: LangCode | null): LangCode {
+  return (LEARNABLE_LANGUAGES.find((l) => l.code !== native) ?? LEARNABLE_LANGUAGES[0]).code;
+}
+
+/** `preferred` as the native side of a pair learning `learning`, unless it collides. */
+function nativeFor(learning: LangCode, preferred: LangCode | null): LangCode {
+  return preferred && preferred !== learning ? preferred : otherLanguage(learning);
 }
 
 /**
- * A saved profile pair with whatever is unset filled in. A saved value always wins;
- * a missing side is completed so the two can never be the same language.
+ * The pair for a user who has saved neither language: LEARNING is a learnable
+ * language other than the device's, NATIVE is the device's language (English when the
+ * device is in something we don't support, or in the language being learned). While
+ * Japanese is the only learnable language, a Japanese device therefore opens on
+ * Japanese study explained in English — the UI locale is a separate setting.
+ */
+export function defaultLanguagePair(): { native: LangCode; learning: LangCode } {
+  const system = systemLanguage() ?? DEFAULT_NATIVE_LANGUAGE;
+  const learning = learningFor(system);
+  return { learning, native: nativeFor(learning, system) };
+}
+
+/**
+ * A saved profile pair with whatever is unset — or no longer offered — filled in. A
+ * saved native always wins unless it collides with the learning side; a saved
+ * learning language wins only while it is learnable (a profile saved as "learning
+ * English" before English was withdrawn reads as Japanese). The two sides can never
+ * be the same language.
  */
 export function resolveLanguagePair(
   saved: { learningLanguage: string | null; nativeLanguage: string | null } | null,
 ): { native: LangCode; learning: LangCode } {
-  const learning = saved?.learningLanguage ?? null;
-  const native = saved?.nativeLanguage ?? null;
-  if (learning && native) return { native, learning };
-  if (native) return { native, learning: otherLanguage(native) };
-  if (learning) {
-    const system = systemLanguage() ?? DEFAULT_NATIVE_LANGUAGE;
-    return { learning, native: system !== learning ? system : otherLanguage(learning) };
-  }
-  return defaultLanguagePair();
+  const savedLearning = saved?.learningLanguage ?? null;
+  const savedNative = saved?.nativeLanguage ?? null;
+  const learning =
+    savedLearning && isLearnable(savedLearning) ? savedLearning : learningFor(savedNative ?? systemLanguage());
+  return { learning, native: nativeFor(learning, savedNative ?? systemLanguage() ?? DEFAULT_NATIVE_LANGUAGE) };
 }
 
 /**

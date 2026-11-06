@@ -4,52 +4,33 @@ Remaining work only. Shipped → git history, `tests/`, `docs/`.
 Tags: `[concern]` raised directly · `[#N]` roadmap · `[§N]` `Production_Hardening.md`.
 Order **topical, not priority** — priority is in each note.
 
-**Where does a thing go?** 🚀 = not built · 🧱 = built, room to grow · 🐞 = broken ·
-✨ = as good as the data allows (a ceiling, not a bug). One item, one section — if it
-looks like it belongs in two, it goes in the more specific one and the other links to it.
 
 ---
 
+## Features to add
+
 <details open>
-<summary><h2>🚀 Features to add</h2></summary>
+<summary>Show</summary>
 
 - Rule: **free on-device on native (#18); paid/heavy on web.** See CLAUDE.md `#18`.
 - Core (`analyze()` → `services/` → account) is identical across surfaces; only intake differs.
 
-### 📱 App
+###  App
 
 #### AI agents — generative study aids
 - **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota
 - **Feature:** domain paragraph quiz ("paragraph at level X from these seeds").
 
 #### Lessons — authored grammar explanations `[new Learn section]`
-- **Content in the DB, not the bundle** — `lessons` (slug + lang pair + `blocks` JSONB +
-  `published_at`; client SELECT on published only, no client write, like `words`) +
-  `lesson_progress` (own-rows). A new lesson is an ingest, **not an app release** — the point
-  on iOS, where a content change otherwise costs a review cycle. Add `lesson_progress` to the
-  three enumerations: `prune_anonymous_guests` emptiness, `backup-user-data.sh`,
-  `delete_account` cascade.
-- **Authoring:** one Markdown file per lesson (frontmatter + `:::` directives) in git →
-  `validate:lessons` (kuromoji gate · every `wordRef` resolves · every answer index in range)
-  → `ingest:lessons`. Same shape as `sense_examples`.
-- **Blocks — closed union.** `prose` · `pattern` · `example` · `cloze` first; `table` ·
-  `choice` · `vocabquiz` once authoring has been felt. A new lesson is a row; only a new
-  block KIND is code.
+- **Content in the DB, not the bundle** — `lessons`
 - **Examples render through `ParagraphReader`, never plain.** `useSenseExampleReader` already
   takes an N-length `texts` array and batches ONE lookup — that is the renderer's engine.
-- ⚠️ **An embedded check is a THIRD quiz type** — cloze/choice over a PATTERN, not a sense.
-  CLAUDE.md Terminology says there are exactly two; update it rather than leaving "the quiz"
-  ambiguous.
-- ⚠️ **Checks must NOT write `review_log`** — append-only, un-backfillable, the FSRS training
-  seed. Grammar-point SRS is its own table.
-- **Content cost:** authored per LANGUAGE PAIR (the explanation is in the native language),
-  so JA-in-EN and JA-in-JA are separate lessons.
-- **Prerequisite — Learn section registry.** `LearnView` hardcodes picker → bands → Articles,
+- **Learn section registry.** `LearnView` hardcodes picker → bands → Articles,
   and `onArticleOpen` is a one-off "this section claims the tab". Replace with
   `services/learn/sections.ts` (`{ id, title, available(ctx), Component }` + an `onTakeover`
   prop), mirroring the `language`/`difficulty`/`senses` registries. Stands alone.
 
-### 🧩 Extension — browser capture surface `[new surface · extends #9/#18]`
+###  Extension — browser capture surface `[new surface · extends #9/#18]`
 
 **What the extension can do that the app cannot** — reach text on the open web *in the
 user's own session*: articles behind a login, X/TikTok/IG captions, YouTube transcripts.
@@ -91,7 +72,6 @@ Server-side fetching of those is ToS-blocked; in-session extraction is not.
 |---|---|---|---|
 | **Wikipedia** | MediaWiki API | **CC BY-SA → re-host OK** | **App** |
 | **Wikinews** | MediaWiki API | **CC BY → re-host OK** | **App** |
-| **VOA Learning English** | RSS / scrape | **PD → re-host OK** | **App** |
 | Global Voices | RSS | **CC BY 3.0 → re-host OK** | **App** |
 | **Aozora / Gutenberg** | bulk DL | **PD → re-host OK** | **App** |
 | **YouTube** | embed; captions in-session / CC-BY / paste | derived; **ToS: no server scrape** | **Lim App** |
@@ -105,16 +85,17 @@ Server-side fetching of those is ToS-blocked; in-session extraction is not.
 copyrighted → derived + link-out only. (2) Server-fetch is fine for open licences and
 Art-30-4 analysis; platform ToS forbids it → extension or paste. (3) Adapter tier T0/T1/T2.
 
-### ⚙️ MT cost at scale — sentence cache + provider cascade `[cost]`
+### ⚙️ MT cost at scale — sentence cache + provider cascade `[cost · low]`
 
-Media multiplies **sentence-gloss** calls (word-by-word is free from the JMdict cache).
-Fix VOLUME first, then price.
+**Low priority:** past the cap iOS falls back to free on-device ML Kit glosses, so this only
+pays off once **web** gloss volume is real. Media multiplies **sentence-gloss** calls
+(word-by-word is free from the JMdict cache). Fix VOLUME first, then price.
 
 - **Lever 1 — shared `sentence_cache`**, key `hash(normalized_text, source, target)`.
   Inverts `persist:false`: a unique paste isn't worth caching, but shared media across
   users has a high hit rate. Plus lazy on-demand gloss and within-doc dedupe.
 - **Cascade:** `sentence_cache → DeepL (free ~500k/mo) → Google` **[edge]** → Apple
-  **[native only, offline last resort]**. ⚠️ Apple is not a server step — the edge cannot
+  **[native only, offline last resort]**.  Apple is not a server step — the edge cannot
   call an on-device framework.
 - **Switch trigger:** per-provider global counter like `global_translation_usage`; catch
   DeepL **456** as a backstop. **Seam:** `callTranslationProvider` → ordered provider chain.
@@ -126,7 +107,7 @@ Fix VOLUME first, then price.
 - **Decision: LAZY FILL, not bulk.** On-demand is ~$0.014/article-view, so $58 breaks even
   at one view of every article. The lazy cache converges to the same end state with zero
   upfront spend.
-- ⚠️ **A bulk backfill must NOT go through the edge** — 2.92M chars would blow the 2M/mo
+-  **A bulk backfill must NOT go through the edge** — 2.92M chars would blow the 2M/mo
   `GLOBAL_MONTHLY_CHAR_QUOTA` and 429 every real user mid-run. It would be an offline
   service-role script calling Google direct.
 - **Legal (Wikinews):** CC BY 2.5 → storing prose and serving a derivative translation are
@@ -136,39 +117,26 @@ Fix VOLUME first, then price.
 
 ---
 
+## 🧱 Extendable Features
+
 <details open>
-<summary><h2>🧱 Extendable Features</h2></summary>
+<summary>Show</summary>
 
 ### Streak · goals · reminders (`/goals`, migrations 20260790–92)
-- **Web reminders fire only while a tab is open** (Notification API + timer). Always-on web
-  = a service worker + push; the iOS build already gets real scheduled notifications.
-- A cram-frozen same-UTC-day re-grade leaves no trace in `study_days` (no log row, no
-  `last_reviewed_date` move) — a JST morning of only well-known cards can read unstudied.
-- Guest→account merge does not carry the goal columns (account's choice stands) — revisit if
-  users notice.
 - Streak freeze / repair, weekly goals, goal-met celebration — none built.
 
 ### Articles (inside Learn) — deep analysis for longer works
 - Extension content
 
 ### Sense enrichment — example sentence + source-language definition per meaning
-- **Built:** `sense_curation` (migrations 20260750–52, keyed on `dictionary_ref` + language
-  pair) ← `npm run validate:sense-examples` (the kuromoji gate) → `npm run
-  ingest:sense-examples` (deletes + reloads the pair from the file, then backfills cached
-  `words` — a saved word is read straight off `words`, so skipping it starves exactly the
-  words a user studies). Shows in the reader hover card, the flashcard back, Lists, and the
-  article word list.
 - **What's left is the CORPUS.** `data/sense_examples/ja.tsv` = **2,368 senses / 1,660 entries**.
-  Senses by headword frequency ≥500 = 4,534 · ≥400 = 16,880 · all 251,734 (~280 B/row
-  measured on prod ⇒ ≈1.3 MB · ≈5 MB · ≈70 MB).
 - **No coverage query** — batches are picked by hand. A script listing the highest-frequency
   senses missing from the tsv would pick them from data instead.
-- **EN→JA (`en.tsv`) not started.** The ingest already scopes its DELETE per language pair.
 - **Authoring rules** (long form in the tsv header): demonstrate THAT sense · natural JA in
   the word's register · short enough for a hover card · definitions as a monolingual
   dictionary writes them, carrying the collocation/negation habits a gloss cannot (遜色
   glossed "inferiority" invites the unnatural 遜色がある; the definition says 多くは「ない」を伴って使う).
-  - ⚠️ **No difficulty ceiling on supporting vocabulary.**「この部屋は書斎と客間を兼ねている」 is the natural
+  -  **No difficulty ceiling on supporting vocabulary.**「この部屋は書斎と客間を兼ねている」 is the natural
     sentence even though 書斎/客間 aren't easier than 兼ねる. **The rabbit hole is the feature.**
     Do not re-impose.
 - **The definitions are AUTHORED, not sourced.** JMdict glosses are target-language only;
@@ -177,58 +145,30 @@ Fix VOLUME first, then price.
   treating it as a shortcut.
 
 ### Camera / OCR — photo → text
-- **Built:** Mode A on iOS (Apple Vision via `TextOcrPlugin.swift`, per-line boxes), camera
-  **and** photo-library sources, crop-before-recognize, reading-order assembly.
-- **Web:** nothing free — Cloud Vision is $1.50/1k (1k/mo free). Needs `user_limits`.
-- **Vertical (縦書き)** is unhandled
-- **Mode B (AR overlay):** tappable chips per box, then replace-in-place. The geometry already flows from `captureResult()`.
+- In photo show translations
 
-### Voice — live listener language handling `[design call]`
-- **Built:** the live transcript
-  - **The "native" side is GUESSED** — `SUPPORTED_LANGUAGES.find(l => l.code !== learning)`
-    is positional, right for JA↔EN only by list order. `useTranslate` resolves it properly;
-    thread that through. **Do before a third language ships.**
-  - **No language control inside the transcript** — it follows the Translate tab.
-  - **One language per session.** A bilingual conversation (the actual case in Japan) is
-    recognized entirely as the learning language. On-device recognizers do no language
-    identification, so the honest options are a manual toggle or accepting it.
 
-### Handwriting — "draw the character" `[iOS first]`
-- **Built:** `HandwritingCanvas` + `services/handwriting`; recognized text appends into the
-  input and flows through the existing `analyze()` → JMdict pipeline.
-- **iOS:** ML Kit Digital Ink — on-device, free, ~20 MB model, wifi-once.
-- **Web:**`inputtools.google.com` (ToS-gray) or rasterize → Cloud Vision. Stroke capture is trivial; recognition is the whole problem.
 
 </details>
 
 ---
 
-<details open>
-<summary><h2>🐞 Bugs · scalability · hardening</h2></summary>
+##  Bugs · scalability · hardening
 
-### EN→JA lookup `[largely addressed — 20260765]`
-- **Re-measured on prod 2026-08-13 and the old numbers no longer hold.** The entry read
-  "5.0 s for one, 4.3 s back, 2.9 s own" (2026-08-07); today those are **404 / 143 / 134 ms**.
-  Something between the two fixed the pathological case; nobody re-measured.
-- **`20260765` capped the candidate fan-out.** The cost was never mostly the gloss scan —
-  for "one" that is 141 ms of 519 ms (27%), the rest being the LATERAL headword resolution
-  running once per candidate entry, **7,693 times to return 12 rows**. The sort's first two
-  keys are computable from the scan alone, so they define tiers that dominate it; once the
-  top tiers hold 12 entries the rest cannot place. **"one" 404 → 191 ms (2.1×); 10 of 24
-  sampled words ≥1.5×; none slower.** A word with a thin top tier ("own": 7) keeps every
-  candidate and pays what it always did.
+<details open>
+<summary>Show</summary>
+
+### EN→JA lookup speed (English word → Japanese results) `[low · 20260765]`
 - ⚠️ **The `gloss_terms` index this entry used to prescribe was built and REJECTED.** Both
   shapes, on prod, inside a rolled-back transaction: materialised
   `gloss_terms(term, entry_id, rank)` = 1,087,028 rows ≈ **85 MB**; `GIN(to_tsvector
   ('simple', text))` = **10 MB** and measured **0.6–1.2×** over a median of 7 — noise, some
-  slower, because it addresses the 27%. Don't rebuild it. (85 MB would also have taken half
+  slower, because it targets the gloss scan — only 27% of the cost (the rest is per-candidate
+  headword resolution). Don't rebuild it. (85 MB would also have taken half
   the free tier's remaining headroom — the word-map was deleted at 80 MB for that reason.)
-- **Still open, if it ever matters again:** a thin top tier plus a large T2 (`own`: 7 + 451)
+- **Open, if it ever matters:** a thin top tier plus a large T2 (`own`: 7 + 451)
   prunes nothing. Ordering inside T2 needs `pref.frequency`, so it would need a cheap
   per-entry frequency to pre-rank on — a materialised column, i.e. storage again.
-- **Already routed around** where it was fatal: the learn/placement path skips the gloss
-  fallback entirely (`skipGlossFallback`), because the EN pool only emits surfaces WordNet
-  can translate. That fixed A1/A2 placement timing out.
 
 ### Test coverage
 - **Edge error-log e2e** — the sink contract is covered; driving a real failing edge path
@@ -238,20 +178,7 @@ Fix VOLUME first, then price.
   `invoke` had no test. Until justified: a manual device checklist.
 
 ### Security (2026-06-28 audit)
-- **[MED] Enable captcha in prod** — interim mitigation: guests get a 30k/month paid-MT
-  default (vs 450k), so draining the global cap takes ~70 scripted guests, not ~5. Code +
-  deploy wiring are on `main` (`services/captcha.ts`; `deploy-prod.sh` passes
-  `VITE_TURNSTILE_SITE_KEY` from `.env.deploy` and has `captcha-on <secret>` / `captcha-off`).
-  Left, in ORDER: (1) create the Turnstile widget in the Cloudflare dashboard — **Invisible**,
-  hostnames `dinostudy.com` + `dino-86y.pages.dev` (the Pages API token can't; 403 on
-  Turnstile); (2) sitekey → `.env.deploy`, `deploy-prod.sh frontend`, confirm the bundle
-  carries it; (3) `deploy-prod.sh captcha-on <secret>`; (4) `npm run smoke:prod`.
-  ⚠️ **The prod iPhone build loses guest sign-in while it is on** — Turnstile can't run under
-  `capacitor://`. Before (3): dev phone on staging (`npm run ios:build`), or switch
-  `iosScheme` to `https` (new WebView origin = sessions reset; sitekey must allow `localhost`;
-  edge `ALLOWED_ORIGINS` gains `https://localhost`), or swap to hCaptcha.
-- **[ops] Rotate the Google Translation key** — hygiene, not urgent (API-restricted +
-  globally capped).
+- **[MED] Enable captcha in prod** 
 - **[MED · scale-only] Global-quota advisory lock** — contention only bites at huge MT
   throughput; shard by hash bucket if it does.
 
@@ -259,8 +186,138 @@ Fix VOLUME first, then price.
 
 ---
 
+## ➕ Open follow-ups
+
 <details open>
-<summary><h2>✨ Quality ceilings</h2></summary>
+<summary>Show</summary>
+
+### App Store submission `[iOS release]`
+Console work only. ⚠️ Sign in with Apple's .p8-signed secret **expires ≤6 months**;
+keep `PrivacyInfo.xcprivacy` **in sync with the App Store Connect privacy labels**. Answers
+are prepared in `docs/checklist/App_Store_Submission.md`; left there: signing + TestFlight,
+screenshots, the app record, Apple credentials.
+
+- **Build blocker:** uploads need **Xcode 26 / iOS 26 SDK** (since 2026-04-28). The dev
+  Mac (2014 MBP, OCLP) stays on Sonoma + Xcode 16.2 for device installs — **no Sequoia
+  upgrade; archive in Xcode Cloud** (decided 2026-11-03). Needs the paid membership.
+  Left: `ci_scripts/ci_post_clone.sh` (Node + CocoaPods, `npm install`, prod web build,
+  `cap sync` — Pods + web bundle are gitignored) · `build-ios.sh` reads Xcode Cloud env
+  vars instead of the absent `.env.deploy` · final checks on the TestFlight build.
+- **Enroll as Individual** ($99/yr)
+  (those are nonprofit/edu/gov only).
+- **Free, no IAP → Free Apps agreement only**
+- **EU DSA trader status** is asked before EU distribution: free + pre-revenue 
+
+- Screenshots: **6.9″ iPhone `1320 × 2868`** Skip ipad for now
+
+### Legal — Privacy/ToS `[§10]`
+**Counsel review is NOT a launch gate** while DINO is free, pre-revenue and founder-run
+(decided 2026-09-29) — pay for counsel at a trigger. Governing law is **British Columbia**;
+keep the Apple enrollment country and the operator address consistent with it.
+- **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
+  特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
+  the EU · ~1k active users.
+
+### Very low priority
+- **Real furigana (#16)** — ruby above kanji.
+- **FSRS (#19)** — a fitted D/S/R scheduler. A new `record_review()` body, same API.
+
+</details>
+
+---
+
+**To publish (non-code):** Production Rules console hardening. Counsel review waits for a trigger (see Legal).
+Admin tooling · Quality ceilings · Features are post-launch.
+
+---
+
+## 📋 Production Rules — standing checklist (live prod console)
+
+<details>
+<summary>Show</summary>
+
+Not a to-do — hosted toggles the founder flips. (Process rules the assistant follows — forward-only migrations, the pre-publish QA gate — live in CLAUDE.md → Standing process rules.) Numbers preserved from `Production_Hardening.md`.
+
+**6. Automated backups + PITR** `[§2]` — needs **Pro**. Tooling is done; interim is running
+`npm run db:backup` manually.
+
+**7. Observability — alerting** `[§9]` — point edge structured logs at hosted alerting
+(spend, 5xx, uptime). Emitted today: `mt_spend` · `request` · `global_cap_reached`. There is
+**no `health` event** — `/health` falls through the generic `request` line.
+
+
+</details>
+
+## 🛠 Admin tooling
+
+<details>
+<summary>Show</summary>
+
+**Email send tracker — the one paid-ish service with no meter** `[detect: over-traffic + silent failure]`
+- **Nothing is tracked, on either side.** `/support` is a static page showing an address —
+  no form, so a support request never touches our backend. Auth mail goes GoTrue → Brevo
+  SMTP, which we never see: `requestPasswordReset` resolves **identically** whether Brevo
+  delivered or rejected it. `provider_status`'s `brevo` row is hand-typed free text.
+- **Why it bites:** Brevo free is **300 sends/day** (confirmed via `/v3/account`) and the
+  auth rate limit was raised 2→30/hr. A burst — or a bot hammering reset-for-email —
+  exhausts the day, after which **resets and confirmations simply stop** while the app
+  reports success to everyone.
+- ‼️ **It has already happened, and we only found out by asking Brevo's API (2026-08-07).**
+  Last 30 days: **5 requests · 1 delivered · 4 error** — all four *"the sender you used …
+  is not valid"*, on 2026-07-13, fixed the same session. Not an open outage; the point is
+  that four auth emails failed and **no surface in the app knew** for three weeks.
+- **Build, in order:** (1) poll `/v3/account` + `/v3/smtp/statistics/aggregatedReport` on a
+  schedule into `email_usage (day, requests, delivered, errors, bounces, credits_left)` —
+  `BREVO_API_KEY` is already in `.env.deploy`; (2) log each reset/confirmation trigger
+  app-side and fold it into the Auth audit below — the **gap** between "we asked for N" and
+  "Brevo reports M" is the silent-failure signal, and neither number alone shows it;
+  (3) thresholds on the admin dashboard, not paging infra.
+- **Support requests are separate and unbuilt** — measuring them needs `/support` to become
+  a form → edge function → table. A product decision, not instrumentation.
+
+**Edit `words` cache — re-projection sweep (#3)**
+- **Left — storage:** rows the current projection no longer emits are never served but still
+  occupy the tier. **Left — destructive merge/repoint:** gated on a test harness.
+
+**Auth / account audit** — append-only: sign-up · upgrade · sign-in/out · reset. Who and
+when, never passwords. Deletion is already covered by `account_deletion_log`.
+
+**Admin-action audit** — partial (`feature_grants.granted_by`, `provider_status.updated_by`).
+Missing: a real audit table (action · target · admin · time). The surface must audit itself,
+since grants are never revoked.
+
+**Content-safety blocks** — `services/contentSafety.ts` filters but records nothing. Log
+`isExplicitSuggestion` hits to monitor false positives and abuse.
+
+**Edge health / latency** — surface p50/p95, status mix, 5xx. The in-app half of Production
+Rules #7.
+
+**Log retention + privacy** — a retention window for
+`error_log` (raw input, 500-char truncated → PII). ⚠️ **Not a drop-in:** `20260706` REVOKEs
+DELETE/TRUNCATE even from `service_role`, so retention needs a migration re-granting DELETE
+— trading against the append-only guarantee. Decide which wins.
+
+**API health: auto-pull real usage** — still manual: Brevo send count (specified under **Email send
+tracker** — do it there), Supabase billing caps.
+
+**Low priority — MT usage.** Hitting a cap degrades gracefully: past the allowance the iOS
+app glosses sentences with free on-device ML Kit (`services/translation/onDevice.ts`), and
+word lookups stay free via JMdict everywhere. Only the **web** loses sentence glosses at the
+cap, so this matters only if web traffic grows.
+- **Translation / MT call log** — per request: input length · path (JMdict·WordNet·MT) ·
+  cache hit/miss · est. cost · latency; persist the edge's `mt_spend` stream.
+- **Quota / limit-hit events** — log every 413 (`paragraphCharLimit`) and 429
+  (`monthlyCharQuota` · `GLOBAL_MONTHLY_CHAR_QUOTA` · `MT_DISABLED`) with cap + user.
+- **Auto-pull Google MT quota** into API health.
+
+</details>
+
+---
+
+## ✨ Quality ceilings
+
+<details>
+<summary>Show</summary>
 
 Where OUTPUT quality is **capped** — ceilings, not bugs. Each: what's lacking → the miss.
 ⬛ = omitted for storage. Full ledger: `docs/QualityLimitations.md`.
@@ -283,14 +340,45 @@ Where OUTPUT quality is **capped** — ceilings, not bugs. Each: what's lacking 
   furigana is a hint; `words` readings are the source of truth.
 - **Ease-curve calibration** — JA POS offsets and anchors are tuned to JLPT as a proxy, not
   fit to real `review_log` volume.
-- **Full dict vs common subset (dev/seed)** ⬛ — dev ships the 22.6k `-common-` JMdict, so
-  non-common compounds (唐揚げ) return empty locally and fall to MT. Prod runs the full
-  dict; a seed-size tradeoff, not a prod gap.
 
-### 🇬🇧 English
+### Cross-cutting
+- **Per-sense axis** (JA+EN) — the biggest lever that costs engineering, not money.
+- **KO/ZH support** — a new language = its own dictionary source + `<source>_lookup()`.
+  Checklist: `docs/Adding_A_Language.md`.
+- **Language pair assumes exactly TWO languages** — must change before a third ships.
+  The learning language defaults to "the other one" than native (`otherLanguage`,
+  `defaultLanguagePair`, `resolveLanguagePair` in `services/language/registry.ts`), and
+  Translate / Add word drop their dropdowns while `FIXED_LANGUAGE_PAIR` holds. With three there is no "other one": new users need a
+  real choice of what to learn (an onboarding step or a picker), and every
+  `otherLanguage` caller needs revisiting.
 
-Everything English-specific lives here — the old "JA vs EN divergence" and "English as a
-learning target" sections said the same things and are folded in.
+</details>
+
+---
+
+## 🇬🇧 English learning — paused
+
+<details>
+<summary>Show</summary>
+
+**Paused 2026-11-07: Japanese is the only learning language** (registry `learnable` flag —
+re-offering English is flipping it back on). English stays a native + lookup language, so
+EN→JA lookup work above is NOT here. Parked until English learning returns:
+
+### Content
+- **Sense examples EN→JA (`data/sense_examples/en.tsv`)** — not started; the ingest already
+  scopes its DELETE per language pair.
+- **VOA Learning English** — RSS / scrape · PD → re-host OK · App surface.
+
+### Stored data + notes (inert while paused)
+- `english_frequency` (321k rows) + `english_proficiency` (8,845) on prod; the edge still
+  stamps them on new EN→JA rows (2 reads per uncached English word) though no JA learner
+  reads them. Rebuildable from `data/frequency/en.tsv` + `data/proficiency/en.tsv` — drop
+  them only if the free tier gets tight.
+- The Learn/placement EN pool skips the gloss fallback (`skipGlossFallback`) — that's what
+  fixed A1/A2 placement timing out.
+
+### Quality ceilings
 
 The core (words/user_words/lists/SRS/quiz) is language-agnostic and identical both ways.
 **Root cause of most gaps below:** `analyze()` gives English a POS (`posEn.ts`) but still no
@@ -320,207 +408,9 @@ which English does not have; sense examples + JA definitions are JA→EN by desi
   data won't move it. Only the safe direction applies, leaving +7/+3. English stays
   band-led **by evidence**; numbers are in `build-leveling-profile.ts`.
 
-**Already at parity — don't re-derive:** dictionary lookup, MT fallback, corpus frequency,
-proficiency bands, the Learn-tab band pool (`20260745`, measured 915 · 1,973 · 748
-candidates at A1 · B1 · C2), and grammar-word filtering (`functionWords.ts`).
 - ⚠️ The function-word list **under-reaches on purpose** — surface matching with no POS, and
   the costs are asymmetric (a function word slipping through is noise; a content word
   wrongly demoted can never be added). *can · may · will · have · do* are excluded **by
   name**. Don't "complete" it without reading that file's header.
-
-### Cross-cutting
-- **Per-sense axis** (JA+EN) — the biggest lever that costs engineering, not money.
-- **KO/ZH support** — a new language = its own dictionary source + `<source>_lookup()`.
-  Checklist: `docs/Adding_A_Language.md`.
-- **Language pair assumes exactly TWO languages** — must change before a third ships.
-  The learning language defaults to "the other one" than native (`otherLanguage`,
-  `defaultLanguagePair`, `resolveLanguagePair` in `services/language/registry.ts`), and
-  Translate has no picker for it. With three there is no "other one": new users need a
-  real choice of what to learn (an onboarding step or a picker), and every
-  `otherLanguage` caller needs revisiting.
-
-</details>
-
----
-
-<details open>
-<summary><h2>➕ Open follow-ups</h2></summary>
-
-### Custom domain `dinostudy.com` — follow-ups `[launch polish]`
-- **Google brand verification** — shows the app name and logo on Google's screen (Search
-  Console TXT for `dinostudy.com` → Branding → submit). iOS still uses the redirect flow,
-  so it reads "continue to …supabase.co" there until then.
-- ⚠️ Staging has **no SMTP** — auth emails there go nowhere. Test reset flows locally
-  (Inbucket, `:54324`).
-
-### Difficulty axis — retire `users.level`? `[#8 · design call]`
-Not redundant yet — consumers checked 2026-09-30: **one reader**, the cold-start seed on a
-Translate save / "Add all" (`seedStability(difficulty, users.level)` in `useTranslate`);
-**two writers**, the calibration quiz and the Learn level quiz (`useTextQuiz` calibrate).
-No SQL reads it. Retiring it = seed from `proficiency_band` through the band anchors (as
-the SRS ease already does), then drop the column + its grants (`20260704`).
-- ⚠️ **Keep the frequency ARM of `getDifficulty` regardless.** Only 27.7% of common English
-  lemmas are banded, so ~7 in 10 English words reach a level through frequency alone.
-- ⚠️ **Two runtimes compute "how hard is this word"** — client `getDifficulty` and SQL
-  `srs_leveling` (`20260731`), which reads `words` directly and never calls the client. Same
-  axis, no shared test pinning them (cf. `display_confidence` ↔ `services/confidence.ts`).
-
-### Proficiency label axis — remaining `[#8]`
-- **Drop the read-time level-estimate pieces** (`language_level_estimate`, `estimated_band()`, `measure_level_estimate()`, `level_estimate_bins()` + its `build:leveling` call) once no installed client calls `level_estimate_bins()` at startup (anything built before PR for 20260779).
-- **Claude as a level estimator** for kanji compounds — score it on the curated words first (~$3); frequency can't separate N1 from N3 compounds.
-
-### Placement + review-log — after `20260783` / `20260784`
-- Finish "Find my level" once on each real account — the stored band predates the fix.
-
-### App Store submission `[iOS release]`
-Code is done: Sign in with Apple (needs a Services ID + a .p8-signed secret that **expires
-≤6 months**), account deletion, EDRDG attribution, `PrivacyInfo.xcprivacy` (**keep it in
-sync with the App Store Connect privacy labels — Apple compares them**), and `/support`.
-Remaining is console work — answers prepared in `docs/checklist/App_Store_Submission.md`;
-left there: signing + TestFlight, screenshots, the app record, Apple credentials.
-
-- **Build blocker:** uploads need **Xcode 26 / iOS 26 SDK** (since 2026-04-28). The dev
-  Mac (2014 MBP, OCLP) is on Sonoma + Xcode 16.2 → OCLP to Sequoia ≥15.6 for Xcode 26
-  (OCLP has no Tahoe), and/or archive in Xcode Cloud.
-- **Enroll as Individual** ($99/yr) — no company or D-U-N-S needed; your legal name is the
-  public seller. Migrate to Organization if/when incorporating. No fee waiver applies
-  (those are nonprofit/edu/gov only).
-- **Free, no IAP → Free Apps agreement only**: no Paid Apps agreement, tax or banking forms
-  until there is revenue.
-- **EU DSA trader status** is asked before EU distribution: free + pre-revenue makes
-  "non-trader" defensible; if unsure, leave EU storefronts off for v1 (not a target
-  market; adding them later is cheap).
-
-- **iPhone-only for v1** — `TARGETED_DEVICE_FAMILY = 1`, so no iPad screenshot set and no
-  iPad layout in review. Don't widen it back before launch: adding iPad later is a normal
-  update, removing a device family after release is not.
-- Screenshots: **6.9″ iPhone `1320 × 2868`** (Apple scales it to every smaller iPhone). A
-  phone screenshot only passes if the phone IS a Pro Max; otherwise capture from the
-  Simulator (`xcrun simctl io booted screenshot`). sRGB PNG/JPEG, no alpha.
-
-### Legal — Privacy/ToS `[§10]`
-`/privacy` + `/terms` are drafted and footer-linked; the processor list matches the stack.
-**Counsel review is NOT a launch gate** while DINO is free, pre-revenue and founder-run
-(decided 2026-09-29) — pay for counsel at a trigger. Governing law is **British Columbia**;
-keep the Apple enrollment country and the operator address consistent with it.
-- **Counsel triggers:** first revenue (IAP / subscription / paid tier — also needs a
-  特定商取引法 disclosure page) · incorporating · ads or any tracking SDK · marketing to
-  the EU · ~1k active users.
-
-### Very low priority
-- **Real furigana (#16)** — ruby above kanji.
-- **FSRS (#19)** — a fitted D/S/R scheduler. A new `record_review()` body, same API.
-  **Blocked on DATA, not engineering** — revisit at ~1,000+ reviews for a real user.
-  - **Why it's still open:** every constant in `record_review` is hand-tuned and has never
-    been checked against whether anyone actually recalls — the seeds (1.5/4/10/22/40),
-    the growth (1.0/2.0/3.5), the lapse caps, `c_fresh_r`, the freeze grace. Fitting is
-    also the only way to settle whether frequency or the curated band predicts recall
-    (measured **R² = 0.24**, so today's ease rests on a weak signal). `review_log` has
-    carried `ease · word_position · user_position · level_source · retrievability` since
-    `20260731` precisely to make that fit possible.
-  - **Smaller than it sounds now.** Much of what FSRS buys already landed piecemeal: a
-    difficulty-like axis (`20260731` ease), fuzz + lapse cap + cram freeze (`20260729`),
-    display separated from schedule (`20260735`). The real remaining deltas are a
-    **per-card fitted difficulty** (today's ease comes from the level gap, not from that
-    card's history) and the **power-law curve** `R = (1 + Δ/9S)^-0.5`, which only diverges
-    from `exp(-Δ/S)` at long intervals.
-  - ‼️ **FSRS-5 is already foreclosed — this is not a decision you still get to make.**
-    `20260744` keeps one row per card per UTC day with a `repeats` counter. That's
-    standard FSRS-4.5 preprocessing, but FSRS-5's short-term model consumes same-day
-    grades and **those are gone, irreversibly**: reverting only helps data logged after
-    the revert. **FSRS-4.5 is the only version fittable to existing history.**
-  - Until then HLR is fine, and "fine" is load-bearing — it is not a placeholder anyone
-    needs to rush.
-
-</details>
-
----
-
-**To publish (non-code):** Production Rules console hardening. Counsel review waits for a trigger (see Legal).
-Admin tooling · Quality ceilings · Features are post-launch.
-
-**🧪 Pre-publish QA gate:** re-run the multi-agent pre-publish review before any published
-build / after any major change.
-
----
-
-<details>
-<summary><h2>📋 Production Rules — standing checklist (live prod console)</h2></summary>
-
-Not a to-do — standing rules + hosted toggles. Numbers preserved from `Production_Hardening.md`.
-
-**5. Forward-only migrations** `[§11]` — never edit an applied migration. Process, not a task.
-
-**6. Automated backups + PITR** `[§2]` — needs **Pro**. Tooling is done; interim is running
-`npm run db:backup` manually.
-
-**7. Observability — alerting** `[§9]` — point edge structured logs at hosted alerting
-(spend, 5xx, uptime). Emitted today: `mt_spend` · `request` · `global_cap_reached`. There is
-**no `health` event** — `/health` falls through the generic `request` line.
-
-
-</details>
-
-<details>
-<summary><h2>🛠 Admin tooling</h2></summary>
-
-**Shipped:** `AdminPage.tsx` gated by `is_admin` — Usage · API health · Grants · Errors · DB
-size · Quality reports (with `source` + the reported sense since `20260757`).
-
-**Email send tracker — the one paid-ish service with no meter** `[detect: over-traffic + silent failure]`
-- **Nothing is tracked, on either side.** `/support` is a static page showing an address —
-  no form, so a support request never touches our backend. Auth mail goes GoTrue → Brevo
-  SMTP, which we never see: `requestPasswordReset` resolves **identically** whether Brevo
-  delivered or rejected it. `provider_status`'s `brevo` row is hand-typed free text.
-- **Why it bites:** Brevo free is **300 sends/day** (confirmed via `/v3/account`) and the
-  auth rate limit was raised 2→30/hr. A burst — or a bot hammering reset-for-email —
-  exhausts the day, after which **resets and confirmations simply stop** while the app
-  reports success to everyone.
-- ‼️ **It has already happened, and we only found out by asking Brevo's API (2026-08-07).**
-  Last 30 days: **5 requests · 1 delivered · 4 error** — all four *"the sender you used …
-  is not valid"*, on 2026-07-13, fixed the same session. Not an open outage; the point is
-  that four auth emails failed and **no surface in the app knew** for three weeks.
-- **Build, in order:** (1) poll `/v3/account` + `/v3/smtp/statistics/aggregatedReport` on a
-  schedule into `email_usage (day, requests, delivered, errors, bounces, credits_left)` —
-  `BREVO_API_KEY` is already in `.env.deploy`; (2) log each reset/confirmation trigger
-  app-side and fold it into the Auth audit below — the **gap** between "we asked for N" and
-  "Brevo reports M" is the silent-failure signal, and neither number alone shows it;
-  (3) thresholds on the admin dashboard, not paging infra.
-- **Support requests are separate and unbuilt** — measuring them needs `/support` to become
-  a form → edge function → table. A product decision, not instrumentation.
-
-**Edit `words` cache — re-projection sweep (#3)**
-- **Correctness is SOLVED** (#34): stale rows are a cache MISS and re-project in place.
-- **Left — storage:** rows the current projection no longer emits are never served but still
-  occupy the tier. **Left — destructive merge/repoint:** gated on a test harness.
-
-**Translation / MT call log** — per request: input length · path (JMdict·WordNet·MT) · cache
-hit/miss · est. cost · latency. Persist the edge's `mt_spend` stream so spend and provider
-mix are queryable.
-
-**Quota / limit-hit events** — log every 413 (`paragraphCharLimit`) and 429
-(`monthlyCharQuota` · `GLOBAL_MONTHLY_CHAR_QUOTA` · `MT_DISABLED`) with cap + user.
-
-**Auth / account audit** — append-only: sign-up · upgrade · sign-in/out · reset. Who and
-when, never passwords. Deletion is already covered by `account_deletion_log`.
-
-**Admin-action audit** — partial (`feature_grants.granted_by`, `provider_status.updated_by`).
-Missing: a real audit table (action · target · admin · time). The surface must audit itself,
-since grants are never revoked.
-
-**Content-safety blocks** — `services/contentSafety.ts` filters but records nothing. Log
-`isExplicitSuggestion` hits to monitor false positives and abuse.
-
-**Edge health / latency** — surface p50/p95, status mix, 5xx. The in-app half of Production
-Rules #7.
-
-**Log retention + privacy** — admin-only read is done. Left: a retention window for
-`error_log` (raw input, 500-char truncated → PII). ⚠️ **Not a drop-in:** `20260706` REVOKEs
-DELETE/TRUNCATE even from `service_role`, so retention needs a migration re-granting DELETE
-— trading against the append-only guarantee. Decide which wins.
-
-**API health: auto-pull real usage** — Google MT chars are already live from
-`global_translation_usage`. Still manual: Brevo send count (specified under **Email send
-tracker** — do it there), Google quota, Supabase billing caps.
 
 </details>

@@ -346,6 +346,22 @@
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
+/* A fixed side of the pair (FIXED_LANGUAGE_PAIR): the select's footprint, as text. */
+.langbar__lang {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+.langbar__lang--sm {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+}
+
 .langbar__swap:hover {
   background: var(--hover);
   border-color: var(--accent);

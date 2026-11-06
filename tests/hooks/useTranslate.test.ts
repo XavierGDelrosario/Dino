@@ -32,10 +32,12 @@ vi.mock("@/services/session", () => ({ getUserProfile: vi.fn(), updateUserLangua
 vi.mock("@/services/difficulty", () => ({ getDifficulty: vi.fn() }));
 vi.mock("@/services/domain", () => ({ expandDomain: vi.fn() }));
 vi.mock("@/services/contentSafety", () => ({ isExplicitSuggestion: vi.fn() }));
-vi.mock("@/services/language", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/services/language")>()),
-  analyze: vi.fn(),
-}));
+vi.mock("@/services/language", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/services/language")>();
+  // Wrapped so a spec can stand in for a registry with MORE than one learnable
+  // language (only Japanese is learnable today, so every resolved pair is JA/EN).
+  return { ...real, analyze: vi.fn(), resolveLanguagePair: vi.fn(real.resolveLanguagePair) };
+});
 
 import { useTranslate } from "@/hooks/useTranslate";
 import { createCustomWord, getUserWordStates, saveDictionaryWords } from "@/services/words/userWords";
@@ -43,11 +45,19 @@ import { listUserLists } from "@/services/lists";
 import { getUserLimits, DEFAULT_LIMITS } from "@/services/entitlements";
 import { getUserLevel } from "@/services/calibration";
 import { getUserProfile, updateUserLanguages } from "@/services/session";
-import { DEFAULT_LEARNING_LANGUAGE, DEFAULT_NATIVE_LANGUAGE, analyze } from "@/services/language";
+import {
+  DEFAULT_LEARNING_LANGUAGE,
+  DEFAULT_NATIVE_LANGUAGE,
+  analyze,
+  resolveLanguagePair,
+} from "@/services/language";
 import { lookupWord, translateParagraph } from "@/services/lookup";
+
+const realResolvePair = vi.mocked(resolveLanguagePair).getMockImplementation()!;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(resolveLanguagePair).mockImplementation(realResolvePair);
   vi.mocked(listUserLists).mockResolvedValue([]);
   vi.mocked(getUserLimits).mockResolvedValue(DEFAULT_LIMITS);
   vi.mocked(getUserLevel).mockResolvedValue(null);
@@ -109,6 +119,12 @@ describe("useTranslate — setLearning persists to the profile", () => {
   it("still applies the saved profile when the user has NOT chosen", async () => {
     // The other half: the guard must not latch on the effect's first run, which
     // carries the DEFAULTS — that would mean a saved profile never applied at all.
+    // A saved pair that differs from the defaults needs a second learnable language,
+    // so the pair policy is stood in for by "take the saved pair verbatim".
+    vi.mocked(resolveLanguagePair).mockImplementation((p) => ({
+      learning: p?.learningLanguage ?? DEFAULT_LEARNING_LANGUAGE,
+      native: p?.nativeLanguage ?? DEFAULT_NATIVE_LANGUAGE,
+    }));
     vi.mocked(getUserProfile).mockResolvedValue({
       userId: "user-1", learningLanguage: "EN", nativeLanguage: "JA",
     } as Awaited<ReturnType<typeof getUserProfile>>);

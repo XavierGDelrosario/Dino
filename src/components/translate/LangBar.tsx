@@ -2,9 +2,16 @@
 // Shared by the word and paragraph translate panels.
 //
 // Source may be the AUTO_DETECT sentinel; target is always a concrete language.
+//
+// While only two languages exist (FIXED_LANGUAGE_PAIR) the two sides are plain
+// labels — a dropdown would offer nothing the ⇄ doesn't. A third language in the
+// registry turns the dropdowns back on with no change here.
 // The flip itself is `swapLanguages` (services/language) — shared with the Lists
 // add-word form so both surfaces flip identically.
 import {
+  FIXED_LANGUAGE_PAIR,
+  AUTO_DETECT,
+  languageName,
   sourceOptions,
   targetOptions,
   swapLanguages,
@@ -40,6 +47,18 @@ export function LangBar({
     onTarget(flipped.target);
   };
 
+  if (FIXED_LANGUAGE_PAIR) {
+    const sourceName =
+      source === AUTO_DETECT ? sourceOptions()[0].name : languageName(source);
+    return (
+      <div className="langbar">
+        <span className="ellipsis langbar__lang" aria-label={t("langbar.sourceAria")}>{sourceName}</span>
+        <SwapButton onClick={swap} />
+        <span className="ellipsis langbar__lang" aria-label={t("langbar.targetAria")}>{languageName(target)}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="langbar">
       <select
@@ -55,15 +74,7 @@ export function LangBar({
         ))}
       </select>
 
-      <button
-        type="button"
-        className="langbar__swap"
-        onClick={swap}
-        title={t("langbar.swapTitle")}
-        aria-label={t("langbar.swapAria")}
-      >
-        ⇄
-      </button>
+      <SwapButton onClick={swap} />
 
       <select
         className="select"
@@ -78,5 +89,21 @@ export function LangBar({
         ))}
       </select>
     </div>
+  );
+}
+
+/** The ⇄ between the two sides (also used by the Lists add-word form's LangPair). */
+export function SwapButton({ onClick, small = false }: { onClick: () => void; small?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      className={`langbar__swap${small ? " langbar__swap--sm" : ""}`}
+      onClick={onClick}
+      title={t("langbar.swapTitle")}
+      aria-label={t("langbar.swapAria")}
+    >
+      ⇄
+    </button>
   );
 }
