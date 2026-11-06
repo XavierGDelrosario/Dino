@@ -151,7 +151,7 @@ export function FlashcardView({
     <section className="review">
       <div className="review__head">
         {scope}
-        <FlipButton flip={flip} />
+        <FlipButton flip={flip} wordLang={card.sourceLang} meaningLang={card.targetLang} />
       </div>
       <ProgressBar position={r.position} total={r.total} />
 

@@ -1,8 +1,10 @@
 // The source → target language dual-select of the Lists add-word form — the
 // compact sibling of the Translate surface's <LangBar>, with the same ⇄ flip
 // button between the two selects (the flip itself is the shared, pure
-// `swapLanguages`, so the two surfaces can't drift).
-import { useI18n } from "../../i18n";
+// `swapLanguages`, so the two surfaces can't drift). Like LangBar, the sides are
+// plain labels while only two languages exist (FIXED_LANGUAGE_PAIR).
+import { SwapButton } from "../translate/LangBar";
+import { FIXED_LANGUAGE_PAIR } from "../../services/language";
 import "./lists.css";
 
 type LangOption = { code: string; name: string };
@@ -29,7 +31,17 @@ export function LangPair({
   sourceAria?: string;
   targetAria?: string;
 }) {
-  const { t } = useI18n();
+  const nameOf = (code: string, options: LangOption[]) =>
+    options.find((o) => o.code === code)?.name ?? code;
+  if (FIXED_LANGUAGE_PAIR) {
+    return (
+      <div className="addword__langs">
+        <span className="ellipsis langbar__lang langbar__lang--sm" aria-label={sourceAria}>{nameOf(source, sourceOptions)}</span>
+        <SwapButton onClick={onSwap} small />
+        <span className="ellipsis langbar__lang langbar__lang--sm" aria-label={targetAria}>{nameOf(target, targetOptions)}</span>
+      </div>
+    );
+  }
   return (
     <div className="addword__langs">
       <select
@@ -42,15 +54,7 @@ export function LangPair({
           <option key={o.code} value={o.code}>{o.name}</option>
         ))}
       </select>
-      <button
-        type="button"
-        className="langbar__swap langbar__swap--sm"
-        onClick={onSwap}
-        title={t("langbar.swapTitle")}
-        aria-label={t("langbar.swapAria")}
-      >
-        ⇄
-      </button>
+      <SwapButton onClick={onSwap} small />
       <select
         className="select select--sm"
         value={target}

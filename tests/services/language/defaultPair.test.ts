@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 // The pair a user opens on when they have saved none (or half of one): native is the
-// device's language, learning is the other supported one. A saved value always wins.
+// device's language, learning is a LEARNABLE language other than it (Japanese only, as
+// of 2026-11-07). A saved native wins unless it collides; a saved learning language
+// wins only while it is still learnable.
 import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   defaultLanguagePair,
+  isLearnable,
+  learningOptions,
+  nativeOptions,
   otherLanguage,
   resolveLanguagePair,
   systemLanguage,
@@ -36,10 +41,22 @@ describe("otherLanguage", () => {
   });
 });
 
+describe("learnable languages", () => {
+  it("only Japanese can be studied for now; English stays a native/translate language", () => {
+    expect(isLearnable("JA")).toBe(true);
+    expect(isLearnable("EN")).toBe(false);
+    expect(learningOptions().map((l) => l.code)).toEqual(["JA"]);
+  });
+
+  it("the native dropdown never offers the language being learned", () => {
+    expect(nativeOptions("JA").map((l) => l.code)).toEqual(["EN"]);
+  });
+});
+
 describe("defaultLanguagePair", () => {
-  it("a Japanese device learns English, explained in Japanese", () => {
+  it("a Japanese device still learns Japanese (explained in English)", () => {
     device("ja-JP");
-    expect(defaultLanguagePair()).toEqual({ native: "JA", learning: "EN" });
+    expect(defaultLanguagePair()).toEqual({ native: "EN", learning: "JA" });
   });
 
   it("an English device learns Japanese", () => {
@@ -54,9 +71,17 @@ describe("defaultLanguagePair", () => {
 });
 
 describe("resolveLanguagePair", () => {
-  it("a fully saved pair is used as-is, whatever the device says", () => {
+  it("a fully saved (learnable) pair is used as-is, whatever the device says", () => {
     device("ja-JP");
     expect(resolveLanguagePair({ learningLanguage: "JA", nativeLanguage: "EN" })).toEqual({
+      native: "EN",
+      learning: "JA",
+    });
+  });
+
+  it("a saved pair learning a no-longer-learnable language reads as learning Japanese", () => {
+    device("ja-JP");
+    expect(resolveLanguagePair({ learningLanguage: "EN", nativeLanguage: "JA" })).toEqual({
       native: "EN",
       learning: "JA",
     });
@@ -65,27 +90,32 @@ describe("resolveLanguagePair", () => {
   it("nothing saved → the device's default pair", () => {
     device("ja-JP");
     expect(resolveLanguagePair({ learningLanguage: null, nativeLanguage: null })).toEqual({
-      native: "JA",
-      learning: "EN",
+      native: "EN",
+      learning: "JA",
     });
-    expect(resolveLanguagePair(null)).toEqual({ native: "JA", learning: "EN" });
+    expect(resolveLanguagePair(null)).toEqual({ native: "EN", learning: "JA" });
   });
 
-  it("only native saved → learning is the other one", () => {
+  it("only native saved → learning is a learnable language, never the same one twice", () => {
     device("en-US");
+    expect(resolveLanguagePair({ learningLanguage: null, nativeLanguage: "EN" })).toEqual({
+      native: "EN",
+      learning: "JA",
+    });
     expect(resolveLanguagePair({ learningLanguage: null, nativeLanguage: "JA" })).toEqual({
-      native: "JA",
-      learning: "EN",
+      native: "EN",
+      learning: "JA",
     });
   });
 
   it("only learning saved → native is the device's language, never the same language twice", () => {
-    device("ja-JP");
-    expect(resolveLanguagePair({ learningLanguage: "EN", nativeLanguage: null })).toEqual({
-      native: "JA",
-      learning: "EN",
+    device("en-US");
+    expect(resolveLanguagePair({ learningLanguage: "JA", nativeLanguage: null })).toEqual({
+      native: "EN",
+      learning: "JA",
     });
     // The device's language IS the one being learned → native must be the other.
+    device("ja-JP");
     expect(resolveLanguagePair({ learningLanguage: "JA", nativeLanguage: null })).toEqual({
       native: "EN",
       learning: "JA",

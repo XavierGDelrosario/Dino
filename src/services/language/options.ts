@@ -4,7 +4,7 @@
 // Quickly access all supported languages
 // =========================================================
 
-import { SUPPORTED_LANGUAGES, type LangCode, type LanguageDefinition } from "./registry";
+import { SUPPORTED_LANGUAGES, LEARNABLE_LANGUAGES, type LangCode, type LanguageDefinition } from "./registry";
 import { AUTO_DETECT, type SourceSelection } from "./detect";
 
 /**
@@ -14,6 +14,20 @@ import { AUTO_DETECT, type SourceSelection } from "./detect";
  */
 export function targetOptions(): LanguageDefinition[] {
   return SUPPORTED_LANGUAGES;
+}
+
+/**
+ * Options for the Profile's LEARNING dropdown: only the languages that can be studied.
+ * (Translate's own direction dropdowns stay on every supported language — looking a
+ * word up in either direction is still useful while learning only one.)
+ */
+export function learningOptions(): LanguageDefinition[] {
+  return LEARNABLE_LANGUAGES;
+}
+
+/** Options for the Profile's NATIVE dropdown: every supported language except the one being learned. */
+export function nativeOptions(learning: LangCode): LanguageDefinition[] {
+  return SUPPORTED_LANGUAGES.filter((l) => l.code !== learning);
 }
 
 /**
