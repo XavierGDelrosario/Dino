@@ -68,7 +68,10 @@ jobs:
       - name: Start Supabase (DB + auth + migrations)
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned to the repo's own CLI (node_modules `supabase`). `latest` broke CI on
+          # 2026-11-07: a newer CLI rejects config.toml's `[inbucket]` (renamed
+          # `[local_smtp]`). Bump this together with the devDependency + config.toml.
+          version: 2.107.0
       - run: supabase start
 
       - name: Export Supabase env for the test harness
