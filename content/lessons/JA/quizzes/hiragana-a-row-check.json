@@ -1,0 +1,185 @@
+{
+  "id": "hiragana-a-row-check",
+  "schema": 1,
+  "language": "JA",
+  "level": "N5",
+  "order": 1,
+  "title": {
+    "EN": "Hiragana: the あ row — check",
+    "JA": "ひらがな：あ行 — 確認"
+  },
+  "summary": {
+    "EN": "Nine quick questions on あ い う え お and the words they spell.",
+    "JA": "あ い う え お と、それで書ける言葉の9問。"
+  },
+  "shuffle": true,
+  "shuffleOptions": true,
+  "questions": [
+    {
+      "prompt": {
+        "EN": "Which one is “a”?",
+        "JA": "「a」はどれですか？"
+      },
+      "options": [
+        "あ",
+        "お",
+        "い"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "あ is “a”. お looks similar but has a separate dot at the top right.",
+        "JA": "あ が「a」です。お は似ていますが、右上に離れた点があります。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "Which one is “i”?",
+        "JA": "「i」はどれですか？"
+      },
+      "options": [
+        "い",
+        "う",
+        "え"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "い is two short strokes side by side.",
+        "JA": "い は短い2本の線が並んでいます。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "Which one is “u”?",
+        "JA": "「u」はどれですか？"
+      },
+      "options": [
+        "う",
+        "え",
+        "い"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "う has a short stroke on top and a curve below.",
+        "JA": "う は上に短い線、下に曲線があります。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "Which one is “e”?",
+        "JA": "「e」はどれですか？"
+      },
+      "options": [
+        "え",
+        "う",
+        "お"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "え has a short stroke on top, like う, but ends in a zigzag.",
+        "JA": "え は う のように上に短い線がありますが、下はジグザグです。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "Which one is “o”?",
+        "JA": "「o」はどれですか？"
+      },
+      "options": [
+        "お",
+        "あ",
+        "え"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "お is “o” — note the dot at the top right.",
+        "JA": "お が「o」です。右上の点に注目しましょう。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "How do you read this?",
+        "JA": "これはどう読みますか？"
+      },
+      "text": "あおい",
+      "options": [
+        "aoi",
+        "oai",
+        "aio"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "あ “a”, お “o”, い “i”: aoi — it means “blue”.",
+        "JA": "あ「a」、お「o」、い「i」で「aoi」。「青い」という意味です。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "What does this word mean?",
+        "JA": "この言葉の意味は？"
+      },
+      "text": "いえ",
+      "options": [
+        {
+          "EN": "house"
+        },
+        {
+          "EN": "love"
+        },
+        {
+          "EN": "above"
+        }
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "いえ (家) means “house”.",
+        "JA": "いえ（家）は「house（家）」という意味です。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "What does this word mean?",
+        "JA": "この言葉の意味は？"
+      },
+      "text": "あい",
+      "options": [
+        {
+          "EN": "love"
+        },
+        {
+          "EN": "blue"
+        },
+        {
+          "EN": "to say"
+        }
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "あい (愛) means “love”.",
+        "JA": "あい（愛）は「love（愛）」という意味です。"
+      }
+    },
+    {
+      "prompt": {
+        "EN": "In which order is this row recited?",
+        "JA": "この行はどの順番で唱えますか？"
+      },
+      "image": {
+        "src": "images/a-row.png",
+        "alt": {
+          "EN": "The あ row chart",
+          "JA": "あ行の表"
+        }
+      },
+      "options": [
+        "a, i, u, e, o",
+        "a, e, i, o, u",
+        "a, o, i, u, e"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "Always a, i, u, e, o — every row of the chart follows this vowel order.",
+        "JA": "いつも a, i, u, e, o の順です。表のすべての行がこの母音の順番に従います。"
+      }
+    }
+  ]
+}

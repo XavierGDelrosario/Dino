@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import { ErrorText } from "../components/common/ErrorText";
 import { LessonView } from "./LessonView";
+import { LevelGroups } from "../components/lessons/LevelGroups";
+import { LearnSection } from "../components/lessons/LearnSection";
 import {
   getLessonIndex,
   groupLessonsByLevel,
@@ -44,7 +46,7 @@ const doneKey = (language: string, id: string) => `${language.toUpperCase()}:${i
 
 type State = { status: "idle" | "loading" | "error" } | { status: "ready"; index: LessonIndex };
 
-export function LessonsSection({ userId, langs, ready, onTakeover }: LearnSectionProps) {
+export function LessonsSection({ userId, langs, ready, userLevel, onTakeover }: LearnSectionProps) {
   const { t } = useI18n();
   const [state, setState] = useState<State>({ status: "idle" });
   const [attempt, setAttempt] = useState(0);
@@ -94,13 +96,14 @@ export function LessonsSection({ userId, langs, ready, onTakeover }: LearnSectio
   if (state.status === "error") {
     return (
       <section className="lessons">
-        <p className="learn__bandstitle learn__articlestitle">{t("lessons.title")}</p>
-        <div className="review__msg">
+        <LearnSection id="lessons" title={t("lessons.title")}>
+          <div className="review__msg">
           <ErrorText message={t("lessons.loadError")} />
           <button type="button" className="btn btn--ghost" onClick={() => setAttempt((n) => n + 1)}>
             {t("lessons.retry")}
           </button>
-        </div>
+          </div>
+        </LearnSection>
       </section>
     );
   }
@@ -111,35 +114,30 @@ export function LessonsSection({ userId, langs, ready, onTakeover }: LearnSectio
   const groups = groupLessonsByLevel(state.index.lessons, langs.learning);
   return (
     <section className="lessons">
-      <p className="learn__bandstitle learn__articlestitle">{t("lessons.title")}</p>
-      {groups.map((g) => (
-        <div key={g.level ?? "other"} className="lessons__group">
-          {groups.length > 1 || g.level ? (
-            <p className="lessons__level">{g.level ?? t("lessons.other")}</p>
-          ) : null}
-          <ul className="lessons__list">
-            {g.lessons.map((l) => {
-              const isDone = done.has(doneKey(langs.learning, l.id));
-              const summary = pickLocalized(l.summary, langs.native);
-              return (
-                <li key={l.id}>
-                  <button
-                    type="button"
-                    className={`lessons__item${isDone ? " lessons__item--done" : ""}`}
-                    onClick={() => setOpen(l)}
-                    // Completion is shown by the green outline + tint alone; this keeps
-                    // it announced for a screen reader.
-                    aria-description={isDone ? t("lessons.completed") : undefined}
-                  >
-                    <span className="lessons__itemtitle">{pickLocalized(l.title, langs.native)}</span>
-                    {summary && <span className="lessons__summary">{summary}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+      <LearnSection id="lessons" title={t("lessons.title")}>
+      <LevelGroups
+        groups={groups}
+        storageKey={`lessons.${langs.learning}`}
+        userLevel={userLevel}
+        renderItem={(l) => {
+          const isDone = done.has(doneKey(langs.learning, l.id));
+          const summary = pickLocalized(l.summary, langs.native);
+          return (
+            <button
+              type="button"
+              className={`lessons__item${isDone ? " lessons__item--done" : ""}`}
+              onClick={() => setOpen(l)}
+              // Completion is shown by the green outline + tint alone; this keeps
+              // it announced for a screen reader.
+              aria-description={isDone ? t("lessons.completed") : undefined}
+            >
+              <span className="lessons__itemtitle">{pickLocalized(l.title, langs.native)}</span>
+              {summary && <span className="lessons__summary">{summary}</span>}
+            </button>
+          );
+        }}
+      />
+      </LearnSection>
     </section>
   );
 }

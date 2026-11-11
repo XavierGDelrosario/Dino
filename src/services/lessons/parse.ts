@@ -17,6 +17,9 @@ import {
   type ImageRef,
   type LessonCard,
   type Lesson,
+  type Quiz,
+  type QuizOption,
+  type QuizQuestion,
   type LessonBlock,
   type LessonIndex,
   type LessonSummary,
@@ -197,4 +200,53 @@ export function parseLessonIndex(raw: unknown, opts: ParseOptions = {}): LessonI
  */
 export function pickLocalized(text: Localized, native: LangCode): string {
   return text[native.toUpperCase()] ?? text.EN ?? Object.values(text).find(Boolean) ?? "";
+}
+
+function parseQuestion(raw: unknown): QuizQuestion | string {
+  if (!isObj(raw)) return "question is not an object";
+  const prompt = localized(raw.prompt);
+  const text = isStr(raw.text) ? raw.text.trim().normalize("NFC") : null;
+  if (!hasAny(prompt) && !text) return "question has neither a prompt nor a text";
+  const options: QuizOption[] = [];
+  for (const o of Array.isArray(raw.options) ? raw.options : []) {
+    if (isStr(o)) options.push(o.trim().normalize("NFC"));
+    else if (hasAny(localized(o))) options.push(localized(o));
+    else return "question has an empty option";
+  }
+  if (options.length < 2) return "question needs 2+ options";
+  if (new Set(options.map((o) => JSON.stringify(o))).size !== options.length) return "question has duplicate options";
+  const answer = raw.answer;
+  if (typeof answer !== "number" || !Number.isInteger(answer) || answer < 0 || answer >= options.length)
+    return "question answer is not an option index";
+  if (raw.image !== undefined && !imageRef(raw.image)) return "question has an invalid image";
+  return { prompt, text, image: imageRef(raw.image), options, answer, explanation: localized(raw.explanation) };
+}
+
+export function parseQuiz(raw: unknown, opts: ParseOptions = {}): Quiz {
+  if (!isObj(raw)) throw new LessonFormatError("quiz is not an object");
+  if (!isStr(raw.id) || !LESSON_ID.test(raw.id)) throw new LessonFormatError("quiz has no valid id");
+  if (!isStr(raw.language)) throw new LessonFormatError(`quiz ${raw.id} has no language`);
+  const schema = schemaOf(raw.schema);
+  if (schema > LESSON_SCHEMA)
+    throw new LessonFormatError(`quiz ${raw.id} needs schema ${schema} (this build reads ${LESSON_SCHEMA})`);
+  const title = localized(raw.title);
+  if (!hasAny(title)) throw new LessonFormatError(`quiz ${raw.id} has no title`);
+  if (!Array.isArray(raw.questions)) throw new LessonFormatError(`quiz ${raw.id} has no questions`);
+  const questions: QuizQuestion[] = [];
+  raw.questions.forEach((q, i) => {
+    const parsed = parseQuestion(q);
+    if (typeof parsed === "string") issue(opts, `quiz ${raw.id} question ${i}: ${parsed}`);
+    else questions.push(parsed);
+  });
+  if (questions.length === 0) throw new LessonFormatError(`quiz ${raw.id} has no valid questions`);
+  return {
+    id: raw.id,
+    schema,
+    language: raw.language.toUpperCase(),
+    level: isStr(raw.level) ? raw.level : null,
+    title,
+    questions,
+    shuffle: raw.shuffle !== false,
+    shuffleOptions: raw.shuffleOptions !== false,
+  };
 }

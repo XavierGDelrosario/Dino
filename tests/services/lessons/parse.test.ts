@@ -150,3 +150,34 @@ describe("cards block word lookup", () => {
     expect(kana.type === "cards" && kana.lookup).toBe(false);
   });
 });
+
+describe("parseQuiz", () => {
+  const quiz = (questions: unknown[], extra: Record<string, unknown> = {}) => ({
+    id: "kana-check",
+    language: "ja",
+    level: "N5",
+    title: { EN: "Check" },
+    questions,
+    ...extra,
+  });
+  const good = { prompt: { EN: "Which is o?" }, options: ["あ", "お"], answer: 1 };
+
+  it("parses questions with learning-language and native-language options", async () => {
+    const { parseQuiz } = await import("@/services/lessons");
+    const q = parseQuiz(
+      quiz([good, { text: "いえ", prompt: { EN: "Meaning?" }, options: [{ EN: "house" }, { EN: "love" }], answer: 0 }]),
+    );
+    expect(q.language).toBe("JA");
+    expect(q.questions).toHaveLength(2);
+    expect(q.questions[1].options).toEqual([{ EN: "house" }, { EN: "love" }]);
+    expect(q.shuffle && q.shuffleOptions).toBe(true);
+  });
+
+  it("drops a bad question leniently, throws in strict mode, and rejects an empty quiz", async () => {
+    const { parseQuiz } = await import("@/services/lessons");
+    const bad = { prompt: { EN: "?" }, options: ["a", "a"], answer: 0 }; // duplicate options
+    expect(parseQuiz(quiz([good, bad]), { onIssue: () => {} }).questions).toHaveLength(1);
+    expect(() => parseQuiz(quiz([good, bad]), { strict: true })).toThrow(LessonFormatError);
+    expect(() => parseQuiz(quiz([bad]), { onIssue: () => {} })).toThrow(/no valid questions/);
+  });
+});

@@ -9,12 +9,15 @@
 // SOURCE (authored, in git):
 //   content/lessons/<LANG>/<id>.json        one lesson; <id> must equal the file stem
 //   content/lessons/<LANG>/images/<name>    images it references as "images/<name>"
+//   content/lessons/<LANG>/quizzes/<id>.json  one multiple-choice quiz (same images/)
 //
 // PUBLISHED (in the bucket):
 //   <LANG>/images/<name>.<hash>.<ext>       content-addressed, cached for a year
 //   <LANG>/<id>.<hash>.json                 content-addressed (image refs rewritten), a year
-//   <LANG>/index.json                       the manifest, 60 s cache — uploaded LAST, so
-//                                           it never names a file that isn't there yet
+//   <LANG>/quizzes/<id>.<hash>.json         content-addressed quizzes, a year
+//   <LANG>/index.json, <LANG>/quizzes/index.json
+//                                           the manifests, 60 s cache — uploaded LAST, so
+//                                           they never name a file that isn't there yet
 //
 // Every lesson is parsed in STRICT mode with the same parser the app uses, so a block
 // the app would silently drop fails here instead. Re-publishing unchanged content
@@ -26,7 +29,7 @@ import { execSync } from "node:child_process";
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname, basename } from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { parseLesson, LESSON_ID, IMAGE_PATH } from "../src/services/lessons/parse";
+import { parseLesson, parseQuiz, LESSON_ID, IMAGE_PATH } from "../src/services/lessons/parse";
 
 const ROOT = join(import.meta.dirname, "..", "content", "lessons");
 const BUCKET = "lessons";
@@ -76,7 +79,7 @@ function rewriteImage(ref: unknown, map: Map<string, string>, where: string): un
   return typeof ref === "string" ? published : { ...(ref as Json), src: published };
 }
 
-function buildLanguage(lang: string): { uploads: Upload[]; index: Upload; count: number } {
+function buildLanguage(lang: string): { uploads: Upload[]; indexes: Upload[]; count: number; quizCount: number } {
   const dir = join(ROOT, lang);
   const uploads: Upload[] = [];
 
@@ -135,13 +138,53 @@ function buildLanguage(lang: string): { uploads: Upload[]; index: Upload; count:
     console.log(`  ${lang}/${file}  (${lesson.blocks.length} blocks)`);
   }
 
-  const index = {
-    path: `${lang}/index.json`,
-    body: Buffer.from(JSON.stringify({ schema: 1, language: lang, lessons: entries }, null, 2)),
-    contentType: "application/json",
-    cacheControl: INDEX_CACHE,
-  };
-  return { uploads, index, count: entries.length };
+  const indexes: Upload[] = [
+    {
+      path: `${lang}/index.json`,
+      body: Buffer.from(JSON.stringify({ schema: 1, language: lang, lessons: entries }, null, 2)),
+      contentType: "application/json",
+      cacheControl: INDEX_CACHE,
+    },
+  ];
+
+  // Quizzes: same id/language rules, image refs rewritten per question, strict parse.
+  const quizEntries: Json[] = [];
+  const quizDir = join(dir, "quizzes");
+  if (existsSync(quizDir)) {
+    for (const name of readdirSync(quizDir).filter((f) => f.endsWith(".json")).sort()) {
+      const id = basename(name, ".json");
+      const where = `${lang}/quizzes/${name}`;
+      if (!LESSON_ID.test(id)) throw new Error(`${where}: file name must be a quiz id (a-z, 0-9, -)`);
+      const raw = JSON.parse(readFileSync(join(quizDir, name), "utf8")) as Json;
+      if (raw.id !== id) throw new Error(`${where}: "id" must be "${id}"`);
+      if (String(raw.language ?? "").toUpperCase() !== lang) throw new Error(`${where}: "language" must be "${lang}"`);
+      const questions = (Array.isArray(raw.questions) ? raw.questions : []).map((q: Json, i: number) =>
+        q?.image === undefined ? q : { ...q, image: rewriteImage(q.image, imageMap, `${where} question ${i}`) },
+      );
+      const published = { ...raw, questions };
+      const quiz = parseQuiz(published, { strict: true });
+      const body = Buffer.from(JSON.stringify(published));
+      const file = `${id}.${hash(body)}.json`;
+      uploads.push({ path: `${lang}/quizzes/${file}`, body, contentType: "application/json", cacheControl: IMMUTABLE });
+      quizEntries.push({
+        id,
+        file,
+        schema: quiz.schema,
+        level: quiz.level,
+        order: typeof raw.order === "number" ? raw.order : 0,
+        title: quiz.title,
+        summary: raw.summary ?? {},
+      });
+      console.log(`  ${lang}/quizzes/${file}  (${quiz.questions.length} questions)`);
+    }
+    indexes.push({
+      path: `${lang}/quizzes/index.json`,
+      body: Buffer.from(JSON.stringify({ schema: 1, language: lang, lessons: quizEntries }, null, 2)),
+      contentType: "application/json",
+      cacheControl: INDEX_CACHE,
+    });
+  }
+  return { uploads, indexes, count: entries.length, quizCount: quizEntries.length };
 }
 
 async function main() {
@@ -164,18 +207,20 @@ async function main() {
 
   for (const lang of langs) {
     console.log(`${lang}:`);
-    const { uploads, index, count } = buildLanguage(lang);
+    const { uploads, indexes, count, quizCount } = buildLanguage(lang);
     if (dryRun) {
-      console.log(`  dry run — would upload ${uploads.length} files + index.json (${count} lessons) to ${url}`);
+      console.log(
+        `  dry run — would upload ${uploads.length} files + ${indexes.length} index(es) (${count} lessons, ${quizCount} quizzes) to ${url}`,
+      );
       continue;
     }
-    for (const u of [...uploads, index]) {
+    for (const u of [...uploads, ...indexes]) {
       const { error } = await supabase!.storage
         .from(BUCKET)
         .upload(u.path, u.body, { contentType: u.contentType, cacheControl: u.cacheControl, upsert: true });
       if (error) throw new Error(`upload ${u.path}: ${error.message}`);
     }
-    console.log(`  published ${count} lessons (${uploads.length} files + index.json) to ${url}`);
+    console.log(`  published ${count} lessons + ${quizCount} quizzes (${uploads.length} files + ${indexes.length} index(es)) to ${url}`);
   }
 }
 

@@ -13,27 +13,67 @@
   opacity: 0.75;
 }
 
-/* "Learn new words" heading above the N5…N1 level tabs. */
-.learn__bandstitle {
-  margin: 0 0 0.5rem;
-  /* Centred: these two headings ("Learn new words", "Articles") title the sections
-     below them, and the level buttons under the first are a centred row. */
+/* Section heading (LearnSection) over Lessons · Vocab · Quizzes · Articles: a separator
+   line ABOVE and BELOW, and the title itself is a show/hide toggle with its arrow
+   beside it — the same discreet control as the N5/N4 groups inside. */
+.learn__sectiontitle {
+  /* No top margin: the Learn column already spaces its blocks (a flex gap). */
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   font-weight: 600;
-  color: var(--text);
 }
-
-/* Articles (Wikinews) — the OTHER way into new words, so it reads as a second
-   section under the bands rather than a link to somewhere else. Same heading as the
-   bands', with the air the band row doesn't need above it. */
-.learn__articlestitle {
-  margin-top: 0.5rem;
+.learn__sectiontoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.learn__sectiontoggle:hover,
+.learn__sectiontoggle:hover .learn__sectionchevron {
+  color: var(--accent);
+}
+.learn__sectiontoggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.learn__sectionchevron {
+  font-size: 0.7em;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.18s ease;
+}
+.learn__sectiontoggle--open .learn__sectionchevron {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .learn__sectionchevron {
+    transition: none;
+  }
 }
 
 /* No divider line under the level tabs (the shared .tabs rule adds one). */
 .tabs.learn__bands {
+  margin-bottom: 0;
   border-bottom: none;
+}
+
+/* Vocab band buttons highlight purple on hover (the accent), so N5…N1 read as buttons
+   that start something rather than as passive tabs. Scoped here — the main tab bar
+   shares .tab and keeps its own look. */
+.learn__bands .tab:hover:not(:disabled) {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 /* ── Swipe test ─────────────────────────────────────────────────────── */

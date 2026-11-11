@@ -164,3 +164,44 @@ export interface Lesson {
   title: Localized;
   blocks: LessonBlock[];
 }
+
+// ── Quizzes ─────────────────────────────────────────────────────────────────
+// Standalone multiple-choice quizzes, published beside the lessons under
+// `<LEARNING_LANG>/quizzes/` (index.json + content-addressed `<id>.<hash>.json`) and
+// sharing the language folder's `images/`. Same contract as lessons: keyed on the
+// pair, unknown fields ignored, a newer `schema` hidden from this build. A quiz's
+// index is the same shape as the lessons' (LessonIndex / LessonSummary).
+
+export type QuizOption = string | Localized;
+
+/** One multiple-choice question. */
+export interface QuizQuestion {
+  /** The instruction, in the native language ("Which one is “o”?"). */
+  prompt: Localized;
+  /** Optional learning-language stem shown large (a word, a sentence with a ＿ blank). */
+  text: string | null;
+  image: ImageRef | null;
+  /**
+   * Answer choices. A plain string is learning-language text (あ, いえ); a Localized map
+   * is an answer in the NATIVE language ({"EN": "house"}), picked like any prose — so
+   * "what does this mean?" questions work for every native language.
+   */
+  options: QuizOption[];
+  /** Index into `options` as AUTHORED (the page may display them shuffled). */
+  answer: number;
+  /** Shown after answering. */
+  explanation: Localized;
+}
+
+export interface Quiz {
+  id: string;
+  schema: number;
+  language: LangCode;
+  level: string | null;
+  title: Localized;
+  questions: QuizQuestion[];
+  /** Deal the questions in random order (default true). */
+  shuffle: boolean;
+  /** Show each question's options in random order (default true). */
+  shuffleOptions: boolean;
+}

@@ -3,17 +3,61 @@
 
 /* ── The list ─────────────────────────────────────────────────────── */
 .lessons {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.5rem;
 }
-.lessons__group + .lessons__group {
-  margin-top: 0.75rem;
+/* Collapsible level groups (LevelGroups): a discreet toggle — just the band label with
+   its arrow beside it, no box. */
+.levelgroups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
-.lessons__level {
-  margin: 0 0 0.4rem;
+.levelgroup__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.levelgroup--open .levelgroup__toggle {
+  color: var(--text);
+}
+/* Hovered buttons in Learn take the accent: highlight AND text go purple. */
+.levelgroup__toggle:hover,
+.levelgroup__toggle:hover .levelgroup__chevron {
+  color: var(--accent);
+}
+.levelgroup__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.levelgroup__chevron {
+  font-size: 0.75rem;
+  transition: transform 0.18s ease;
+  transform: rotate(-90deg);
+}
+.levelgroup--open .levelgroup__chevron {
+  transform: none;
+}
+.levelgroup__items {
+  margin: 0.35rem 0 0.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .levelgroup__chevron {
+    transition: none;
+  }
+}
+.lessons__score {
   font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  color: var(--success);
 }
 .lessons__list {
   list-style: none;
@@ -38,15 +82,20 @@
   cursor: pointer;
 }
 .lessons__item:hover {
-  background: var(--hover);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-color: var(--accent);
 }
+.lessons__item:hover .lessons__itemtitle {
+  color: var(--accent);
+}
+/* Size order in a Learn list: description < item title < level toggle (N5). */
 .lessons__itemtitle {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.4;
 }
 .lessons__summary {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -375,7 +424,9 @@
   cursor: pointer;
 }
 .lesson__option:hover:not(:disabled) {
-  background: var(--hover);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .lesson__option:disabled {
   cursor: default;
@@ -404,4 +455,131 @@
   display: flex;
   justify-content: center;
   padding: 0.5rem 0 1rem;
+}
+
+/* ── Quiz page (QuizPage) ─────────────────────────────────────────── */
+.quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+.quiz__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.quiz__back {
+  align-self: flex-start;
+  text-decoration: none;
+}
+.quiz__title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.quiz__position {
+  margin: -0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.quiz__question {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+}
+.quiz__prompt {
+  margin: 0;
+  font-weight: 600;
+}
+.quiz__text {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+.quiz__image {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.quiz__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.quiz__option {
+  padding: 0.85rem 0.75rem;
+  font: inherit;
+  font-size: 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.quiz__option:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.quiz__option:disabled {
+  cursor: default;
+}
+.quiz__option.is-correct {
+  border-color: var(--success);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, var(--surface));
+}
+.quiz__option.is-wrong {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+.quiz__option.is-dim {
+  opacity: 0.55;
+}
+.quiz__feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  text-align: center;
+}
+.quiz__feedback p {
+  margin: 0;
+  line-height: 1.6;
+}
+.quiz__feedback .is-correct strong {
+  color: var(--success);
+}
+.quiz__feedback .is-wrong strong {
+  color: var(--danger-text);
+}
+.quiz__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+.quiz__score {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+.quiz__actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.quiz__actions .btn {
+  text-decoration: none;
 }

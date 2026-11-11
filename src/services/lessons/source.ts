@@ -15,8 +15,8 @@
 // fetch falls back to them; only "never fetched, and offline" is an error. Storage can
 // throw (private mode, quota), so every access is guarded — the cache is a convenience.
 // =========================================================
-import { parseLesson, parseLessonIndex } from "./parse";
-import type { Lesson, LessonIndex } from "./types";
+import { parseLesson, parseLessonIndex, parseQuiz } from "./parse";
+import type { Lesson, LessonIndex, Quiz } from "./types";
 import type { LangCode } from "../language";
 
 const CACHE_PREFIX = "dino.lessons.v1.";
@@ -48,13 +48,20 @@ function cacheSet(key: string, value: unknown): void {
     /* full or blocked — the network copy still renders */
   }
 }
-/** Drop cached lesson files for `language` that the current index no longer names. */
-function pruneFiles(language: LangCode, keep: Set<string>): void {
+/**
+ * Drop cached files under `<language>/<sub>` that the current index no longer names.
+ * Scoped to ONE manifest's folder: lessons live at the language root and quizzes under
+ * `quizzes/`, so pruning lessons must not touch cached quizzes (or vice versa).
+ */
+function pruneFiles(language: LangCode, sub: string, keep: Set<string>): void {
   try {
     const prefix = `${CACHE_PREFIX}file.${language}/`;
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k?.startsWith(prefix) && !keep.has(k.slice(prefix.length))) localStorage.removeItem(k);
+      if (!k?.startsWith(prefix)) continue;
+      const path = k.slice(prefix.length);
+      const inScope = sub ? path.startsWith(sub) : !path.includes("/");
+      if (inScope && !keep.has(path)) localStorage.removeItem(k);
     }
   } catch {
     /* ignore */
@@ -68,11 +75,16 @@ const EMPTY = (language: LangCode): LessonIndex => ({ schema: 1, language, lesso
  * empty list, not an error — Storage answers a missing object with 400/404.
  */
 export async function getLessonIndex(language: LangCode): Promise<LessonIndex> {
+  return fetchIndex(language, "");
+}
+
+/** A manifest under `<LANG>/<prefix>` ("" = lessons, "quizzes/" = quizzes). */
+async function fetchIndex(language: LangCode, prefix: string): Promise<LessonIndex> {
   const lang = language.toUpperCase();
-  const cacheKey = `index.${lang}`;
+  const cacheKey = `index.${lang}/${prefix}`;
   let res: Response;
   try {
-    res = await fetch(lessonAssetUrl(lang, "index.json"), { cache: "no-cache" });
+    res = await fetch(lessonAssetUrl(lang, `${prefix}index.json`), { cache: "no-cache" });
   } catch (e) {
     const cached = cacheGet(cacheKey);
     if (cached !== undefined) return parseLessonIndex(cached);
@@ -87,26 +99,41 @@ export async function getLessonIndex(language: LangCode): Promise<LessonIndex> {
   const raw: unknown = await res.json();
   const index = parseLessonIndex(raw);
   cacheSet(cacheKey, raw);
-  pruneFiles(lang, new Set(index.lessons.map((l) => l.file)));
+  pruneFiles(lang, prefix, new Set(index.lessons.map((l) => `${prefix}${l.file}`)));
   return index;
+}
+
+/** The quizzes published for a LEARNING language (`<LANG>/quizzes/index.json`). */
+export async function getQuizIndex(language: LangCode): Promise<LessonIndex> {
+  return fetchIndex(language, "quizzes/");
+}
+
+/** One quiz by its manifest file name (immutable, like a lesson file). */
+export async function getQuiz(language: LangCode, file: string): Promise<Quiz> {
+  return fetchFile(language, `quizzes/${file}`, parseQuiz);
 }
 
 /** One lesson by its manifest file name. Immutable, so a cached copy is always current. */
 export async function getLesson(language: LangCode, file: string): Promise<Lesson> {
+  return fetchFile(language, file, parseLesson);
+}
+
+/** An immutable content file at `<LANG>/<path>`, through the device cache. */
+async function fetchFile<T>(language: LangCode, path: string, parse: (raw: unknown) => T): Promise<T> {
   const lang = language.toUpperCase();
-  const cacheKey = `file.${lang}/${file}`;
+  const cacheKey = `file.${lang}/${path}`;
   const cached = cacheGet(cacheKey);
   if (cached !== undefined) {
     try {
-      return parseLesson(cached);
+      return parse(cached);
     } catch {
       /* a cached copy this build can't read — refetch */
     }
   }
-  const res = await fetch(lessonAssetUrl(lang, file));
-  if (!res.ok) throw new Error(`Lesson unavailable (${res.status})`);
+  const res = await fetch(lessonAssetUrl(lang, path));
+  if (!res.ok) throw new Error(`Content unavailable (${res.status})`);
   const raw: unknown = await res.json();
-  const lesson = parseLesson(raw);
+  const parsed = parse(raw);
   cacheSet(cacheKey, raw);
-  return lesson;
+  return parsed;
 }
