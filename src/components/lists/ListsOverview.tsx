@@ -251,6 +251,17 @@ export function ListsOverview({
   const [creating, setCreating] = useState(false);
   const sorted = useMemo(() => sortOverviews(rows, axis, dir), [rows, axis, dir]);
 
+  // First load: the page loader ALONE — no sort bar or "New list" over an index with
+  // nothing in it yet. A refresh after a rename/delete keeps the rows it has, so it never
+  // drops back to this.
+  if (loading && rows.length === 0) {
+    return (
+      <section className="listsoverview">
+        <PageLoading />
+      </section>
+    );
+  }
+
   return (
     <section className="listsoverview">
       <div className="listsoverview__bar">
@@ -268,8 +279,6 @@ export function ListsOverview({
           ]}
         />
       </div>
-
-      {loading && rows.length === 0 && <PageLoading inline />}
 
       <ul className="listsoverview__rows">
         {sorted.map((r) => (

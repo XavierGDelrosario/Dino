@@ -17,6 +17,7 @@ import {
   orderSensesForInput,
   parseAllowedOrigins,
   parseLearnRequest,
+  levelledLearnCard,
   DEFAULT_LEARN_LIMIT,
   MAX_LEARN_LIMIT,
   resolvePerInputWithCandidates,
@@ -1191,5 +1192,17 @@ describe("lemmaCandidates — keys that are Object.prototype members", () => {
       expect(() => lemmaCandidates(`${w}'s`, "EN")).not.toThrow();
       for (const c of lemmaCandidates(w, "EN")) expect(typeof c).toBe("string");
     }
+  });
+});
+
+describe("levelledLearnCard", () => {
+  const w = (id: string, band: number | null) => ({ id, proficiencyBand: band });
+  it("keeps only levelled senses, picked band first, dictionary order within each group", () => {
+    // がん: 癌 is curated, 雁/願 are not — they must not reach a LEVEL card.
+    const card = [w("雁", null), w("癌-b2", 2), w("願", null), w("癌-b3", 3), w("岩", 3)];
+    expect(levelledLearnCard(card, 3).map((x) => x.id)).toEqual(["癌-b3", "岩", "癌-b2"]);
+  });
+  it("drops a card with no levelled sense", () => {
+    expect(levelledLearnCard([w("雁", null), { id: "x", proficiencyBand: undefined }], 3)).toEqual([]);
   });
 });

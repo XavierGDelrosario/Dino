@@ -1,0 +1,407 @@
+/* Lessons — the list under Learn's bands, and an open lesson (LessonsSection / LessonView).
+   Every colour is a palette token (common.css); nothing here is theme-specific. */
+
+/* ── The list ─────────────────────────────────────────────────────── */
+.lessons {
+  margin-bottom: 1.25rem;
+}
+.lessons__group + .lessons__group {
+  margin-top: 0.75rem;
+}
+.lessons__level {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.lessons__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.lessons__item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.lessons__item:hover {
+  background: var(--hover);
+}
+.lessons__itemtitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.lessons__summary {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+/* Completed: a green outline and a light green wash over the card's own surface. */
+.lessons__item--done {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 9%, var(--surface));
+}
+.lessons__item--done:hover {
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+}
+
+/* ── An open lesson ───────────────────────────────────────────────── */
+.lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 42rem;
+  margin: 0 auto;
+  text-align: left;
+}
+.lesson__topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* The lesson's switches stack at the top right: EN | JA, then (on the learning side)
+   the Reader on/off under it. */
+.lesson__switches {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+/* On/off slider (OnOffSwitch): label, then a small track whose thumb slides right
+   and fills with the accent when on. */
+.onoff {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.onoff__track {
+  position: relative;
+  width: 2.1rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.onoff__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.2rem - 6px);
+  height: calc(1.2rem - 6px);
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.onoff--on {
+  color: var(--text);
+}
+.onoff--on .onoff__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.onoff--on .onoff__thumb {
+  background: var(--on-accent);
+  transform: translateX(0.9rem);
+}
+.onoff:focus-visible .onoff__track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Explanation-language switch (LangSwitch): a pill with a sliding thumb under the
+   active code. */
+.langswitch {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.langswitch__thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: var(--accent);
+  transition: transform 0.18s ease;
+}
+.langswitch--right .langswitch__thumb {
+  transform: translateX(100%);
+}
+.langswitch__opt {
+  position: relative; /* above the thumb */
+  min-width: 2.4rem;
+  padding: 0.25rem 0.6rem;
+  text-align: center;
+  color: var(--muted);
+  transition: color 0.18s ease;
+}
+.langswitch__opt.is-on {
+  color: var(--on-accent);
+}
+.langswitch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .langswitch__thumb,
+  .langswitch__opt,
+  .onoff__track,
+  .onoff__thumb {
+    transition: none;
+  }
+}
+.lesson__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.lesson__level {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.lesson__title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+.lesson__text p {
+  margin: 0 0 0.75rem;
+  line-height: 1.7;
+}
+.lesson__text p:last-child {
+  margin-bottom: 0;
+}
+
+.lesson__pattern {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.lesson__patternform {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.lesson__patternnote {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lesson__example {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+/* The reader's body carries a three-line minimum for the Translate tab (translate.css
+   .reader__body); an example is one line, so size it by its text — as SenseExample does. */
+.lesson__reader {
+  font-size: 1.2rem;
+  line-height: 2;
+}
+.lesson__reader .reader__body {
+  min-height: 0;
+}
+.lesson__reader .reader {
+  font-size: inherit;
+  line-height: inherit;
+  margin: 0;
+}
+/* Explanation prose through the reader: paragraph-sized, not example-sized, with the
+   room furigana needs between lines; spaced like the plain paragraphs it replaces. */
+.lesson__reader--prose {
+  font-size: 1rem;
+  line-height: 2.1;
+  margin: 0 0 0.75rem;
+}
+.lesson__reader--prose:last-child,
+.lesson__caption {
+  margin-bottom: 0;
+}
+.lesson__caption {
+  margin-top: 0;
+}
+.lesson__sentence {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.lesson__sentence.is-loading {
+  opacity: 0.7;
+}
+.lesson__gloss {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lesson__figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.lesson__figure img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+}
+.lesson__figure figcaption {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Embedded practice deck — reuses .flashcard for the card itself. */
+.lesson__cards {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.lesson__cardstitle {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+}
+.lesson__cardsprogress {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+.lesson__card {
+  min-height: 220px;
+}
+.lesson__cardimage {
+  max-width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.lesson__cardhint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.lesson__cardnote {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.lesson__cardactions,
+.lesson__cardsdone {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.lesson__cardsdone p {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* Multiple choice */
+.lesson__choice {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.lesson__choiceprompt {
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+}
+.lesson__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.lesson__option {
+  min-width: 3.5rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.lesson__option:hover:not(:disabled) {
+  background: var(--hover);
+}
+.lesson__option:disabled {
+  cursor: default;
+}
+.lesson__option.is-correct {
+  border-color: var(--success);
+  color: var(--success);
+}
+.lesson__option.is-wrong {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  opacity: 0.75;
+}
+.lesson__feedback {
+  margin: 0.6rem 0 0;
+  line-height: 1.6;
+}
+.lesson__feedback.is-correct strong {
+  color: var(--success);
+}
+.lesson__feedback.is-wrong {
+  color: var(--danger-text);
+}
+
+.lesson__footer {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0 1rem;
+}

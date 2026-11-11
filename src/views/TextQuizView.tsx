@@ -199,10 +199,12 @@ export function TextQuizView({
           action={
             <AddToListButton
               key={card.wordId}
-              className={`card-add${q.isCurrentSaved ? " is-saved" : ""}`}
+              className="card-add"
               words={[card]}
               lists={lists}
-              label={q.isCurrentSaved ? "✓" : "＋"}
+              // Always ＋ (never a resting ✓): the button's brief ✓ flash confirms a
+              // save, and on a saved word ＋ opens the list menu (alreadyAdded).
+              label="＋"
               alreadyAdded={q.isCurrentSaved}
               onAdd={(words, listId) => q.addWord(words[0], listId)}
               onCreateList={onCreateList}

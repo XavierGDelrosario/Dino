@@ -121,7 +121,7 @@ export function CalibrationView({
       <section className="review">
         <PageLoading text={t("calib.loading")} />
         <div className="review__foot">
-          {c.live?.sufficient && (
+          {c.canFinish && (
             <button className="btn btn--primary calib__finish" onClick={c.finish}>
               {t("calib.finish")}
             </button>
@@ -132,7 +132,7 @@ export function CalibrationView({
     );
   }
 
-  const sufficient = c.live?.sufficient ?? false;
+  const sufficient = c.canFinish;
   return (
     <section className="review calib">
       <div className="swipe">
@@ -148,10 +148,10 @@ export function CalibrationView({
               onFlip={reveal}
               action={
                 <AddToListButton
-                  className={`card-add${c.tagged.has(current.wordId) ? " is-saved" : ""}`}
+                  className="card-add"
                   words={[current]}
                   lists={lists}
-                  label={c.tagged.has(current.wordId) ? "✓" : "＋"}
+                  label="＋" // never a resting ✓ — same as every quiz card's add button
                   alreadyAdded={c.tagged.has(current.wordId)}
                   onAdd={(words, listId) => c.addToList(words[0], listId)}
                   onCreateList={onCreateList}

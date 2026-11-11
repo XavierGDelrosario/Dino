@@ -848,13 +848,10 @@ main:has([data-no-footer]) .app__footer {
   color: var(--accent);
   letter-spacing: 0.1em;
 }
+/* Inline (smaller than a page): no mascot — the message and dots only. */
 .pageloading--inline {
   min-height: 0;
-  padding: 2rem 0;
-}
-.pageloading--inline .pageloading__icon {
-  width: 3.5rem;
-  height: 3.5rem;
+  padding: 1.25rem 0;
 }
 
 /* Google's "translated by Google" badge (GoogleBadge.tsx). The artwork is Google's and

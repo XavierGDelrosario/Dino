@@ -1,0 +1,195 @@
+{
+  "id": "hiragana-a-row",
+  "schema": 1,
+  "language": "JA",
+  "level": "N5",
+  "order": 1,
+  "title": {
+    "EN": "Hiragana: the あ row",
+    "JA": "ひらがな：あ行"
+  },
+  "summary": {
+    "EN": "The five vowels every other kana is built on — あ い う え お.",
+    "JA": "ほかのすべてのかなの土台になる、5つの母音 — あ い う え お。"
+  },
+  "blocks": [
+    {
+      "type": "text",
+      "body": {
+        "EN": "Hiragana is the basic Japanese script: each character is one syllable, and every word can be written in it.\n\nThe chart is organised in rows of five, and the first row is the five vowels on their own. Every later row is a consonant plus these same five vowels, in the same order — so learning this row well is learning the backbone of the whole chart.",
+        "JA": "ひらがなは日本語の基本的な文字です。1文字が1つの音を表し、どんな言葉もひらがなで書くことができます。\n\n五十音表は5文字ずつの行に並んでいて、最初の行は5つの母音だけでできています。そのあとの行はすべて、子音にこの5つの母音を同じ順番で組み合わせたものです。つまり、この行をしっかり覚えれば、表全体の骨組みを覚えたことになります。"
+      }
+    },
+    {
+      "type": "image",
+      "image": {
+        "src": "images/a-row.png",
+        "alt": {
+          "EN": "The あ row: あ a, い i, う u, え e, お o",
+          "JA": "あ行：あ a、い i、う u、え e、お o"
+        }
+      },
+      "caption": {
+        "EN": "Always recited in this order: a, i, u, e, o.",
+        "JA": "いつもこの順番で唱えます：あ、い、う、え、お。"
+      }
+    },
+    {
+      "type": "text",
+      "body": {
+        "EN": "Japanese vowels are short and pure — they don't glide the way English vowels do. お is “o”, not “oh-w”; え is “e”, not “ay”.",
+        "JA": "日本語の母音は短く、はっきりしています。英語の母音のように、発音の途中で音が変わることはありません。お は「オウ」ではなく「オ」、え は「エイ」ではなく「エ」です。"
+      }
+    },
+    {
+      "type": "cards",
+      "title": {
+        "EN": "Drill the あ row",
+        "JA": "あ行を練習しよう"
+      },
+      "shuffle": true,
+      "cards": [
+        {
+          "front": "あ",
+          "back": "a",
+          "note": {
+            "EN": "as in “father”",
+            "JA": "英語の “father” の a に近い音"
+          }
+        },
+        {
+          "front": "い",
+          "back": "i",
+          "note": {
+            "EN": "as in “see”, but shorter",
+            "JA": "英語の “see” の ee を短くした音"
+          }
+        },
+        {
+          "front": "う",
+          "back": "u",
+          "note": {
+            "EN": "as in “food”, lips relaxed, not rounded",
+            "JA": "英語の “food” の oo に近いが、唇を丸めない"
+          }
+        },
+        {
+          "front": "え",
+          "back": "e",
+          "note": {
+            "EN": "as in “get”",
+            "JA": "英語の “get” の e に近い音"
+          }
+        },
+        {
+          "front": "お",
+          "back": "o",
+          "note": {
+            "EN": "as in “go”, without the “w” at the end",
+            "JA": "英語の “go” の o に近いが、最後に「ウ」をつけない"
+          }
+        }
+      ],
+      "lookup": false
+    },
+    {
+      "type": "text",
+      "body": {
+        "EN": "Even with just these five you can read real words. Hover a word to see its meaning and add it to your vocabulary.",
+        "JA": "この5文字だけでも、本物の言葉が読めます。言葉にカーソルを合わせると意味が表示され、単語帳に追加できます。"
+      }
+    },
+    {
+      "type": "example",
+      "text": "あい",
+      "gloss": {
+        "EN": "love"
+      }
+    },
+    {
+      "type": "example",
+      "text": "いう",
+      "gloss": {
+        "EN": "to say"
+      }
+    },
+    {
+      "type": "example",
+      "text": "あおい",
+      "gloss": {
+        "EN": "blue"
+      }
+    },
+    {
+      "type": "cards",
+      "title": {
+        "EN": "Words you can already read",
+        "JA": "もう読める言葉"
+      },
+      "shuffle": true,
+      "cards": [
+        {
+          "front": "あい",
+          "back": "love"
+        },
+        {
+          "front": "あおい",
+          "back": "blue"
+        },
+        {
+          "front": "いう",
+          "back": "to say"
+        },
+        {
+          "front": "いえ",
+          "word": "家",
+          "back": "house"
+        },
+        {
+          "front": "うえ",
+          "word": "上",
+          "back": "above; on top"
+        },
+        {
+          "front": "え",
+          "word": "絵",
+          "back": "picture; drawing"
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "prompt": {
+        "EN": "Which one is “o”?",
+        "JA": "「o」はどれですか？"
+      },
+      "options": [
+        "あ",
+        "お",
+        "え"
+      ],
+      "answer": 1,
+      "explanation": {
+        "EN": "お is “o”. It looks like あ with a separate dot at the top right — あ has no dot.",
+        "JA": "お が「o」です。右上に離れた点があるのが お で、あ には点がありません。"
+      }
+    },
+    {
+      "type": "choice",
+      "prompt": {
+        "EN": "How do you read あおい?",
+        "JA": "あおい はどう読みますか？"
+      },
+      "options": [
+        "aoi",
+        "oai",
+        "aio"
+      ],
+      "answer": 0,
+      "explanation": {
+        "EN": "あ “a”, お “o”, い “i”: あおい, “aoi” — blue.",
+        "JA": "あ「a」、お「o」、い「i」で、あおい は「aoi」と読みます。意味は「青い」です。"
+      }
+    }
+  ]
+}
