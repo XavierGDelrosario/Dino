@@ -198,6 +198,27 @@ export type ParsedLearn =
   | { ok: false; error: string };
 
 /**
+ * Shape one LEARN card (a headword's resolved senses) for the level the user picked.
+ *
+ * The pool (learn_words_at_band) picks headwords whose ENTRY is curated at the band,
+ * but the card is built by looking the headword up again — and a kana headword
+ * collects every entry that shares the reading. がん came back with 癌 (banded) AND
+ * 雁/願/… (not), so the card could lead with a sense that has no level at all. So:
+ *   - only senses carrying a curated level stay (no level = not part of a LEVEL quiz);
+ *   - senses at the PICKED band come first, the other levelled ones after, each group in
+ *     the dictionary's own order;
+ *   - a card left with nothing is dropped (empty array).
+ * Generic over the sense type so it stays pure and unit-testable.
+ */
+export function levelledLearnCard<T extends { proficiencyBand?: number | null }>(senses: T[], band: number): T[] {
+  const levelled = senses.filter((w) => w.proficiencyBand != null);
+  return [
+    ...levelled.filter((w) => w.proficiencyBand === band),
+    ...levelled.filter((w) => w.proficiencyBand !== band),
+  ];
+}
+
+/**
  * Validate + normalize a `{ band, limit?, excludeSeen? }` learn request. band must be an
  * integer 1..6 (the framework ordinal); limit clamps to [1, MAX]; excludeSeen defaults
  * TRUE (learn wants only NEW words) — only calibration passes false.

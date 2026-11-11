@@ -458,10 +458,9 @@ export function TranslateView({
           >
             {t.status === "loading" ? (
               <span className="translate__placeholder"><Loading text={tr("translate.translating")} /></span>
-            ) : t.output ? (
-              t.output
             ) : (
-              <span className="translate__placeholder">{tr("translate.outputPlaceholder")}</span>
+              // No filler text when empty — the box itself says where the result goes.
+              t.output
             )}
           </div>
           {/* Top-right, the corner opposite read-aloud, as a column: the flag that

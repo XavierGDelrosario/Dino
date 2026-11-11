@@ -1,7 +1,7 @@
 // Presentational sentence reader. Words are colored by knowledge (grey = no entry ·
 // accent = addable · red→green by confidence once saved). HOVER lists EVERY sense with
 // its own add button, so a homograph (辛い → からい / つらい) can be added by the exact
-// meaning; saved senses show confidence (✓ n/5), and a word the app claims you know
+// meaning; saved senses show confidence (the dots), and a word the app claims you know
 // carries a top-right "Forgot" that drops it one bucket. State lives in the parent
 // (useTranslate).
 import { isNameSense, studyView } from "../../services/lookup";
@@ -28,10 +28,11 @@ import "../common/SenseText.css"; // shared .sense* row/action styles
 const SUMMARY_MIN_WORDS = 12;
 import { Loading } from "../common/Loading";
 import { WordInfoButton } from "../common/WordInfo";
+import { ConfidenceDots } from "../common/ConfidenceDots";
 
 // How long "Forgot" stays visibly spent after a press. Longer than the server's own 2s
 // dedupe window (20260766) on purpose: the guard the USER experiences should be the one
-// they can see, and by the time the button re-arms the new ✓ n/5 has been on screen for
+// they can see, and by the time the button re-arms the new confidence dots have been on screen for
 // well over a second. Raise it and a deliberate second notch feels blocked; drop it below
 // the server window and a legitimate press gets silently swallowed.
 const FORGET_HOLD_MS = 2500;
@@ -77,6 +78,7 @@ function ParagraphReaderImpl({
   onAdd,
   onCreateList,
   onForgot,
+  hideSummary = false,
 }: {
   text: string;
   tokens: AnalyzedToken[];
@@ -118,6 +120,9 @@ function ParagraphReaderImpl({
   /** "Forgot": lower each given sense by one confidence bucket. Omit to hide the
    *  affordance entirely (a surface with no user-word ids can't act on it). */
   onForgot?: (words: Word[]) => Promise<void>;
+  /** Drop the "Quick summary" toggle. For prose embedded in a page (a lesson's
+   *  explanation paragraphs), where a word-stats panel above every paragraph is noise. */
+  hideSummary?: boolean;
 }) {
   const { t: tr } = useI18n();
   // `key` is the token's wordKey, carried so the card looks its senses up exactly as
@@ -167,7 +172,7 @@ function ParagraphReaderImpl({
     () => summarizeReader({ ...studyView({ tokens, meaningsByWord, names }), saved, confidence }),
     [tokens, meaningsByWord, names, saved, confidence],
   );
-  const canSummarize = summary.total >= SUMMARY_MIN_WORDS;
+  const canSummarize = !hideSummary && summary.total >= SUMMARY_MIN_WORDS;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // The word element the card is anchored to — kept so we can re-measure it while
   // the page scrolls/resizes (below), keeping the card glued to its word.
@@ -482,7 +487,7 @@ function ParagraphReaderImpl({
       ? hoveredSenses.filter((s) => saved.has(s.wordId) && canSoften(confidence.get(s.wordId)))
       : [];
   // idle → pending → done → (FORGET_HOLD_MS later) idle. The `done` hold IS the
-  // client-side double-tap defence: the press has landed, the new ✓ n/5 is already on
+  // client-side double-tap defence: the press has landed, the new confidence dots are already on
   // screen, and the button stays visibly spent long enough to be read before it will
   // accept another press. The server refuses a second drop inside its own 2s window
   // regardless (20260766) — the hold is what makes that refusal never need to happen.
@@ -660,8 +665,15 @@ function ParagraphReaderImpl({
                     <em className="sense__reading">{displayHeadword(s, hover.word).reading} </em>
                   )}
                   {s.translation}
+                  {/* A saved sense shows its confidence as the shared DOTS, never a
+                      "✓ n/5": that ✓ sat beside the ＋ and read as "added to a list" even
+                      when the word had only been saved to ALL (the first ＋ click) and the
+                      list menu was dismissed. Same readout WordResults uses. Inert here —
+                      the card's own "Forgot" acts on the whole word. */}
                   {saved.has(s.wordId) && (
-                    <em className="sense__conf"> ✓ {confidence.get(s.wordId) ?? 0}/5</em>
+                    <span className="sense__conf">
+                      <ConfidenceDots rating={confidence.get(s.wordId) ?? 0} />
+                    </span>
                   )}
                 </span>
                 {/* Already-saved senses start armed, so a click files them into a list. */}

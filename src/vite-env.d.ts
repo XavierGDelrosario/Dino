@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
   /** "1" once the Supabase project's Apple provider is configured; shows the Apple button (AuthPage). */
   readonly VITE_APPLE_SIGNIN?: string;
+  /** Base URL for lesson files. Unset = the project's public `lessons` bucket; see services/lessons/source.ts. */
+  readonly VITE_LESSONS_URL?: string;
 }
 
 interface ImportMeta {

@@ -21,14 +21,12 @@ Order **topical, not priority** — priority is in each note.
 - **Cost:** `ANTHROPIC_API_KEY` secret + generations/month quota
 - **Feature:** domain paragraph quiz ("paragraph at level X from these seeds").
 
-#### Lessons — authored grammar explanations `[new Learn section]`
-- **Content in the DB, not the bundle** — `lessons`
-- **Examples render through `ParagraphReader`, never plain.** `useSenseExampleReader` already
-  takes an N-length `texts` array and batches ONE lookup — that is the renderer's engine.
-- **Learn section registry.** `LearnView` hardcodes picker → bands → Articles,
-  and `onArticleOpen` is a one-off "this section claims the tab". Replace with
-  `services/learn/sections.ts` (`{ id, title, available(ctx), Component }` + an `onTakeover`
-  prop), mirroring the `language`/`difficulty`/`senses` registries. Stands alone.
+#### Lessons — authored lessons `[Learn section]`
+- **Deploy:** migration `20260796` (public `lessons` bucket) to staging + prod — check the
+  number on both first; then `npm run lessons:publish` per project.
+- **Content:** only `content/lessons/JA/hiragana-a-row.json` exists. Example words must be
+  ones kuromoji segments as a word in isolation (うえ/いえ don't).
+- **Completion is per-device** (localStorage) — a `user_id` table if it should sync.
 
 ###  Extension — browser capture surface `[new surface · extends #9/#18]`
 
@@ -131,7 +129,7 @@ pays off once **web** gloss volume is real. Media multiplies **sentence-gloss** 
 ### Sense enrichment — example sentence + source-language definition per meaning
 - **What's left is the CORPUS.** `data/sense_examples/ja.tsv` = **2,368 senses / 1,660 entries**.
 - **No coverage query** — batches are picked by hand. A script listing the highest-frequency
-  senses missing from the tsv would pick them from data instead.
+  senses missing from the tsv would pick them from data instead
 - **Authoring rules** (long form in the tsv header): demonstrate THAT sense · natural JA in
   the word's register · short enough for a hover card · definitions as a monolingual
   dictionary writes them, carrying the collocation/negation habits a gloss cannot (遜色

@@ -111,6 +111,14 @@ export function ListView({
   // `active` gates the word stream: while the overview is up, nothing loads rows.
   const L = useLists(userId);
   const { t } = useI18n();
+  // The tab's FIRST load shows the page loader and nothing else — not the list chips
+  // ("+ New list") or the sort row on an empty table — until both the words and the
+  // lists have arrived, so the screen appears whole. Latched once ready: switching to a
+  // list later must not blank the tab back to the loader.
+  const [everReady, setEverReady] = useState(false);
+  useEffect(() => {
+    if (L.status === "ready" && L.listsLoaded) setEverReady(true);
+  }, [L.status, L.listsLoaded]);
   const selectedList = L.lists.find((l) => l.listId === L.selectedListId) ?? null;
 
   // The overview's own data — one aggregate query, no words. Re-fetched every time the
@@ -285,6 +293,14 @@ export function ListView({
   const currentPage = Math.min(page, pageCount - 1);
   const pageStart = currentPage * PAGE_SIZE;
   const shown = rows.slice(pageStart, pageStart + PAGE_SIZE);
+
+  if (!browsing && !everReady && L.status !== "error") {
+    return (
+      <section className="lists">
+        <PageLoading />
+      </section>
+    );
+  }
 
   if (browsing && overviewSupported) {
     return (
@@ -520,6 +536,8 @@ export function ListView({
 
       <ErrorText message={L.error} />
 
+      {/* Later loads only (a list switched to before ALL finished streaming); the first
+          load returned the page loader above. */}
       {L.status === "loading" && <PageLoading inline />}
 
       {L.status === "ready" && L.words.length === 0 && (

@@ -413,10 +413,6 @@
   background: var(--accent);
   color: var(--on-accent);
 }
-.card-add.is-saved {
-  color: var(--success);
-  cursor: default;
-}
 
 .flashcard[role="button"] {
   cursor: pointer;

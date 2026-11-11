@@ -37,6 +37,13 @@ export type CalibrationStatus = "loading" | "swiping" | "done" | "unavailable" |
 const KNOWN_WORD_STABILITY = 40;
 const PER_BAND_FETCH = 5; // words per band per fetch
 const DECK_LOW = 3; // refill when this few cards remain
+/**
+ * Answers THIS sitting needs before Finish is offered. The level reads every answer
+ * ever given, so on a retake the old ones alone are already "sufficient" — and Finish
+ * lit up before a single new card was rated, offering to commit a result this sitting
+ * had added nothing to.
+ */
+export const MIN_SITTING_ANSWERS = 10;
 
 // GRAMMATICAL / BOUND JMdict POS — an entry whose senses are ONLY these ("は", "第")
 // isn't a standalone word a learner can self-rate. Mirrors learn_words_at_band's
@@ -238,6 +245,7 @@ export function useCalibration(
     void setUserLevel(userId, l.level).catch((e) => console.warn("calibration: persist level failed", e));
   }, [userId, live, recompute]);
 
+  const canFinish = (live?.sufficient ?? false) && known + unknown >= MIN_SITTING_ANSWERS;
   const framework = proficiencyFrameworkFor(langsRef.current.learning);
   const bandLabel = live && live.band > 0 && framework ? labelForBand(framework, live.band) : null;
 
@@ -259,6 +267,8 @@ export function useCalibration(
     restart: load,
     /** The live placement level (perBand / band / sufficient / needMore). */
     live,
+    /** Finish may be offered: enough evidence overall AND enough answers this sitting. */
+    canFinish,
     /** Learner-facing label of the provisional/determined band ("N3"), or null. */
     bandLabel,
     known,

@@ -32,6 +32,7 @@ import {
   orderSensesForInput,
   parseAllowedOrigins,
   parseLearnRequest,
+  levelledLearnCard,
   projectMany,
   projectRows,
   resolvePerInputWithCandidates,
@@ -1352,9 +1353,12 @@ async function handleRequest(req: Request): Promise<Response> {
         supabase, headwords, sourceLang, targetLang, req.headers.get("Authorization"),
         false, true,
       );
+      // Level-tagged senses only, the picked band first (levelledLearnCard) — a card
+      // with no levelled sense is dropped rather than dealt without a level.
       const cards = entries
         .filter((e) => e.translated && e.words.length > 0)
-        .map((e) => e.words);
+        .map((e) => levelledLearnCard(e.words, band))
+        .filter((card) => card.length > 0);
       return reply({ cards });
     } catch (e) {
       console.error("learn resolve failed:", e); // detail server-side only

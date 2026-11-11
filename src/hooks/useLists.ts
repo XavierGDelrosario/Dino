@@ -267,6 +267,8 @@ export function useLists(userId: string) {
 
   return {
     lists,
+    /** The user's lists have arrived (they load in parallel with the words). */
+    listsLoaded,
     selectedListId,
     setSelectedListId,
     words,

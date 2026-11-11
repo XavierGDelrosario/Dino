@@ -51,6 +51,7 @@ vi.mock("@/hooks/useLists", () => ({
     words,
     fullyLoaded: true,
     status: "ready",
+    listsLoaded: true,
     error: null,
     addCustomWord: vi.fn(),
     lookupDictionary: vi.fn(),

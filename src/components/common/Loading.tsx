@@ -53,15 +53,17 @@ export function SplashScreen() {
  * all — showed ONLY "Privacy · Terms · Support" and the data credits, which read as the
  * app having opened the wrong page.
  *
- * `inline`: a loader inside a tab section (Lists, Learn, Articles) — smaller, and no
- * minimum height, so the section's own controls above it don't jump.
+ * `inline`: a loader for something SMALLER than a page — a section inside a tab
+ * (new words being drawn, the Articles browse, a lazily-loaded Learn section). No
+ * mascot and no minimum height: just the message and the dots, so a small wait doesn't
+ * read like the app restarting. The mascot is for pages and tabs (the non-inline form).
  */
 export function PageLoading({ text, inline = false }: { text?: string; inline?: boolean }) {
   const label = text?.replace(TRAILING_ELLIPSIS, "");
   return (
     <div className={`pageloading${inline ? " pageloading--inline" : ""}`} role="status" aria-label={label || "Loading"}>
       <NoFooter />
-      <img className="pageloading__icon" src="/dino-icon.png" alt="" />
+      {!inline && <img className="pageloading__icon" src="/dino-icon.png" alt="" />}
       {label && <p className="pageloading__text">{label}</p>}
       <LoadingDots />
     </div>

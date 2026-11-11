@@ -13,7 +13,7 @@
 // answers to "what am I learning", and the placement quiz, the bands and Articles had
 // to be kept agreeing with whichever one the user had last touched.
 import { NoFooter } from "../components/common/NoFooter";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { listUserLists, createList, type List } from "../services/lists";
 import {
   proficiencyFrameworkFor,
@@ -24,12 +24,7 @@ import { getUserProficiencyBand } from "../services/calibration";
 import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
 import { fetchLearnWords, nextLearnBatch, LEARN_BATCH } from "../services/learn";
 import { CalibrationView } from "./CalibrationView";
-// Lazy, like HomeView loaded it: Articles is a whole second surface (browse + the
-// article analysis + its reader), and folding it into Learn's chunk would make the
-// tab that everyone opens pay for the one they might not. It renders INLINE below the
-// band buttons (see the bottom of the return), so the split is about bytes, not about
-// whether the surface is visible.
-const MediaView = lazy(() => import("./MediaView").then((m) => ({ default: m.MediaView })));
+import { LEARN_SECTIONS } from "./learn/sections";
 import {
   otherLanguage,
   type LangCode,
@@ -92,12 +87,23 @@ export function LearnView({ userId }: { userId: string }) {
   // not shown here.) Reloaded when calibration finishes.
   const [level, setLevel] = useState<number | null>(null);
   const [calibrating, setCalibrating] = useState(false);
-  // Articles (the former Media tab) is a SECTION of Learn rather than a fifth tab or a
-  // button that leads to one: browsing real news is one way of learning new words, the
-  // same as drawing them from a band, so it sits under the bands as the other way in.
-  // The one thing it still takes over for is the article ANALYSIS, which renders in the
-  // embedded view's own slot — so when it opens, this tab's chrome folds away.
-  const [articleOpen, setArticleOpen] = useState(false);
+  // The sections under the bands (Lessons, Articles — ./learn/sections) are the other
+  // ways into new material. One of them can TAKE OVER the tab (an article analysis, an
+  // open lesson); this tab's chrome and the other sections then fold away. Keyed by
+  // section id, so two sections can never both believe they own the tab.
+  const [takeover, setTakeover] = useState<string | null>(null);
+  // One STABLE callback per section: MediaView reports through an effect that lists
+  // its callback as a dependency, so a fresh arrow every render would re-fire it.
+  const takeoverFor = useMemo(
+    () =>
+      Object.fromEntries(
+        LEARN_SECTIONS.map(({ id }) => [
+          id,
+          (open: boolean) => setTakeover((cur) => (open ? id : cur === id ? null : cur)),
+        ]),
+      ),
+    [],
+  );
   const loadLevel = () =>
     getUserProficiencyBand(userId)
       .then(setLevel)
@@ -224,12 +230,12 @@ export function LearnView({ userId }: { userId: string }) {
 
   return (
     <section className="review learn">
-      {/* Everything above the Articles section hides while the article ANALYSIS is
-          open: it renders inside the embedded browse below, so leaving the picker and
-          the bands stacked on top of it would put a level quiz launcher over a page of
-          prose. The browse itself stays MOUNTED throughout — moving it in the tree to
-          "promote" it would remount it and lose the open article. */}
-      {!articleOpen && (
+      {/* Everything above the sections hides while one of them has taken over the tab
+          (an article analysis, a lesson): leaving the bands stacked on top would put a
+          level quiz launcher over a page of prose. The sections themselves stay MOUNTED
+          throughout — moving one in the tree to "promote" it would remount it and lose
+          what it has open. */}
+      {takeover == null && (
         <>
           {/* Placement-quiz launcher + the current calibrated level (if any). */}
           <div className="learn__level">
@@ -272,22 +278,25 @@ export function LearnView({ userId }: { userId: string }) {
             </div>
           )}
           {status === "error" && <ErrorText message={error} />}
-
-          <p className="learn__bandstitle learn__articlestitle">{t("learn.articles")}</p>
         </>
       )}
 
-      {/* The Wikinews browse ⇄ ★ Saved lists, in the flow under the bands — the second
-          way into new words, not a place you navigate to. It owns no language of its
-          own; this tab's picker is the one picker. */}
-      <Suspense fallback={<PageLoading inline />}>
-        <MediaView
-          userId={userId}
-          langs={{ learning, native: explainIn }}
-          ready={prefs.ready}
-          onArticleOpen={setArticleOpen}
-        />
-      </Suspense>
+      {/* The sections: hidden (not unmounted) while ANOTHER one owns the tab. */}
+      {LEARN_SECTIONS.map(({ id, titleKey, Component }) => (
+        <div key={id} className="learn__section" hidden={takeover != null && takeover !== id}>
+          {titleKey && takeover == null && (
+            <p className="learn__bandstitle learn__articlestitle">{t(titleKey)}</p>
+          )}
+          <Suspense fallback={<PageLoading inline />}>
+            <Component
+              userId={userId}
+              langs={{ learning, native: explainIn }}
+              ready={prefs.ready}
+              onTakeover={takeoverFor[id]}
+            />
+          </Suspense>
+        </div>
+      ))}
     </section>
   );
 }
