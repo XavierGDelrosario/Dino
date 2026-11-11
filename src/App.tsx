@@ -23,6 +23,8 @@ import { RowLimitNotice } from "./components/common/RowLimitNotice";
 import { useReminderSync } from "./hooks/useReminderSync";
 import { useStreak } from "./hooks/useStreak";
 import { HomeView } from "./views/HomeView";
+import { QuizPage } from "./views/QuizPage";
+import { parseQuizPath } from "./views/quizResults";
 import { AuthPage } from "./views/AuthPage";
 import { ProfilePage } from "./views/ProfilePage";
 import { HistoryPage } from "./views/HistoryPage";
@@ -202,6 +204,7 @@ export function App() {
         : path === "/delete-account" ? (isAnonymous ? <AuthPage mode="signup" /> : <DeleteAccountPage />)
         : path === "/admin" ? <AdminPage />
         : path === "/goals" ? <GoalsPage userId={userId} />
+        : parseQuizPath(path) ? <QuizPage key={path} userId={userId} {...parseQuizPath(path)!} />
         : <HomeView key={userId} userId={userId} />
       )}
 

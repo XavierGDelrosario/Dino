@@ -25,6 +25,7 @@ import { useLanguagePrefs } from "../hooks/useLanguagePrefs";
 import { fetchLearnWords, nextLearnBatch, LEARN_BATCH } from "../services/learn";
 import { CalibrationView } from "./CalibrationView";
 import { LEARN_SECTIONS } from "./learn/sections";
+import { LearnSection } from "../components/lessons/LearnSection";
 import {
   otherLanguage,
   type LangCode,
@@ -228,6 +229,35 @@ export function LearnView({ userId }: { userId: string }) {
     framework && band != null ? framework.bands.find((b) => b.value === band)?.label : null;
   const levelLabel = framework && level != null ? labelForBand(framework, level) : null;
 
+  // The registry's sections for one slot. Each is hidden (never unmounted) while ANOTHER
+  // section owns the tab, and its title folds away while ANY section does.
+  const sectionBody = (id: string, Component: (typeof LEARN_SECTIONS)[number]["Component"]) => (
+    <Suspense fallback={<PageLoading inline />}>
+      <Component
+        userId={userId}
+        langs={{ learning, native: explainIn }}
+        ready={prefs.ready}
+        userLevel={levelLabel}
+        onTakeover={takeoverFor[id]}
+      />
+    </Suspense>
+  );
+  const renderSections = (slot: "before" | "after") =>
+    LEARN_SECTIONS.filter((sec) => sec.slot === slot).map(({ id, titleKey, Component }) => (
+      <div key={id} className="learn__section" hidden={takeover != null && takeover !== id}>
+        {titleKey ? (
+          // A section with a registry title gets the collapsible heading here; one that
+          // titles itself (Lessons, Quizzes) wraps its own. While a section owns the tab
+          // its heading goes (`bare`) so a toggle can't fold away the open page.
+          <LearnSection id={id} title={t(titleKey)} bare={takeover != null}>
+            {sectionBody(id, Component)}
+          </LearnSection>
+        ) : (
+          sectionBody(id, Component)
+        )}
+      </div>
+    ));
+
   return (
     <section className="review learn">
       {/* Everything above the sections hides while one of them has taken over the tab
@@ -235,38 +265,45 @@ export function LearnView({ userId }: { userId: string }) {
           level quiz launcher over a page of prose. The sections themselves stay MOUNTED
           throughout — moving one in the tree to "promote" it would remount it and lose
           what it has open. */}
+      {/* Placement-quiz launcher + the current calibrated level (if any). Hidden, like
+          Vocab, while a section has taken over the tab. */}
       {takeover == null && (
-        <>
-          {/* Placement-quiz launcher + the current calibrated level (if any). */}
-          <div className="learn__level">
-            <span className="learn__levelnote">
-              {levelLabel ? t("learn.yourLevel", { level: levelLabel }) : t("learn.noLevel")}
-            </span>
-            <button className="btn btn--ghost" onClick={() => setCalibrating(true)}>
-              {levelLabel ? t("learn.recalibrate") : t("learn.findLevel")}
-            </button>
-          </div>
+        <div className="learn__level">
+          <span className="learn__levelnote">
+            {levelLabel ? t("learn.yourLevel", { level: levelLabel }) : t("learn.noLevel")}
+          </span>
+          <button className="btn btn--ghost" onClick={() => setCalibrating(true)}>
+            {levelLabel ? t("learn.recalibrate") : t("learn.findLevel")}
+          </button>
+        </div>
+      )}
 
+      {/* Sections ABOVE Vocab (Lessons). */}
+      {renderSections("before")}
+
+      {/* VOCAB — draw new words at a level. Everything here hides while a section has
+          taken over the tab (an article analysis, a lesson): leaving the bands stacked
+          on top would put a level quiz launcher over a page of prose. */}
+      {takeover == null && (
+        <section className="learn__vocab">
+          <LearnSection id="vocab" title={t("learn.learnNewWords")}>
           {/* No framework for the learning language (or none ingested yet) → nothing to
-              pick. Only the BANDS go; the Articles section below stays, because Wikinews is
+              pick. Only the BANDS go; the other sections stay, because Wikinews is
               browsable in a language that has no proficiency scale ingested and gating it
               behind one would delete the surface for exactly those learners. */}
           {framework ? (
-            <>
-              <p className="learn__bandstitle">{t("learn.learnNewWords")}</p>
-              <div className="tabs learn__bands" role="group" aria-label={t("learn.pickLevel")}>
-                {framework.bands.map((b) => (
-                  <button
-                    key={b.value}
-                    className={`tab${band === b.value ? " tab--active" : ""}`}
-                    onClick={() => start(b.value)}
-                    disabled={status === "loading"}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-            </>
+            <div className="tabs learn__bands" role="group" aria-label={t("learn.pickLevel")}>
+              {framework.bands.map((b) => (
+                <button
+                  key={b.value}
+                  className={`tab${band === b.value ? " tab--active" : ""}`}
+                  onClick={() => start(b.value)}
+                  disabled={status === "loading"}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
           ) : (
             <p className="review__msg">{t("learn.noFramework")}</p>
           )}
@@ -278,25 +315,12 @@ export function LearnView({ userId }: { userId: string }) {
             </div>
           )}
           {status === "error" && <ErrorText message={error} />}
-        </>
+          </LearnSection>
+        </section>
       )}
 
-      {/* The sections: hidden (not unmounted) while ANOTHER one owns the tab. */}
-      {LEARN_SECTIONS.map(({ id, titleKey, Component }) => (
-        <div key={id} className="learn__section" hidden={takeover != null && takeover !== id}>
-          {titleKey && takeover == null && (
-            <p className="learn__bandstitle learn__articlestitle">{t(titleKey)}</p>
-          )}
-          <Suspense fallback={<PageLoading inline />}>
-            <Component
-              userId={userId}
-              langs={{ learning, native: explainIn }}
-              ready={prefs.ready}
-              onTakeover={takeoverFor[id]}
-            />
-          </Suspense>
-        </div>
-      ))}
+      {/* Sections BELOW Vocab (Quizzes, Articles). */}
+      {renderSections("after")}
     </section>
   );
 }

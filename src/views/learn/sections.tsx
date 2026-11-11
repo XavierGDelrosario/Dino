@@ -1,6 +1,6 @@
 // =========================================================
-// Learn SECTION registry — the ways into new material that stack under the level bands
-// (Lessons, Articles, …). Mirrors the language / difficulty / senses registries: a new
+// Learn SECTION registry — the ways into new material that stack around the Vocab
+// block (the level bands): Lessons above it; Quizzes and Articles below. Mirrors the language / difficulty / senses registries: a new
 // section is one entry here, and LearnView knows nothing about any particular one.
 //
 // The contract every section gets:
@@ -24,11 +24,18 @@ export interface LearnSectionProps {
   userId: string;
   langs: { learning: LangCode; native: LangCode };
   ready: boolean;
+  /** The user's estimated band label ("N3"), or null — opens that level's group first. */
+  userLevel: string | null;
   onTakeover: (open: boolean) => void;
 }
 
 export interface LearnSection {
   id: string;
+  /**
+   * Where it stacks relative to LearnView's own Vocab block (the level bands): "before"
+   * sections render above it, "after" below. Within a slot, registry order.
+   */
+  slot: "before" | "after";
   /** A heading LearnView renders above the section. Omit when the section titles itself
    *  (e.g. Lessons, which hides entirely for a language with nothing published). */
   titleKey?: MessageKey;
@@ -39,15 +46,24 @@ export interface LearnSection {
 export const LEARN_SECTIONS: readonly LearnSection[] = [
   {
     id: "lessons",
+    slot: "before",
     Component: lazy(() => import("../LessonsSection").then((m) => ({ default: m.LessonsSection }))),
   },
   {
+    id: "quizzes",
+    slot: "after",
+    Component: lazy(() => import("../QuizzesSection").then((m) => ({ default: m.QuizzesSection }))),
+  },
+  {
     id: "articles",
+    slot: "after",
     titleKey: "learn.articles",
     // MediaView predates the registry; adapt its `onArticleOpen` to the shared contract.
     Component: lazy(() =>
       import("../MediaView").then(({ MediaView }) => ({
-        default: ({ onTakeover, ...rest }: LearnSectionProps) => <MediaView {...rest} onArticleOpen={onTakeover} />,
+        default: ({ onTakeover, userId, langs, ready }: LearnSectionProps) => (
+          <MediaView userId={userId} langs={langs} ready={ready} onArticleOpen={onTakeover} />
+        ),
       })),
     ),
   },

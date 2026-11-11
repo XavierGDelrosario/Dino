@@ -22,9 +22,8 @@ Order **topical, not priority** — priority is in each note.
 - **Feature:** domain paragraph quiz ("paragraph at level X from these seeds").
 
 #### Lessons — authored lessons `[Learn section]`
-- **Deploy:** migration `20260796` (public `lessons` bucket) to staging + prod — check the
-  number on both first; then `npm run lessons:publish` per project.
-- **Content:** only `content/lessons/JA/hiragana-a-row.json` exists. Example words must be
+- **Content:** only one sample lesson (`content/lessons/JA/hiragana-a-row.json`) and one
+  sample quiz (`content/lessons/JA/quizzes/hiragana-a-row-check.json`) exist. Example words must be
   ones kuromoji segments as a word in isolation (うえ/いえ don't).
 - **Completion is per-device** (localStorage) — a `user_id` table if it should sync.
 
