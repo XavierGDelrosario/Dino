@@ -12,9 +12,38 @@
 #
 # The publishable key is public; pulled from the chosen env file. No secrets are
 # baked beyond that public key.
+#
+# CI mode (Xcode Cloud — ios/App/ci_scripts/ci_post_clone.sh):
+#   ./scripts/build-ios.sh --from-env
+# There is no .env.deploy in a clone, so the backend comes straight from the
+# environment: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (the publishable key) must
+# be set; any other VITE_* passes through to Vite unchanged.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+sync_ios() {
+  if [[ -d ios ]]; then
+    echo "→ syncing into ios/…"
+    ./node_modules/.bin/cap sync ios
+    echo "✓ built + synced. Open Xcode with: npm run ios:open"
+  else
+    echo "⚠ ios/ not found — run \`npx cap add ios\` first (needs Xcode + CocoaPods), then re-run."
+  fi
+}
+
+if [[ "${1:-}" == "--from-env" ]]; then
+  : "${VITE_SUPABASE_URL:?set VITE_SUPABASE_URL (https://<ref>.supabase.co) in the CI environment}"
+  : "${VITE_SUPABASE_ANON_KEY:?set VITE_SUPABASE_ANON_KEY (the publishable key) in the CI environment}"
+  if [[ "$VITE_SUPABASE_URL" != https://*.supabase.co ]]; then
+    echo "✗ VITE_SUPABASE_URL must be a hosted https://<ref>.supabase.co URL (got '$VITE_SUPABASE_URL')" >&2
+    exit 1
+  fi
+  echo "→ building web app against $VITE_SUPABASE_URL (from environment)…"
+  npm run build
+  sync_ios
+  exit 0
+fi
 
 # Resolve the target env file from --staging / --prod / DINO_ENV (default STAGING).
 [[ "${1:-}" == "--staging" ]] && DINO_ENV="staging"
@@ -44,10 +73,4 @@ if [[ -z "${PUB:-}" ]]; then echo "✗ could not resolve the prod publishable ke
 echo "→ building web app against $TARGET (https://${SUPABASE_PROJECT_REF}.supabase.co)…"
 VITE_SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co" VITE_SUPABASE_ANON_KEY="$PUB" npm run build
 
-if [[ -d ios ]]; then
-  echo "→ syncing into ios/…"
-  ./node_modules/.bin/cap sync ios
-  echo "✓ built + synced. Open Xcode with: npm run ios:open"
-else
-  echo "⚠ ios/ not found — run \`npx cap add ios\` first (needs Xcode + CocoaPods), then re-run."
-fi
+sync_ios

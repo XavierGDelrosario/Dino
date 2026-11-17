@@ -197,12 +197,11 @@ screenshots, the app record, Apple credentials.
 
 - **Build blocker:** uploads need **Xcode 26 / iOS 26 SDK** (since 2026-04-28). The dev
   Mac (2014 MBP, OCLP) stays on Sonoma + Xcode 16.2 for device installs — **no Sequoia
-  upgrade; archive in Xcode Cloud** (decided 2026-11-03). Needs the paid membership.
-  Left: `ci_scripts/ci_post_clone.sh` (Node + CocoaPods, `npm install`, prod web build,
-  `cap sync` — Pods + web bundle are gitignored) · `build-ios.sh` reads Xcode Cloud env
-  vars instead of the absent `.env.deploy` · final checks on the TestFlight build.
-- **Enroll as Individual** ($99/yr)
-  (those are nonprofit/edu/gov only).
+  upgrade; archive in Xcode Cloud** (decided 2026-11-03). Repo side is in
+  (`ios/App/ci_scripts/ci_post_clone.sh`, shared `App` scheme, `build-ios.sh --from-env`).
+  Left: create the workflow in Xcode (Product → Xcode Cloud → Create Workflow) — Xcode
+  **Latest Release (26)**, Archive · iOS, env `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+  (prod publishable key), post-action TestFlight internal · final checks on the TestFlight build.
 - **Free, no IAP → Free Apps agreement only**
 - **EU DSA trader status** is asked before EU distribution: free + pre-revenue 
 
