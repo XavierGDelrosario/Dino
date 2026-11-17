@@ -145,9 +145,9 @@ declares mild profanity.
 
 ## 6. Before you submit
 
-- [ ] Join the Apple Developer Program **as an Individual** ($99/yr). The current
-      signing identity is a free-team "Apple Development" cert, which cannot distribute.
-      Then point `DEVELOPMENT_TEAM` at the paid team.
+- [x] Join the Apple Developer Program **as an Individual** ($99/yr) — active 2026-11-17.
+      The paid team kept the same ID (`DR9SR5J274`), so `DEVELOPMENT_TEAM` needs no change;
+      device profiles now last a year. Distribution signing is cloud-managed by Xcode Cloud.
 - [ ] Build with **Xcode 26 / iOS 26 SDK** in **Xcode Cloud** — required for every
       upload since 2026-04-28; Xcode 16.2 builds are refused at upload (see `docs/TODO.md`).
 - [ ] Privacy Policy names the operator (legal name + contact) and the Terms carry a
